@@ -1,0 +1,23 @@
+databaseChangeLog:
+  - changeSet:
+      id: 000-create-project-schemas
+      author: vitorfernandes
+      changes:
+        # Schema para Autenticação e Segurança
+        - sql:
+            sql: CREATE SCHEMA IF NOT EXISTS auth;
+        # Schema para Cadastros Gerais (Clientes, Produtos, Fornecedores)
+        - sql:
+            sql: CREATE SCHEMA IF NOT EXISTS cadastros;
+        # Schema para Vendas (Pedidos, Notas Fiscais, Carrinho)
+        - sql:
+            sql: CREATE SCHEMA IF NOT EXISTS vendas;
+        # Schema para Financeiro (Contas a Pagar/Receber, Fluxo de Caixa)
+        - sql:
+            sql: CREATE SCHEMA IF NOT EXISTS financeiro;
+        # Schema para Logística (Estoque, Entregas, Rastreio)
+        - sql:
+            sql: CREATE SCHEMA IF NOT EXISTS logistica;
+        # Schema para Recursos Humanos (Funcionários, Folha, Ponto)
+        - sql:
+            sql: CREATE SCHEMA IF NOT EXISTS rh;
