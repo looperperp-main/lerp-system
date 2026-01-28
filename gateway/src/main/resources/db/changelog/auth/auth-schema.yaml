@@ -6,6 +6,7 @@ databaseChangeLog:
       author: erp-team
       changes:
         - createTable:
+            schemaName: auth
             tableName: roles
             columns:
               - column:
