@@ -1,9 +1,79 @@
+#YAML
+version: '3.8'
+
 services:
   postgres:
     image: 'postgres:latest'
+    container_name: erp-postgres
     environment:
-      - 'POSTGRES_DB=mydatabase'
-      - 'POSTGRES_PASSWORD=secret'
-      - 'POSTGRES_USER=myuser'
+      - 'POSTGRES_DB=loop-erp'
+      - 'POSTGRES_PASSWORD=eRmUstrI'
+      - 'POSTGRES_USER=admin-user'
     ports:
-      - '5432'
+      - '5432:5432'
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin-user"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - loop-erp-network
+
+  zookeeper:
+    image: 'confluentinc/cp-zookeeper:7.6.0'
+    container_name: erp-zookeeper
+    ports:
+      - '2181:2181'
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - loop-erp-network
+
+  kafka:
+    image: 'confluentinc/cp-kafka:7.6.0'
+    container_name: erp-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - '9092:9092'
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: EXTERNAL:PLAINTEXT,INTERNAL:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: EXTERNAL://kafka:29092,INTERNAL://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    ports:
+      - "8080:8080"
+    depends_on:
+      - kafka
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=local
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:29092
+      - KAFKA_CLUSTERS_0_ZOOKEEPER=zookeeper:2181
+    networks:
+      - loop-erp-network
+
+  adminer:
+    image: adminer
+    container_name: erp-adminer
+    ports:
+      - "8081:8080"
+    networks:
+      - loop-erp-network
+
+volumes:
+  pg_data:
+  kafka_data:
+
+networks:
+  loop-erp-network:
+    driver: bridge
