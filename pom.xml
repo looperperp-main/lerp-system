@@ -37,6 +37,7 @@
         <module>cadastro-service</module>
         <module>common</module>
         <module>gateway</module>
+        <module>liquibase-service</module>
     </modules>
     <dependencies>
         <dependency>
