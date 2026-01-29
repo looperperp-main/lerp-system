@@ -4,9 +4,9 @@ databaseChangeLog:
       file:  init/000-initial-schemas.yaml
       relativeToChangelogFile: true
 
-#  - include:
-#      file: db/changelog/auth/auth-schema.yaml
-#      relativeToChangelogFile: true
+  - include:
+      file: auth/auth-schema-001.yaml
+      relativeToChangelogFile: true
 #  - include:
 #      file: db/changelog/cadastro/cadastro-schema.yaml
 #      relativeToChangelogFile: true
