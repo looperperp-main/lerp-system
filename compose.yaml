@@ -3,7 +3,7 @@ version: '3.8'
 
 services:
   postgres:
-    image: 'postgres:latest'
+    image: 'postgres:17-alpine'
     container_name: erp-postgres
     environment:
       - 'POSTGRES_DB=loop-erp'
@@ -14,7 +14,7 @@ services:
     volumes:
       - pg_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U admin-user"]
+      test: ["CMD-SHELL", "pg_isready -U admin-user -d loop-erp"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -29,6 +29,11 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+    healthcheck:
+      test: echo srvr | nc localhost 2181 || exit 1
+      interval: 5s
+      timeout: 10s
+      retries: 5
     networks:
       - loop-erp-network
 
@@ -36,7 +41,8 @@ services:
     image: 'confluentinc/cp-kafka:7.6.0'
     container_name: erp-kafka
     depends_on:
-      - zookeeper
+      zookeeper:
+        condition: service_healthy
     ports:
       - '9092:9092'
     environment:
@@ -44,9 +50,14 @@ services:
       KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: EXTERNAL:PLAINTEXT,INTERNAL:PLAINTEXT
       KAFKA_ADVERTISED_LISTENERS: EXTERNAL://kafka:29092,INTERNAL://localhost:9092
+
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+    networks:
+      - loop-erp-network
 
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
