@@ -21,6 +21,9 @@ public class LiquibaseApplication {
 
         String liquibaseEnabled = context.getEnvironment().getProperty("spring.liquibase.enabled");
         System.out.println("DEBUG: Liquibase Enabled? " + liquibaseEnabled);
+
+        String liquibaseDropfirst = context.getEnvironment().getProperty("spring.liquibase.drop-first");
+        System.out.println("DEBUG: Drop First? " + liquibaseDropfirst);
     }
 
     @Bean
@@ -30,7 +33,7 @@ public class LiquibaseApplication {
         liquibase.setChangeLog("classpath:db/changelog/db.changelog-master.yaml");
 
         // Configurações do seu application.properties que precisamos passar manualmente aqui
-        liquibase.setDropFirst(true);
+        liquibase.setDropFirst(false);
         liquibase.setShouldRun(true);
         return liquibase;
     }

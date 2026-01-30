@@ -51,141 +51,142 @@ databaseChangeLog:
                   type: varchar(200)
                   constraints:
                     nullable: true
-              - addUniqueConstraint:
-                  tableName: tenant
-                  columnNames: name, cnpj
-                  constraintName: uq_tenant_name_cnpj
+        - addUniqueConstraint:
+            schemaName: auth
+            tableName: tenant
+            columnNames: name, cnpj
+            constraintName: uq_tenant_name_cnpj
 
-        # Criação da tabela de usuários
-        - changeSet:
-            id: 002-create-users-table
-            author: vitor fernandes ferreira
-            changes:
-              - createTable:
-                  tableName: users_account
-                  columns:
-                    - column:
-                        name: id
-                        type: bigint
-                        autoIncrement: true
-                        constraints:
-                          primaryKey: true
-                          nullable: false
-                    - column:
-                        name: tenant_id
-                        type: varchar(200)
-                        constraints:
-                          nullable: false
-                          unique: true
-                          foreignKeyName: fk_users_tenant_id
-                          references: tenant(id)
-                    - column:
-                        name: email
-                        type: varchar(255)
-                        constraints:
-                          nullable: false
-                          unique: true
-                    - column:
-                        name: password_hash
-                        type: varchar(255)
-                        constraints:
-                          nullable: false
-                    - column:
-                        name: display_name
-                        type: varchar(200)
-                        constraints:
-                          nullable: false
-                    - column:
-                        name: status
-                        type: boolean
-                        defaultValueBoolean: true
-                        constraints:
-                          nullable: false
-                    - column:
-                        name: locked_until
-                        type: timestamp
-                    - column:
-                        name: created_date
-                        type: timestamp
-                        defaultValueDate: CURRENT_TIMESTAMP
-                        constraints:
-                          nullable: false
-                    - column:
-                        name: created_by
-                        type: varchar(200)
-                        constraints:
-                          nullable: false
-                    - column:
-                        name: last_update_date
-                        type: timestamp
-                    - column:
-                        name: last_update_by
-                        type: varchar(200)
-                    - addUniqueConstraint:
-                        tableName: users-account
-                        columnNames: tenant_id, email
-                        constraintName: uq_tenant_email
+  # Criação da tabela de usuários
+  - changeSet:
+      id: 002-create-users-table
+      author: vitor fernandes ferreira
+      changes:
+        - createTable:
+            schemaName: auth
+            tableName: users_account
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    unique: true
+                    foreignKeyName: fk_users_tenant_id
+                    referencedTableSchemaName: auth
+                    references: auth.tenant(id)
+              - column:
+                  name: email
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: password_hash
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: display_name
+                  type: varchar(200)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: boolean
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+              - column:
+                  name: locked_until
+                  type: timestamp
+              - column:
+                  name: created_date
+                  type: timestamp
+                  defaultValueDate: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_by
+                  type: varchar(200)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_update_date
+                  type: timestamp
+              - column:
+                  name: last_update_by
+                  type: varchar(200)
+        - addUniqueConstraint:
+            schemaName: auth
+            tableName: users_account
+            columnNames: tenant_id, email
+            constraintName: uq_tenant_email
 
-        - changeSet:
-            id: 003-owner-marker-table
-            author: vitor fernandes ferreira
-            changes:
-              - createTable:
-                  tableName: owner_marker
-                  columns:
-                    - column:
-                        name: user_id
-                        type: bigint
-                        constraints:
-                          nullable: false
-                          foreignKeyName: fk_owner_user_id
-                          references: users_account(id)
-                    - column:
-                        name: enabled
-                        type: boolean
-                        defaultValue: false
+  - changeSet:
+      id: 003-owner-marker-table
+      author: vitor fernandes ferreira
+      changes:
+        - createTable:
+            schemaName: auth
+            tableName: owner_marker
+            columns:
+              - column:
+                  name: user_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_owner_user_id
+                    referencedTableSchemaName: auth
+                    references: auth.users_account(id)
+              - column:
+                  name: enabled
+                  type: boolean
+                  defaultValue: false
 
-        - changeSet:
-            id: 004-refresh_token-table
-            author: vitor fernandes ferreira
-            changes:
-              - createTable:
-                  tableName: refresh_token
-                  columns:
-                    - column:
-                        name: id
-                        type: bigint
-                        autoIncrement: true
-                        constraints:
-                          primaryKey: true
-                          nullable: false
-                    - column:
-                        name: user_id
-                        type: bigint
-                        constraints:
-                          nullable: false
-                          foreignKeyName: fk_owner_user_id
-                          references: users_account(id)
-                    - column:
-                        name: token_hash
-                        type: bigint
-                        constraints:
-                          nullable: false
-                    - column:
-                        name: user_id
-                        type: bigint
-                        constraints:
-                          nullable: false
-                          foreignKeyName: fk_owner_user_id
-                          references: users_account(id)
-                    - column:
-                        name: expires_at
-                        type: timestamp
-                        constraints:
-                          nullable: false
-                    - column:
-                        name: revoked_at
-                        type: timestamp
-                    - column:
-                        name: replaced_by_token_id
-                        type: bigint
+  - changeSet:
+      id: 004-refresh_token-table
+      author: vitor fernandes ferreira
+      changes:
+        - createTable:
+            schemaName: auth
+            tableName: refresh_token
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: token_hash
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_owner_user_id
+                    referencedTableSchemaName: auth
+                    references: auth.users_account(id)
+              - column:
+                  name: expires_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: revoked_at
+                  type: timestamp
+              - column:
+                  name: replaced_by_token_id
+                  type: bigint
