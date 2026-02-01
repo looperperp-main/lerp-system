@@ -2,3 +2,23 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+$primary-color: #7001FD;
+$text-color: #555555;
+$secondary-color: #1E2772;
+$gray-bg: #EEEEEE;
+
+*{
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,body{
+  height: 100%;
+}
+
+app-root {
+  display: block;
+  height: 100%;
+}

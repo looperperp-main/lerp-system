@@ -1,14 +1,19 @@
 <main>
-  <section>
+  <section class="form-section">
     <img ngSrc="svg/logo_tiny.svg" height="100" width="100"/>
-    <h2>Title</h2>
-    <button>Login</button>
-    <div>
-      <span>or</span>
+    <h2>{{ title }}</h2>
+    <ng-content></ng-content>
+    <div class="btn-container">
+      <button class="btn-primary">{{ primaryBtnText }}</button>
+      <div class="separator">
+        <div></div>
+        <span>or</span>
+        <div></div>
+      </div>
+      <button class="btn-secondary">{{ secondaryBtnText }}</button>
     </div>
-    <button>Login</button>
   </section>
-  <section>
+  <section class="main-section">
     <h1>Title</h1>
     <img ngSrc="svg/main-illustration.svg" height="683" width="683"/>
   </section>
