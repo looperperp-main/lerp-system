@@ -2,8 +2,27 @@
   title="Acesse sua conta"
   primaryBtnText   = "Logar"
   secondaryBtnText = "Requisitar Acesso"
+  (submit)="submit()"
+  (navigate)="navigate()"
 >
   <form [formGroup] = "loginForm">
-
+    <app-primary-input
+      formControlName="email"
+      inputName="email"
+      type="email"
+      label="E-mail"
+      placeholder="johndoe@gmail.com"
+    >
+      <img ngSrc="svg/email-icon.svg" width="20" height="20"/>
+    </app-primary-input>
+    <app-primary-input
+      inputName="password"
+      formControlName="password"
+      type="password"
+      label="Sua Senha"
+    >
+      <img ngSrc="svg/password-icon.svg" width="20" height="20"/>
+    </app-primary-input>
+    <span>Esqueceu sua senha?</span>
   </form>
 </app-default-login-layout>

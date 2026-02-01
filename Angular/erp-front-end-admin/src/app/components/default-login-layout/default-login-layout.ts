@@ -1,4 +1,4 @@
-import {Component, Input} from '@angular/core';
+import {Component, EventEmitter, Input, Output} from '@angular/core';
 import {NgOptimizedImage} from '@angular/common';
 
 @Component({
@@ -14,4 +14,14 @@ export class DefaultLoginLayout {
   @Input() title: string = "";
   @Input() primaryBtnText: string = "";
   @Input() secondaryBtnText: string = "";
+  @Output("submit") onSubmit = new EventEmitter<void>();
+  @Output("navigate") onNavigate = new EventEmitter<void>();
+
+  submit() {
+    this.onSubmit.emit();
+  }
+
+  navigate() {
+    this.onNavigate.emit();
+  }
 }
