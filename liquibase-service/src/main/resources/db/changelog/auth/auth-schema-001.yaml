@@ -146,6 +146,7 @@ databaseChangeLog:
                     foreignKeyName: fk_owner_user_id
                     referencedTableSchemaName: auth
                     references: auth.users_account(id)
+                    primaryKey: true
               - column:
                   name: enabled
                   type: boolean
