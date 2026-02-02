@@ -4,7 +4,11 @@
     <h2>{{ title }}</h2>
     <ng-content></ng-content>
     <div class="btn-container">
-      <button class="btn-primary" (click)="submit()">{{ primaryBtnText }}</button>
+      <button
+        class="btn-primary"
+        (click)="submit()"
+        [disabled]="disablePrimaryBtn"
+      >{{ primaryBtnText }}</button>
       <div class="separator">
         <div></div>
         <span>or</span>
