@@ -3,6 +3,8 @@
 @tailwind components;
 @tailwind utilities;
 
+@import "ngx-toastr/toastr";//TODO: Checar se preciso importar tudo, porque dependendo o node_modules vai ficar gigante
+
 //$primary-color: #7001FD;
 $primary-color: #389acf;
 $text-color: #555555;

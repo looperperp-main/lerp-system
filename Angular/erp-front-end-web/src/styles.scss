@@ -3,4 +3,7 @@
 @tailwind components;
 @tailwind utilities;
 
+@import "ngx-toastr/toastr";//TODO: Checar se preciso importar tudo, porque dependendo o node_modules vai ficar gigante
+
+
 /* Seus estilos globais virão abaixo */
