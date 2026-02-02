@@ -5,6 +5,7 @@ import {PrimaryInput} from '../../components/primary-input/primary-input';
 import {NgOptimizedImage} from '@angular/common';
 import {Router} from '@angular/router';
 import {LoginService} from './service/login';
+import {ToastrService} from 'ngx-toastr';
 
 @Component({
   selector: 'app-login',
@@ -19,7 +20,8 @@ export class Login {
 
   constructor(
     private router: Router,
-    private loginService: LoginService
+    private loginService: LoginService,
+    private toastService: ToastrService
   ) {
     this.loginForm = new FormGroup({
       email: new FormControl('', [Validators.required, Validators.email]),
@@ -31,8 +33,8 @@ export class Login {
     if (this.loginForm.valid) {
       console.log('Form is valid, perform login logic here');
       this.loginService.login(this.loginForm.value.email, this.loginForm.value.password).subscribe(
-        next => console.log("Sucesso"),//TODO: navegar para as outar páginas
-        error => console.log("Erro")
+        next => this.toastService.success("Login Feito com sucesso"),//TODO: navegar para as outar páginas
+        error => this.toastService.error("Erro ao fazer login! Verifique as credenciais ou tente novamente mais tarde.")
       );
     } else {
       console.log('Form is invalid, show validation errors');
