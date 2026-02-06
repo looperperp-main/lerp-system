@@ -3,7 +3,7 @@ package com.l.erp.authservice;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = "com.l.erp")
 public class AuthServiceApplication {
 
     public static void main(String[] args) {
