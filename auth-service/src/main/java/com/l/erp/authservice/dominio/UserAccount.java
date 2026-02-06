@@ -9,6 +9,7 @@ import lombok.Setter;
 
 import java.math.BigInteger;
 import java.time.Instant;
+import java.util.UUID;
 
 @Entity
 @Table(name = "users_account")
@@ -21,7 +22,7 @@ public class UserAccount {
     @Id
     @NotNull
     @GeneratedValue(strategy = GenerationType.UUID)
-    private BigInteger id;
+    private UUID id;
 
     @Column(name = "tenant_id")
     private BigInteger tenantId;
@@ -35,7 +36,7 @@ public class UserAccount {
     @Column(name = "display_name")
     private String displayName;
 
-    @Column(name = "active")
+    @Column(name = "status")
     private boolean active;
 
     @Column(name = "locked_until")

@@ -6,16 +6,21 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.ColumnDefault;
 
+import java.util.UUID;
+
 
 @Getter
 @Setter
 @Entity
 @Table(name = "owner_marker", schema = "auth")
 public class OwnerMarker {
-    @NotNull
+    @Id
+    @Column(name = "user_id")
+    private UUID Id;
+
+    @MapsId
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
-    @Id
     private UserAccount user;
 
     @ColumnDefault("false")
