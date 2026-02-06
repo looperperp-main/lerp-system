@@ -9,6 +9,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -48,6 +51,16 @@ public class SecurityFilter extends OncePerRequestFilter {
                     response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                     return;
                 }
+
+                List<SimpleGrantedAuthority> authorities = roles == null
+                        ? List.of()
+                        : roles.stream().map(SimpleGrantedAuthority::new).toList();
+
+                var authentication = new UsernamePasswordAuthenticationToken(
+                        decodedJWT.getSubject(), null, authorities
+                );
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+
                 Map<String, String> extraHeaders = new HashMap<>();
                 extraHeaders.put("X-Tenant-Id", tenantId);
                 extraHeaders.put("X-Is-Owner", String.valueOf(isOwner));
