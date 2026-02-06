@@ -8,6 +8,9 @@ import com.l.erp.authservice.repositorios.OwnerMarkerRepository;
 import com.l.erp.authservice.repositorios.UserAccountRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
+
+import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 import java.util.List;
 
@@ -33,10 +36,10 @@ public class AuthService {
 
     public LoginResponse login(String email, String password){
         UserAccount user = userRepo.findByEmail(email).
-                orElseThrow(() -> new RuntimeException("Credenciais Inválidas"));
+                orElseThrow(() -> new ResponseStatusException(UNAUTHORIZED,"Credenciais Inválidas - Email incorreto"));
 
         if (!passwordEncoder.matches(password, user.getPasswordHash())) {
-            throw new RuntimeException("Credenciais Inválidas");
+            throw new ResponseStatusException(UNAUTHORIZED, "Credenciais Inválidas - Senha Incorreta");
         }
 
         boolean isOwner = ownerRepo.existsByUser_IdAndEnabledTrue(user.getId());

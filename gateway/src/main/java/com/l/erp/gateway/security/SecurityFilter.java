@@ -25,7 +25,7 @@ public class SecurityFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
         String path = request.getRequestURI();
 
-        if (path.startsWith("/auth/login") || path.startsWith("/auth/refresh")) {
+        if (path.startsWith("/auth/login") || path.startsWith("/auth/refresh") || path.startsWith("/auth/logout")) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -42,14 +42,14 @@ public class SecurityFilter extends OncePerRequestFilter {
 
                 List<String> roles = decodedJWT.getClaim("roles").asList(String.class);
                 Boolean isOwner = decodedJWT.getClaim("isOwner").asBoolean();
-                Long tenantId = decodedJWT.getClaim("tenantId").asLong();
+                String tenantId = decodedJWT.getClaim("tenantId").asString();
 
                 if (path.startsWith("/auth/") && (roles == null || !roles.contains("ROLE_OWNER"))) {
                     response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                     return;
                 }
                 Map<String, String> extraHeaders = new HashMap<>();
-                extraHeaders.put("X-Tenant-Id", String.valueOf(tenantId));
+                extraHeaders.put("X-Tenant-Id", tenantId);
                 extraHeaders.put("X-Is-Owner", String.valueOf(isOwner));
 
                 HttpServletRequest wrappedRequest = new HttpServletRequestWrapper(request){
