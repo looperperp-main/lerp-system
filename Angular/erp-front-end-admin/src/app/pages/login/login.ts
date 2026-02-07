@@ -33,7 +33,10 @@ export class Login {
     if (this.loginForm.valid) {
       console.log('Form is valid, perform login logic here');
       this.loginService.login(this.loginForm.value.email, this.loginForm.value.password).subscribe(
-        next => this.toastService.success("Login Feito com sucesso"),//TODO: navegar para as outar páginas
+        next => {
+          this.toastService.success("Login Feito com sucesso");
+          this.router.navigate(['/admin']);
+        },//TODO: navegar para as outar páginas
         error => this.toastService.error("Erro ao fazer login! Verifique as credenciais ou tente novamente mais tarde.")
       );
     } else {
