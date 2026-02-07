@@ -41,16 +41,6 @@ public class TokenService {
         }
     }
 
-    public String validateToken(String token){
-        try{
-            Algorithm algorithm = Algorithm.HMAC256(secret);
-            return JWT.require(algorithm)
-                    .withIssuer("L-ERP-auth-service").build().verify(token).getSubject();
-        } catch (JWTVerificationException ex){
-            return null;
-        }
-    }
-
     private Instant generateExpirationDate(){
         return LocalDateTime.now().plus(1, ChronoUnit.HOURS).toInstant(ZoneOffset.of( "-03:00"));
     }

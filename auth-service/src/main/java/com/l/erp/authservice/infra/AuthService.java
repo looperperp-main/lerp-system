@@ -2,6 +2,7 @@ package com.l.erp.authservice.infra;
 
 import com.l.erp.authservice.api.dto.LoginResponse;
 import com.l.erp.authservice.api.dto.RefreshResponse;
+import com.l.erp.authservice.api.mappers.AuthMapper;
 import com.l.erp.authservice.dominio.RefreshToken;
 import com.l.erp.authservice.dominio.UserAccount;
 import com.l.erp.authservice.repositorios.OwnerMarkerRepository;
@@ -21,17 +22,20 @@ public class AuthService {
     private final TokenService tokenService;
     private final RefreshTokenService refreshTokenService;
     private final PasswordEncoder passwordEncoder;
+    private final AuthMapper authMapper;
 
     public AuthService(UserAccountRepository userRepo,
                        OwnerMarkerRepository ownerRepo,
                        TokenService tokenService,
                        RefreshTokenService refreshTokenService,
-                       PasswordEncoder passwordEncoder) {
+                       PasswordEncoder passwordEncoder,
+                       AuthMapper authMapper) {
         this.userRepo = userRepo;
         this.ownerRepo = ownerRepo;
         this.tokenService = tokenService;
         this.refreshTokenService = refreshTokenService;
         this.passwordEncoder = passwordEncoder;
+        this.authMapper = authMapper;
     }
 
     public LoginResponse login(String email, String password){
@@ -49,7 +53,7 @@ public class AuthService {
 
         RefreshTokenService.TokenPair tokenPair = refreshTokenService.issue(user);
 
-        return new LoginResponse(user.getDisplayName(), jwt, tokenPair.rawToken());
+        return authMapper.toLoginResponse(user, jwt, tokenPair.rawToken());
 
     }
 
