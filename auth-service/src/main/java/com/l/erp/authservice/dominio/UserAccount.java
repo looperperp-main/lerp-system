@@ -25,7 +25,7 @@ public class UserAccount {
     private UUID id;
 
     @Column(name = "tenant_id")
-    private BigInteger tenantId;
+    private Long tenantId;
 
     @Column(name = "email")
     private String email;
