@@ -12,3 +12,4 @@ export const authGuard: CanActivateFn = () => {
   router.navigate(['/login-admin']);
   return false;
 };
+//TODO: colocar pra revogar a sessao depois de muito tempo
