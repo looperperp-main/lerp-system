@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.annotation.Secured;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -46,19 +47,22 @@ public class TenantController {
 
     @GetMapping("/tenants/{tenantId}")
     @Secured(Roles.APP_OWNER)
-    public void getTenantById() {
+    public ResponseEntity<TenantDTO> getTenantById(@Valid @PathVariable Long tenantId) {
         log.debug("REST request to get the given tenant");
+        return ResponseEntity.ok(tenantService.getTenantById(tenantId));
     }
 
-    @PutMapping("/tenants/{tenantId}")
+    @PutMapping("/tenants")
     @Secured(Roles.APP_OWNER)
-    public void updateTenantById() {
+    public ResponseEntity<TenantDTO> updateTenant(@Valid @RequestBody TenantDTO tenantDTO) {
         log.debug("REST request to update the given tenant");
+        return ResponseEntity.ok(tenantService.updateTenant(tenantDTO));
     }
 
     @PatchMapping("/tenants/{tenantId}/status")
     @Secured(Roles.APP_OWNER)
-    public void updateTenantStatusById() {
+    public ResponseEntity<Void> updateTenantStatusById(@Valid @PathVariable Long tenantId, @Valid @RequestBody String status) {
         log.debug("REST request to update the status of the given tenant");
+        return ResponseEntity.of(tenantService.updateTenantStatusById(tenantId,status));
     }
 }
