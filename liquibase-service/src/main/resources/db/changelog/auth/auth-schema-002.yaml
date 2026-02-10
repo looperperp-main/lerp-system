@@ -1,39 +1,36 @@
-# Tabela Exemplo
-
 databaseChangeLog:
   - changeSet:
-      id: 001-tenant-table
-      author: vitor fernandes ferreira
+      id: 005-permission-table
+      author: erp-team
       changes:
         - createTable:
             schemaName: auth
-            tableName: tenant
+            tableName: permission
             columns:
               - column:
                   name: id
-                  type: bigint
-                  autoIncrement: true
+                  type: uuid
                   constraints:
                     primaryKey: true
-                    nullable: false
               - column:
-                  name: name
-                  type: varchar(200)
+                  name: code
+                  type: varchar(120)
                   constraints:
                     nullable: false
               - column:
-                  name: cnpj
-                  type: varchar(14)
+                  name: domain
+                  type: varchar(60)
                   constraints:
                     nullable: false
               - column:
-                  name: status
-                  type: varchar(30)
+                  name: description
+                  type: varchar(500)
                   constraints:
                     nullable: false
               - column:
-                  name: creation_date
+                  name: created_date
                   type: timestamp
+                  defaultValueDate: CURRENT_TIMESTAMP
                   constraints:
                     nullable: false
               - column:
@@ -42,36 +39,25 @@ databaseChangeLog:
                   constraints:
                     nullable: false
               - column:
-                  name: update_date
+                  name: last_update_date
                   type: timestamp
-                  constraints:
-                    nullable: true
               - column:
-                  name: last_updated_by
+                  name: last_update_by
                   type: varchar(200)
-                  constraints:
-                    nullable: true
-        - addUniqueConstraint:
-            schemaName: auth
-            tableName: tenant
-            columnNames: name, cnpj
-            constraintName: uq_tenant_name_cnpj
 
-  # Criação da tabela de usuários
   - changeSet:
-      id: 002-create-users-table
-      author: vitor fernandes ferreira
+      id: 006-role-table
+      author: erp-team
       changes:
         - createTable:
             schemaName: auth
-            tableName: users_account
+            tableName: role
             columns:
               - column:
                   name: id
                   type: uuid
                   constraints:
                     primaryKey: true
-                    nullable: false
               - column:
                   name: tenant_id
                   type: bigint
@@ -81,30 +67,10 @@ databaseChangeLog:
                     referencedTableSchemaName: auth
                     references: auth.tenant(id)
               - column:
-                  name: email
-                  type: varchar(255)
+                  name: name
+                  type: varchar(100)
                   constraints:
                     nullable: false
-                    unique: true
-              - column:
-                  name: password_hash
-                  type: varchar(255)
-                  constraints:
-                    nullable: false
-              - column:
-                  name: display_name
-                  type: varchar(200)
-                  constraints:
-                    nullable: false
-              - column:
-                  name: status
-                  type: boolean
-                  defaultValueBoolean: true
-                  constraints:
-                    nullable: false
-              - column:
-                  name: locked_until
-                  type: timestamp
               - column:
                   name: created_date
                   type: timestamp
@@ -124,68 +90,91 @@ databaseChangeLog:
                   type: varchar(200)
         - addUniqueConstraint:
             schemaName: auth
-            tableName: users_account
-            columnNames: tenant_id, email
-            constraintName: uq_tenant_email
+            tableName: role
+            columnNames: tenant_id, name
+            constraintName: uq_role_name_tenant
 
   - changeSet:
-      id: 003-owner-marker-table
-      author: vitor fernandes ferreira
+      id: 007-role-permission-table
+      author: erp-team
       changes:
         - createTable:
             schemaName: auth
-            tableName: owner_marker
+            tableName: role-permission
             columns:
+              - column:
+                  name: role_id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    foreignKeyName: fk_roles_id
+                    referencedTableSchemaName: auth
+                    references: auth.role(id)
+              - column:
+                  name: permission_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_permission_id
+                    referencedTableSchemaName: auth
+                    references: auth.permission(id)
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_role_permission_tenant_id
+                    referencedTableSchemaName: auth
+                    references: auth.tenant(id)
+
+
+
+  - changeSet:
+      id: 008-user-role-table
+      author: erp-team
+      changes:
+        - createTable:
+            schemaName: auth
+            tableName: user_role
+            columns:
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_user_role_tenant_id
+                    referencedTableSchemaName: auth
+                    references: auth.tenant(id)
               - column:
                   name: user_id
                   type: uuid
                   constraints:
                     nullable: false
-                    foreignKeyName: fk_owner_user_id
+                    foreignKeyName: fk_user_role_user_id
                     referencedTableSchemaName: auth
                     references: auth.users_account(id)
-                    primaryKey: true
               - column:
-                  name: enabled
-                  type: boolean
-                  defaultValue: false
-
-  - changeSet:
-      id: 004-refresh_token-table
-      author: vitor fernandes ferreira
-      changes:
-        - createTable:
-            schemaName: auth
-            tableName: refresh_token
-            columns:
-              - column:
-                  name: id
-                  type: bigint
-                  autoIncrement: true
-                  constraints:
-                    primaryKey: true
-                    nullable: false
-              - column:
-                  name: token_hash
-                  type: bigint
-                  constraints:
-                    nullable: false
-              - column:
-                  name: user_id
+                  name: role_id
                   type: uuid
                   constraints:
                     nullable: false
-                    foreignKeyName: fk_owner_user_id
+                    foreignKeyName: fk_user_role_role_id
                     referencedTableSchemaName: auth
-                    references: auth.users_account(id)
+                    references: auth.role(id)
+        - addPrimaryKey:
+            schemaName: auth
+            tableName: user_role
+            columnNames: tenant_id, user_id, role_id
+            constraintName: pk_user_role
+
+  - changeSet:
+      id: 009-user-role-tenant-index
+      author: erp-team
+      changes:
+        - createIndex:
+            schemaName: auth
+            tableName: user_role
+            indexName: idx_user_role_tenant_id
+            columns:
               - column:
-                  name: expires_at
-                  type: timestamp
-                  constraints:
-                    nullable: false
-              - column:
-                  name: revoked_at
-                  type: timestamp
-              - column:
-                  name: replaced_by_token_id
-                  type: bigint
+                  name: tenant_id

@@ -7,6 +7,12 @@ databaseChangeLog:
   - include:
       file: auth/auth-schema-001.yaml
       relativeToChangelogFile: true
+  - include:
+      file: auth/auth-schema-002.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: audit/audit-schema-001.yaml
+      relativeToChangelogFile: true
 #  - include:
-#      file: db/changelog/cadastro/cadastro-schema.yaml
+#      file: db/changelog/cadastro/cadastro-schema-001.yaml
 #      relativeToChangelogFile: true
