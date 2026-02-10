@@ -1,0 +1,74 @@
+<div class="grid">
+  <div class="col-12">
+    <p-toast></p-toast>
+
+    <!-- Toolbar -->
+    <div class="card px-4 py-4 mb-4">
+      <p-toolbar styleClass="mb-4">
+        <ng-template pTemplate="left">
+          <div class="my-2">
+            <button pButton pRipple label="Novo" icon="pi pi-plus" class="p-button-success mr-2" (click)="openNew()"></button>
+          </div>
+        </ng-template>
+
+        <ng-template pTemplate="right">
+          <button pButton pRipple label="Exportar" icon="pi pi-upload" class="p-button-help" (click)="exportData()"></button>
+        </ng-template>
+      </p-toolbar>
+
+      <!-- Tabela Reutilizável -->
+      <app-data-table
+        [title]="'Gerenciar Tenants'"
+        [data]="tenants"
+        [cols]="cols"
+        [loading]="loading"
+        [globalFilterFields]="['name', 'cnpj', 'status']"
+        (edit)="editTenant($event)"
+        (delete)="deleteTenant($event)">
+      </app-data-table>
+    </div>
+
+    <!-- Modal de Criação/Edição -->
+    <p-dialog
+      [(visible)]="tenantDialog"
+      [style]="{width: '450px'}"
+      header="Detalhes do Tenant"
+      [modal]="true"
+      styleClass="p-fluid">
+
+      <ng-template pTemplate="content">
+        <div class="field">
+          <label for="name">Nome</label>
+          <input type="text" pInputText id="name" [(ngModel)]="tenant.name" required autofocus />
+          <small class="p-error" *ngIf="submitted && !tenant.name">Nome é obrigatório.</small>
+        </div>
+
+        <div class="field">
+          <label for="cnpj">CNPJ</label>
+          <input type="text" pInputText id="cnpj" [(ngModel)]="tenant.cnpj" required />
+          <small class="p-error" *ngIf="submitted && !tenant.cnpj">CNPJ é obrigatório.</small>
+        </div>
+
+        <div class="field">
+          <label for="status">Status</label>
+          <p-select
+            id="status"
+            [options]="statuses"
+            [(ngModel)]="tenant.status"
+            optionLabel="label"
+            optionValue="value"
+            placeholder="Selecione um status">
+          </p-select>
+        </div>
+      </ng-template>
+
+      <ng-template pTemplate="footer">
+        <button pButton pRipple label="Cancelar" icon="pi pi-times" class="p-button-text" (click)="hideDialog()"></button>
+        <button pButton pRipple label="Salvar" icon="pi pi-check" class="p-button-text" (click)="saveTenant()"></button>
+      </ng-template>
+    </p-dialog>
+
+    <!-- Popup de Confirmação de Deleção -->
+    <p-confirmDialog [style]="{width: '450px'}"></p-confirmDialog>
+  </div>
+</div>
