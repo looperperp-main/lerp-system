@@ -5,6 +5,7 @@ import com.l.erp.authservice.api.dto.RefreshResponse;
 import com.l.erp.authservice.api.mappers.AuthMapper;
 import com.l.erp.authservice.dominio.RefreshToken;
 import com.l.erp.authservice.dominio.UserAccount;
+import com.l.erp.authservice.infra.config.Roles;
 import com.l.erp.authservice.repositorios.OwnerMarkerRepository;
 import com.l.erp.authservice.repositorios.UserAccountRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -47,7 +48,7 @@ public class AuthService {
         }
 
         boolean isOwner = ownerRepo.existsByUser_IdAndEnabledTrue(user.getId());
-        List<String> roles = isOwner ? List.of("ROLE_OWNER","ROLE_USER") : List.of("ROLE_USER");
+        List<String> roles = isOwner ? List.of(Roles.APP_OWNER,Roles.TENANT_OWNER) : List.of("ROLE_USER");//TODO: get roles from database
 
         String jwt = tokenService.generateToken(user, roles, isOwner);
 

@@ -12,13 +12,13 @@ import lombok.Setter;
 import java.time.Instant;
 
 @Entity
-@Table(name = "tenant")
+@Table(schema = "auth", name = "tenant")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 public class Tenant {
-    @OneToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "tenant_id")
     private UserAccount usersAccount;
     

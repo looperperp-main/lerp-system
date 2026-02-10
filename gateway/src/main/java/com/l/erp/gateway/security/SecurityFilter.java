@@ -47,7 +47,7 @@ public class SecurityFilter extends OncePerRequestFilter {
                 Boolean isOwner = decodedJWT.getClaim("isOwner").asBoolean();
                 String tenantId = decodedJWT.getClaim("tenantId").asString();
 
-                if (path.startsWith("/auth/") && (roles == null || !roles.contains("ROLE_OWNER"))) {
+                if (path.startsWith("/auth/") && (roles == null || !roles.contains("ROLE_APP_OWNER"))) {
                     response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                     return;
                 }

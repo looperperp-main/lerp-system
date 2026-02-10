@@ -1,9 +1,13 @@
 package com.l.erp.authservice.api.mappers;
 
 import com.l.erp.authservice.api.dto.LoginResponse;
+import com.l.erp.authservice.api.dto.TenantDTO;
+import com.l.erp.authservice.dominio.Tenant;
 import com.l.erp.authservice.dominio.UserAccount;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
+
+import java.util.List;
 
 @Mapper(componentModel = "spring")
 public interface AuthMapper {
@@ -11,4 +15,10 @@ public interface AuthMapper {
     @Mapping(target = "token", source = "token")
     @Mapping(target = "refreshToken", source = "refreshToken")
     LoginResponse toLoginResponse(UserAccount user, String token, String refreshToken);
+
+    TenantDTO toTenantDTO(Tenant tenant);
+
+    Tenant toTenant(TenantDTO tenantDTO);
+
+    List<TenantDTO> toTenantDTOs(List<Tenant> tenants);
 }
