@@ -1,50 +1,53 @@
-<div class="layout" [class.collapsed]="isCollapsed">
-  <header class="topbar">
-    <div class="topbar__left">
-      <button class="sidebar__toggle" type="button" aria-label="Toggle menu" (click)="toggleSidebar()">☰</button>
-      <span class="topbar__title">ERP Admin</span>
+<div class="layout-wrapper" [class.layout-static-inactive]="isCollapsed">
+
+  <!-- Topbar -->
+  <div class="layout-topbar">
+
+    <!-- 1. Botão do Menu (Agora é o primeiro item) -->
+    <button class="p-link layout-menu-button layout-topbar-button" (click)="toggleSidebar()">
+      <i class="pi pi-bars"></i>
+    </button>
+
+    <!-- 2. Logo (Agora vem depois do botão) -->
+    <a class="layout-topbar-logo" routerLink="/">
+      <div class="brand__icon">⚡</div>
+      <span>ERP VSD</span>
+    </a>
+
+    <button class="p-link layout-topbar-menu-button layout-topbar-button" (click)="toggleDropdown()">
+      <i class="pi pi-ellipsis-v"></i>
+    </button>
+
+    <div class="layout-topbar-menu" [class.layout-topbar-menu-mobile-active]="isDropdownOpen">
+      <button class="p-link layout-topbar-button">
+        <i class="pi pi-calendar"></i>
+        <span>Calendar</span>
+      </button>
+      <button class="p-link layout-topbar-button">
+        <i class="pi pi-user"></i>
+        <span>Profile</span>
+      </button>
+      <button class="p-link layout-topbar-button" (click)="logout()">
+        <i class="pi pi-sign-out"></i>
+        <span>Sair</span>
+      </button>
     </div>
+  </div>
 
-    <div class="topbar__right">
-      <div class="user-info" (click)="toggleDropdown()">
-        <i class="pi pi-user user-icon"></i>
-        <span class="user-email">{{ userEmail }}</span>
-        <i class="pi pi-chevron-down dropdown-icon"></i>
-      </div>
+  <!-- Sidebar -->
+  <div class="layout-sidebar">
+    <p-panelMenu [model]="menuItems" styleClass="w-full" [multiple]="false"></p-panelMenu>
+  </div>
 
-      <div class="dropdown" *ngIf="isDropdownOpen">
-        <button class="dropdown__item" (click)="logout()">Sair</button>
-        <div class="dropdown__error" *ngIf="logoutError">{{ logoutError }}</div>
-      </div>
+  <!-- Main Content -->
+  <div class="layout-main-container">
+    <div class="layout-main">
+      <router-outlet></router-outlet>
     </div>
-  </header>
+    <div class="layout-footer">
+      <span class="font-medium ml-2">ERP VSD ERP</span>
+    </div>
+  </div>
 
-  <aside class="sidebar">
-    <nav class="sidebar__nav">
-      <a class="sidebar__link" routerLink="/admin/home" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
-        <i class="pi pi-home sidebar__icon"></i>
-        <span class="sidebar__text">Home</span>
-      </a>
-      <a class="sidebar__link" routerLink="/admin/cadastros" routerLinkActive="active">
-        <i class="pi pi-folder sidebar__icon"></i>
-        <span class="sidebar__text">Cadastros</span>
-      </a>
-      <a class="sidebar__link" routerLink="/admin/relatorios" routerLinkActive="active">
-        <i class="pi pi-chart-bar sidebar__icon"></i>
-        <span class="sidebar__text">Relatórios</span>
-      </a>
-      <a class="sidebar__link" routerLink="/admin/config" routerLinkActive="active">
-        <i class="pi pi-cog sidebar__icon"></i>
-        <span class="sidebar__text">Configurações</span>
-      </a>
-    </nav>
-  </aside>
-
-  <main class="content">
-    <router-outlet></router-outlet>
-  </main>
+  <div class="layout-mask" *ngIf="!isCollapsed" (click)="toggleSidebar()"></div>
 </div>
-
-<footer class="footer">
-  <p>&copy; 2026 ERP Admin. Todos os direitos reservados.</p>
-</footer>

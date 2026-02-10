@@ -6,6 +6,8 @@ import {provideHttpClient, withFetch, withInterceptors} from '@angular/common/ht
 import {provideToastr} from 'ngx-toastr';
 import {provideAnimations} from '@angular/platform-browser/animations';
 import {authInterceptor} from './util/auth.interceptor';
+import Aura from '@primeuix/themes/aura';
+import {providePrimeNG} from 'primeng/config';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -13,6 +15,11 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes),
     provideHttpClient(withFetch(),withInterceptors([authInterceptor])),
     provideToastr(),
+    providePrimeNG({
+      theme: {
+        preset: Aura
+      }
+    }),
     provideAnimations()//TODO: Deprecated
   ]
 };
