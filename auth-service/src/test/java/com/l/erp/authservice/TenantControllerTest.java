@@ -160,4 +160,38 @@ public class TenantControllerTest {
         }
     }
 
+    @Test
+    @WithMockUser(roles = "APP_OWNER")
+    void shouldUpdateTenantErrorCancelado() throws Exception {
+        var TOKEN_ATTR_NAME = "_csrf";
+        var httpSessionCsrfTokenRepository = new HttpSessionCsrfTokenRepository();
+        var csrfToken = httpSessionCsrfTokenRepository.generateToken(new MockHttpServletRequest());
+
+        TenantDTO originalUpdated = new TenantDTO(1L, "Empresa Z", "98765432000110", "ATIVO",
+                Instant.now(), "admin", Instant.now(), "admin");
+
+        Tenant oldTenant = new Tenant();
+        oldTenant.setId(1L);
+        oldTenant.setName("Empresa X");
+        oldTenant.setStatus("CANCELADO");
+
+        when(tenantRepository.findById(1L)).thenReturn(Optional.of(oldTenant));
+        when(tenantRepository.countAllByNameAndCnpj(any(),any())).thenReturn(1L);
+
+
+
+        try (MockedStatic<SecurityUtils> securityUtils = Mockito.mockStatic(SecurityUtils.class)) {
+            securityUtils.when(SecurityUtils::getCurrentUserEmail).thenReturn(Optional.of("usuario@teste.com"));
+
+            mockMvc.perform(put("/auth/tenants")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(originalUpdated))
+                            .sessionAttr(TOKEN_ATTR_NAME, csrfToken)
+                            .param(csrfToken.getParameterName(), csrfToken.getToken()))
+                    .andDo(print())
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.error").value("Erro de Negocio"));
+        }
+    }
+
 }
