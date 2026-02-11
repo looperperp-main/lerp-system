@@ -31,6 +31,8 @@
         <java.version>25</java.version>
         <sentry.version>8.27.0</sentry.version>
         <spring-cloud.version>2025.1.0</spring-cloud.version>
+        <jacoco.version>0.8.12</jacoco.version>
+        <coverage.minimum>0.80</coverage.minimum>
     </properties>
     <modules>
         <module>auth-service</module>
@@ -96,9 +98,27 @@
                         </execution>
                     </executions>
                 </plugin>
+                <plugin>
+                    <groupId>org.jacoco</groupId>
+                    <artifactId>jacoco-maven-plugin</artifactId>
+                    <version>${jacoco.version}</version>
+                </plugin>
             </plugins>
         </pluginManagement>
         <plugins>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>report-aggregate</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>report-aggregate</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
