@@ -5,7 +5,6 @@ import com.l.erp.authservice.api.mappers.AuthMapper;
 import com.l.erp.authservice.dominio.Tenant;
 import com.l.erp.authservice.dominio.enumerators.EnumTenantStatus;
 import com.l.erp.authservice.repositorios.TenantRepository;
-import com.l.erp.authservice.util.HtmlSanitizerUtil;
 import com.l.erp.authservice.util.SecurityUtils;
 import com.l.erp.common.exception.custom.BussinessException;
 import org.slf4j.Logger;
@@ -94,9 +93,9 @@ public class TenantService {
         String loggedUserEmail = SecurityUtils.getCurrentUserEmail()
                 .orElseThrow(() -> new ResponseStatusException(UNAUTHORIZED, "Usuário não autenticado"));
 
-        if(Objects.equals(oldTenant.getStatus(), EnumTenantStatus.C.getDescription())){
+        if(!Objects.equals(oldTenant.getStatus(), EnumTenantStatus.C.getDescription())){
             Long duplicates = tenantRepository.countAllByNameAndCnpj(tenantDTO.name(),tenantDTO.cnpj());
-            if (duplicates == 0) {
+            if (duplicates != 0) {
 
                 Tenant tenant = authMapper.toTenant(tenantDTO);
                 tenant.setUpdateDate(Instant.now());
