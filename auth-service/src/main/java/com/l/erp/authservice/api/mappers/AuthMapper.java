@@ -4,12 +4,13 @@ import com.l.erp.authservice.api.dto.LoginResponse;
 import com.l.erp.authservice.api.dto.TenantDTO;
 import com.l.erp.authservice.dominio.Tenant;
 import com.l.erp.authservice.dominio.UserAccount;
+import com.l.erp.authservice.util.HtmlSanitizerUtil;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
 import java.util.List;
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring",uses = HtmlSanitizerUtil.class)
 public interface AuthMapper {
     @Mapping(target = "username", source = "user.displayName")
     @Mapping(target = "token", source = "token")
@@ -18,6 +19,8 @@ public interface AuthMapper {
 
     TenantDTO toTenantDTO(Tenant tenant);
 
+    @Mapping(target = "name", expression = "java(HtmlSanitizerUtil.sanitize(tenantDTO.name()))")
+    @Mapping(target = "cnpj", expression = "java(HtmlSanitizerUtil.sanitize(tenantDTO.cnpj()))")
     Tenant toTenant(TenantDTO tenantDTO);
 
     List<TenantDTO> toTenantDTOs(List<Tenant> tenants);

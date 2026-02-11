@@ -6,6 +6,7 @@ import com.l.erp.authservice.services.TenantService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.annotation.Secured;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -34,8 +35,9 @@ public class TenantController {
     @PostMapping("/tenants")
     @Secured(Roles.APP_OWNER)
     public ResponseEntity<TenantDTO> createTenant(@Valid @RequestBody TenantDTO tenantDTO) {
-        log.debug("REST request to create the tenant: {}",tenantDTO);
-        return ResponseEntity.ok(tenantService.createTenant(tenantDTO));
+        log.debug("REST request to create the tenant: ");
+        TenantDTO createdTenant = tenantService.createTenant(tenantDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdTenant);
     }
 
     @GetMapping("/tenants")

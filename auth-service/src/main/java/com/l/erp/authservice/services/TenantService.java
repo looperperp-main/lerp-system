@@ -5,6 +5,7 @@ import com.l.erp.authservice.api.mappers.AuthMapper;
 import com.l.erp.authservice.dominio.Tenant;
 import com.l.erp.authservice.dominio.enumerators.EnumTenantStatus;
 import com.l.erp.authservice.repositorios.TenantRepository;
+import com.l.erp.authservice.util.HtmlSanitizerUtil;
 import com.l.erp.authservice.util.SecurityUtils;
 import com.l.erp.common.exception.custom.BussinessException;
 import org.slf4j.Logger;
