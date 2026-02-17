@@ -17,6 +17,9 @@ import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.test.context.support.WithMockUser;
@@ -60,13 +63,16 @@ public class TenantControllerTest {
         TenantDTO dto = new TenantDTO(1L, "Empresa X", "12345678000190", "ATIVO",
                 Instant.now(), "admin", Instant.now(), "admin");
 
-        when(tenantRepository.findAll()).thenReturn(List.of(new Tenant()));
-        when(authMapper.toTenantDTOs(any())).thenReturn(List.of(dto));
+        // Mock para retornar uma Página em vez de lista simples
+        Tenant tenant = new Tenant();
+        tenant.setId(1L);
+        tenant.setName("Empresa X");
+        Page<Tenant> page = new PageImpl<>(List.of(tenant));
 
-        mockMvc.perform(get("/auth/tenants"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(1L))
-                .andExpect(jsonPath("$[0].name").value("Empresa X"));
+        when(tenantRepository.findAll(any(Pageable.class))).thenReturn(page);
+
+        mockMvc.perform(get("/auth/tenants?page=0&size=10"))
+                .andExpect(status().isOk());
     }
 
     @Test

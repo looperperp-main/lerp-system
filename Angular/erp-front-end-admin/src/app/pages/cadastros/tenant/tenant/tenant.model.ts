@@ -2,7 +2,7 @@ export interface TenantModel {
   id?: number;
   name: string;
   cnpj: string;
-  status: 'ATIVO' | 'SUSPENSO' | 'CANCELADO';
+  status: 'ATIVO' | 'PENDENTE' | 'SUSPENSO' | 'CANCELADO';
   createdBy?: string;
   creationDate?: string; // Date ISO string
   lastUpdatedBy?: string;

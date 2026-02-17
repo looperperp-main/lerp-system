@@ -9,6 +9,8 @@ import com.l.erp.authservice.util.SecurityUtils;
 import com.l.erp.common.exception.custom.BussinessException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -47,11 +49,12 @@ public class TenantService {
         String loggedUserEmail = SecurityUtils.getCurrentUserEmail()
                 .orElseThrow(() -> new RuntimeException("Usuário não autenticado"));
         if (!Objects.equals(tenantDTO.status(), EnumTenantStatus.A.getDescription())
+                || !Objects.equals(tenantDTO.status(), EnumTenantStatus.P.getDescription())
                 || !Objects.equals(tenantDTO.status(), EnumTenantStatus.S.getDescription())
                 || !Objects.equals(tenantDTO.status(), EnumTenantStatus.C.getDescription())
         ){
             Tenant tenant = authMapper.toTenant(tenantDTO);
-            tenant.setStatus(EnumTenantStatus.A.getDescription());
+            tenant.setStatus(EnumTenantStatus.P.getDescription());
             tenant.setCreationDate(Instant.now());
             tenant.setCreatedBy(loggedUserEmail);
             tenant = tenantRepository.save(tenant);
@@ -66,10 +69,10 @@ public class TenantService {
      * TODO: Checkar a Paginação
      * @return lista de tenants
      */
-    public List<TenantDTO> getAllTenants(){
+    public Page<TenantDTO> getAllTenants(Pageable pageable){
         logger.debug("REST request to get all Tenants");
-        List<Tenant> tenants = tenantRepository.findAll();
-        return authMapper.toTenantDTOs(tenants);
+        Page<Tenant> tenants = tenantRepository.findAll(pageable);
+        return tenants.map(authMapper::toTenantDTO);
     }
 
     /**
