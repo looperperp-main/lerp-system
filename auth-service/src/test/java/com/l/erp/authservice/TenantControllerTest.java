@@ -1,5 +1,8 @@
 package com.l.erp.authservice;
 
+import com.l.erp.authservice.api.dto.CurrentUser;
+import com.l.erp.authservice.repositorios.audit.AuditRepository;
+import com.l.erp.authservice.services.audit.AuditService;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -30,10 +33,12 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
@@ -56,6 +61,9 @@ public class TenantControllerTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @MockitoBean
+    private AuditService auditService;
 
     @Test
     @WithMockUser(roles = "APP_OWNER")
@@ -97,7 +105,8 @@ public class TenantControllerTest {
         when(authMapper.toTenantDTO(saved)).thenReturn(created);
 
         try (MockedStatic<SecurityUtils> securityUtils = Mockito.mockStatic(SecurityUtils.class)) {
-            securityUtils.when(SecurityUtils::getCurrentUserEmail).thenReturn(Optional.of("usuario@teste.com"));
+            securityUtils.when(SecurityUtils::getCurrentUserInfo).thenReturn(new CurrentUser(UUID.randomUUID(),"usuario@teste.com"));
+
 
             mockMvc.perform(post("/auth/tenants")
                             .contentType(MediaType.APPLICATION_JSON)
@@ -152,7 +161,8 @@ public class TenantControllerTest {
         when(authMapper.toTenantDTO(updated)).thenReturn(originalUpdated);
 
         try (MockedStatic<SecurityUtils> securityUtils = Mockito.mockStatic(SecurityUtils.class)) {
-            securityUtils.when(SecurityUtils::getCurrentUserEmail).thenReturn(Optional.of("usuario@teste.com"));
+            securityUtils.when(SecurityUtils::getCurrentUserInfo).thenReturn(new CurrentUser(UUID.randomUUID(),"usuario@teste.com"));
+
 
             mockMvc.perform(put("/auth/tenants")
                             .contentType(MediaType.APPLICATION_JSON)
@@ -187,7 +197,8 @@ public class TenantControllerTest {
 
 
         try (MockedStatic<SecurityUtils> securityUtils = Mockito.mockStatic(SecurityUtils.class)) {
-            securityUtils.when(SecurityUtils::getCurrentUserEmail).thenReturn(Optional.of("usuario@teste.com"));
+            securityUtils.when(SecurityUtils::getCurrentUserInfo).thenReturn(new CurrentUser(UUID.randomUUID(),"usuario@teste.com"));
+
 
             mockMvc.perform(put("/auth/tenants")
                             .contentType(MediaType.APPLICATION_JSON)
@@ -197,6 +208,71 @@ public class TenantControllerTest {
                     .andDo(print())
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.error").value("Erro de Negocio"));
+        }
+    }
+
+    @Test
+    @WithMockUser(roles = "APP_OWNER")
+    void updateTenantStatusById() throws Exception {
+        var TOKEN_ATTR_NAME = "_csrf";
+        var httpSessionCsrfTokenRepository = new HttpSessionCsrfTokenRepository();
+        var csrfToken = httpSessionCsrfTokenRepository.generateToken(new MockHttpServletRequest());
+
+        TenantDTO originalUpdated = new TenantDTO(1L, "Empresa Z", "98765432000110", "ATIVO",
+                Instant.now(), "admin", Instant.now(), "admin");
+
+        Tenant oldTenant = new Tenant();
+        oldTenant.setId(1L);
+        oldTenant.setName("Empresa X");
+        oldTenant.setStatus("CANCELADO");
+
+        when(tenantRepository.findById(1L)).thenReturn(Optional.of(oldTenant));
+        when(tenantRepository.countAllByNameAndCnpj(any(),any())).thenReturn(1L);
+
+
+
+        try (MockedStatic<SecurityUtils> securityUtils = Mockito.mockStatic(SecurityUtils.class)) {
+            securityUtils.when(SecurityUtils::getCurrentUserEmail).thenReturn(Optional.of("usuario@teste.com"));
+            securityUtils.when(SecurityUtils::getCurrentUserId).thenReturn(Optional.of(UUID.randomUUID()));
+
+            mockMvc.perform(patch("/auth/tenants/{tenantId}/status",1L)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString("CANCELADO"))
+                            .sessionAttr(TOKEN_ATTR_NAME, csrfToken)
+                            .param(csrfToken.getParameterName(), csrfToken.getToken()))
+                    .andDo(print())
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.error").value("Erro de Negocio"));
+        }
+    }
+
+    @Test
+    @WithMockUser(roles = "APP_OWNER")
+    void updateTenantStatusByIdToSuspenso() throws Exception {
+        var TOKEN_ATTR_NAME = "_csrf";
+        var httpSessionCsrfTokenRepository = new HttpSessionCsrfTokenRepository();
+        var csrfToken = httpSessionCsrfTokenRepository.generateToken(new MockHttpServletRequest());
+
+        Tenant oldTenant = new Tenant();
+        oldTenant.setId(1L);
+        oldTenant.setName("Empresa X");
+        oldTenant.setStatus("ATIVO");
+
+        when(tenantRepository.findById(1L)).thenReturn(Optional.of(oldTenant));
+        when(tenantRepository.countAllByNameAndCnpj(any(),any())).thenReturn(1L);
+
+
+
+        try (MockedStatic<SecurityUtils> securityUtils = Mockito.mockStatic(SecurityUtils.class)) {
+            securityUtils.when(SecurityUtils::getCurrentUserInfo).thenReturn(new CurrentUser(UUID.randomUUID(),"usuario@teste.com"));
+
+            mockMvc.perform(patch("/auth/tenants/{tenantId}/status",1L)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"status\": \"CANCELADO\"}")
+                            .sessionAttr(TOKEN_ATTR_NAME, csrfToken)
+                            .param(csrfToken.getParameterName(), csrfToken.getToken()))
+                    .andDo(print())
+                    .andExpect(status().isOk());
         }
     }
 

@@ -1,8 +1,10 @@
 package com.l.erp.authservice.util;
 
+import com.l.erp.authservice.api.dto.CurrentUser;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -30,5 +32,11 @@ public final class SecurityUtils {
             return email == null ? Optional.empty() : Optional.of(email.toString());
         }
         return Optional.empty();
+    }
+
+    public static CurrentUser getCurrentUserInfo() {
+        UUID userId = getCurrentUserId().orElseThrow(() -> new RuntimeException(Constants.USUARIO_NAO_AUTENTICADO));
+        String email = getCurrentUserEmail().orElseThrow(() -> new RuntimeException(Constants.USUARIO_UUID_NAO_ENCONTRADO));
+        return new CurrentUser(userId, email);
     }
 }

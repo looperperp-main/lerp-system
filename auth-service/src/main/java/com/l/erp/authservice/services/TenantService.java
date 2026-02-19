@@ -1,10 +1,13 @@
 package com.l.erp.authservice.services;
 
+import com.l.erp.authservice.api.dto.CurrentUser;
 import com.l.erp.authservice.api.dto.TenantDTO;
 import com.l.erp.authservice.api.mappers.AuthMapper;
 import com.l.erp.authservice.dominio.Tenant;
 import com.l.erp.authservice.dominio.enumerators.EnumTenantStatus;
 import com.l.erp.authservice.repositorios.TenantRepository;
+import com.l.erp.authservice.services.audit.AuditService;
+import com.l.erp.authservice.util.Constants;
 import com.l.erp.authservice.util.SecurityUtils;
 import com.l.erp.common.exception.custom.BussinessException;
 import org.slf4j.Logger;
@@ -15,13 +18,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
-import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 @Service
 public class TenantService {
@@ -31,11 +32,15 @@ public class TenantService {
 
     private final TenantRepository tenantRepository;
 
+    private final AuditService auditService;
+
     private final AuthMapper authMapper;
 
     public TenantService(TenantRepository tenantRepository,
+                         AuditService auditService,
                          AuthMapper authMapper) {
         this.tenantRepository = tenantRepository;
+        this.auditService = auditService;
         this.authMapper = authMapper;
     }
 
@@ -46,22 +51,16 @@ public class TenantService {
      */
     public TenantDTO createTenant(TenantDTO tenantDTO){
         logger.debug("Creating Tenant : {}", tenantDTO);
-        String loggedUserEmail = SecurityUtils.getCurrentUserEmail()
-                .orElseThrow(() -> new RuntimeException("Usuário não autenticado"));
-        if (!Objects.equals(tenantDTO.status(), EnumTenantStatus.A.getDescription())
-                || !Objects.equals(tenantDTO.status(), EnumTenantStatus.P.getDescription())
-                || !Objects.equals(tenantDTO.status(), EnumTenantStatus.S.getDescription())
-                || !Objects.equals(tenantDTO.status(), EnumTenantStatus.C.getDescription())
-        ){
-            Tenant tenant = authMapper.toTenant(tenantDTO);
-            tenant.setStatus(EnumTenantStatus.P.getDescription());
-            tenant.setCreationDate(Instant.now());
-            tenant.setCreatedBy(loggedUserEmail);
-            tenant = tenantRepository.save(tenant);
-            return authMapper.toTenantDTO(tenant);
-        }else{
-            throw new ResponseStatusException(BAD_REQUEST,ENTITY_NAME + " : Registro com o Status inválido");
-        }
+        CurrentUser currentUser = SecurityUtils.getCurrentUserInfo();
+
+        Tenant tenant = authMapper.toTenant(tenantDTO);
+        tenant.setStatus(EnumTenantStatus.P.getDescription());
+        tenant.setCreationDate(Instant.now());
+        tenant.setCreatedBy(currentUser.email());
+        Tenant tenantSaved = tenantRepository.save(tenant);
+        auditService.logAuditEvent(Constants.TENANT_CREATION, currentUser.id(), Constants.TENANT, null, "SUCCESS", null,null);
+        return authMapper.toTenantDTO(tenantSaved);
+
     }
 
     /**
@@ -84,17 +83,16 @@ public class TenantService {
         logger.debug("REST request to get Tenant : {}", tenantId);
         return authMapper.toTenantDTO(
                 tenantRepository.findById(tenantId)
-                        .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, ENTITY_NAME + " : Tenant não encontrado"))
+                        .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, ENTITY_NAME + " : " + Constants.TENANT_NOT_FOUND))
         );
     }
 
     public TenantDTO updateTenant(TenantDTO tenantDTO) {
         logger.debug("REST request to update Tenant : {}", tenantDTO);
         Tenant oldTenant = tenantRepository.findById(tenantDTO.id())
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, ENTITY_NAME + " : Tenant não encontrado"));
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, ENTITY_NAME + " : " + Constants.TENANT_NOT_FOUND));
 
-        String loggedUserEmail = SecurityUtils.getCurrentUserEmail()
-                .orElseThrow(() -> new ResponseStatusException(UNAUTHORIZED, "Usuário não autenticado"));
+        CurrentUser currentUser = SecurityUtils.getCurrentUserInfo();
 
         if(!Objects.equals(oldTenant.getStatus(), EnumTenantStatus.C.getDescription())){
             Long duplicates = tenantRepository.countAllByNameAndCnpj(tenantDTO.name(),tenantDTO.cnpj());
@@ -102,9 +100,10 @@ public class TenantService {
 
                 Tenant tenant = authMapper.toTenant(tenantDTO);
                 tenant.setUpdateDate(Instant.now());
-                tenant.setLastUpdatedBy(loggedUserEmail);
-                tenantRepository.save(tenant);
-                return authMapper.toTenantDTO(tenant);
+                tenant.setLastUpdatedBy(currentUser.email());
+                Tenant saved = tenantRepository.save(tenant);
+                auditService.logAuditEvent(Constants.TENANT_UPDATE, currentUser.id(), Constants.TENANT, null, "SUCCESS", null,null);
+                return authMapper.toTenantDTO(saved);
             }else{
                 throw new BussinessException(ENTITY_NAME + " : Registro em duplicidade",BAD_REQUEST);
             }
@@ -116,18 +115,18 @@ public class TenantService {
     public Optional<Void> updateTenantStatusById(Long tenantId, String status) {
         logger.debug("REST request to update the status of the given tenant : {}", tenantId);
         Tenant tenant = tenantRepository.findById(tenantId)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, ENTITY_NAME + " : Tenant não encontrado"));
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, ENTITY_NAME + " : " + Constants.TENANT_NOT_FOUND));
 
-        String loggedUserEmail = SecurityUtils.getCurrentUserEmail()
-                .orElseThrow(() -> new ResponseStatusException(UNAUTHORIZED, "Usuário não autenticado"));
+        CurrentUser currentUser = SecurityUtils.getCurrentUserInfo();
 
         if(Objects.equals(tenant.getStatus(), EnumTenantStatus.C.getDescription())){
             throw new BussinessException(ENTITY_NAME + " : Não é possível atualizar um Tenant Cancelado",BAD_REQUEST);
         }else{
             tenant.setStatus(status);
             tenant.setUpdateDate(Instant.now());
-            tenant.setLastUpdatedBy(loggedUserEmail);
+            tenant.setLastUpdatedBy(currentUser.email());
             tenantRepository.save(tenant);
+            auditService.logAuditEvent(Constants.TENANT_UPDATE, currentUser.id(), Constants.TENANT, null, "SUCCESS", null,null);
             return Optional.empty();
         }
     }
