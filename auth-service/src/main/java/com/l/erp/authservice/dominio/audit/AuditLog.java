@@ -11,6 +11,7 @@ import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.Instant;
 import java.util.UUID;
 
 @Getter
@@ -49,6 +50,10 @@ public class AuditLog {
 
     @Column(name = "correlation_id")
     private UUID correlationId;
+
+    @NotNull
+    @Column(name = "event_date", nullable = false)
+    private Instant eventDate;
 
 
 }

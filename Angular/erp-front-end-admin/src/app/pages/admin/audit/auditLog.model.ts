@@ -7,4 +7,5 @@ export interface AuditLog {
   result: string;
   detailsJson?: string;
   correlationId?: string;
+  eventDate?: string;
 }

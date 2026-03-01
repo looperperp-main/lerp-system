@@ -35,6 +35,19 @@ export class TenantService {
   }
 
   /**
+   * Obtém a lista paginada de tenants Ativos (GET /auth/tenants)
+   */
+  getTenantsActive(page: number, size: number, sort: string = 'name,asc'): Observable<PageResponse<TenantModel>> {
+    let params = new HttpParams()
+      .set('page', page.toString())
+      .set('size', size.toString())
+      .set('sort', sort);
+
+    return this.http.get<PageResponse<TenantModel>>(`${this.apiUrl}/active`, { params });
+  }
+
+
+  /**
    * Obtém um tenant específico pelo ID (GET /auth/tenants/{id})
    */
   getTenantById(tenantId: number): Observable<TenantModel> {

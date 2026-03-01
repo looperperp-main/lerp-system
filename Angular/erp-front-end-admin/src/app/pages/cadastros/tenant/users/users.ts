@@ -1,4 +1,4 @@
-import {Component, signal} from '@angular/core';
+import {Component, OnInit, signal} from '@angular/core';
 import {ButtonDirective} from "primeng/button";
 import {CnpjPipe} from "../../../../util/pipe/cnpj.pipe";
 import {HtmlDecodePipe} from "../../../../util/pipe/html-decode.pipe";
@@ -8,10 +8,13 @@ import {Ripple} from "primeng/ripple";
 import {TableModule} from "primeng/table";
 import {Toast} from "primeng/toast";
 import {Tooltip} from "primeng/tooltip";
-import {UsersPageModel} from './usersPage.model';
+import {UserAccountModel, UsersPageModel} from './usersPage.model';
 import {ColumnConfig} from '../../../../components/table/data-table';
 import {HttpErrorResponse} from '@angular/common/http';
 import {UserService} from './users.service';
+import {UserForm} from './user-form/user-form';
+import {TenantService} from '../tenant/tenant.service';
+import {TenantModel} from '../tenant/tenant.model';
 
 @Component({
   selector: 'app-users',
@@ -26,13 +29,18 @@ import {UserService} from './users.service';
     TableModule,
     Toast,
     Tooltip,
-    DatePipe
+    DatePipe,
+    UserForm
   ],
   providers: [MessageService],
   templateUrl: './users.html',
   styleUrl: './users.scss',
 })
-export class Users {
+export class Users implements OnInit  {
+
+  userDialogVisible: boolean = false;
+  userToSave: UserAccountModel = { displayName: '', email: '', passwordHash: '', tenantId: undefined };
+
 
   cols: ColumnConfig[] = [
     { field: 'id', header: 'ID', type: 'text' },
@@ -52,13 +60,32 @@ export class Users {
   totalRecords = signal<number>(0);
   users = signal<UsersPageModel[]>([]);
 
+  // Lista de tenants para o dropdown
+  tenantsList = signal<TenantModel[]>([]);
+
   constructor(
     private messageService: MessageService,
-    private userService: UserService
+    private userService: UserService,
+    private tenantService: TenantService
   ) {}
 
   ngOnInit() {
-    // Carregamento feito via lazy load do datatable (onLazyLoad)
+    this.loadTenantsForDropdown();
+  }
+
+  loadTenantsForDropdown() {
+    // Buscando os 100 primeiros (ou crie um endpoint no backend que retorna uma lista simples sem paginação)
+    this.tenantService.getTenantsActive(0, 100).subscribe({
+      next: (res) => {
+        this.tenantsList.set(res.content || []);
+      },
+      error: () => this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Falha ao carregar lista de Tenants' })
+    });
+  }
+
+  openNew() {
+    this.userToSave = { displayName: '', email: '', passwordHash: '', tenantId: undefined };
+    this.userDialogVisible = true;
   }
 
   onLazyLoad(event: any) {
@@ -84,6 +111,18 @@ export class Users {
 
   exportData() {
     this.messageService.add({ severity: 'info', summary: 'Info', detail: 'Funcionalidade de exportação aqui' });
+  }
+
+  saveUser(user: UserAccountModel) {
+    this.userService.createUser(user).subscribe({
+      next: () => {
+        this.loadUsers();
+        this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Usuário criado com sucesso!', life: 3000 });
+      },
+      error: (err: HttpErrorResponse) => {
+        this.handleError(err, 'Erro ao criar usuário');
+      }
+    });
   }
 
   private handleError(err: HttpErrorResponse, defaultSummary: string) {

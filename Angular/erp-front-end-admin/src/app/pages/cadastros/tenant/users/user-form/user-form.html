@@ -1,0 +1,57 @@
+<p-dialog
+  [(visible)]="visible"
+  (onHide)="hideDialog()"
+  [style]="{width: '450px'}"
+  header="Novo Usuário"
+  [modal]="true">
+
+  <div class="flex flex-col gap-4 pt-2">
+    <div class="field">
+      <label for="displayName" class="block text-sm font-medium text-gray-700 mb-1">Nome de Exibição <span class="text-red-500">*</span></label>
+      <input type="text" pInputText id="displayName" [(ngModel)]="user.displayName" autofocus
+             class="form-input"
+             [ngClass]="{'border-red-500': submitted && !user.displayName}" />
+      <small class="text-red-500 text-xs mt-1 block" *ngIf="submitted && !user.displayName">O nome é obrigatório.</small>
+    </div>
+
+    <div class="field">
+      <label for="email" class="block text-sm font-medium text-gray-700 mb-1">E-mail <span class="text-red-500">*</span></label>
+      <input type="email" pInputText id="email" [(ngModel)]="user.email"
+             class="form-input"
+             [ngClass]="{'border-red-500': submitted && !user.email}" />
+      <small class="text-red-500 text-xs mt-1 block" *ngIf="submitted && !user.email">O e-mail é obrigatório.</small>
+    </div>
+
+    <div class="field">
+      <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Senha <span class="text-red-500">*</span></label>
+      <p-password id="password" [(ngModel)]="user.passwordHash" [toggleMask]="true" styleClass="w-full" inputStyleClass="form-input w-full"
+                  [ngClass]="{'ng-invalid ng-dirty': submitted && !user.passwordHash}">
+      </p-password>
+      <small class="text-red-500 text-xs mt-1 block" *ngIf="submitted && !user.passwordHash">A senha é obrigatória.</small>
+    </div>
+
+    <div class="field">
+      <label for="tenantId" class="block text-sm font-medium text-gray-700 mb-1">Vincular a um Tenant <span class="text-red-500">*</span></label>
+      <!-- Trocado o input number por p-select -->
+      <p-select
+        id="tenantId"
+        [options]="tenants"
+        [(ngModel)]="user.tenantId"
+        optionLabel="name"
+        optionValue="id"
+        placeholder="Selecione um Tenant"
+        [filter]="true"
+        [appendTo]="'body'"
+        filterBy="name,cnpj"
+        styleClass="w-full border-gray-300 rounded-md shadow-sm focus:ring-orange-500 focus:border-orange-500 bg-white"
+        [ngClass]="{'ng-invalid ng-dirty': submitted && !user.tenantId}">
+      </p-select>
+      <small class="text-red-500 text-xs mt-1 block" *ngIf="submitted && !user.tenantId">A seleção de um Tenant é obrigatória.</small>
+    </div>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <button pButton pRipple label="Cancelar" icon="pi pi-times" class="p-button-text text-gray-600 hover:bg-gray-100" (click)="hideDialog()"></button>
+    <button pButton pRipple label="Salvar" icon="pi pi-check" class="p-button-success" (click)="onSave()"></button>
+  </ng-template>
+</p-dialog>

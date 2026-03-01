@@ -74,6 +74,17 @@ public class TenantService {
     }
 
     /**
+     * Retorna todos os tenants cadastrados
+     *
+     * @return lista de tenants
+     */
+    public Page<TenantDTO> getAllActiveTenants(Pageable pageable){
+        logger.debug("REST request to get all Tenants");
+        Page<Tenant> tenants = tenantRepository.findAllByStatusIs("ATIVO",pageable);
+        return tenants.map(authMapper::toTenantDTO);
+    }
+
+    /**
      * Retorna um tenant pelo id
      * @param tenantId id do tenant
      * @return tenant

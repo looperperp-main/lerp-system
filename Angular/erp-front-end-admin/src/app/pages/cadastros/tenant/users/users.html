@@ -4,8 +4,8 @@
   <!-- Header Section -->
   <div class="page-header">
     <div>
-      <h1 class="page-title">Usuários</h1>
-      <p class="page-subtitle">Gerenciamento de Usuários</p>
+      <h1 class="page-title">Gerenciamento de Usuários</h1>
+      <p class="page-subtitle">Crie e gerencie os usuários do sistema</p>
     </div>
   </div>
 
@@ -13,6 +13,14 @@
     <div class="content-toolbar">
       <h3 class="content-toolbar-title">Ações</h3>
       <div class="content-toolbar-actions">
+        <button
+          pButton
+          pRipple
+          label="Novo Usuário"
+          icon="pi pi-plus"
+          class="p-button-success w-full sm:w-auto p-button-sm rounded-lg"
+          (click)="openNew()">
+        </button>
         <!-- Botão de exportação opcional, deixei caso queira manter do ts -->
         <button
           pButton
@@ -128,4 +136,11 @@
       </p-table>
     </div>
   </div>
+
+  <app-user-form
+    [(visible)]="userDialogVisible"
+    [user]="userToSave"
+    [tenants]="tenantsList()"
+    (save)="saveUser($event)">
+  </app-user-form>
 </div>

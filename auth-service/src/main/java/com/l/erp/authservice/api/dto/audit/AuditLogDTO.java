@@ -3,6 +3,7 @@ package com.l.erp.authservice.api.dto.audit;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
+import java.time.Instant;
 import java.util.UUID;
 
 public record AuditLogDTO(
@@ -19,6 +20,7 @@ public record AuditLogDTO(
         @NotNull
         String result,
         String detailsJson,
-        UUID correlationId
+        UUID correlationId,
+        Instant eventDate
 ) {
 }

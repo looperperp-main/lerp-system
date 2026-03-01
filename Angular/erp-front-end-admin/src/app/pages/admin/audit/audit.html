@@ -73,6 +73,11 @@
                   </ng-template>
                 </span>
               </ng-container>
+
+              <!-- Se for tipo date, o PrimeNG / Angular exibe a data formatada -->
+              <ng-container *ngIf="col.type === 'date'">
+                {{rowData[col.field] | date:'dd/MM/yyyy HH:mm:ss'}}
+              </ng-container>
             </td>
           </tr>
         </ng-template>

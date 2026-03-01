@@ -48,6 +48,13 @@ public class TenantController {
         return ResponseEntity.ok(tenantService.getAllTenants(pageable));
     }
 
+    @GetMapping("/tenants/active")
+    @Secured(Roles.APP_OWNER)
+    public ResponseEntity<Page<TenantDTO>> getTenantsActive(@PageableDefault(size = 10, sort = "name") Pageable pageable) {
+        log.debug("REST request to get the list of Active Tenants tenant");
+        return ResponseEntity.ok(tenantService.getAllActiveTenants(pageable));
+    }
+
     @GetMapping("/tenants/{tenantId}")
     @Secured(Roles.APP_OWNER)
     public ResponseEntity<TenantDTO> getTenantById(@Valid @PathVariable Long tenantId) {

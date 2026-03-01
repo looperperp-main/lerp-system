@@ -3,7 +3,7 @@ import {Toast} from 'primeng/toast';
 import {MessageService, PrimeTemplate} from 'primeng/api';
 import {ButtonDirective} from 'primeng/button';
 import {CnpjPipe} from '../../../util/pipe/cnpj.pipe';
-import {NgForOf, NgIf} from '@angular/common';
+import {DatePipe, NgForOf, NgIf} from '@angular/common';
 import {HtmlDecodePipe} from '../../../util/pipe/html-decode.pipe';
 import {Ripple} from 'primeng/ripple';
 import {TableModule} from 'primeng/table';
@@ -26,7 +26,8 @@ import {AuditService} from './audit.service';
     PrimeTemplate,
     Ripple,
     TableModule,
-    Tooltip
+    Tooltip,
+    DatePipe
   ],
   providers: [MessageService],
   templateUrl: './audit.html',
@@ -40,9 +41,10 @@ export class Audit {
     { field: 'action', header: 'Ação', type: 'text' },
     { field: 'targetType', header: 'Alvo da Operação', type: 'status' },
     { field: 'targetId', header: 'ID do alvo', type: 'text' },
-    { field: 'result', header: 'Resultado', type: 'date' },
+    { field: 'result', header: 'Resultado', type: 'text' },
     { field: 'detailsJson', header: 'Detalhes em JSON', type: 'text' },
-    { field: 'correlationId', header: 'CorrelationID', type: 'date' }
+    { field: 'correlationId', header: 'CorrelationID', type: 'text' },
+    { field: 'eventDate', header: 'Data/Hora', type: 'date' }
   ];
 
   loading = signal<boolean>(true);

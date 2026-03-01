@@ -2,7 +2,7 @@ import {Injectable} from '@angular/core';
 import {environment} from '../../../../../environments/environment';
 import {HttpClient, HttpParams} from '@angular/common/http';
 import {Observable} from 'rxjs';
-import {UsersPageModel} from './usersPage.model';
+import {UserAccountModel, UsersPageModel} from './usersPage.model';
 
 export interface PageResponse<T> {
   content: T[];
@@ -27,5 +27,9 @@ export class UserService {
       .set('size', size.toString());
 
     return this.http.get<PageResponse<UsersPageModel>>(this.apiUrl, { params });
+  }
+
+  createUser(user: UserAccountModel): Observable<UserAccountModel> {
+    return this.http.post<UserAccountModel>(this.apiUrl, user);
   }
 }

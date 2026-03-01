@@ -1,19 +1,23 @@
 package com.l.erp.authservice.api.controllers;
 
+import com.l.erp.authservice.api.dto.UserAccountDTO;
 import com.l.erp.authservice.api.dto.UserAccountPageDTO;
 import com.l.erp.authservice.infra.config.Roles;
 import com.l.erp.authservice.services.UserService;
+import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.annotation.Secured;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -31,9 +35,10 @@ public class UserController {
 
     @PostMapping("")
     @Secured({Roles.APP_OWNER,Roles.TENANT_OWNER})
-    public ResponseEntity<String> createUser(){
-        log.debug("REST request to create a user");
-        return ResponseEntity.ok().build();
+    public ResponseEntity<UserAccountDTO> createUser(@Valid @RequestBody UserAccountDTO userDTO){
+        log.debug("REST request to save User : {}", userDTO.email());
+        UserAccountDTO createdUser = userService.createUser(userDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdUser);
     }
 
     @GetMapping("")

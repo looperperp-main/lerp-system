@@ -48,6 +48,9 @@ databaseChangeLog:
               - column:
                   name: correlation_id
                   type: uuid
+              - column:
+                  name: eventDate
+                  type: timestamp
 
   - changeSet:
       id: 002-create-consumer_error_log
