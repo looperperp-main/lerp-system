@@ -1,0 +1,46 @@
+<p-dialog
+  [(visible)]="visible"
+  (onHide)="hideDialog()"
+  [style]="{width: '450px'}"
+  [header]="tenant.id ? 'Editar Tenant' : 'Novo Tenant'"
+  [modal]="true"
+  styleClass="p-fluid">
+
+  <ng-template pTemplate="content">
+    <div class="field mb-4 mt-2">
+      <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Nome</label>
+      <input type="text" pInputText id="name" [(ngModel)]="tenant.name" required autofocus
+             class="w-full border-gray-300 rounded-md shadow-sm focus:ring-orange-500 focus:border-orange-500 p-2 border"
+             [ngClass]="{'border-red-500': submitted && !tenant.name}" />
+      <small class="p-error text-red-500 text-xs mt-1 block" *ngIf="submitted && !tenant.name">O Nome é obrigatório.</small>
+    </div>
+
+    <div class="field mb-4">
+      <label for="cnpj" class="block text-sm font-medium text-gray-700 mb-1">CNPJ</label>
+      <!-- Substituído input text pelo p-inputmask -->
+      <p-inputmask
+        id="cnpj"
+        [(ngModel)]="tenant.cnpj"
+        mask="99.999.999/9999-99"
+        placeholder="00.000.000/0000-00"
+        [required]="true"
+        styleClass="w-full border-gray-300 rounded-md shadow-sm focus:ring-orange-500 focus:border-orange-500 p-2 border"
+        [ngClass]="{'ng-invalid ng-dirty border-red-500': submitted && (!tenant.cnpj || tenant.cnpj.replace('\\D', '').length !== 18)}">
+      </p-inputmask>
+      <small class="p-error text-red-500 text-xs mt-1 block" *ngIf="submitted && !tenant.cnpj">O CNPJ é obrigatório.</small>
+      <small class="p-error text-red-500 text-xs mt-1 block" *ngIf="submitted && tenant.cnpj && tenant.cnpj.replace('\\D', '').length !== 18">O CNPJ deve estar completo.</small>
+    </div>
+
+    <div class="field mb-4" *ngIf="tenant.id">
+      <label for="status" class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+      <select id="status" [(ngModel)]="tenant.status" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-orange-500 focus:border-orange-500 p-2 border bg-white">
+        <option *ngFor="let stat of statuses" [value]="stat.value">{{stat.label}}</option>
+      </select>
+    </div>
+  </ng-template>
+
+  <ng-template pTemplate="footer">
+    <button pButton pRipple label="Cancelar" icon="pi pi-times" class="p-button-text text-gray-600 hover:bg-gray-100" (click)="hideDialog()"></button>
+    <button pButton pRipple label="Salvar" icon="pi pi-check" class="p-button-success" (click)="onSave()"></button>
+  </ng-template>
+</p-dialog>

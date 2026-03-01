@@ -19,7 +19,6 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 import java.util.Objects;
-import java.util.Optional;
 
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
@@ -96,7 +95,7 @@ public class TenantService {
 
         if(!Objects.equals(oldTenant.getStatus(), EnumTenantStatus.C.getDescription())){
             Long duplicates = tenantRepository.countAllByNameAndCnpj(tenantDTO.name(),tenantDTO.cnpj());
-            if (duplicates != 0) {
+            if (duplicates == 0) {
 
                 Tenant tenant = authMapper.toTenant(tenantDTO);
                 tenant.setUpdateDate(Instant.now());
@@ -112,7 +111,7 @@ public class TenantService {
         }
     }
 
-    public Optional<Void> updateTenantStatusById(Long tenantId, String status) {
+    public void updateTenantStatusById(Long tenantId, String status) {
         logger.debug("REST request to update the status of the given tenant : {}", tenantId);
         Tenant tenant = tenantRepository.findById(tenantId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, ENTITY_NAME + " : " + Constants.TENANT_NOT_FOUND));
@@ -127,7 +126,6 @@ public class TenantService {
             tenant.setLastUpdatedBy(currentUser.email());
             tenantRepository.save(tenant);
             auditService.logAuditEvent(Constants.TENANT_UPDATE, currentUser.id(), Constants.TENANT, null, "SUCCESS", null,null);
-            return Optional.empty();
         }
     }
 }

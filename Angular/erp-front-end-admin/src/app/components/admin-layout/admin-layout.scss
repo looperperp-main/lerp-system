@@ -1,304 +1,321 @@
-:host {
-  --surface-ground: #eff3f8;
-  --surface-card: #ffffff;
-  --surface-border: #dfe7ef;
-  --surface-overlay: #ffffff;
-  --text-color: #374151;
-  --text-color-secondary: #64748b;
-  --primary-color: #6366f1;
-  --border-radius: 12px;
-  --transition-duration: 0.2s;
-}
+//:host {
+//  --surface-ground: #eff3f8;
+//  --surface-card: #ffffff;
+//  --surface-border: #dfe7ef;
+//  --surface-overlay: #ffffff;
+//  --text-color: #374151;
+//  --text-color-secondary: #64748b;
+//  --primary-color: #6366f1;
+//  --border-radius: 12px;
+//  --transition-duration: 0.2s;
+//}
+//
+//.layout-wrapper {
+//  min-height: 100vh;
+//  background-color: var(--surface-ground);
+//  /* Garante que todo o texto dentro do wrapper use a cor definida na variável (cinza escuro) */
+//  color: var(--text-color);
+//}
+//
+///* --- Topbar --- */
+//.layout-topbar {
+//  position: fixed;
+//  height: 5rem;
+//  z-index: 997;
+//  left: 0;
+//  top: 0;
+//  width: 100%;
+//  padding: 0 2rem;
+//  background-color: var(--surface-card);
+//  transition: left var(--transition-duration);
+//  display: flex;
+//  align-items: center;
+//  box-shadow: 0px 3px 5px rgba(0,0,0,.02), 0px 0px 2px rgba(0,0,0,.05), 0px 1px 4px rgba(0,0,0,.08);
+//
+//  .layout-topbar-logo {
+//    display: flex;
+//    align-items: center;
+//    color: var(--text-color);
+//    font-size: 1.5rem;
+//    font-weight: 500;
+//    width: 300px;
+//    border-radius: 12px;
+//    text-decoration: none;
+//    margin-left: 1rem;
+//
+//    .brand__icon {
+//      margin-right: 0.5rem;
+//      font-size: 2rem;
+//    }
+//  }
+//
+//  .layout-topbar-button {
+//    display: inline-flex;
+//    justify-content: center;
+//    align-items: center;
+//    position: relative;
+//    color: var(--text-color-secondary);
+//    border-radius: 50%;
+//    width: 3rem;
+//    height: 3rem;
+//    cursor: pointer;
+//    transition: background-color var(--transition-duration);
+//    border: none;
+//    background: transparent;
+//
+//    &:hover {
+//      color: var(--text-color);
+//      background-color: var(--surface-ground);
+//    }
+//
+//    i {
+//      font-size: 1.5rem;
+//    }
+//
+//    span {
+//      display: none;
+//    }
+//  }
+//
+//  .layout-menu-button {
+//    flex-shrink: 0;
+//  }
+//
+//  .layout-topbar-menu-button {
+//    display: none; // Escondido em desktop
+//    margin-left: auto;
+//  }
+//
+//  .layout-topbar-menu {
+//    margin: 0 0 0 auto;
+//    padding: 0;
+//    list-style: none;
+//    display: flex;
+//    align-items: center; // Garante alinhamento vertical
+//    gap: 1rem; // Espaçamento entre ícones
+//  }
+//}
+//
+///* --- Sidebar --- */
+//.layout-sidebar {
+//  position: fixed;
+//  width: 20rem; // Largura da sidebar
+//  height: calc(100vh - 7rem); // Altura total menos margens
+//  z-index: 999;
+//  overflow-y: auto;
+//  user-select: none;
+//  top: 6rem; // Distância do topo
+//  left: 2rem; // Efeito flutuante à esquerda
+//  transition: transform var(--transition-duration), left var(--transition-duration);
+//  background-color: var(--surface-overlay);
+//  //color: var(--text-color);
+//  border-radius: var(--border-radius);
+//  padding: 1rem; // Padding interno
+//  box-shadow: 0px 3px 5px rgba(0,0,0,.02), 0px 0px 2px rgba(0,0,0,.05), 0px 1px 4px rgba(0,0,0,.08);
+//}
+//
+///* --- Main Content --- */
+//.layout-main-container {
+//  display: flex;
+//  flex-direction: column;
+//  min-height: 100vh;
+//  justify-content: space-between;
+//  padding: 7rem 2rem 2rem 24rem; // Padding left maior para compensar sidebar
+//  transition: margin-left var(--transition-duration);
+//}
+//
+//.layout-main {
+//  flex: 1 1 auto;
+//  background-color: var(--surface-card);
+//  padding: 2rem;
+//  border-radius: var(--border-radius);
+//  box-shadow: 0px 3px 5px rgba(0,0,0,.02), 0px 0px 2px rgba(0,0,0,.05), 0px 1px 4px rgba(0,0,0,.08);
+//}
+//
+//.layout-footer {
+//  padding-top: 1rem;
+//  display: flex;
+//  align-items: center;
+//  justify-content: center;
+//  color: var(--text-color-secondary);
+//  font-weight: 500;
+//}
+//
+///* --- Responsive & States --- */
+//// Esconde sidebar quando inativo
+//.layout-static-inactive {
+//  .layout-sidebar {
+//    transform: translateX(-100%);
+//    left: 0;
+//  }
+//
+//  .layout-main-container {
+//    padding-left: 2rem; // Centraliza conteúdo quando menu fecha
+//  }
+//}
+//
+//// Mobile styles
+//@media (max-width: 991px) {
+//  .layout-wrapper {
+//    .layout-main-container {
+//      padding-left: 2rem;
+//    }
+//
+//    .layout-sidebar {
+//      transform: translateX(-100%);
+//      left: 0;
+//      top: 5rem;
+//      height: calc(100vh - 5rem);
+//      border-top-right-radius: 0;
+//      border-bottom-right-radius: 0;
+//    }
+//
+//    &.layout-static-inactive .layout-sidebar {
+//      transform: translateX(0); // Abre no mobile
+//      width: 20rem;
+//      box-shadow: 0 0 10px rgba(0,0,0,0.2); // Sombra extra para sobreposição
+//    }
+//
+//    .layout-mask {
+//      display: block; // Mostra overlay escuro
+//      position: fixed;
+//      top: 0;
+//      left: 0;
+//      width: 100%;
+//      height: 100%;
+//      background-color: rgba(0, 0, 0, 0.4);
+//      z-index: 998;
+//    }
+//  }
+//
+//  .layout-topbar {
+//    .layout-topbar-menu-button {
+//      display: flex;
+//    }
+//
+//    .layout-topbar-menu {
+//      position: absolute;
+//      top: 5rem;
+//      right: 2rem;
+//      width: 15rem;
+//      flex-direction: column;
+//      background-color: var(--surface-overlay);
+//      box-shadow: 0px 3px 5px rgba(0,0,0,.02), 0px 0px 2px rgba(0,0,0,.05), 0px 1px 4px rgba(0,0,0,.08);
+//      border-radius: var(--border-radius);
+//      padding: 1rem;
+//      display: none;
+//
+//      &.layout-topbar-menu-mobile-active {
+//        display: flex;
+//        animation: fadeInDown .2s;
+//      }
+//
+//      .layout-topbar-button {
+//        width: 100%;
+//        justify-content: flex-start;
+//        border-radius: 6px;
+//        padding: 0.5rem;
+//        height: auto;
+//
+//        span {
+//          display: block;
+//          margin-left: 0.5rem;
+//        }
+//      }
+//    }
+//  }
+//}
+//
+//@keyframes fadeInDown {
+//  from { opacity: 0; transform: translateY(-10px); }
+//  to { opacity: 1; transform: translateY(0); }
+//}
 
-.layout-wrapper {
-  min-height: 100vh;
-  background-color: var(--surface-ground);
-  /* Garante que todo o texto dentro do wrapper use a cor definida na variável (cinza escuro) */
-  color: var(--text-color);
-}
+///* --- Ajuste fino no PrimeNG PanelMenu --- */
+//:host ::ng-deep {
+//  .p-panelmenu {
+//    .p-panelmenu-header-content {
+//      border: none;
+//      background: transparent;
+//      transition: background-color 0.2s;
+//      border-radius: 6px;
+//      margin-bottom: 0.2rem; /* Pequeno espaço entre itens */
+//
+//      /* Texto e Ícones dos itens principais (Home, Cadastros...) */
+//      .p-panelmenu-header-action {
+//        padding: 0.75rem 1rem;
+//        font-weight: 600;
+//        color: #4b5563; /* Cinza Escuro (Gray-600) em vez de preto */
+//        text-decoration: none;
+//        display: flex;
+//        align-items: center;
+//      }
+//
+//      /* Ícones específicos */
+//      .p-menuitem-icon {
+//        color: #6b7280; /* Cinza um pouco mais claro para os ícones */
+//        margin-right: 0.5rem;
+//      }
+//
+//      &:hover {
+//        background-color: #f3f4f6; /* Fundo cinza bem claro no hover */
+//
+//        .p-panelmenu-header-action {
+//          color: #1f2937; /* Escurece um pouco no hover (Gray-800) */
+//        }
+//        .p-menuitem-icon {
+//          color: #374151;
+//        }
+//      }
+//    }
+//
+//    .p-panelmenu-panel{
+//      background: rgba(0, 0, 0, 0.8);
+//    }
+//
+//    /* Itens do Submenu (Usuários, Tenants...) */
+//    .p-menuitem-content {
+//      background: transparent;
+//      border: none;
+//    }
+//
+//    .p-menuitem-link {
+//      padding: 0.75rem 1rem 0.75rem 2.5rem; /* Mais padding na esquerda para indentar */
+//      color: #4b5563; /* Cinza Escuro */
+//      text-decoration: none;
+//      transition: background-color 0.2s;
+//      border-radius: 6px;
+//
+//      .p-menuitem-icon {
+//        color: #6b7280;
+//        margin-right: 0.5rem;
+//      }
+//
+//      &:hover {
+//        background-color: #f3f4f6;
+//        color: #1f2937;
+//
+//        .p-menuitem-icon {
+//          color: #374151;
+//        }
+//      }
+//    }
+//  }
+//}
 
-/* --- Topbar --- */
-.layout-topbar {
-  position: fixed;
-  height: 5rem;
-  z-index: 997;
-  left: 0;
-  top: 0;
-  width: 100%;
-  padding: 0 2rem;
-  background-color: var(--surface-card);
-  transition: left var(--transition-duration);
-  display: flex;
-  align-items: center;
-  box-shadow: 0px 3px 5px rgba(0,0,0,.02), 0px 0px 2px rgba(0,0,0,.05), 0px 1px 4px rgba(0,0,0,.08);
 
-  .layout-topbar-logo {
-    display: flex;
-    align-items: center;
-    color: var(--text-color);
-    font-size: 1.5rem;
-    font-weight: 500;
-    width: 300px;
-    border-radius: 12px;
-    text-decoration: none;
-    margin-left: 1rem;
-
-    .brand__icon {
-      margin-right: 0.5rem;
-      font-size: 2rem;
-    }
+.custom-scrollbar {
+  &::-webkit-scrollbar {
+    width: 4px;
   }
-
-  .layout-topbar-button {
-    display: inline-flex;
-    justify-content: center;
-    align-items: center;
-    position: relative;
-    color: var(--text-color-secondary);
-    border-radius: 50%;
-    width: 3rem;
-    height: 3rem;
-    cursor: pointer;
-    transition: background-color var(--transition-duration);
-    border: none;
+  &::-webkit-scrollbar-track {
     background: transparent;
-
-    &:hover {
-      color: var(--text-color);
-      background-color: var(--surface-ground);
-    }
-
-    i {
-      font-size: 1.5rem;
-    }
-
-    span {
-      display: none;
-    }
   }
-
-  .layout-menu-button {
-    flex-shrink: 0;
+  &::-webkit-scrollbar-thumb {
+    background: #e5e7eb;
+    border-radius: 4px;
   }
-
-  .layout-topbar-menu-button {
-    display: none; // Escondido em desktop
-    margin-left: auto;
-  }
-
-  .layout-topbar-menu {
-    margin: 0 0 0 auto;
-    padding: 0;
-    list-style: none;
-    display: flex;
-    align-items: center; // Garante alinhamento vertical
-    gap: 1rem; // Espaçamento entre ícones
-  }
-}
-
-/* --- Sidebar --- */
-.layout-sidebar {
-  position: fixed;
-  width: 20rem; // Largura da sidebar
-  height: calc(100vh - 7rem); // Altura total menos margens
-  z-index: 999;
-  overflow-y: auto;
-  user-select: none;
-  top: 6rem; // Distância do topo
-  left: 2rem; // Efeito flutuante à esquerda
-  transition: transform var(--transition-duration), left var(--transition-duration);
-  background-color: var(--surface-overlay);
-  //color: var(--text-color);
-  border-radius: var(--border-radius);
-  padding: 1rem; // Padding interno
-  box-shadow: 0px 3px 5px rgba(0,0,0,.02), 0px 0px 2px rgba(0,0,0,.05), 0px 1px 4px rgba(0,0,0,.08);
-}
-
-/* --- Main Content --- */
-.layout-main-container {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  justify-content: space-between;
-  padding: 7rem 2rem 2rem 24rem; // Padding left maior para compensar sidebar
-  transition: margin-left var(--transition-duration);
-}
-
-.layout-main {
-  flex: 1 1 auto;
-  background-color: var(--surface-card);
-  padding: 2rem;
-  border-radius: var(--border-radius);
-  box-shadow: 0px 3px 5px rgba(0,0,0,.02), 0px 0px 2px rgba(0,0,0,.05), 0px 1px 4px rgba(0,0,0,.08);
-}
-
-.layout-footer {
-  padding-top: 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-color-secondary);
-  font-weight: 500;
-}
-
-/* --- Responsive & States --- */
-// Esconde sidebar quando inativo
-.layout-static-inactive {
-  .layout-sidebar {
-    transform: translateX(-100%);
-    left: 0;
-  }
-
-  .layout-main-container {
-    padding-left: 2rem; // Centraliza conteúdo quando menu fecha
-  }
-}
-
-// Mobile styles
-@media (max-width: 991px) {
-  .layout-wrapper {
-    .layout-main-container {
-      padding-left: 2rem;
-    }
-
-    .layout-sidebar {
-      transform: translateX(-100%);
-      left: 0;
-      top: 5rem;
-      height: calc(100vh - 5rem);
-      border-top-right-radius: 0;
-      border-bottom-right-radius: 0;
-    }
-
-    &.layout-static-inactive .layout-sidebar {
-      transform: translateX(0); // Abre no mobile
-      width: 20rem;
-      box-shadow: 0 0 10px rgba(0,0,0,0.2); // Sombra extra para sobreposição
-    }
-
-    .layout-mask {
-      display: block; // Mostra overlay escuro
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-color: rgba(0, 0, 0, 0.4);
-      z-index: 998;
-    }
-  }
-
-  .layout-topbar {
-    .layout-topbar-menu-button {
-      display: flex;
-    }
-
-    .layout-topbar-menu {
-      position: absolute;
-      top: 5rem;
-      right: 2rem;
-      width: 15rem;
-      flex-direction: column;
-      background-color: var(--surface-overlay);
-      box-shadow: 0px 3px 5px rgba(0,0,0,.02), 0px 0px 2px rgba(0,0,0,.05), 0px 1px 4px rgba(0,0,0,.08);
-      border-radius: var(--border-radius);
-      padding: 1rem;
-      display: none;
-
-      &.layout-topbar-menu-mobile-active {
-        display: flex;
-        animation: fadeInDown .2s;
-      }
-
-      .layout-topbar-button {
-        width: 100%;
-        justify-content: flex-start;
-        border-radius: 6px;
-        padding: 0.5rem;
-        height: auto;
-
-        span {
-          display: block;
-          margin-left: 0.5rem;
-        }
-      }
-    }
-  }
-}
-
-@keyframes fadeInDown {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* --- Ajuste fino no PrimeNG PanelMenu --- */
-:host ::ng-deep {
-  .p-panelmenu {
-    .p-panelmenu-header-content {
-      border: none;
-      background: transparent;
-      transition: background-color 0.2s;
-      border-radius: 6px;
-      margin-bottom: 0.2rem; /* Pequeno espaço entre itens */
-
-      /* Texto e Ícones dos itens principais (Home, Cadastros...) */
-      .p-panelmenu-header-action {
-        padding: 0.75rem 1rem;
-        font-weight: 600;
-        color: #4b5563; /* Cinza Escuro (Gray-600) em vez de preto */
-        text-decoration: none;
-        display: flex;
-        align-items: center;
-      }
-
-      /* Ícones específicos */
-      .p-menuitem-icon {
-        color: #6b7280; /* Cinza um pouco mais claro para os ícones */
-        margin-right: 0.5rem;
-      }
-
-      &:hover {
-        background-color: #f3f4f6; /* Fundo cinza bem claro no hover */
-
-        .p-panelmenu-header-action {
-          color: #1f2937; /* Escurece um pouco no hover (Gray-800) */
-        }
-        .p-menuitem-icon {
-          color: #374151;
-        }
-      }
-    }
-
-    .p-panelmenu-panel{
-      background: rgba(0, 0, 0, 0.8);
-    }
-
-    /* Itens do Submenu (Usuários, Tenants...) */
-    .p-menuitem-content {
-      background: transparent;
-      border: none;
-    }
-
-    .p-menuitem-link {
-      padding: 0.75rem 1rem 0.75rem 2.5rem; /* Mais padding na esquerda para indentar */
-      color: #4b5563; /* Cinza Escuro */
-      text-decoration: none;
-      transition: background-color 0.2s;
-      border-radius: 6px;
-
-      .p-menuitem-icon {
-        color: #6b7280;
-        margin-right: 0.5rem;
-      }
-
-      &:hover {
-        background-color: #f3f4f6;
-        color: #1f2937;
-
-        .p-menuitem-icon {
-          color: #374151;
-        }
-      }
-    }
+  &::-webkit-scrollbar-thumb:hover {
+    background: #d1d5db;
   }
 }

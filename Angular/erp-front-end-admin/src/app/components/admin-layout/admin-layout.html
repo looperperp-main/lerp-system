@@ -1,53 +1,139 @@
-<div class="layout-wrapper" [class.layout-static-inactive]="isCollapsed">
+<div class="flex h-screen bg-[#FDFBF7] font-sans overflow-hidden relative">
 
-  <!-- Topbar -->
-  <div class="layout-topbar">
-
-    <!-- 1. Botão do Menu (Agora é o primeiro item) -->
-    <button class="p-link layout-menu-button layout-topbar-button" (click)="toggleSidebar()">
-      <i class="pi pi-bars"></i>
-    </button>
-
-    <!-- 2. Logo (Agora vem depois do botão) -->
-    <a class="layout-topbar-logo" routerLink="/">
-      <div class="brand__icon">⚡</div>
-      <span>ERP VSD</span>
-    </a>
-
-    <button class="p-link layout-topbar-menu-button layout-topbar-button" (click)="toggleDropdown()">
-      <i class="pi pi-ellipsis-v"></i>
-    </button>
-
-    <div class="layout-topbar-menu" [class.layout-topbar-menu-mobile-active]="isDropdownOpen">
-      <button class="p-link layout-topbar-button">
-        <i class="pi pi-calendar"></i>
-        <span>Calendar</span>
-      </button>
-      <button class="p-link layout-topbar-button">
-        <i class="pi pi-user"></i>
-        <span>Profile</span>
-      </button>
-      <button class="p-link layout-topbar-button" (click)="logout()">
-        <i class="pi pi-sign-out"></i>
-        <span>Sair</span>
-      </button>
-    </div>
-  </div>
+  <!-- Mobile Overlay Backdrop -->
+  <!--<div *ngIf="isMobile && !isCollapsed" class="fixed inset-0 bg-black/50 z-20 lg:hidden" (click)="toggleSidebar()"></div>-->
+  <div *ngIf="isMobile && !isCollapsed" class="fixed inset-0 bg-black/50 z-20" (click)="toggleSidebar()"></div>
 
   <!-- Sidebar -->
-  <div class="layout-sidebar">
-    <p-panelMenu [model]="menuItems" styleClass="w-full" [multiple]="false"></p-panelMenu>
-  </div>
+  <aside
+    class="bg-[#FDFBF7] flex flex-col border-r border-gray-100/50
+           w-64 flex-shrink-0
+           lg:static lg:translate-x-0 lg:z-auto
+           fixed inset-y-0 left-0 z-30 transform transition-transform duration-300"
+    [class.-translate-x-full]="isMobile && isCollapsed"
+    [class.translate-x-0]="isMobile && !isCollapsed"
+  >
 
-  <!-- Main Content -->
-  <div class="layout-main-container">
-    <div class="layout-main">
+    <!-- Logo Area -->
+    <div class="h-20 lg:h-24 flex items-center justify-between px-6">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-sm">
+          S
+        </div>
+        <span class="text-xl font-bold text-gray-900 tracking-tight">Syax</span>
+      </div>
+      <!-- Close Button Mobile -->
+      <button class="lg:hidden text-gray-500" (click)="toggleSidebar()">
+        <i class="pi pi-times"></i>
+      </button>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="flex-1 overflow-y-auto px-4 py-4 space-y-1 custom-scrollbar">
+
+      <div *ngFor="let item of menuItems">
+        <!-- Main Item -->
+        <div
+          class="flex items-center justify-between px-3 py-3 rounded-xl cursor-pointer transition-colors group mb-1"
+          [class.bg-white]="item?.['active'] || item.expanded"
+          [class.shadow-sm]="item?.['active'] || item.expanded"
+          (click)="item.items ? toggleSubmenu(item) : null"
+          [routerLink]="item.routerLink"
+          [routerLinkActive]="['bg-white', 'shadow-sm', 'text-gray-900']"
+          [routerLinkActiveOptions]="{exact: false}"
+        >
+          <div class="flex items-center gap-3">
+            <i [class]="item.icon + ' text-lg text-gray-500 group-hover:text-orange-500 transition-colors'"></i>
+            <span class="text-sm font-medium text-gray-600 group-hover:text-gray-900">
+                    {{ item.label }}
+                </span>
+          </div>
+
+          <i *ngIf="item.items"
+             class="pi pi-chevron-right text-xs text-gray-400 transition-transform duration-200"
+             [class.rotate-90]="item.expanded">
+          </i>
+        </div>
+
+        <!-- Submenu Items -->
+        <div *ngIf="item.items && item.expanded" class="pl-10 pr-2 space-y-1 mb-2">
+          <a *ngFor="let subItem of item.items"
+             [routerLink]="subItem.routerLink"
+             class="block px-3 py-2 text-sm text-gray-500 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition-colors">
+            {{ subItem.label }}
+          </a>
+        </div>
+      </div>
+
+    </nav>
+
+    <!-- Footer Sidebar (Logout) -->
+    <div class="p-4 border-t border-gray-100">
+      <button (click)="logout()" class="w-full flex items-center gap-3 px-3 py-3 text-gray-500 hover:bg-red-50 hover:text-red-500 rounded-xl transition-colors">
+        <i class="pi pi-sign-out text-lg"></i>
+        <span class="text-sm font-medium">Sair</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content Wrapper -->
+  <div class="flex-1 flex flex-col min-w-0 w-full">
+
+    <!-- Topbar -->
+    <header class="h-16 lg:h-24 flex items-center justify-between px-4 lg:px-8 bg-[#FDFBF7] flex-shrink-0 gap-4">
+
+      <!-- Mobile Menu Button -->
+      <button class="lg:hidden p-2 text-gray-600" (click)="toggleSidebar()">
+        <i class="pi pi-bars text-xl"></i>
+      </button>
+
+      <!-- Search Bar -->
+      <div class="flex-1 max-w-lg hidden md:block">
+        <div class="flex items-center bg-[#F3F4F6] rounded-full px-5 py-3 focus-within:ring-2 focus-within:ring-orange-100 transition-all">
+          <i class="pi pi-search text-gray-400"></i>
+          <input
+            type="text"
+            placeholder="Pesquisar..."
+            class="bg-transparent border-none outline-none text-sm text-gray-700 ml-3 w-full placeholder-gray-400"
+          >
+        </div>
+      </div>
+
+      <!-- Mobile Search Icon (visible only on mobile) -->
+      <button class="md:hidden p-2 text-gray-500">
+        <i class="pi pi-search text-xl"></i>
+      </button>
+
+      <!-- Right Actions -->
+      <div class="flex items-center gap-3 lg:gap-6 ml-auto">
+
+        <!-- Notification Bell -->
+        <button class="relative p-2 text-gray-400 hover:text-gray-600 transition-colors">
+          <i class="pi pi-bell text-xl"></i>
+          <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 border-2 border-[#FDFBF7] rounded-full"></span>
+        </button>
+
+        <!-- Divider -->
+        <div class="h-8 w-px bg-gray-200 hidden md:block"></div>
+
+        <!-- User Profile -->
+        <div class="flex items-center gap-3 cursor-pointer" (click)="toggleDropdown()">
+          <div class="text-right hidden md:block">
+            <div class="text-sm font-bold text-gray-900">{{ user.name }}</div>
+            <div class="text-xs text-gray-400">{{ user.role }}</div>
+          </div>
+          <img [src]="user.avatar" alt="Avatar" class="w-8 h-8 lg:w-10 lg:h-10 rounded-full object-cover border-2 border-white shadow-sm">
+          <!--<i class="pi pi-chevron-down text-xs text-gray-400 hidden md:block"></i>-->
+        </div>
+
+      </div>
+    </header>
+
+    <!-- Scrollable Content -->
+    <main class="flex-1 overflow-x-hidden overflow-y-auto bg-[#FDFBF7] px-4 lg:px-8 pb-8">
       <router-outlet></router-outlet>
-    </div>
-    <div class="layout-footer">
-      <span class="font-medium ml-2">ERP VSD ERP</span>
-    </div>
+    </main>
+
   </div>
 
-  <div class="layout-mask" *ngIf="!isCollapsed" (click)="toggleSidebar()"></div>
 </div>

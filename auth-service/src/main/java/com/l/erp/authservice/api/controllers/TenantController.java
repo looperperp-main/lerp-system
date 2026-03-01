@@ -21,8 +21,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-
 @RestController
 @RequestMapping("/auth")
 public class TenantController {
@@ -68,6 +66,7 @@ public class TenantController {
     @Secured(Roles.APP_OWNER)
     public ResponseEntity<Void> updateTenantStatusById(@Valid @PathVariable Long tenantId, @Valid @RequestBody String status) {
         log.debug("REST request to update the status of the given tenant");
-        return ResponseEntity.of(tenantService.updateTenantStatusById(tenantId,status));
+        tenantService.updateTenantStatusById(tenantId,status);
+        return ResponseEntity.noContent().build();
     }
 }

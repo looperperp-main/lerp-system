@@ -27,3 +27,55 @@ app-root {
   display: block;
   height: 100%;
 }
+
+@layer components {
+  /* ==================================================
+     LAYOUTS GLOBAIS DE PÁGINAS ADMINISTRATIVAS
+     ================================================== */
+
+  /* Container principal da página (Fundo bege claro, padding responsivo, tira overflow) */
+  .page-container {
+    @apply p-2 lg:p-6 bg-[#FDFBF7] min-h-screen font-sans text-gray-800 min-w-0;
+  }
+
+  /* Cabeçalho da Página (Título e Subtítulo) */
+  .page-header {
+    @apply flex flex-col md:flex-row justify-between items-start md:items-center mb-6 lg:mb-8 gap-4;
+  }
+
+  .page-title {
+    @apply text-xl lg:text-2xl font-bold text-gray-900;
+  }
+
+  .page-subtitle {
+    @apply text-gray-500 text-sm mt-1;
+  }
+
+  /* Card branco principal onde fica o conteúdo (Tabelas, forms) */
+  .content-card {
+    @apply bg-white p-5 lg:p-6 rounded-2xl shadow-sm border border-gray-100 min-w-0;
+  }
+
+  /* Toolbar dentro do card (Onde ficam os botões de Novo, Exportar, etc) */
+  .content-toolbar {
+    @apply flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4;
+  }
+
+  .content-toolbar-title {
+    @apply text-lg font-bold text-gray-800 hidden sm:block;
+  }
+
+  .content-toolbar-actions {
+    @apply flex gap-2 w-full sm:w-auto;
+  }
+
+  /* Contêiner da tabela para garantir scroll horizontal responsivo */
+  .table-container {
+    @apply overflow-x-auto min-w-0;
+  }
+
+  /* Inputs de formulário globais (para usar nos modais) */
+  .form-input {
+    @apply w-full border-gray-300 rounded-md shadow-sm focus:ring-orange-500 focus:border-orange-500 p-2 border bg-white;
+  }
+}

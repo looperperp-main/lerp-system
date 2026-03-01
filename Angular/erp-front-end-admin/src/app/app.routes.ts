@@ -1,9 +1,9 @@
-import { Routes } from '@angular/router';
+import {Routes} from '@angular/router';
 import {Login} from './pages/login/login';
 import {AdminLayout} from './components/admin-layout/admin-layout';
 import {Home} from './pages/admin/home/home';
-import {authGuard} from './util/authguard';
 import {Tenant} from './pages/cadastros/tenant/tenant/tenant';
+import {Audit} from './pages/admin/audit/audit';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'login-admin', pathMatch: 'full' },
@@ -18,7 +18,8 @@ export const routes: Routes = [
     children: [
       { path: '', redirectTo: 'home', pathMatch: 'full' },
       { path: 'home', component: Home },
-      { path: 'cadastros/tenants', component: Tenant }
+      { path: 'cadastros/tenants', component: Tenant },
+      { path: 'audit', component: Audit}
     ]
   }
 ];

@@ -1,17 +1,23 @@
-import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { MessageService, ConfirmationService } from 'primeng/api';
-import { ToastModule } from 'primeng/toast';
-import { ToolbarModule } from 'primeng/toolbar';
-import { ButtonModule } from 'primeng/button';
-import { DialogModule } from 'primeng/dialog';
-import { ConfirmDialogModule } from 'primeng/confirmdialog';
-import { InputTextModule } from 'primeng/inputtext';
-import { DataTableComponent, ColumnConfig } from '../../../../components/table/data-table';
-import { TenantModel } from './tenant.model';
-import {Select} from 'primeng/select';
+import {Component,signal} from '@angular/core';
+import {CommonModule} from '@angular/common';
+import {FormsModule} from '@angular/forms';
+import {ConfirmationService, MessageService} from 'primeng/api';
+import {ToastModule} from 'primeng/toast';
+import {ToolbarModule} from 'primeng/toolbar';
+import {ButtonModule} from 'primeng/button';
+import {DialogModule} from 'primeng/dialog';
+import {ConfirmDialogModule} from 'primeng/confirmdialog';
+import {InputTextModule} from 'primeng/inputtext';
+import {ColumnConfig} from '../../../../components/table/data-table';
+import {TenantModel} from './tenant.model';
 import {Ripple} from 'primeng/ripple';
+import {TableModule} from 'primeng/table';
+import {TenantForm} from './tenant-form/tenant-form';
+import {TenantService} from './tenant.service';
+import {CnpjPipe} from '../../../../util/pipe/cnpj.pipe';
+import {HtmlDecodePipe} from '../../../../util/pipe/html-decode.pipe';
+import {HttpErrorResponse} from '@angular/common/http';
+import {Tooltip} from 'primeng/tooltip';
 
 @Component({
   selector: 'app-tenant',
@@ -25,9 +31,12 @@ import {Ripple} from 'primeng/ripple';
     DialogModule,
     ConfirmDialogModule,
     InputTextModule,
-    DataTableComponent,
-    Select,
-    Ripple
+    Ripple,
+    TableModule,
+    TenantForm,
+    CnpjPipe,
+    HtmlDecodePipe,
+    Tooltip
   ],
   providers: [MessageService, ConfirmationService],
   templateUrl: './tenant.html',
@@ -37,15 +46,23 @@ export class Tenant {
 
   // Configuração da Tabela
   tenantDialog: boolean = false;
-  tenants: TenantModel[] = [];
+  tenants =  signal<TenantModel[]>([]);
   tenant: TenantModel = { name: '', cnpj: '', status: 'ATIVO' }; // Objeto vazio inicial
   selectedTenants: Tenant[] = [];
   submitted: boolean = false;
-  loading: boolean = true;
+  loading = signal<boolean>(true);
+  totalRecords = signal<number>(0);
+
+  // Variáveis para o Dialog de Exclusão
+  deleteDialogVisible: boolean = false;
+  tenantToDelete: TenantModel | null = null;
+  deleteReason: string = '';
+  deleteSubmitted: boolean = false;
 
   // Opções de Status
   statuses = [
     { label: 'Ativo', value: 'ATIVO' },
+    { label: 'Pendente', value: 'PENDENTE' },
     { label: 'Suspenso', value: 'SUSPENSO' },
     { label: 'Cancelado', value: 'CANCELADO' }
   ];
@@ -65,41 +82,37 @@ export class Tenant {
 
   constructor(
     private messageService: MessageService,
-    private confirmationService: ConfirmationService
+    private confirmationService: ConfirmationService,
+    private tenantService: TenantService
   ) {}
 
   ngOnInit() {
-    // Simulação de carga de dados (substituir por chamada HTTP depois)
-    setTimeout(() => {
-      this.tenants = [
-        {
-          id: 1001,
-          name: 'Empresa Alpha Ltda',
-          cnpj: '12.345.678/0001-90',
-          status: 'ATIVO',
-          createdBy: 'admin',
-          creationDate: new Date().toISOString(),
-          lastUpdatedBy: 'admin',
-          updateDate: new Date().toISOString()
-        },
-        {
-          id: 1002,
-          name: 'Beta Serviços S.A.',
-          cnpj: '98.765.432/0001-10',
-          status: 'SUSPENSO',
-          createdBy: 'system',
-          creationDate: new Date('2023-01-15').toISOString(),
-          lastUpdatedBy: 'manager',
-          updateDate: new Date().toISOString()
-        }
-      ];
-      this.loading = false;
-    }, 1000);
+    // Carregamento feito via lazy load do datatable (onLazyLoad)
+  }
+
+  onLazyLoad(event: any) {
+    const page = event.first / event.rows;
+    const size = event.rows;
+    this.loadTenants(page, size);
+  }
+
+  loadTenants(page: number = 0, size: number = 10) {
+    this.loading.set(true);
+    this.tenantService.getTenants(page, size).subscribe({
+      next: (response) => {
+        this.tenants.set(response.content || []);
+        this.totalRecords.set(response.totalElements || 0);
+        this.loading.set(false);
+      },
+      error: (err: HttpErrorResponse) => {
+        this.handleError(err, 'Erro ao carregar tenants');
+        this.loading.set(false);
+      }
+    });
   }
 
   openNew() {
-    this.tenant = { name: '', cnpj: '', status: 'ATIVO' };
-    this.submitted = false;
+    this.tenant = { name: '', cnpj: '', status: 'PENDENTE' };
     this.tenantDialog = true;
   }
 
@@ -108,49 +121,121 @@ export class Tenant {
     this.tenantDialog = true;
   }
 
+  // 1. Abre o dialog de exclusão
   deleteTenant(tenant: TenantModel) {
-    this.confirmationService.confirm({
-      message: 'Tem certeza que deseja excluir ' + tenant.name + '?',
-      header: 'Confirmar',
-      icon: 'pi pi-exclamation-triangle',
-      accept: () => {
-        this.tenants = this.tenants.filter(val => val.id !== tenant.id);
-        this.tenant = { name: '', cnpj: '', status: 'ATIVO' };
-        this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Tenant excluído', life: 3000 });
-      }
-    });
+    this.tenantToDelete = { ...tenant };
+    this.deleteReason = '';
+    this.deleteSubmitted = false;
+    this.deleteDialogVisible = true;
   }
 
-  hideDialog() {
-    this.tenantDialog = false;
-    this.submitted = false;
+  // 2. Fecha o dialog sem fazer nada
+  hideDeleteDialog() {
+    this.deleteDialogVisible = false;
+    this.tenantToDelete = null;
+    this.deleteReason = '';
+    this.deleteSubmitted = false;
   }
 
-  saveTenant() {
+  // 3. Valida e executa a exclusão
+  confirmDelete() {
+    this.deleteSubmitted = true;
+
+    // Validação
+    if (!this.deleteReason || this.deleteReason.trim() === '') {
+      this.messageService.add({ severity: 'warn', summary: 'Atenção', detail: 'O motivo é obrigatório' });
+      return;
+    }
+
+    if (this.tenantToDelete && this.tenantToDelete.id) {
+      const tenantId = this.tenantToDelete.id;
+
+      this.tenantService.updateTenantStatus(tenantId, 'CANCELADO').subscribe({
+        next: () => {
+          this.tenants.update(currentTenants =>
+            currentTenants.map(t => t.id === tenantId ? { ...t, status: 'CANCELADO' } : t)
+          );
+          this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Tenant excluído (Cancelado)', life: 3000 });
+          this.hideDeleteDialog(); // Sucesso: fecha o dialog
+        },
+        error: (err: HttpErrorResponse) => {
+          this.handleError(err, 'Erro ao excluir o Tenant');
+          // Não fecha o dialog em caso de erro, para o usuário tentar novamente se quiser
+        }
+      });
+    }
+  }
+
+  toggleTenantStatus(tenant: any) {
+    const newStatus = tenant.status === 'ATIVO' ? 'SUSPENSO' : 'ATIVO';
+
+    if(tenant.id) {
+      this.tenantService.updateTenantStatus(tenant.id, newStatus).subscribe({
+        next: () => {
+          // Atualiza o estado da lista via Signal
+          this.tenants.update(currentTenants =>
+            currentTenants.map(t => t.id === tenant.id ? { ...t, status: newStatus } : t)
+          );
+          this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: `Status alterado para ${newStatus}`, life: 3000 });
+        },
+        error: (err: HttpErrorResponse) => this.handleError(err, 'Erro ao alterar o status do Tenant')
+      });
+    }
+  }
+
+  saveTenant(savedTenant: any) {
     this.submitted = true;
 
-    if (this.tenant.name?.trim() && this.tenant.cnpj?.trim()) {
-      if (this.tenant.id) {
-        // Atualizar Existente
-        const index = this.tenants.findIndex(t => t.id === this.tenant.id);
-        this.tenants[index] = this.tenant;
-        this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Tenant Atualizado', life: 3000 });
-      } else {
-        // Criar Novo
-        this.tenant.id = Math.floor(Math.random() * 10000); // Gerar ID fake
-        this.tenant.creationDate = new Date().toISOString();
-        this.tenant.createdBy = 'usuario_atual';
-        this.tenants.push(this.tenant);
-        this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Tenant Criado', life: 3000 });
-      }
-
-      this.tenants = [...this.tenants];
-      this.tenantDialog = false;
-      this.tenant = { name: '', cnpj: '', status: 'ATIVO' };
+    if (savedTenant.id) {
+      // Atualizar Existente
+      this.tenantService.updateTenant(savedTenant).subscribe({
+        next: (updatedTenant) => {
+          // Substitui o tenant editado na lista reativamente via Signal
+          this.tenants.update(currentTenants =>
+            currentTenants.map(t => t.id === updatedTenant.id ? updatedTenant : t)
+          );
+          this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Tenant Atualizado', life: 3000 });
+        },
+        error: (err: HttpErrorResponse) => this.handleError(err, 'Falha ao atualizar o Tenant')
+      });
+    } else {
+      // Criar Novo
+      this.tenantService.createTenant(savedTenant).subscribe({
+        next: () => {
+          this.loadTenants(0, 10); // Recarrega a primeira página
+          this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Tenant Criado', life: 3000 });
+        },
+        error: (err: HttpErrorResponse) => this.handleError(err, 'Falha ao criar o Tenant')
+      });
     }
   }
 
   exportData() {
     this.messageService.add({ severity: 'info', summary: 'Info', detail: 'Funcionalidade de exportação aqui' });
+  }
+
+  private handleError(err: HttpErrorResponse, defaultSummary: string) {
+    // Verifica se o erro possui o corpo do seu StandardError.java
+    if (err.error && err.error.message && err.error.error && err.error.status) {
+
+      // Formata a mensagem para mostrar o Status, Erro e a Mensagem detalhada
+      const detailMsg = `[${err.error.status}] ${err.error.error} - ${err.error.message}`;
+
+      this.messageService.add({
+        severity: 'error',
+        summary: defaultSummary,
+        detail: detailMsg,
+        life: 5000 // Aumentei o tempo de vida para 5 segundos para dar tempo de ler
+      });
+
+    } else {
+      // Fallback caso seja um erro genérico (ex: API offline, timeout, etc)
+      this.messageService.add({
+        severity: 'error',
+        summary: defaultSummary,
+        detail: 'Erro inesperado de comunicação com o servidor.',
+        life: 5000
+      });
+    }
   }
 }

@@ -1,0 +1,91 @@
+<div class="page-container">
+  <p-toast></p-toast>
+
+  <!-- Header Section -->
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Logs de Auditoria</h1>
+      <p class="page-subtitle">Listagem do Log de Auditoria</p>
+    </div>
+  </div>
+
+  <div class="content-card">
+    <div class="content-toolbar">
+      <h3 class="content-toolbar-title">Ações</h3>
+      <div class="content-toolbar-actions">
+        <!-- Botão de exportação opcional, deixei caso queira manter do ts -->
+        <button
+          pButton
+          pRipple
+          icon="pi pi-upload"
+          class="p-button-help p-button-sm rounded-lg"
+          (click)="exportData()"
+          pTooltip="Exportar"
+          tooltipPosition="bottom">
+        </button>
+      </div>
+    </div>
+
+    <div class="table-container">
+      <p-table
+        #dt
+        [value]="logs()"
+        [columns]="cols"
+        [loading]="loading()"
+        [lazy]="true"
+        (onLazyLoad)="onLazyLoad($event)"
+        [totalRecords]="totalRecords()"
+        [paginator]="true"
+        [rows]="10"
+        [showCurrentPageReport]="true"
+        currentPageReportTemplate="Mostrando {first} até {last} de {totalRecords} registros"
+        [rowsPerPageOptions]="[10, 25, 50]"
+        [tableStyle]="{ 'min-width': '60rem' }"
+        styleClass="p-datatable-sm text-sm"
+        [paginatorDropdownAppendTo]="'body'"
+        dataKey="id">
+
+        <!-- Cabeçalho da Tabela -->
+        <ng-template pTemplate="header" let-columns>
+          <tr>
+            <th *ngFor="let col of columns" [pSortableColumn]="col.field" class="text-xs uppercase text-gray-400 font-semibold border-b border-gray-100 pb-3">
+              {{col.header}} <p-sortIcon *ngIf="col.field !== 'actions'" [field]="col.field"></p-sortIcon>
+            </th>
+          </tr>
+        </ng-template>
+
+        <!-- Corpo da Tabela -->
+        <ng-template pTemplate="body" let-rowData let-columns="columns">
+          <tr class="hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-colors">
+            <td *ngFor="let col of columns" class="py-3 text-gray-600">
+
+              <!-- Dados em Texto Normal -->
+              <ng-container *ngIf="col.type === 'text'">
+                <span class="font-medium" [class.text-gray-900]="col.field === 'name'">
+                  <!-- Se o campo for CNPJ, aplica o pipe. Caso contrário, mostra o texto normal -->
+                  <ng-container *ngIf="col.field === 'cnpj'; else normalText">
+                      {{ rowData[col.field] | cnpj }}
+                  </ng-container>
+
+                  <!-- Para texto normal, aplica o decodificador de HTML -->
+                  <ng-template #normalText>
+                      {{ rowData[col.field] | htmlDecode }}
+                  </ng-template>
+                </span>
+              </ng-container>
+            </td>
+          </tr>
+        </ng-template>
+
+        <!-- Estado Vazio -->
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td [attr.colspan]="cols.length" class="text-center py-6 text-gray-500">
+              Nenhum tenant encontrado.
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </div>
+  </div>
+</div>
