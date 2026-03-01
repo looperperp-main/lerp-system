@@ -29,7 +29,7 @@ export class AdminLayout {
   menuItems: MenuItem[] = [
     { label: 'Overview', icon: 'pi pi-home', routerLink: '/admin/home' },
     { label: 'Cadastros', icon: 'pi pi-folder', path: '/admin/cadastros',items: [
-      { label: 'Usuários', icon: 'pi pi-user', routerLink: '/users' },
+      { label: 'Usuários', icon: 'pi pi-user', routerLink: '/admin/cadastros/users' },
       { label: 'Tenants', icon: 'pi pi-user', routerLink: '/admin/cadastros/tenants' }
       ] },
     { label: 'Auditoria', icon: 'pi pi-eye', routerLink: '/admin/audit' },

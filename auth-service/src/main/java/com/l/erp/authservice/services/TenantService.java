@@ -64,7 +64,7 @@ public class TenantService {
 
     /**
      * Retorna todos os tenants cadastrados
-     * TODO: Checkar a Paginação
+     *
      * @return lista de tenants
      */
     public Page<TenantDTO> getAllTenants(Pageable pageable){

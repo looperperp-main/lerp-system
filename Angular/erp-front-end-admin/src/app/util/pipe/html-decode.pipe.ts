@@ -7,7 +7,7 @@ import { Pipe, PipeTransform } from '@angular/core';
 export class HtmlDecodePipe implements PipeTransform {
 
   transform(value: string | undefined): string {
-    if (!value) return '';
+    if (!value || value === '') return '-';
 
     // Cria um elemento textarea temporário na memória
     const doc = new DOMParser().parseFromString(value, "text/html");

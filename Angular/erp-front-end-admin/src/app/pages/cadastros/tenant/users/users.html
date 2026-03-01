@@ -4,8 +4,8 @@
   <!-- Header Section -->
   <div class="page-header">
     <div>
-      <h1 class="page-title">Logs de Auditoria</h1>
-      <p class="page-subtitle">Listagem do Log de Auditoria</p>
+      <h1 class="page-title">Usuários</h1>
+      <p class="page-subtitle">Gerenciamento de Usuários</p>
     </div>
   </div>
 
@@ -29,7 +29,7 @@
     <div class="table-container">
       <p-table
         #dt
-        [value]="logs()"
+        [value]="users()"
         [columns]="cols"
         [loading]="loading()"
         [lazy]="true"
@@ -59,6 +59,46 @@
           <tr class="hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-colors">
             <td *ngFor="let col of columns" class="py-3 text-gray-600">
 
+              <ng-container *ngIf="col.type === 'status'">
+                                <span [class]="'px-2 py-1 rounded text-xs font-medium ' +
+                                    (rowData.active === true ? 'bg-green-100 text-green-700' :
+                                     rowData.active === false ? 'bg-orange-100 text-orange-700' :
+                                     'bg-red-100 text-red-700')">
+                                    {{rowData.active === true ? 'ATIVO' : 'INATIVO'}}
+                                </span>
+              </ng-container>
+
+              <!-- Colunas de Data Customizadas -->
+              <ng-container *ngIf="col.type === 'date'">
+                {{rowData[col.field] | date:'dd/MM/yyyy HH:mm'}}
+              </ng-container>
+
+              <!-- Coluna de Ações -->
+              <ng-container *ngIf="col.type === 'actions'">
+                <div class="flex gap-2">
+                  <button
+                    pButton
+                    pRipple
+                    icon="pi pi-pencil"
+                    class="p-button-rounded p-button-text p-button-info p-button-sm w-8 h-8"
+                    pTooltip="Editar"
+                    tooltipPosition="top">
+                  </button>
+
+                  <!-- Botão Habilitar/Desabilitar -->
+                  <button
+                    *ngIf="rowData.active === true"
+                    pButton
+                    pRipple
+                    [icon]="rowData.active === true ? 'pi pi-ban' : 'pi pi-check-circle'"
+                    [class]="'p-button-rounded p-button-text p-button-sm w-8 h-8 ' + (rowData.status === 'ATIVO' ? 'p-button-warning' : 'p-button-success')"
+                    pTooltip="Alterar Status"
+                    tooltipPosition="top"
+                  >
+                  </button>
+                </div>
+              </ng-container>
+
               <!-- Dados em Texto Normal -->
               <ng-container *ngIf="col.type === 'text'">
                 <span class="font-medium" [class.text-gray-900]="col.field === 'name'">
@@ -81,7 +121,7 @@
         <ng-template pTemplate="emptymessage">
           <tr>
             <td [attr.colspan]="cols.length" class="text-center py-6 text-gray-500">
-              Nenhum Log encontrado.
+              Nenhum User encontrado.
             </td>
           </tr>
         </ng-template>

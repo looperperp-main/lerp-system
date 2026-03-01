@@ -18,9 +18,9 @@ import java.time.Instant;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Tenant {
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "tenant_id")
-    private UserAccount usersAccount;
+//    @ManyToOne(fetch = FetchType.LAZY)
+//    @JoinColumn(name = "tenant_id")
+//    private UserAccount usersAccount;
     
     @Size(max = 200)
     @Column(name = "last_updated_by", length = 200)

@@ -1,8 +1,13 @@
 package com.l.erp.authservice.api.controllers;
 
+import com.l.erp.authservice.api.dto.UserAccountPageDTO;
 import com.l.erp.authservice.infra.config.Roles;
+import com.l.erp.authservice.services.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.annotation.Secured;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,8 +23,10 @@ public class UserController {
 
     private final Logger log = LoggerFactory.getLogger(UserController.class);
 
-    public UserController() {
+    private final UserService userService;
 
+    public UserController(UserService userService) {
+        this.userService = userService;
     }
 
     @PostMapping("")
@@ -31,9 +38,9 @@ public class UserController {
 
     @GetMapping("")
     @Secured({Roles.APP_OWNER,Roles.TENANT_OWNER})
-    public ResponseEntity<String> getAllUsers(){
+    public ResponseEntity<Page<UserAccountPageDTO>> getAllUsers(@PageableDefault(size = 10, sort = "displayName") Pageable pageable){
         log.debug("REST request to get all users");
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(userService.getAllAccounts(pageable));
     }
 
     @GetMapping("/{userId}")

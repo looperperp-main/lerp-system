@@ -26,7 +26,7 @@ public class TokenService {
                     .withIssuer("L-ERP-auth-service")
                     .withExpiresAt(generateExpirationDate())
                     .withIssuedAt(Instant.now())
-                    .withClaim("tenantId", String.valueOf(user.getTenantId()))
+                    .withClaim("tenantId", String.valueOf(user.getTenant().getId()))
                     .withClaim("userEmail", String.valueOf(user.getEmail()))
                     .withClaim("roles", roles)
                     .withClaim("isOwner", isOwner)
