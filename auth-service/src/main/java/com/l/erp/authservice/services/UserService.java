@@ -9,6 +9,7 @@ import com.l.erp.authservice.dominio.UserAccount;
 import com.l.erp.authservice.repositorios.TenantRepository;
 import com.l.erp.authservice.repositorios.UserAccountRepository;
 import com.l.erp.authservice.services.audit.AuditService;
+import com.l.erp.authservice.util.PasswordValidatorUtil;
 import com.l.erp.authservice.util.SecurityUtils;
 import com.l.erp.common.exception.custom.BussinessException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -42,18 +43,22 @@ public class UserService {
 
     private final TenantRepository tenantRepository;
 
+    private final PasswordValidatorUtil passwordValidatorUtil;
+
     public UserService(
             UserAccountRepository userAccountRepository,
             AuditService auditService,
             UserMapper userMapper,
             PasswordEncoder passwordEncoder,
-            TenantRepository tenantRepository
+            TenantRepository tenantRepository,
+            PasswordValidatorUtil passwordValidatorUtil
     ) {
         this.userAccountRepository = userAccountRepository;
         this.auditService = auditService;
         this.userMapper = userMapper;
         this.passwordEncoder = passwordEncoder;
         this.tenantRepository = tenantRepository;
+        this.passwordValidatorUtil = passwordValidatorUtil;
     }
 
     /**
@@ -79,23 +84,28 @@ public class UserService {
             throw new BussinessException("E-mail já está em uso", HttpStatus.BAD_REQUEST);
         }
 
+        // Vinculando o Tenant
+        Tenant tenant;
+        if (userDTO.tenantId() != null) {
+            tenant = tenantRepository.findById(userDTO.tenantId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tenant não encontrado"));
+        } else {
+            throw new BussinessException("O ID do Tenant é obrigatório para criar um usuário", HttpStatus.BAD_REQUEST);
+        }
+
+        // --> VALIDAÇÃO DE SENHA (Passay) <--
+        // Passamos o texto plano (antes de encodar) e o nome do tenant
+        passwordValidatorUtil.validatePassword(userDTO.passwordHash(), tenant.getName());
+
         UserAccount user = new UserAccount();
         user.setEmail(userDTO.email());
         user.setDisplayName(userDTO.displayName());
         user.setActive(true); // Usuário nasce ativo por padrão
         user.setCreatedDate(Instant.now());
+        user.setTenant(tenant);
 
         // Criptografando a senha recebida
         user.setPasswordHash(passwordEncoder.encode(userDTO.passwordHash()));
-
-        // Vinculando o Tenant
-        if (userDTO.tenantId() != null) {
-            Tenant tenant = tenantRepository.findById(userDTO.tenantId())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tenant não encontrado"));
-            user.setTenant(tenant);
-        } else {
-            throw new BussinessException("O ID do Tenant é obrigatório para criar um usuário", HttpStatus.BAD_REQUEST);
-        }
 
         // Dados de auditoria
         CurrentUser currentUser = SecurityUtils.getCurrentUserInfo();

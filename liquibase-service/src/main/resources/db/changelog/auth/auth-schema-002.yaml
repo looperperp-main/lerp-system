@@ -100,7 +100,7 @@ databaseChangeLog:
       changes:
         - createTable:
             schemaName: auth
-            tableName: role-permission
+            tableName: role_permission
             columns:
               - column:
                   name: role_id
@@ -114,7 +114,7 @@ databaseChangeLog:
                   name: permission_id
                   type: uuid
                   constraints:
-                    nullable: false
+                    primaryKey: true
                     foreignKeyName: fk_permission_id
                     referencedTableSchemaName: auth
                     references: auth.permission(id)

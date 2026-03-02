@@ -30,7 +30,8 @@ export class AdminLayout {
     { label: 'Overview', icon: 'pi pi-home', routerLink: '/admin/home' },
     { label: 'Cadastros', icon: 'pi pi-folder', path: '/admin/cadastros',items: [
       { label: 'Usuários', icon: 'pi pi-user', routerLink: '/admin/cadastros/users' },
-      { label: 'Tenants', icon: 'pi pi-user', routerLink: '/admin/cadastros/tenants' }
+      { label: 'Tenants', icon: 'pi pi-user', routerLink: '/admin/cadastros/tenants' },
+      { label: 'Roles', icon: 'pi pi-id-card', routerLink: '/admin/cadastros/roles' }
       ] },
     { label: 'Auditoria', icon: 'pi pi-eye', routerLink: '/admin/audit' },
     { label: 'Relatórios', icon: 'pi pi-chart-bar', routerLink: '/admin/relatorios' },

@@ -1,6 +1,8 @@
 package com.l.erp.authservice.api.controllers;
 
+import com.l.erp.authservice.api.dto.RoleDTO;
 import com.l.erp.authservice.infra.config.Roles;
+import com.l.erp.authservice.services.RolesService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -12,14 +14,17 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/auth/roles")
 public class RoleController {
 
     private final Logger log = LoggerFactory.getLogger(RoleController.class);
+    private final RolesService roleService;
 
-    public RoleController() {
-
+    public RoleController(RolesService roleService) {
+        this.roleService = roleService;
     }
 
     @PostMapping("")
@@ -31,9 +36,10 @@ public class RoleController {
 
     @GetMapping("")
     @Secured({Roles.APP_OWNER,Roles.TENANT_OWNER})
-    public ResponseEntity<String> getAllRoles(){
+    public ResponseEntity<List<RoleDTO>> getAllRoles(){
         log.debug("REST request to get all roles");
-        return ResponseEntity.ok().build();
+        List<RoleDTO> roles = roleService.getAllRoles();
+        return ResponseEntity.ok(roles);
     }
 
     @GetMapping("/{Id}")

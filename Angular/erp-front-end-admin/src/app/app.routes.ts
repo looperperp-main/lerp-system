@@ -5,6 +5,7 @@ import {Home} from './pages/admin/home/home';
 import {Tenant} from './pages/cadastros/tenant/tenant/tenant';
 import {Audit} from './pages/admin/audit/audit';
 import {Users} from './pages/cadastros/tenant/users/users';
+import {Roles} from './pages/cadastros/roles/roles/roles';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'login-admin', pathMatch: 'full' },
@@ -21,6 +22,7 @@ export const routes: Routes = [
       { path: 'home', component: Home },
       { path: 'cadastros/tenants', component: Tenant },
       { path: 'cadastros/users', component: Users },
+      { path: 'cadastros/roles', component: Roles },
       { path: 'audit', component: Audit}
     ]
   }
