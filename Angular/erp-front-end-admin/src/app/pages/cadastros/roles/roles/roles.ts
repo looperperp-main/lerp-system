@@ -1,6 +1,5 @@
 import {Component, OnInit, signal} from '@angular/core';
-import {Dialog} from 'primeng/dialog';
-import {DatePipe, NgClass, NgForOf, NgIf} from '@angular/common';
+import {DatePipe, NgForOf, NgIf} from '@angular/common';
 import {Toast} from 'primeng/toast';
 import {TableModule} from 'primeng/table';
 import {ButtonDirective} from 'primeng/button';
@@ -12,15 +11,15 @@ import {RoleService} from './role.service';
 import {HttpErrorResponse} from '@angular/common/http';
 import {FormsModule} from '@angular/forms';
 import {Tooltip} from 'primeng/tooltip';
-import {InputText} from 'primeng/inputtext';
 import {HtmlDecodePipe} from '../../../../util/pipe/html-decode.pipe';
 import {CnpjPipe} from '../../../../util/pipe/cnpj.pipe';
+import {RoleForm} from './role-form/role-form';
+import {TenantModel} from '../../tenant/tenant/tenant.model';
+import {TenantService} from '../../tenant/tenant/tenant.service';
 
 @Component({
   selector: 'app-roles',
   imports: [
-    Dialog,
-    NgClass,
     Toast,
     TableModule,
     ButtonDirective,
@@ -28,11 +27,11 @@ import {CnpjPipe} from '../../../../util/pipe/cnpj.pipe';
     FormsModule,
     DatePipe,
     Tooltip,
-    InputText,
     NgForOf,
     NgIf,
     HtmlDecodePipe,
-    CnpjPipe
+    CnpjPipe,
+    RoleForm
   ],
   providers: [MessageService, ConfirmationService],
   templateUrl: './roles.html',
@@ -47,6 +46,8 @@ export class Roles implements OnInit{
   submitted: boolean = false;
   loading = signal<boolean>(true);
 
+  tenantsList = signal<TenantModel[]>([]);
+
   cols: ColumnConfig[] = [
     { field: 'id', header: 'ID', type: 'text' },
     { field: 'name', header: 'Nome da Role', type: 'text' },
@@ -60,17 +61,29 @@ export class Roles implements OnInit{
 
   constructor(
     private messageService: MessageService,
-    private roleService: RoleService
+    private roleService: RoleService,
+    private tenantService: TenantService
   ) {}
   ngOnInit() {
     this.loadRoles();
+    this.loadTenantsForDropdown();
   }
 
-  loadRoles() {
+  loadTenantsForDropdown() {
+    this.tenantService.getTenantsActive(0, 100).subscribe({
+      next: (res) => {
+        this.tenantsList.set(res.content || []);
+      },
+      error: () => this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Falha ao carregar lista de Tenants' })
+    });
+  }
+
+  loadRoles(page: number = 0, size: number = 10) {
     this.loading.set(true);
-    this.roleService.getRoles().subscribe({
+    this.roleService.getRolesbyPage(page, size).subscribe({
       next: (response) => {
-        this.roles.set(response || []);
+        this.roles.set(response.content || []);
+        this.totalRecords.set(response.totalElements || 0);
         this.loading.set(false);
       },
       error: (err: HttpErrorResponse) => {
@@ -91,11 +104,11 @@ export class Roles implements OnInit{
     this.submitted = false;
   }
 
-  saveRole() {
+  saveRole(role: RoleModel) {
     this.submitted = true;
 
-    if (this.role.name?.trim() && this.role.tenantId) {
-      this.roleService.createRole(this.role).subscribe({
+    if (role.name?.trim() && role.tenantId) {
+      this.roleService.createRole(role).subscribe({
         next: (newRole) => {
           this.roles.update(current => [...current, newRole]);
           this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Role Criada com sucesso!', life: 3000 });

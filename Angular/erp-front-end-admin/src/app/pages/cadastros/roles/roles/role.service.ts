@@ -1,8 +1,16 @@
 import {environment} from '../../../../../environments/environment';
-import {HttpClient} from '@angular/common/http';
+import {HttpClient, HttpParams} from '@angular/common/http';
 import {RoleModel} from './role.model';
 import {Injectable} from '@angular/core';
 import {Observable} from 'rxjs';
+
+export interface PageResponse<T> {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+}
 
 @Injectable({
   providedIn: 'root'
@@ -16,6 +24,14 @@ export class RoleService {
 
   getRoles(): Observable<RoleModel[]> {
     return this.http.get<RoleModel[]>(this.apiUrl);
+  }
+
+  getRolesbyPage(page: number, size: number) : Observable<PageResponse<RoleModel>> {
+    let params = new HttpParams()
+      .set('page', page.toString())
+      .set('size', size.toString())
+      .set('sort', 'name,asc');
+    return this.http.get<PageResponse<RoleModel>>(`${this.apiUrl}/pages`, { params });
   }
 
   createRole(role: RoleModel): Observable<RoleModel> {

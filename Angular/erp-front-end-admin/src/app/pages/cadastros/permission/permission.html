@@ -1,0 +1,134 @@
+<div class="page-container">
+  <p-toast></p-toast>
+
+  <!-- Header Section -->
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Gerenciamento de Permissões</h1>
+      <p class="page-subtitle">Gerencie as permissões granulares do sistema</p>
+    </div>
+  </div>
+
+  <div class="content-card">
+    <div class="content-toolbar">
+      <h3 class="content-toolbar-title">Ações</h3>
+      <div class="content-toolbar-actions">
+        <button
+          pButton
+          pRipple
+          label="Nova Permissão"
+          icon="pi pi-plus"
+          class="p-button-success w-full sm:w-auto p-button-sm rounded-lg"
+          (click)="openNew()">
+        </button>
+        <!-- Botão de exportação opcional, deixei caso queira manter do ts -->
+        <button
+          pButton
+          pRipple
+          icon="pi pi-upload"
+          class="p-button-help p-button-sm rounded-lg"
+          (click)="exportData()"
+          pTooltip="Exportar"
+          tooltipPosition="bottom">
+        </button>
+      </div>
+    </div>
+
+    <div class="table-container">
+      <p-table
+        #dt
+        [value]="permissions()"
+        [columns]="cols"
+        [loading]="loading()"
+        [lazy]="true"
+        (onLazyLoad)="onLazyLoad($event)"
+        [totalRecords]="totalRecords()"
+        [paginator]="true"
+        [rows]="10"
+        [showCurrentPageReport]="true"
+        currentPageReportTemplate="Mostrando {first} até {last} de {totalRecords} registros"
+        [rowsPerPageOptions]="[10, 25, 50]"
+        [tableStyle]="{ 'min-width': '60rem' }"
+        styleClass="p-datatable-sm text-sm"
+        [paginatorDropdownAppendTo]="'body'"
+        dataKey="id">
+
+        <!-- Cabeçalho -->
+        <ng-template pTemplate="header" let-columns>
+          <tr>
+            <th *ngFor="let col of columns" class="text-xs uppercase text-gray-400 font-semibold border-b border-gray-100 pb-3">
+              {{col.header}}
+            </th>
+          </tr>
+        </ng-template>
+
+        <!-- Corpo da Tabela -->
+        <ng-template pTemplate="body" let-rowData let-columns="columns">
+          <tr class="hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-colors">
+            <td *ngFor="let col of columns" class="py-3 text-gray-600">
+
+              <ng-container *ngIf="col.type === 'date'">
+                {{rowData[col.field] | date:'dd/MM/yyyy HH:mm'}}
+              </ng-container>
+
+              <ng-container *ngIf="col.type === 'actions'">
+                <div class="flex gap-2">
+                  <button pButton pRipple icon="pi pi-pencil" class="p-button-rounded p-button-text p-button-info p-button-sm w-8 h-8" (click)="editPermission(rowData)" pTooltip="Editar"></button>
+                  <button pButton pRipple icon="pi pi-trash" class="p-button-rounded p-button-text p-button-danger p-button-sm w-8 h-8" (click)="deletePermission(rowData)" pTooltip="Excluir"></button>
+                </div>
+              </ng-container>
+
+              <!-- Textos -->
+              <ng-container *ngIf="col.type === 'text'">
+                <!-- Destaque para o código da permissão -->
+                <span *ngIf="col.field === 'code'" class="bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs font-mono font-bold">
+                  {{rowData[col.field]}}
+                </span>
+
+                <!-- Destaque para o domínio -->
+                <span *ngIf="col.field === 'domain'" class="text-indigo-600 font-semibold">
+                  {{rowData[col.field] | htmlDecode}}
+                </span>
+
+                <span *ngIf="col.field !== 'code' && col.field !== 'domain'">
+                  {{rowData[col.field] | htmlDecode}}
+                </span>
+              </ng-container>
+
+            </td>
+          </tr>
+        </ng-template>
+
+        <!-- Vazio -->
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td [attr.colspan]="cols.length" class="text-center py-6 text-gray-500">
+              Nenhuma Permissão encontrada.
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </div>
+  </div>
+
+  <!-- Dialog de Exclusão Física (diferente do tenant que era soft-delete/cancelamento) -->
+  <p-dialog [(visible)]="deleteDialogVisible" [style]="{width: '450px'}" header="Confirmar Exclusão" [modal]="true">
+    <div class="flex items-start gap-3 pt-2">
+      <i class="pi pi-exclamation-triangle text-2xl text-red-500 mt-1"></i>
+      <span class="text-gray-700">
+        Tem certeza que deseja excluir permanentemente a permissão <b *ngIf="permissionToDelete">{{permissionToDelete === null? '': permissionToDelete.code}}</b>?
+        Esta ação não pode ser desfeita.
+      </span>
+    </div>
+
+    <ng-template pTemplate="footer">
+      <button pButton pRipple label="Cancelar" icon="pi pi-times" class="p-button-text text-gray-600 hover:bg-gray-100" (click)="hideDeleteDialog()"></button>
+      <button pButton pRipple label="Excluir" icon="pi pi-trash" class="p-button-danger" (click)="confirmDelete()"></button>
+    </ng-template>
+  </p-dialog>
+
+  <app-permission-form
+    [(visible)]="permissionDialog" [permission]="permission" (save)="savePermission($event)"
+  >
+  </app-permission-form>
+</div>

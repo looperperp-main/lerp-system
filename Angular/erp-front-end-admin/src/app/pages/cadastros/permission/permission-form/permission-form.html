@@ -1,0 +1,91 @@
+<p-dialog
+  [(visible)]="visible"
+  [style]="{width: '500px'}"
+  [header]="permission.id ? 'Editar Permissão' : 'Nova Permissão'"
+  [modal]="true"
+  styleClass="p-fluid"
+  (onHide)="close()">
+
+  <ng-template pTemplate="content">
+    <div class="flex flex-col gap-4 mt-2">
+      <!-- Código -->
+      <div class="flex flex-col gap-1">
+        <label for="code" class="text-sm font-medium text-gray-700">
+          Código da Permissão <span class="text-red-500">*</span>
+        </label>
+        <input
+          type="text"
+          pInputText
+          id="code"
+          [(ngModel)]="permission.code"
+          required
+          autofocus
+          placeholder="Ex: USER_CREATE"
+          class="uppercase w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2 border"
+          [ngClass]="{'border-red-500': submitted && !permission.code}" />
+        <small class="text-red-500 text-xs mt-1" *ngIf="submitted && !permission.code">
+          O código é obrigatório.
+        </small>
+      </div>
+
+      <!-- Domínio -->
+      <div class="flex flex-col gap-1">
+        <label for="domain" class="text-sm font-medium text-gray-700">
+          Domínio <span class="text-red-500">*</span>
+        </label>
+        <input
+          type="text"
+          pInputText
+          id="domain"
+          [(ngModel)]="permission.domain"
+          required
+          placeholder="Ex: Users"
+          class="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2 border"
+          [ngClass]="{'border-red-500': submitted && !permission.domain}" />
+        <small class="text-red-500 text-xs mt-1" *ngIf="submitted && !permission.domain">
+          O domínio é obrigatório.
+        </small>
+      </div>
+
+      <!-- Descrição -->
+      <div class="flex flex-col gap-1">
+        <label for="description" class="text-sm font-medium text-gray-700">
+          Descrição <span class="text-red-500">*</span>
+        </label>
+        <textarea
+          pInputTextarea
+          id="description"
+          [(ngModel)]="permission.description"
+          required
+          rows="3"
+          placeholder="Ex: Permite a criação de novos usuários no sistema"
+          class="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2 border resize-none"
+          [ngClass]="{'border-red-500': submitted && !permission.description}"></textarea>
+        <small class="text-red-500 text-xs mt-1" *ngIf="submitted && !permission.description">
+          A descrição é obrigatória.
+        </small>
+      </div>
+    </div>
+  </ng-template>
+
+  <ng-template pTemplate="footer">
+    <div class="flex justify-end gap-2 mt-4">
+      <button
+        pButton
+        pRipple
+        label="Cancelar"
+        icon="pi pi-times"
+        class="p-button-text text-gray-600 hover:bg-gray-100"
+        (click)="close()">
+      </button>
+      <button
+        pButton
+        pRipple
+        label="Salvar"
+        icon="pi pi-check"
+        class="p-button-success"
+        (click)="savePermission()">
+      </button>
+    </div>
+  </ng-template>
+</p-dialog>

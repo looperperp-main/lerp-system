@@ -16,7 +16,7 @@
         <button
           pButton
           pRipple
-          label="Novo Usuário"
+          label="Nova Role"
           icon="pi pi-plus"
           class="p-button-success w-full sm:w-auto p-button-sm rounded-lg"
           (click)="openNew()">
@@ -136,28 +136,10 @@
     </div>
   </div>
   <!-- DIALOG DE CRIAÇÃO -->
-  <p-dialog [(visible)]="roleDialog" [style]="{width: '450px'}" header="Detalhes da Role" [modal]="true" styleClass="p-fluid">
-    <ng-template pTemplate="content">
-
-      <div class="field">
-        <label for="name">Nome da Role</label>
-        <input type="text" pInputText id="name" [(ngModel)]="role.name" required autofocus
-               [ngClass]="{'ng-invalid ng-dirty': submitted && !role.name}" placeholder="Ex: ROLE_GERENTE"/>
-        <small class="p-error" *ngIf="submitted && !role.name">Nome é obrigatório.</small>
-      </div>
-
-      <div class="field">
-        <label for="tenantId">ID do Tenant</label>
-        <input type="number" pInputText id="tenantId" [(ngModel)]="role.tenantId" required
-               [ngClass]="{'ng-invalid ng-dirty': submitted && !role.tenantId}"/>
-        <small class="p-error" *ngIf="submitted && !role.tenantId">O Tenant ID é obrigatório.</small>
-      </div>
-
-    </ng-template>
-
-    <ng-template pTemplate="footer">
-      <button pButton pRipple label="Cancelar" icon="pi pi-times" class="p-button-text" (click)="hideDialog()"></button>
-      <button pButton pRipple label="Salvar" icon="pi pi-check" class="p-button-text" (click)="saveRole()"></button>
-    </ng-template>
-  </p-dialog>
+  <app-role-form
+    [visible]="roleDialog"
+    [role]="role"
+    [tenants]="tenantsList()"
+    (save)="saveRole($event)"
+  ></app-role-form>
 </div>

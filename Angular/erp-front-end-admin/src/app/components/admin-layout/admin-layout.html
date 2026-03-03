@@ -60,6 +60,7 @@
           <a *ngFor="let subItem of item.items"
              [routerLink]="subItem.routerLink"
              class="block px-3 py-2 text-sm text-gray-500 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition-colors">
+            <i [class]="subItem.icon + ' text-lg text-gray-500 group-hover:text-orange-500 transition-colors'"></i>
             {{ subItem.label }}
           </a>
         </div>

@@ -1,0 +1,53 @@
+<p-dialog [(visible)]="visible" [style]="{width: '450px'}" header="Detalhes da Role" [modal]="true" styleClass="p-fluid">
+  <ng-template pTemplate="content">
+    <div class="flex flex-col gap-4 mt-2">
+
+      <!-- Nome -->
+      <div class="flex flex-col gap-1">
+        <label for="name" class="text-sm font-medium text-gray-700">
+          Nome da Role <span class="text-red-500">*</span>
+        </label>
+        <input
+          type="text"
+          pInputText
+          id="name"
+          [(ngModel)]="role.name"
+          required
+          autofocus
+          class="uppercase w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2 border"
+          [ngClass]="{'border-red-500': submitted && !role.name}"
+          placeholder="Ex: ROLE_GERENTE"/>
+        <small class="text-red-500 text-xs mt-1" *ngIf="submitted && !role.name">Nome é obrigatório.</small>
+      </div>
+
+      <!-- Tenant ID -->
+      <div class="flex flex-col gap-1">
+        <label for="tenantId" class="text-sm font-medium text-gray-700">
+          Empresa (Tenant) <span class="text-red-500">*</span>
+        </label>
+
+        <p-select
+          id="tenantId"
+          [options]="tenants"
+          [(ngModel)]="role.tenantId"
+          [appendTo]="'body'"
+          optionLabel="name"
+          optionValue="id"
+          placeholder="Selecione um Tenant"
+          styleClass="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 border"
+          [ngClass]="{'border-red-500': submitted && !role.tenantId}">
+        </p-select>
+
+        <small class="text-red-500 text-xs mt-1" *ngIf="submitted && !role.tenantId">O Tenant é obrigatório.</small>
+      </div>
+
+    </div>
+  </ng-template>
+
+  <ng-template pTemplate="footer">
+    <div class="flex justify-end gap-2 mt-4">
+      <button pButton pRipple label="Cancelar" icon="pi pi-times" class="p-button-text text-gray-600 hover:bg-gray-100" (click)="hideDialog()"></button>
+      <button pButton pRipple label="Salvar" icon="pi pi-check" class="p-button-success" (click)="onSave()"></button>
+    </div>
+  </ng-template>
+</p-dialog>

@@ -6,6 +6,7 @@ import {Tenant} from './pages/cadastros/tenant/tenant/tenant';
 import {Audit} from './pages/admin/audit/audit';
 import {Users} from './pages/cadastros/tenant/users/users';
 import {Roles} from './pages/cadastros/roles/roles/roles';
+import {Permission} from './pages/cadastros/permission/permission';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'login-admin', pathMatch: 'full' },
@@ -23,6 +24,7 @@ export const routes: Routes = [
       { path: 'cadastros/tenants', component: Tenant },
       { path: 'cadastros/users', component: Users },
       { path: 'cadastros/roles', component: Roles },
+      { path: 'cadastros/permission', component: Permission },
       { path: 'audit', component: Audit}
     ]
   }
