@@ -17,7 +17,7 @@ public class TokenService {
 
     @Value( "${api.security.jwt.secret}")
     private String secret;
-    public String generateToken(UserAccount user, List<String> roles, boolean isOwner){
+    public String generateToken(UserAccount user, List<String> roles, boolean isOwner, List<String> permissions){
         try{
             Algorithm algorithm = Algorithm.HMAC256(secret);
 
@@ -28,6 +28,7 @@ public class TokenService {
                     .withIssuedAt(Instant.now())
                     .withClaim("tenantId", String.valueOf(user.getTenant().getId()))
                     .withClaim("userEmail", String.valueOf(user.getEmail()))
+                    .withClaim("authorities", permissions)
                     .withClaim("roles", roles)
                     .withClaim("isOwner", isOwner)
                     .sign(algorithm);

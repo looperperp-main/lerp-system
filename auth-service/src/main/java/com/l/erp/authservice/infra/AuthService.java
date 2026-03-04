@@ -7,7 +7,9 @@ import com.l.erp.authservice.dominio.RefreshToken;
 import com.l.erp.authservice.dominio.UserAccount;
 import com.l.erp.authservice.infra.config.Roles;
 import com.l.erp.authservice.repositorios.OwnerMarkerRepository;
+import com.l.erp.authservice.repositorios.RolePermissionRepository;
 import com.l.erp.authservice.repositorios.UserAccountRepository;
+import com.l.erp.authservice.repositorios.UserRoleRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -15,6 +17,8 @@ import org.springframework.web.server.ResponseStatusException;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class AuthService {
@@ -24,19 +28,25 @@ public class AuthService {
     private final RefreshTokenService refreshTokenService;
     private final PasswordEncoder passwordEncoder;
     private final AuthMapper authMapper;
+    private final UserRoleRepository userRoleRepository;
+    private final RolePermissionRepository rolePermissionRepository;
 
     public AuthService(UserAccountRepository userRepo,
                        OwnerMarkerRepository ownerRepo,
                        TokenService tokenService,
                        RefreshTokenService refreshTokenService,
                        PasswordEncoder passwordEncoder,
-                       AuthMapper authMapper) {
+                       AuthMapper authMapper,
+                       UserRoleRepository userRoleRepository,
+                       RolePermissionRepository rolePermissionRepository) {
         this.userRepo = userRepo;
         this.ownerRepo = ownerRepo;
         this.tokenService = tokenService;
         this.refreshTokenService = refreshTokenService;
         this.passwordEncoder = passwordEncoder;
         this.authMapper = authMapper;
+        this.userRoleRepository = userRoleRepository;
+        this.rolePermissionRepository = rolePermissionRepository;
     }
 
     public LoginResponse login(String email, String password){
@@ -50,7 +60,7 @@ public class AuthService {
         boolean isOwner = ownerRepo.existsByUser_IdAndEnabledTrue(user.getId());
         List<String> roles = isOwner ? List.of(Roles.APP_OWNER,Roles.TENANT_OWNER) : List.of("ROLE_USER");//TODO: get roles from database
 
-        String jwt = tokenService.generateToken(user, roles, isOwner);
+        String jwt = tokenService.generateToken(user, roles, isOwner, getRoles(user.getId()));
 
         RefreshTokenService.TokenPair tokenPair = refreshTokenService.issue(user);
 
@@ -67,7 +77,7 @@ public class AuthService {
         boolean isOwner = ownerRepo.existsByUser_IdAndEnabledTrue(user.getId());
         List<String> roles = isOwner ? List.of("ROLE_OWNER", "ROLE_USER") : List.of("ROLE_USER");
 
-        String newJwt = tokenService.generateToken(user, roles, isOwner);
+        String newJwt = tokenService.generateToken(user, roles, isOwner, getRoles(user.getId()));
 
         RefreshTokenService.TokenPair newRt = refreshTokenService.issue(user);
         refreshTokenService.revoke(oldRT, newRt.entity());
@@ -78,5 +88,13 @@ public class AuthService {
     public void logout(String refreshTokenRaw) {
         refreshTokenService.findValid(refreshTokenRaw)
                 .ifPresent(rt -> refreshTokenService.revoke(rt, null));
+    }
+
+    private List<String> getRoles(UUID userId){
+        return userRoleRepository.findAllByUserId(userId).stream()
+                .flatMap(ur -> rolePermissionRepository.findAllByRoleId(ur.getRole().getId()).stream())
+                .map(rp -> rp.getPermission().getCode()) // Pega o campo "TENANT_INSERT", "TENANT_UPDATE"
+                .distinct()
+                .toList();
     }
 }

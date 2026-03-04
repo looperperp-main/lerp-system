@@ -50,13 +50,28 @@ public class JwtFilter extends OncePerRequestFilter {
                     .verify(token);
 
             List<String> roles = decodedJWT.getClaim("roles").asList(String.class);
+            List<String> authoritiesList = decodedJWT.getClaim("authorities").asList(String.class);
             String email = decodedJWT.getClaim("userEmail").asString();
 
-            List<SimpleGrantedAuthority> authorities = roles == null ? List.of()
-                    : roles.stream().map(SimpleGrantedAuthority::new).toList();
+            // Unificando roles e authorities
+            java.util.List<SimpleGrantedAuthority> grantedAuthorities = new java.util.ArrayList<>();
+
+            // Adiciona as roles
+            if (roles != null) {
+                for (String role : roles) {
+                    grantedAuthorities.add(new SimpleGrantedAuthority(role));
+                }
+            }
+
+            // Adiciona as permissões (authorities)
+            if (authoritiesList != null) {
+                for (String perm : authoritiesList) {
+                    grantedAuthorities.add(new SimpleGrantedAuthority(perm));
+                }
+            }
 
             var authentication = new UsernamePasswordAuthenticationToken(
-                    decodedJWT.getSubject(), null, authorities
+                    decodedJWT.getSubject(), null, grantedAuthorities
             );
             Map<String, Object> details = new HashMap<>();
             details.put("email", email);

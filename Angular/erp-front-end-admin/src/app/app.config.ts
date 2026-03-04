@@ -17,7 +17,12 @@ export const appConfig: ApplicationConfig = {
     provideToastr(),
     providePrimeNG({
       theme: {
-        preset: Aura
+        preset: Aura,
+        options: {
+          // Isso diz ao PrimeNG para aplicar o modo escuro APENAS se a tag HTML tiver a classe '.app-dark'
+          // Como não vamos colocar essa classe, ele vai ficar sempre no modo Claro (Light)!
+          darkModeSelector: '.app-dark'
+        }
       }
     }),
     provideAnimations()//TODO: Deprecated

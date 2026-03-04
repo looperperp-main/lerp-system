@@ -1,4 +1,13 @@
-import {Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges} from '@angular/core';
+import {
+  ChangeDetectorRef,
+  Component,
+  EventEmitter,
+  Input,
+  OnChanges,
+  OnInit,
+  Output,
+  SimpleChanges
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DialogModule } from 'primeng/dialog';
@@ -32,7 +41,8 @@ export class RolePermissionsForm implements OnInit, OnChanges {
   constructor(
     private rolePermissionsService: RolePermissionsService,
     private permissionService: PermissionService,
-    private messageService: MessageService
+    private messageService: MessageService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {}
@@ -59,6 +69,8 @@ export class RolePermissionsForm implements OnInit, OnChanges {
               // 3. A Source (Disponíveis) = Todas do sistema MINUS as que a Role já tem
               const targetIds = new Set(this.targetPermissions.map(p => p.id));
               this.sourcePermissions = allPerms.filter(p => !targetIds.has(p.id));
+              // <--- AVISANDO O ANGULAR PARA ATUALIZAR A TELA SEM ERRO
+              this.cdr.detectChanges();
             },
             error: () => this.showError('Erro ao carregar permissões da Role')
           });

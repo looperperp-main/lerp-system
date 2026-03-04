@@ -47,22 +47,35 @@ public class SecurityFilter extends OncePerRequestFilter {
                         .withIssuer("L-ERP-auth-service")
                         .build()
                         .verify(token);
-
+                List<String> permissions = decodedJWT.getClaim("authorities").asList(String.class);
                 List<String> roles = decodedJWT.getClaim("roles").asList(String.class);
                 Boolean isOwner = decodedJWT.getClaim("isOwner").asBoolean();
                 String tenantId = decodedJWT.getClaim("tenantId").asString();
 
-                if (path.startsWith("/auth/") && (roles == null || !roles.contains("ROLE_APP_OWNER"))) {
-                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                    return;
+                //if (path.startsWith("/auth/") && (roles == null || !roles.contains("ROLE_APP_OWNER"))) {
+                  //  response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                  //  return;
+                //}
+
+                // Lista final que o Spring vai usar
+                List<SimpleGrantedAuthority> grantedAuthorities = new ArrayList<>();
+
+                // Adiciona as roles
+                if (roles != null) {
+                    for (String role : roles) {
+                        grantedAuthorities.add(new SimpleGrantedAuthority(role));
+                    }
                 }
 
-                List<SimpleGrantedAuthority> authorities = roles == null
-                        ? List.of()
-                        : roles.stream().map(SimpleGrantedAuthority::new).toList();
+                // Adiciona as permissões granulares
+                if (permissions != null) {
+                    for (String perm : permissions) {
+                        grantedAuthorities.add(new SimpleGrantedAuthority(perm));
+                    }
+                }
 
                 var authentication = new UsernamePasswordAuthenticationToken(
-                        decodedJWT.getSubject(), null, authorities
+                        decodedJWT.getSubject(), null, grantedAuthorities
                 );
                 SecurityContextHolder.getContext().setAuthentication(authentication);
 
