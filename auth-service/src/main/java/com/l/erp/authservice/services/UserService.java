@@ -6,9 +6,11 @@ import com.l.erp.authservice.api.dto.UserAccountPageDTO;
 import com.l.erp.authservice.api.mappers.UserMapper;
 import com.l.erp.authservice.dominio.Tenant;
 import com.l.erp.authservice.dominio.UserAccount;
+import com.l.erp.authservice.repositorios.OwnerMarkerRepository;
 import com.l.erp.authservice.repositorios.TenantRepository;
 import com.l.erp.authservice.repositorios.UserAccountRepository;
 import com.l.erp.authservice.services.audit.AuditService;
+import com.l.erp.authservice.util.Constants;
 import com.l.erp.authservice.util.PasswordValidatorUtil;
 import com.l.erp.authservice.util.SecurityUtils;
 import com.l.erp.common.exception.custom.BussinessException;
@@ -45,13 +47,16 @@ public class UserService {
 
     private final PasswordValidatorUtil passwordValidatorUtil;
 
+    private final OwnerMarkerRepository ownerMarkerRepository;
+
     public UserService(
             UserAccountRepository userAccountRepository,
             AuditService auditService,
             UserMapper userMapper,
             PasswordEncoder passwordEncoder,
             TenantRepository tenantRepository,
-            PasswordValidatorUtil passwordValidatorUtil
+            PasswordValidatorUtil passwordValidatorUtil,
+            OwnerMarkerRepository ownerMarkerRepository
     ) {
         this.userAccountRepository = userAccountRepository;
         this.auditService = auditService;
@@ -59,6 +64,7 @@ public class UserService {
         this.passwordEncoder = passwordEncoder;
         this.tenantRepository = tenantRepository;
         this.passwordValidatorUtil = passwordValidatorUtil;
+        this.ownerMarkerRepository = ownerMarkerRepository;
     }
 
     /**
@@ -69,6 +75,11 @@ public class UserService {
     public Page<UserAccountPageDTO> getAllAccounts(Pageable pageable) {
         logger.debug("REST request to get all Users");
         return userAccountRepository.findAllProjectedBy(pageable);
+    }
+
+    public Page<UserAccountPageDTO> getAllAccountsActive(Pageable pageable) {
+        logger.debug("REST request to get all Users");
+        return userAccountRepository.findAllActiveProjectedBy(pageable);
     }
 
     /**
@@ -115,10 +126,30 @@ public class UserService {
 
         // Pegando o Correlation ID da requisição
         UUID correlationId = getCorrelationIdFromRequest();
-        auditService.logAuditEvent("USER_INSERT", "UserAccount", savedUser.getId(), "SUCCESS", null, correlationId);
+        auditService.logAuditEvent(Constants.USER_CREATION, Constants.USER, savedUser.getId(), Constants.SUCCESS, null, correlationId);
 
 
         return userMapper.toUserAccountDTO(savedUser);
+    }
+
+    /**
+     * Alterar Status do usuario
+     * @param userId Id do User
+     */
+    public void updateUserStatusById(UUID userId){
+        UserAccount userAccount = userAccountRepository.findById(userId)
+                .orElseThrow(() -> new BussinessException(Constants.USER_NOT_FOUND, HttpStatus.BAD_REQUEST));
+
+        boolean existsOwnerMarker = ownerMarkerRepository.existsByUser_IdAndEnabledTrue(userId);
+        if(existsOwnerMarker){
+            throw new BussinessException(Constants.USER_HAS_OWNER_MARKER, HttpStatus.BAD_REQUEST);
+        }
+
+        userAccount.setActive(!userAccount.isActive());
+        userAccountRepository.save(userAccount);
+
+        UUID correlationId = getCorrelationIdFromRequest();
+        auditService.logAuditEvent(Constants.USER_UPDATE, Constants.USER, userId, Constants.SUCCESS, null, correlationId);
     }
 
     /**

@@ -26,6 +26,17 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, UUID> 
     Page<UserAccountPageDTO> findAllProjectedBy(Pageable pageable);
 
     /**
+     * Retorna uma página de usuários projetada diretamente no DTO.
+     * Note a sintaxe "new pacote.completo.do.Record(...)"
+     */
+    @Query("SELECT new com.l.erp.authservice.api.dto.UserAccountPageDTO(" +
+            "            u.id, t.name, u.email, u.displayName, u.active, " +
+            "            u.lockedUntil, u.createdDate, u.createdBy, u.lastUpdateDate, u.lastUpdatedBy) " +
+            "            FROM UserAccount u LEFT JOIN u.tenant t where u.active = true")
+    Page<UserAccountPageDTO> findAllActiveProjectedBy(Pageable pageable);
+
+
+    /**
      * Exemplo caso você queira filtrar os usuários por tenantId na paginação
      */
     @Query("SELECT new com.l.erp.authservice.api.dto.UserAccountPageDTO(" +

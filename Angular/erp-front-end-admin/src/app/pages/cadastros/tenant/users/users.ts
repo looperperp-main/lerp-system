@@ -125,6 +125,18 @@ export class Users implements OnInit  {
     });
   }
 
+  updateStatus(id: string){
+    this.userService.updateStatus(id).subscribe({
+      next: () => {
+        this.loadUsers();
+        this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Status atualizado com sucesso!', life: 3000 });
+      },
+      error: (err: HttpErrorResponse) => {
+        this.handleError(err, 'Erro ao atualizar status do usuário');
+      }
+    });
+  }
+
   private handleError(err: HttpErrorResponse, defaultSummary: string) {
     // Verifica se o erro possui o corpo do seu StandardError.java
     if (err.error && err.error.message && err.error.error && err.error.status) {

@@ -29,7 +29,19 @@ export class UserService {
     return this.http.get<PageResponse<UsersPageModel>>(this.apiUrl, { params });
   }
 
+  getActiveUsers(page: number, size: number): Observable<PageResponse<UsersPageModel>> {
+    let params = new HttpParams()
+      .set('page', page.toString())
+      .set('size', size.toString());
+
+    return this.http.get<PageResponse<UsersPageModel>>(`${this.apiUrl}/active`, { params });
+  }
+
   createUser(user: UserAccountModel): Observable<UserAccountModel> {
     return this.http.post<UserAccountModel>(this.apiUrl, user);
+  }
+
+  updateStatus(userId: string): Observable<void> {
+    return this.http.patch<void>(`${this.apiUrl}/${userId}/status`, null);
   }
 }

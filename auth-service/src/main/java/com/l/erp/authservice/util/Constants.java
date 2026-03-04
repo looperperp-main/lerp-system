@@ -26,6 +26,12 @@ public class Constants {
     public static final String TENANT_UPDATE = TENANT + "_" + UPDATE;
     public static final String TENANT_CANCEL= "TENANT" + "_" + CANCEL;
 
+    public static final String USER_CREATION = USER + "_" + INSERT;
+    public static final String USER_UPDATE = USER + "_" + UPDATE;
+    public static final String USER_NOT_FOUND= "Usuário não Encontrado";
+
+    public static final String USER_HAS_OWNER_MARKER= "Usuário não pode ser cancelado/excluído pois possui um marker de proprietário";
+
     public static final String PERMISSION_CREATION = PERMISSION + "_" + INSERT;
     public static final String PERMISSION_UPDATE = PERMISSION + "_" + UPDATE;
     public static final String PERMISSION_DELETE = PERMISSION + "_" + DELETE;

@@ -50,7 +50,7 @@ export class UserRolesComponent implements OnInit {
 
   loadUsers(page: number = 0, size: number = 10) {
     this.loading.set(true);
-    this.userService.getUsers(page, size).subscribe({
+    this.userService.getActiveUsers(page, size).subscribe({
       next: (response) => {
         this.users.set(response.content || []);
         this.totalRecords.set(response.totalElements || 0);

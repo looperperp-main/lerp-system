@@ -95,12 +95,12 @@
 
                   <!-- Botão Habilitar/Desabilitar -->
                   <button
-                    *ngIf="rowData.active === true"
                     pButton
                     pRipple
                     [icon]="rowData.active === true ? 'pi pi-ban' : 'pi pi-check-circle'"
                     [class]="'p-button-rounded p-button-text p-button-sm w-8 h-8 ' + (rowData.status === 'ATIVO' ? 'p-button-warning' : 'p-button-success')"
                     pTooltip="Alterar Status"
+                    (click)="updateStatus(rowData.id)"
                     tooltipPosition="top"
                   >
                   </button>
