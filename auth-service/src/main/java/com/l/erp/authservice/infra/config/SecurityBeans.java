@@ -7,7 +7,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Configuration
 public class SecurityBeans {
-    //TODO: Validar se há necessidade de migrar pro ARGON2
+    //TODO: Validar se há necessidade de migrar pro ARGON2ID
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder(12);
