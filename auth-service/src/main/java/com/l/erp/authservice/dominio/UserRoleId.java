@@ -2,8 +2,10 @@ package com.l.erp.authservice.dominio;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
+import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
@@ -15,20 +17,17 @@ import java.util.UUID;
 @Setter
 @EqualsAndHashCode
 @Embeddable
-public class RolePermissionId implements Serializable {
+@AllArgsConstructor
+@NoArgsConstructor
+public class UserRoleId implements Serializable {
+    @Column(name = "tenant_id")
+    private Long tenantId;
+
+    @JdbcTypeCode(SqlTypes.UUID)
+    @Column(name = "user_id")
+    private UUID userId;
 
     @JdbcTypeCode(SqlTypes.UUID)
     @Column(name = "role_id")
     private UUID roleId;
-
-    @JdbcTypeCode(SqlTypes.UUID)
-    @Column(name = "permission_id")
-    private UUID permissionId;
-
-    public RolePermissionId() {}
-
-    public RolePermissionId(UUID roleId, UUID permissionId) {
-        this.roleId = roleId;
-        this.permissionId = permissionId;
-    }
 }

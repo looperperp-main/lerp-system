@@ -1,0 +1,69 @@
+<div class="page-container">
+  <p-toast></p-toast>
+
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Atribuir Acessos</h1>
+      <p class="page-subtitle">Vincule Roles (Perfis) aos usuários do sistema</p>
+    </div>
+  </div>
+
+  <div class="content-card">
+    <div class="table-container mt-4">
+      <p-table
+        #dt
+        [value]="users()"
+        [columns]="cols"
+        [loading]="loading()"
+        [lazy]="true"
+        (onLazyLoad)="onLazyLoad($event)"
+        [totalRecords]="totalRecords()"
+        [paginator]="true"
+        [rows]="10"
+        [tableStyle]="{ 'min-width': '50rem' }"
+        styleClass="p-datatable-sm text-sm"
+        dataKey="id">
+
+        <ng-template pTemplate="header" let-columns>
+          <tr>
+            <th *ngFor="let col of columns" class="text-xs uppercase text-gray-400 font-semibold border-b border-gray-100 pb-3">
+              {{col.header}}
+            </th>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="body" let-rowData let-columns="columns">
+          <tr class="hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-colors">
+            <td *ngFor="let col of columns" class="py-3 text-gray-600">
+
+              <ng-container *ngIf="col.type === 'text'">
+                <span class="font-medium" [class.text-indigo-700]="col.field === 'displayName'">
+                   {{ rowData[col.field] }}
+                </span>
+              </ng-container>
+
+              <ng-container *ngIf="col.type === 'actions'">
+                <button
+                  pButton
+                  pRipple
+                  icon="pi pi-key"
+                  label="Atribuir Acessos"
+                  class="p-button-outlined p-button-info p-button-sm rounded-lg"
+                  (click)="openConfig(rowData)">
+                </button>
+              </ng-container>
+
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </div>
+  </div>
+
+  <app-user-role-form
+    *ngIf="selectedUser"
+    [(visible)]="dialogVisible"
+    [user]="selectedUser">
+  </app-user-role-form>
+
+</div>

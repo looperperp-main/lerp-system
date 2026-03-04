@@ -16,6 +16,7 @@ import {CnpjPipe} from '../../../../util/pipe/cnpj.pipe';
 import {RoleForm} from './role-form/role-form';
 import {TenantModel} from '../../tenant/tenant/tenant.model';
 import {TenantService} from '../../tenant/tenant/tenant.service';
+import {Dialog} from 'primeng/dialog';
 
 @Component({
   selector: 'app-roles',
@@ -31,7 +32,8 @@ import {TenantService} from '../../tenant/tenant/tenant.service';
     NgIf,
     HtmlDecodePipe,
     CnpjPipe,
-    RoleForm
+    RoleForm,
+    Dialog
   ],
   providers: [MessageService, ConfirmationService],
   templateUrl: './roles.html',
@@ -45,6 +47,10 @@ export class Roles implements OnInit{
   role: RoleModel = { name: '', tenantId: 0 };
   submitted: boolean = false;
   loading = signal<boolean>(true);
+
+  // Variaveis para Deleção
+  deleteDialogVisible: boolean = false;
+  roleToDelete: RoleModel | null = null;
 
   tenantsList = signal<TenantModel[]>([]);
 
@@ -115,6 +121,30 @@ export class Roles implements OnInit{
           this.hideDialog();
         },
         error: (err: HttpErrorResponse) => this.handleError(err, 'Falha ao criar a Role')
+      });
+    }
+  }
+
+  // --- Fluxo de Deleção ---
+  deleteRole(role: RoleModel) {
+    this.roleToDelete = { ...role };
+    this.deleteDialogVisible = true;
+  }
+
+  hideDeleteDialog() {
+    this.deleteDialogVisible = false;
+    this.roleToDelete = null;
+  }
+
+  confirmDelete() {
+    if (this.roleToDelete && this.roleToDelete.id) {
+      this.roleService.deleteRole(this.roleToDelete.id).subscribe({
+        next: () => {
+          this.roles.update(current => current.filter(r => r.id !== this.roleToDelete?.id));
+          this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Role deletada.', life: 3000 });
+          this.hideDeleteDialog();
+        },
+        error: (err: HttpErrorResponse) => this.handleError(err, 'Erro ao deletar Role')
       });
     }
   }

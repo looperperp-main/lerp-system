@@ -7,6 +7,8 @@ import {Audit} from './pages/admin/audit/audit';
 import {Users} from './pages/cadastros/tenant/users/users';
 import {Roles} from './pages/cadastros/roles/roles/roles';
 import {Permission} from './pages/cadastros/permission/permission';
+import {RolePermissions} from './pages/admin/security/role-permissions/role-permissions';
+import {UserRolesComponent} from './pages/admin/security/user-roles/user-roles';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'login-admin', pathMatch: 'full' },
@@ -25,6 +27,8 @@ export const routes: Routes = [
       { path: 'cadastros/users', component: Users },
       { path: 'cadastros/roles', component: Roles },
       { path: 'cadastros/permission', component: Permission },
+      { path: 'security/role-permissions', component: RolePermissions },
+      { path: 'security/user-roles', component: UserRolesComponent },
       { path: 'audit', component: Audit}
     ]
   }

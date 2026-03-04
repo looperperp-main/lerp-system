@@ -19,7 +19,9 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 import java.util.Objects;
+import java.util.UUID;
 
+import static com.l.erp.authservice.util.SecurityUtils.getCorrelationIdFromRequest;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
@@ -57,7 +59,8 @@ public class TenantService {
         tenant.setCreationDate(Instant.now());
         tenant.setCreatedBy(currentUser.email());
         Tenant tenantSaved = tenantRepository.save(tenant);
-        auditService.logAuditEvent(Constants.TENANT_CREATION, currentUser.id(), Constants.TENANT, null, "SUCCESS", null,null);
+        UUID correlationId = getCorrelationIdFromRequest(logger);
+        auditService.logAuditEvent(Constants.TENANT_CREATION, Constants.TENANT, null, "SUCCESS", null,correlationId);
         return authMapper.toTenantDTO(tenantSaved);
 
     }
@@ -112,7 +115,8 @@ public class TenantService {
                 tenant.setUpdateDate(Instant.now());
                 tenant.setLastUpdatedBy(currentUser.email());
                 Tenant saved = tenantRepository.save(tenant);
-                auditService.logAuditEvent(Constants.TENANT_UPDATE, currentUser.id(), Constants.TENANT, null, "SUCCESS", null,null);
+                UUID correlationId = getCorrelationIdFromRequest(logger);
+                auditService.logAuditEvent(Constants.TENANT_UPDATE, Constants.TENANT, null, "SUCCESS", null,correlationId);
                 return authMapper.toTenantDTO(saved);
             }else{
                 throw new BussinessException(ENTITY_NAME + " : Registro em duplicidade",BAD_REQUEST);
@@ -136,7 +140,9 @@ public class TenantService {
             tenant.setUpdateDate(Instant.now());
             tenant.setLastUpdatedBy(currentUser.email());
             tenantRepository.save(tenant);
-            auditService.logAuditEvent(Constants.TENANT_UPDATE, currentUser.id(), Constants.TENANT, null, "SUCCESS", null,null);
+            UUID correlationId = getCorrelationIdFromRequest(logger);
+
+            auditService.logAuditEvent(Constants.TENANT_UPDATE, Constants.TENANT, null, "SUCCESS", null,correlationId);
         }
     }
 }

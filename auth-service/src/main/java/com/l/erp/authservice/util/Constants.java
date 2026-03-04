@@ -14,7 +14,10 @@ public class Constants {
     public static final String USER = "USER";
     public static final String ROLE = "ROLE";
     public static final String PERMISSION = "PERMISSION";
+    public static final String USER_ROLE = "USER_ROLE";
+
     public static final String INSERT = "INSERT";
+    public static final String ASSIGN = "ASSIGN";
     public static final String UPDATE = "UPDATE";
     public static final String CANCEL = "CANCEL";
     public static final String DELETE = "DELETE";
@@ -33,8 +36,13 @@ public class Constants {
 
     public static final String ROLE_PERMISSION = ROLE + "_" + PERMISSION;
     public static final String ROLE_PERMISSION_CREATION = ROLE_PERMISSION + "_" + INSERT;
+    public static final String ROLE_PERMISSION_ASSIGNMENT = ROLE_PERMISSION + "_" + ASSIGN;
     public static final String ROLE_PERMISSION_UPDATE = ROLE_PERMISSION + "_" + UPDATE;
     public static final String ROLE_PERMISSION_DELETE = ROLE_PERMISSION + "_" + DELETE;
+
+    public static final String USER_ROLE_CREATION = USER_ROLE + "_" + INSERT;
+    public static final String USER_ROLE_UPDATE   = USER_ROLE + "_" + UPDATE;
+    public static final String USER_ROLE_DELETE   = USER_ROLE + "_" + DELETE;
 
 
     public static final String USUARIO_NAO_AUTENTICADO= "Usuário não autenticado";

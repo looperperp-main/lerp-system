@@ -92,16 +92,13 @@
                     tooltipPosition="top">
                   </button>
 
-                  <!-- Botão Habilitar/Desabilitar -->
                   <button
-                    *ngIf="rowData.active === true"
                     pButton
                     pRipple
-                    [icon]="rowData.active === true ? 'pi pi-ban' : 'pi pi-check-circle'"
-                    [class]="'p-button-rounded p-button-text p-button-sm w-8 h-8 ' + (rowData.status === 'ATIVO' ? 'p-button-warning' : 'p-button-success')"
-                    pTooltip="Alterar Status"
-                    tooltipPosition="top"
-                  >
+                    icon="pi pi-trash"
+                    class="p-button-rounded p-button-text p-button-danger p-button-sm w-8 h-8"
+                    (click)="deleteRole(rowData)"
+                    pTooltip="Excluir">
                   </button>
                 </div>
               </ng-container>
@@ -142,4 +139,18 @@
     [tenants]="tenantsList()"
     (save)="saveRole($event)"
   ></app-role-form>
+
+  <p-dialog [(visible)]="deleteDialogVisible" [style]="{width: '450px'}" header="Confirmar Exclusão" [modal]="true">
+    <div class="flex items-start gap-3 pt-2">
+      <i class="pi pi-exclamation-triangle text-2xl text-red-500 mt-1"></i>
+      <span class="text-gray-700">
+        Tem certeza que deseja excluir permanentemente a Role <b *ngIf="roleToDelete">{{roleToDelete.name}}</b>?
+      </span>
+    </div>
+
+    <ng-template pTemplate="footer">
+      <button pButton pRipple label="Cancelar" icon="pi pi-times" class="p-button-text text-gray-600 hover:bg-gray-100" (click)="hideDeleteDialog()"></button>
+      <button pButton pRipple label="Excluir" icon="pi pi-trash" class="p-button-danger" (click)="confirmDelete()"></button>
+    </ng-template>
+  </p-dialog>
 </div>

@@ -21,11 +21,12 @@ public class RolePermission {
     @EmbeddedId
     private RolePermissionId id;
 
-    @MapsId
+    @MapsId("roleId")
     @OneToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "role_id", nullable = false)
     private Role role;
 
+    @MapsId("permissionId")
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "permission_id", nullable = false)

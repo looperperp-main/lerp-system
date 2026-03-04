@@ -1,0 +1,40 @@
+<p-dialog
+  [(visible)]="visible"
+  [style]="{width: '900px', minHeight: '500px'}"
+  [header]="'Configurar Permissões: ' + (role?.name || '')"
+  [modal]="true"
+  (onHide)="hideDialog()">
+
+  <div class="mt-4">
+    <p-pickList
+      [source]="sourcePermissions"
+      [target]="targetPermissions"
+      sourceHeader="Permissões Disponíveis"
+      targetHeader="Atribuídas a Role"
+      [dragdrop]="true"
+      [responsive]="true"
+      [sourceStyle]="{ height: '350px' }"
+      [targetStyle]="{ height: '350px' }"
+      filterBy="code,domain"
+      sourceFilterPlaceholder="Buscar permissão..."
+      targetFilterPlaceholder="Buscar permissão..."
+      (onMoveToSource)="onMoveToSource($event)">
+
+      <!-- Template de como cada item (permissão) vai aparecer na lista -->
+      <ng-template let-perm pTemplate="item">
+        <div class="flex flex-col border-b border-gray-100 py-2">
+          <span class="font-bold font-mono text-xs text-indigo-700">{{ perm.code }}</span>
+          <span class="text-sm text-gray-700">{{ perm.domain }} - {{ perm.description }}</span>
+        </div>
+      </ng-template>
+
+    </p-pickList>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <div class="flex justify-end gap-2 mt-4">
+      <button pButton  pRipple label="Cancelar" icon="pi pi-times" class="p-button-text text-gray-600 hover:bg-gray-100" (click)="hideDialog()"></button>
+      <button pButton pRipple label="Salvar Atribuições" icon="pi pi-check" class="p-button-success" [loading]="saving" (click)="onSave()"></button>
+    </div>
+  </ng-template>
+</p-dialog>

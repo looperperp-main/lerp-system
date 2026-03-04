@@ -69,14 +69,14 @@ public class PermissionService {
         permission.setCreatedDate(Instant.now());
         Permission savedPermission = permissionRepository.save(permission);
 
-        if (currentUser != null) {
-            // Pegando o Correlation ID da requisição
-            UUID correlationId = SecurityUtils.getCorrelationIdFromRequest(logger);
-            auditService.logAuditEvent(Constants.PERMISSION_CREATION,
-                    currentUser.id(), Constants.PERMISSION,
-                    savedPermission.getId(), Constants.SUCCESS,
-                    null, correlationId);
-        }
+
+        // Pegando o Correlation ID da requisição
+        UUID correlationId = SecurityUtils.getCorrelationIdFromRequest(logger);
+        auditService.logAuditEvent(Constants.PERMISSION_CREATION,
+                Constants.PERMISSION,
+                savedPermission.getId(), Constants.SUCCESS,
+                null, correlationId);
+
 
         return permissionMapper.toPermissionDTO(savedPermission);
     }
@@ -104,14 +104,13 @@ public class PermissionService {
         permission.setLastUpdateDate(Instant.now());
 
         Permission updatedPermission = permissionRepository.save(permission);
-        if (currentUser != null) {
-            // Pegando o Correlation ID da requisição
-            UUID correlationId = SecurityUtils.getCorrelationIdFromRequest(logger);
-            auditService.logAuditEvent(Constants.PERMISSION_UPDATE,
-                    currentUser.id(), Constants.PERMISSION,
-                    updatedPermission.getId(), Constants.SUCCESS,
-                    null, correlationId);
-        }
+        // Pegando o Correlation ID da requisição
+        UUID correlationId = SecurityUtils.getCorrelationIdFromRequest(logger);
+        auditService.logAuditEvent(Constants.PERMISSION_UPDATE,
+                Constants.PERMISSION,
+                updatedPermission.getId(), Constants.SUCCESS,
+                null, correlationId);
+
         return permissionMapper.toPermissionDTO(updatedPermission);
     }
 
@@ -124,7 +123,7 @@ public class PermissionService {
         CurrentUser currentUser = SecurityUtils.getCurrentUserInfo();
         UUID correlationId = SecurityUtils.getCorrelationIdFromRequest(logger);
         auditService.logAuditEvent(Constants.PERMISSION_DELETE,
-                currentUser.id(), Constants.PERMISSION,
+                Constants.PERMISSION,
                 permission.getId(), Constants.SUCCESS,
                 null, correlationId);
 

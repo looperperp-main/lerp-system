@@ -113,11 +113,10 @@ public class UserService {
 
         UserAccount savedUser = userAccountRepository.save(user);
 
-        if (currentUser != null) {
-            // Pegando o Correlation ID da requisição
-            UUID correlationId = getCorrelationIdFromRequest();
-            auditService.logAuditEvent("USER_INSERT", currentUser.id(), "UserAccount", savedUser.getId(), "SUCCESS", null, correlationId);
-        }
+        // Pegando o Correlation ID da requisição
+        UUID correlationId = getCorrelationIdFromRequest();
+        auditService.logAuditEvent("USER_INSERT", "UserAccount", savedUser.getId(), "SUCCESS", null, correlationId);
+
 
         return userMapper.toUserAccountDTO(savedUser);
     }

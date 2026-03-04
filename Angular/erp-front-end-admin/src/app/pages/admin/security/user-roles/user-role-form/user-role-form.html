@@ -1,0 +1,39 @@
+<p-dialog
+  [(visible)]="visible"
+  [style]="{width: '900px', minHeight: '500px'}"
+  [header]="'Atribuir Acessos: ' + (user?.displayName || user?.email || '')"
+  [modal]="true"
+  (onHide)="hideDialog()">
+
+  <div class="mt-4">
+    <p-pickList
+      [source]="sourceRoles"
+      [target]="targetRoles"
+      sourceHeader="Roles Disponíveis"
+      targetHeader="Atribuídas ao Usuário"
+      [dragdrop]="true"
+      [responsive]="true"
+      [sourceStyle]="{ height: '350px' }"
+      [targetStyle]="{ height: '350px' }"
+      filterBy="name"
+      sourceFilterPlaceholder="Buscar role..."
+      targetFilterPlaceholder="Buscar role..."
+      (onMoveToSource)="onMoveToSource($event)">
+
+      <ng-template let-r pTemplate="item">
+        <div class="flex flex-col border-b border-gray-100 py-2">
+          <span class="font-bold font-mono text-xs text-indigo-700">{{ r.name }}</span>
+          <span class="text-sm text-gray-500">ID: {{ r.id }}</span>
+        </div>
+      </ng-template>
+
+    </p-pickList>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <div class="flex justify-end gap-2 mt-4">
+      <button pButton pRipple label="Cancelar" icon="pi pi-times" class="p-button-text text-gray-600 hover:bg-gray-100" (click)="hideDialog()"></button>
+      <button pButton pRipple label="Salvar Acessos" icon="pi pi-check" class="p-button-success" [loading]="saving" (click)="onSave()"></button>
+    </div>
+  </ng-template>
+</p-dialog>

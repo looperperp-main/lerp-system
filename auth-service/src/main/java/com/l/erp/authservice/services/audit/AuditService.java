@@ -1,9 +1,11 @@
 package com.l.erp.authservice.services.audit;
 
+import com.l.erp.authservice.api.dto.CurrentUser;
 import com.l.erp.authservice.api.dto.audit.AuditLogDTO;
 import com.l.erp.authservice.api.mappers.AuditMapper;
 import com.l.erp.authservice.dominio.audit.AuditLog;
 import com.l.erp.authservice.repositorios.audit.AuditRepository;
+import com.l.erp.authservice.util.SecurityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -33,18 +35,19 @@ public class AuditService {
 
     /**
      * Registra um evento de auditoria
-     * @param action
-     * @param userId
-     * @param targetType
-     * @param targetId
-     * @param result
-     * @param detailsJson
-     * @param correlationId
+     * @param action ação
+     * @param targetType Tipo do Alvo
+     * @param targetId Id do Alvo
+     * @param result resultado
+     * @param detailsJson destlhes em Json se necessário
+     * @param correlationId correlation ID
      */
-    public void logAuditEvent(String action, UUID userId, String targetType, UUID targetId, String result, String detailsJson, UUID correlationId) {
+    public void logAuditEvent(String action, String targetType, UUID targetId, String result, String detailsJson, UUID correlationId) {
+        CurrentUser currentUser = SecurityUtils.getCurrentUserInfo();
+
         AuditLog auditLog = new AuditLog();
         auditLog.setAction(action);
-        auditLog.setActorUserId(userId);
+        auditLog.setActorUserId(currentUser.id());
         auditLog.setTargetType(targetType);
         auditLog.setTargetId(targetId);
         auditLog.setResult(result);
@@ -57,8 +60,8 @@ public class AuditService {
 
     /**
      * Retorna todos os logs de auditoria
-     * @param pageable
-     * @return
+     * @param pageable paginavel
+     * @return pagina
      */
     public Page<AuditLogDTO> getAuditLogs(Pageable pageable) {
         return auditRepository.findAll(pageable).map(auditMapper::toAuditLogDTO);
