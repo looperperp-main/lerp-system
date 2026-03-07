@@ -106,6 +106,9 @@ databaseChangeLog:
                   name: locked_until
                   type: timestamp
               - column:
+                  name: failed_login_attempts
+                  type: integer
+              - column:
                   name: created_date
                   type: timestamp
                   defaultValueDate: CURRENT_TIMESTAMP

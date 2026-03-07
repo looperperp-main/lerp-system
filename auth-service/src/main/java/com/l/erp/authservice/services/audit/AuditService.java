@@ -45,9 +45,23 @@ public class AuditService {
     public void logAuditEvent(String action, String targetType, UUID targetId, String result, String detailsJson, UUID correlationId) {
         CurrentUser currentUser = SecurityUtils.getCurrentUserInfo();
 
+        logAuditEventWithActor(action, currentUser.id(), targetType, targetId, result, detailsJson, correlationId);
+    }
+
+    /**
+     * Registra um evento de auditoria com o actor explícito (para casos onde não há contexto de segurança)
+     * @param action ação
+     * @param actorUserId ID do usuário que executou a ação
+     * @param targetType Tipo do Alvo
+     * @param targetId Id do Alvo
+     * @param result resultado
+     * @param detailsJson detalhes em Json se necessário
+     * @param correlationId correlation ID
+     */
+    public void logAuditEventWithActor(String action, UUID actorUserId, String targetType, UUID targetId, String result, String detailsJson, UUID correlationId) {
         AuditLog auditLog = new AuditLog();
         auditLog.setAction(action);
-        auditLog.setActorUserId(currentUser.id());
+        auditLog.setActorUserId(actorUserId);
         auditLog.setTargetType(targetType);
         auditLog.setTargetId(targetId);
         auditLog.setResult(result);

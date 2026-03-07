@@ -1,10 +1,16 @@
 package com.l.erp.authservice.util;
 
+import org.jspecify.annotations.Nullable;
+
+import java.time.Duration;
+
 public class Constants {
 
     private Constants(){
         //construtor vazio
     }
+
+    public static final String SYSTEM = "SYSTEM";
 
     public static final String SUCCESS = "SUCCESS";
     public static final String ERROR   = "ERROR";
@@ -32,6 +38,9 @@ public class Constants {
 
     public static final String USER_HAS_OWNER_MARKER= "Usuário não pode ser cancelado/excluído pois possui um marker de proprietário";
 
+    public static final String USER_EMAIL_NOT_CORRECT = "Credenciais Inválidas - Senha ou Email incorretos";
+    public static final String USER_INACTIVE = "Usuário Inativo";
+
     public static final String PERMISSION_CREATION = PERMISSION + "_" + INSERT;
     public static final String PERMISSION_UPDATE = PERMISSION + "_" + UPDATE;
     public static final String PERMISSION_DELETE = PERMISSION + "_" + DELETE;
@@ -53,5 +62,17 @@ public class Constants {
 
     public static final String USUARIO_NAO_AUTENTICADO= "Usuário não autenticado";
     public static final String USUARIO_UUID_NAO_ENCONTRADO= "Usuário logado não possuí UUID! Contate um administrador do sistema.";
+
+    public static final int MAX_FAILED_ATTEMPTS = 5;
+    public static final Duration LOCK_DURATION = Duration.ofMinutes(30);
+
+    // Eventos de Login/Auditoria
+    public static final String LOGIN = "LOGIN";
+    public static final String LOGOUT = "LOGOUT";
+    public static final String LOGIN_SUCCESS = LOGIN + "_" + SUCCESS;
+    public static final String LOGIN_FAILED = LOGIN + "_" + FAILED;
+    public static final String LOGIN_LOCKED = LOGIN + "_LOCKED";
+    public static final String LOGIN_USER_INACTIVE = LOGIN + "_USER_INACTIVE";
+    public static final String USER_UNLOCKED = "USER_UNLOCKED";
 
 }

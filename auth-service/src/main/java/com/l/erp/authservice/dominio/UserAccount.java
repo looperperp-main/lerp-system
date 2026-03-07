@@ -50,6 +50,9 @@ public class UserAccount {
     @Column(name = "locked_until")
     private Instant lockedUntil;
 
+    @Column(name = "failed_login_attempts")
+    private Integer failedLoginAttempts = 0;
+
     @Column(name = "created_date")
     private Instant createdDate;
 

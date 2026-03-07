@@ -6,6 +6,7 @@ import {NgOptimizedImage} from '@angular/common';
 import {Router} from '@angular/router';
 import {LoginService} from './service/login';
 import {ToastrService} from 'ngx-toastr';
+import {HttpErrorResponse} from '@angular/common/http';
 
 @Component({
   selector: 'app-login',
@@ -32,16 +33,41 @@ export class Login {
   submit() {
     if (this.loginForm.valid) {
       console.log('Form is valid, perform login logic here');
-      this.loginService.login(this.loginForm.value.email, this.loginForm.value.password).subscribe(
-        next => {
+      this.loginService.login(this.loginForm.value.email, this.loginForm.value.password).subscribe({
+        next: () => {
           this.toastService.success("Login Feito com sucesso");
           this.router.navigate(['/admin']);
         },//TODO: navegar para as outar páginas
-        error => this.toastService.error("Erro ao fazer login! Verifique as credenciais ou tente novamente mais tarde.")
-      );
+        error: (err: HttpErrorResponse) => this.handleLoginError(err)
+      });
     } else {
       console.log('Form is invalid, show validation errors');
     }
+  }
+
+  private handleLoginError(err: HttpErrorResponse) {
+    // Status 423 = LOCKED (usuário bloqueado)
+    if (err.status === 423 && err.error?.error === 'USER_LOCKED') {
+      this.toastService.error(
+        err.error.message,
+        'Usuário Bloqueado',
+        { timeOut: 10000, closeButton: true, progressBar: true }
+      );
+      return;
+    }
+
+    // Erro de negócio genérico (ex: status 403)
+    if (err.error?.message) {
+      this.toastService.error(err.error.message, 'Erro de Login', { timeOut: 7000 });
+      return;
+    }
+
+    // Fallback para erros genéricos
+    this.toastService.error(
+      "Erro ao fazer login! Verifique as credenciais ou tente novamente mais tarde.",
+      'Erro',
+      { timeOut: 5000 }
+    );
   }
 
   navigate() {

@@ -112,6 +112,7 @@ public class UserService {
         user.setEmail(userDTO.email());
         user.setDisplayName(userDTO.displayName());
         user.setActive(true); // Usuário nasce ativo por padrão
+        user.setFailedLoginAttempts(0);
         user.setCreatedDate(Instant.now());
         user.setTenant(tenant);
 
@@ -125,7 +126,7 @@ public class UserService {
         UserAccount savedUser = userAccountRepository.save(user);
 
         // Pegando o Correlation ID da requisição
-        UUID correlationId = getCorrelationIdFromRequest();
+        UUID correlationId = SecurityUtils.getCorrelationIdFromRequest(logger);
         auditService.logAuditEvent(Constants.USER_CREATION, Constants.USER, savedUser.getId(), Constants.SUCCESS, null, correlationId);
 
 
@@ -148,30 +149,7 @@ public class UserService {
         userAccount.setActive(!userAccount.isActive());
         userAccountRepository.save(userAccount);
 
-        UUID correlationId = getCorrelationIdFromRequest();
+        UUID correlationId = SecurityUtils.getCorrelationIdFromRequest(logger);
         auditService.logAuditEvent(Constants.USER_UPDATE, Constants.USER, userId, Constants.SUCCESS, null, correlationId);
-    }
-
-    /**
-    * Métod auxiliar para extrair o Correlation ID do Header da Requisição atual.
-    */
-    private UUID getCorrelationIdFromRequest() {
-        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-        if (attributes != null) {
-            HttpServletRequest request = attributes.getRequest();
-            // Substitua "X-Correlation-ID" pelo nome do header que o seu Gateway ou Front-end está enviando
-            String headerCorId = request.getHeader("X-Correlation-ID");
-
-            if (headerCorId != null && !headerCorId.isBlank()) {
-                try {
-                    return UUID.fromString(headerCorId);
-                } catch (IllegalArgumentException e) {
-                    logger.warn("Formato de Correlation ID inválido recebido no header: {}", headerCorId);
-                }
-            }
-        }
-        // Se não houver contexto web (ex: rotina assíncrona/batch) ou o header não foi enviado,
-        // gera um novo para não deixar a auditoria vazia.
-        return UUID.randomUUID();
     }
 }
