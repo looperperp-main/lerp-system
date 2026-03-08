@@ -61,6 +61,9 @@
         },
         "serve": {
           "builder": "@angular/build:dev-server",
+          "options": {
+            "allowedHosts": ["gushiest-dorris-obsolescently.ngrok-free.dev"]
+          },
           "configurations": {
             "production": {
               "buildTarget": "erp-front-end-admin:build:production"
