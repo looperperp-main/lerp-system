@@ -14,6 +14,7 @@ class WebSecurityConfig {
     @Autowired
     public void configureGlobal(AuthenticationManagerBuilder auth) throws Exception {
         auth.inMemoryAuthentication()
-                .withUser("usuario@teste.com").password("Mgk214458").roles("ROLE_APP_OWNER");
+                .withUser("usuario@teste.com").password("Mgk214458").roles("ROLE_APP_OWNER") // Sem o prefixo ROLE_
+                .authorities("TENANT_INSERT", "TENANT_READ", "TENANT_DELETE", "TENANT_UPDATE");
     }
 }

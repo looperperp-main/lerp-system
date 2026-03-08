@@ -1,23 +1,21 @@
 package com.l.erp.authservice;
 
-import com.l.erp.authservice.api.dto.CurrentUser;
-import com.l.erp.authservice.repositorios.audit.AuditRepository;
-import com.l.erp.authservice.services.audit.AuditService;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.l.erp.authservice.api.controllers.TenantController;
+import com.l.erp.authservice.api.dto.CurrentUser;
 import com.l.erp.authservice.api.dto.TenantDTO;
 import com.l.erp.authservice.api.mappers.AuthMapper;
 import com.l.erp.authservice.configuration.ObjectMapperConfig;
 import com.l.erp.authservice.dominio.Tenant;
 import com.l.erp.authservice.repositorios.TenantRepository;
 import com.l.erp.authservice.services.TenantService;
+import com.l.erp.authservice.services.audit.AuditService;
 import com.l.erp.authservice.util.SecurityUtils;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
@@ -66,7 +64,7 @@ public class TenantControllerTest {
     private AuditService auditService;
 
     @Test
-    @WithMockUser(roles = "APP_OWNER")
+    @WithMockUser(authorities = "TENANT_READ")
     void shouldReturnTenants() throws Exception {
         TenantDTO dto = new TenantDTO(1L, "Empresa X", "12345678000190", "ATIVO",
                 Instant.now(), "admin", Instant.now(), "admin");
@@ -84,7 +82,7 @@ public class TenantControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "APP_OWNER")
+    @WithMockUser(authorities = "TENANT_INSERT")
     void shouldCreateTenant() throws Exception {
         var TOKEN_ATTR_NAME = "_csrf";
         var httpSessionCsrfTokenRepository = new HttpSessionCsrfTokenRepository();
@@ -121,7 +119,7 @@ public class TenantControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "APP_OWNER")
+    @WithMockUser(authorities = "TENANT_READ")
     void shouldReturnAGivenTenants() throws Exception {
         TenantDTO dto = new TenantDTO(1L, "Empresa X", "12345678000190", "ATIVO",
                 Instant.now(), "admin", Instant.now(), "admin");
@@ -136,7 +134,7 @@ public class TenantControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "APP_OWNER")
+    @WithMockUser(authorities = "TENANT_UPDATE")
     void shouldUpdateTenantSuccess() throws Exception {
         var TOKEN_ATTR_NAME = "_csrf";
         var httpSessionCsrfTokenRepository = new HttpSessionCsrfTokenRepository();
@@ -151,7 +149,7 @@ public class TenantControllerTest {
         oldTenant.setStatus("ATIVO");
 
         when(tenantRepository.findById(1L)).thenReturn(Optional.of(oldTenant));
-        when(tenantRepository.countAllByNameAndCnpj(any(),any())).thenReturn(1L);
+        when(tenantRepository.countAllByNameAndCnpj(any(),any())).thenReturn(0L);
 
         Tenant updated = new Tenant();
         updated.setId(1L);
@@ -177,7 +175,7 @@ public class TenantControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "APP_OWNER")
+    @WithMockUser(authorities = "TENANT_UPDATE")
     void shouldUpdateTenantErrorCancelado() throws Exception {
         var TOKEN_ATTR_NAME = "_csrf";
         var httpSessionCsrfTokenRepository = new HttpSessionCsrfTokenRepository();
@@ -212,7 +210,7 @@ public class TenantControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "APP_OWNER")
+    @WithMockUser(authorities = "TENANT_DELETE")
     void updateTenantStatusById() throws Exception {
         var TOKEN_ATTR_NAME = "_csrf";
         var httpSessionCsrfTokenRepository = new HttpSessionCsrfTokenRepository();
@@ -247,7 +245,7 @@ public class TenantControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "APP_OWNER")
+    @WithMockUser(authorities = "TENANT_DELETE")
     void updateTenantStatusByIdToSuspenso() throws Exception {
         var TOKEN_ATTR_NAME = "_csrf";
         var httpSessionCsrfTokenRepository = new HttpSessionCsrfTokenRepository();
@@ -272,7 +270,7 @@ public class TenantControllerTest {
                             .sessionAttr(TOKEN_ATTR_NAME, csrfToken)
                             .param(csrfToken.getParameterName(), csrfToken.getToken()))
                     .andDo(print())
-                    .andExpect(status().isOk());
+                    .andExpect(status().isNoContent());
         }
     }
 
