@@ -42,3 +42,4 @@ Thumbs.db
 .env
 *.pem
 *.p12
+package-lock.json

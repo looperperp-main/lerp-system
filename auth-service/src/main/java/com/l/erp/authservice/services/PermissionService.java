@@ -24,7 +24,6 @@ import java.util.UUID;
 public class PermissionService {
     private final Logger logger = LoggerFactory.getLogger(PermissionService.class);
     private final PermissionRepository permissionRepository;
-    private static final String ENTITY_NAME = "Permission";
     private final PermissionMapper permissionMapper;
     private final AuditService auditService;
 
@@ -59,7 +58,7 @@ public class PermissionService {
         }
 
         CurrentUser currentUser = SecurityUtils.getCurrentUserInfo();
-        String actor = (currentUser != null) ? currentUser.email() : "system";
+        String actor = (currentUser.email() != null) ? currentUser.email() : "system";
 
         Permission permission = new Permission();
         permission.setCode(dto.code().toUpperCase()); // Padronizando para uppercase
@@ -95,7 +94,7 @@ public class PermissionService {
         }
 
         CurrentUser currentUser = SecurityUtils.getCurrentUserInfo();
-        String actor = (currentUser != null) ? currentUser.email() : "system";
+        String actor = (currentUser.email() != null) ? currentUser.email() : "system";
 
         permission.setCode(dto.code().toUpperCase());
         permission.setDomain(dto.domain());
@@ -120,7 +119,6 @@ public class PermissionService {
 
         Permission permission = permissionRepository.findById(id)
                 .orElseThrow(() -> new BussinessException("Permissão não encontrada", HttpStatus.NOT_FOUND));
-        CurrentUser currentUser = SecurityUtils.getCurrentUserInfo();
         UUID correlationId = SecurityUtils.getCorrelationIdFromRequest(logger);
         auditService.logAuditEvent(Constants.PERMISSION_DELETE,
                 Constants.PERMISSION,

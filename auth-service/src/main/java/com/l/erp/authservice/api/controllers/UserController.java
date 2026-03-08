@@ -54,7 +54,7 @@ public class UserController {
     @GetMapping("/active")
     @Secured({Roles.APP_OWNER,Roles.TENANT_OWNER})
     public ResponseEntity<Page<UserAccountPageDTO>> getAllUsersActive(@PageableDefault(size = 10, sort = "displayName") Pageable pageable){
-        log.debug("REST request to get all users");
+        log.debug("REST request to get all active users");
         return ResponseEntity.ok(userService.getAllAccountsActive(pageable));
     }
 

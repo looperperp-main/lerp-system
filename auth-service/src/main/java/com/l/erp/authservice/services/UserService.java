@@ -14,7 +14,6 @@ import com.l.erp.authservice.util.Constants;
 import com.l.erp.authservice.util.PasswordValidatorUtil;
 import com.l.erp.authservice.util.SecurityUtils;
 import com.l.erp.common.exception.custom.BussinessException;
-import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -22,8 +21,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
@@ -32,8 +29,7 @@ import java.util.UUID;
 @Service
 public class UserService {
 
-    private Logger logger = LoggerFactory.getLogger(UserService.class);
-    private static final String ENTITY_NAME = "User";
+    private final Logger logger = LoggerFactory.getLogger(UserService.class);
 
     private final UserAccountRepository userAccountRepository;
 
@@ -69,8 +65,8 @@ public class UserService {
 
     /**
      *
-     * @param pageable
-     * @return
+     * @param pageable pageable com as configs da página
+     * @return page com os dados do user
      */
     public Page<UserAccountPageDTO> getAllAccounts(Pageable pageable) {
         logger.debug("REST request to get all Users");
@@ -78,7 +74,7 @@ public class UserService {
     }
 
     public Page<UserAccountPageDTO> getAllAccountsActive(Pageable pageable) {
-        logger.debug("REST request to get all Users");
+        logger.debug("REST request to get all Users using a Pageable");
         return userAccountRepository.findAllActiveProjectedBy(pageable);
     }
 

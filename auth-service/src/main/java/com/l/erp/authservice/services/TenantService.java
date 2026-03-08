@@ -82,7 +82,7 @@ public class TenantService {
      * @return lista de tenants
      */
     public Page<TenantDTO> getAllActiveTenants(Pageable pageable){
-        logger.debug("REST request to get all Tenants");
+        logger.debug("REST request to get all Tenants using a Pageable");
         Page<Tenant> tenants = tenantRepository.findAllByStatusIs("ATIVO",pageable);
         return tenants.map(authMapper::toTenantDTO);
     }
