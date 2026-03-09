@@ -1,0 +1,26 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'auth-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      #- targets: ['auth-service:8085']  # Ajuste a porta conforme seu serviço
+      - targets: ['host.docker.internal:8085']  # Ajuste a porta conforme seu serviço
+
+  - job_name: 'cadastro-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      #- targets: ['cadastro-service:8086']  # Ajuste a porta conforme seu serviço
+      - targets: ['host.docker.internal:8086']  # Ajuste a porta conforme seu serviço
+
+  - job_name: 'gateway'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      #- targets: ['gateway:8090']  # Ajuste a porta conforme seu serviço
+      - targets: ['host.docker.internal:8090']  # Ajuste a porta conforme seu serviço
