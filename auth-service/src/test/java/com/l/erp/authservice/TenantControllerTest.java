@@ -34,6 +34,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -78,6 +79,23 @@ public class TenantControllerTest {
         when(tenantRepository.findAll(any(Pageable.class))).thenReturn(page);
 
         mockMvc.perform(get("/auth/tenants?page=0&size=10"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser(authorities = "TENANT_READ")
+    void shouldReturnActiveTenants() throws Exception {
+
+        // Mock para retornar uma Página em vez de lista simples
+        Tenant tenant = new Tenant();
+        tenant.setId(1L);
+        tenant.setName("Empresa X");
+        tenant.setStatus("ATIVO");
+        Page<Tenant> page = new PageImpl<>(List.of(tenant));
+
+        when(tenantRepository.findAllByStatusIs(anyString(),any(Pageable.class))).thenReturn(page);
+
+        mockMvc.perform(get("/auth/tenants/active?page=0&size=10"))
                 .andExpect(status().isOk());
     }
 
@@ -171,6 +189,47 @@ public class TenantControllerTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.id").value(1L))
                     .andExpect(jsonPath("$.name").value("Empresa Z"));
+        }
+    }
+
+    @Test
+    @WithMockUser(authorities = "TENANT_UPDATE")
+    void shouldntUpdateTenantSuccess() throws Exception {
+        var TOKEN_ATTR_NAME = "_csrf";
+        var httpSessionCsrfTokenRepository = new HttpSessionCsrfTokenRepository();
+        var csrfToken = httpSessionCsrfTokenRepository.generateToken(new MockHttpServletRequest());
+
+        TenantDTO originalUpdated = new TenantDTO(1L, "Empresa Z", "98765432000110", "ATIVO",
+                Instant.now(), "admin", Instant.now(), "admin");
+
+        Tenant oldTenant = new Tenant();
+        oldTenant.setId(1L);
+        oldTenant.setName("Empresa X");
+        oldTenant.setStatus("ATIVO");
+
+        when(tenantRepository.findById(1L)).thenReturn(Optional.of(oldTenant));
+        when(tenantRepository.countAllByNameAndCnpj(any(),any())).thenReturn(1L);
+
+        Tenant updated = new Tenant();
+        updated.setId(1L);
+        updated.setName("Empresa Z");
+        when(tenantRepository.save(any(Tenant.class))).thenReturn(updated);
+        when(authMapper.toTenant(any())).thenReturn(updated);
+        when(authMapper.toTenantDTO(updated)).thenReturn(originalUpdated);
+
+        try (MockedStatic<SecurityUtils> securityUtils = Mockito.mockStatic(SecurityUtils.class)) {
+            securityUtils.when(SecurityUtils::getCurrentUserInfo).thenReturn(new CurrentUser(UUID.randomUUID(),"usuario@teste.com"));
+
+
+            mockMvc.perform(put("/auth/tenants")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(originalUpdated))
+                            .sessionAttr(TOKEN_ATTR_NAME, csrfToken)
+                            .param(csrfToken.getParameterName(), csrfToken.getToken()))
+                    .andDo(print())
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.error").value("Erro de Negocio"))
+                    .andExpect(jsonPath("$.message").value("Tenant : Registro em duplicidade"));
         }
     }
 
