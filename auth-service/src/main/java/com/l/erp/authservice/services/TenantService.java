@@ -9,9 +9,10 @@ import com.l.erp.authservice.repositorios.TenantRepository;
 import com.l.erp.authservice.services.audit.AuditService;
 import com.l.erp.authservice.util.Constants;
 import com.l.erp.authservice.util.SecurityUtils;
-import com.l.erp.common.exception.custom.BussinessException;
+import com.l.erp.common.exception.custom.BusinessException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -55,12 +56,12 @@ public class TenantService {
         CurrentUser currentUser = SecurityUtils.getCurrentUserInfo();
 
         Tenant tenant = authMapper.toTenant(tenantDTO);
-        tenant.setStatus(EnumTenantStatus.P.getDescription());
+        tenant.setStatus(EnumTenantStatus.P);
         tenant.setCreationDate(Instant.now());
         tenant.setCreatedBy(currentUser.email());
         Tenant tenantSaved = tenantRepository.save(tenant);
         UUID correlationId = getCorrelationIdFromRequest(logger);
-        auditService.logAuditEvent(Constants.TENANT_CREATION, Constants.TENANT, null, "SUCCESS", null,correlationId);
+        auditService.logAuditEvent(Constants.TENANT_CREATION, Constants.TENANT, null, Constants.SUCCESS, null,correlationId);
         return authMapper.toTenantDTO(tenantSaved);
 
     }
@@ -83,7 +84,7 @@ public class TenantService {
      */
     public Page<TenantDTO> getAllActiveTenants(Pageable pageable){
         logger.debug("REST request to get all Tenants using a Pageable");
-        Page<Tenant> tenants = tenantRepository.findAllByStatusIs("ATIVO",pageable);
+        Page<Tenant> tenants = tenantRepository.findAllByStatusIs(Constants.ATIVO,pageable);
         return tenants.map(authMapper::toTenantDTO);
     }
 
@@ -108,10 +109,8 @@ public class TenantService {
 
         CurrentUser currentUser = SecurityUtils.getCurrentUserInfo();
 
-        if(!Objects.equals(oldTenant.getStatus(), EnumTenantStatus.C.getDescription())){
-            Long duplicates = tenantRepository.countAllByNameAndCnpj(tenantDTO.name(),tenantDTO.cnpj());
-            if (duplicates == 0) {
-
+        if(!Objects.equals(oldTenant.getStatus(), EnumTenantStatus.C)){
+            try{
                 Tenant tenant = authMapper.toTenant(tenantDTO);
                 tenant.setUpdateDate(Instant.now());
                 tenant.setLastUpdatedBy(currentUser.email());
@@ -119,13 +118,13 @@ public class TenantService {
 
                 auditService.logAuditEvent(Constants.TENANT_UPDATE, Constants.TENANT, null, Constants.SUCCESS, null,correlationId);
                 return authMapper.toTenantDTO(saved);
-            }else{
+            }catch (DataIntegrityViolationException e){
                 auditService.logAuditEvent(Constants.TENANT_UPDATE, Constants.TENANT, null, Constants.ERROR, null,correlationId);
-                throw new BussinessException(ENTITY_NAME + " : Registro em duplicidade",BAD_REQUEST);
+                throw new BusinessException(ENTITY_NAME + " : Registro em duplicidade",BAD_REQUEST);
             }
         }else{
             auditService.logAuditEvent(Constants.TENANT_UPDATE, Constants.TENANT, null, Constants.ERROR, null,correlationId);
-            throw new BussinessException(ENTITY_NAME + " : Não é possível atualizar um Tenant Cancelado",BAD_REQUEST);
+            throw new BusinessException(ENTITY_NAME + " : Não é possível atualizar um Tenant Cancelado",BAD_REQUEST);
         }
     }
 
@@ -137,16 +136,16 @@ public class TenantService {
         CurrentUser currentUser = SecurityUtils.getCurrentUserInfo();
         UUID correlationId = getCorrelationIdFromRequest(logger);
 
-        if(Objects.equals(tenant.getStatus(), EnumTenantStatus.C.getDescription())){
+        if(Objects.equals(tenant.getStatus(), EnumTenantStatus.C)){
             auditService.logAuditEvent(Constants.TENANT_CANCEL, Constants.TENANT, null, Constants.ERROR, null,correlationId);
-            throw new BussinessException(ENTITY_NAME + " : Não é possível atualizar um Tenant Cancelado",BAD_REQUEST);
+            throw new BusinessException(ENTITY_NAME + " : Não é possível atualizar um Tenant Cancelado",BAD_REQUEST);
         }else{
-            tenant.setStatus(status);
+            tenant.setStatus(EnumTenantStatus.valueOf(status));
             tenant.setUpdateDate(Instant.now());
             tenant.setLastUpdatedBy(currentUser.email());
             tenantRepository.save(tenant);
 
-            auditService.logAuditEvent(Constants.TENANT_CANCEL, Constants.TENANT, null, "SUCCESS", null,correlationId);
+            auditService.logAuditEvent(Constants.TENANT_CANCEL, Constants.TENANT, null, Constants.SUCCESS, null,correlationId);
         }
     }
 }

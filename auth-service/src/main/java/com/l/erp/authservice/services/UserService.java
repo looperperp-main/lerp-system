@@ -13,7 +13,7 @@ import com.l.erp.authservice.services.audit.AuditService;
 import com.l.erp.authservice.util.Constants;
 import com.l.erp.authservice.util.PasswordValidatorUtil;
 import com.l.erp.authservice.util.SecurityUtils;
-import com.l.erp.common.exception.custom.BussinessException;
+import com.l.erp.common.exception.custom.BusinessException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -88,7 +88,7 @@ public class UserService {
 
         // Verifica se o email já existe
         if (userAccountRepository.findByEmail(userDTO.email()).isPresent()) {
-            throw new BussinessException("E-mail já está em uso", HttpStatus.BAD_REQUEST);
+            throw new BusinessException("E-mail já está em uso", HttpStatus.BAD_REQUEST);
         }
 
         // Vinculando o Tenant
@@ -97,7 +97,7 @@ public class UserService {
             tenant = tenantRepository.findById(userDTO.tenantId())
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tenant não encontrado"));
         } else {
-            throw new BussinessException("O ID do Tenant é obrigatório para criar um usuário", HttpStatus.BAD_REQUEST);
+            throw new BusinessException("O ID do Tenant é obrigatório para criar um usuário", HttpStatus.BAD_REQUEST);
         }
 
         // --> VALIDAÇÃO DE SENHA (Passay) <--
@@ -135,11 +135,11 @@ public class UserService {
      */
     public void updateUserStatusById(UUID userId){
         UserAccount userAccount = userAccountRepository.findById(userId)
-                .orElseThrow(() -> new BussinessException(Constants.USER_NOT_FOUND, HttpStatus.BAD_REQUEST));
+                .orElseThrow(() -> new BusinessException(Constants.USER_NOT_FOUND, HttpStatus.BAD_REQUEST));
 
         boolean existsOwnerMarker = ownerMarkerRepository.existsByUser_IdAndEnabledTrue(userId);
         if(existsOwnerMarker){
-            throw new BussinessException(Constants.USER_HAS_OWNER_MARKER, HttpStatus.BAD_REQUEST);
+            throw new BusinessException(Constants.USER_HAS_OWNER_MARKER, HttpStatus.BAD_REQUEST);
         }
 
         userAccount.setActive(!userAccount.isActive());

@@ -1,6 +1,6 @@
 package com.l.erp.common.exception.handlers;
 
-import com.l.erp.common.exception.custom.BussinessException;
+import com.l.erp.common.exception.custom.BusinessException;
 import com.l.erp.common.exception.custom.UserLockedException;
 import com.l.erp.common.exception.dto.StandardError;
 import jakarta.servlet.http.HttpServletRequest;
@@ -35,8 +35,8 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(err);
     }
 
-    @ExceptionHandler(BussinessException.class)
-    public ResponseEntity<StandardError> handleBussinessException(BussinessException e, HttpServletRequest request) {
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<StandardError> handleBussinessException(BusinessException e, HttpServletRequest request) {
         StandardError err = StandardError.builder()
                 .timestamp(Instant.now())
                 .status(e.getStatus().value())

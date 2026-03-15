@@ -5,12 +5,13 @@ import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.JWTCreationException;
 import com.l.erp.authservice.dominio.Tenant;
 import com.l.erp.authservice.dominio.UserAccount;
+import com.l.erp.authservice.infra.config.Roles;
+import com.l.erp.authservice.util.Constants;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @Service
@@ -20,21 +21,13 @@ public class TokenService {
     private String secret;
     public String generateToken(UserAccount user, List<String> roles, boolean isOwner, List<String> permissions){
         try{
-            Algorithm algorithm = Algorithm.HMAC256(secret);
+            return createJWT(user,
+                    roles, isOwner,
+                    permissions, String.valueOf(user.getEmail()),
+                    user.getDisplayName(), user.getTenant(), Constants.ADMIN);
 
-            return JWT.create()
-                    .withSubject(String.valueOf(user.getId()))
-                    .withIssuer("L-ERP-auth-service")
-                    .withExpiresAt(generateExpirationDate())
-                    .withIssuedAt(Instant.now())
-                    .withClaim("tenantId", String.valueOf(user.getTenant().getId()))
-                    .withClaim("userEmail", String.valueOf(user.getEmail()))
-                    .withClaim("authorities", permissions)
-                    .withClaim("roles", roles)
-                    .withClaim("isOwner", isOwner)
-                    .sign(algorithm);
         } catch (JWTCreationException ex){
-            throw new RuntimeException("Erro ao gerar token");
+            throw new RuntimeException("Erro ao gerar token", ex);
         }
     }
 
@@ -44,30 +37,43 @@ public class TokenService {
      */
     public String generateTenantUserToken(UserAccount user, List<String> permissions, Tenant tenant) {
         try {
-            Algorithm algorithm = Algorithm.HMAC256(secret);
-
-            return JWT.create()
-                    .withSubject(String.valueOf(user.getId()))
-                    .withIssuer("L-ERP-auth-service")
-                    .withExpiresAt(generateExpirationDate())
-                    .withIssuedAt(Instant.now())
-                    .withClaim("tenantId", tenant.getId())
-                    .withClaim("tenantName", tenant.getName())
-                    .withClaim("tenantCnpj", tenant.getCnpj())
-                    //.withClaim("tenantSlug", tenant.getSlug())
-                    .withClaim("userEmail", user.getEmail())
-                    .withClaim("displayName", user.getDisplayName())
-                    .withClaim("authorities", permissions)
-                    .withClaim("roles", List.of("ROLE_TENANT_USER"))
-                    .withClaim("isOwner", false)
-                    .withClaim("loginType", "TENANT")
-                    .sign(algorithm);
+            return createJWT(user, List.of(Roles.ROLE_TENANT_USER), false, permissions,user.getEmail(), user.getDisplayName(), tenant, Constants.TENANT);
         } catch (JWTCreationException ex) {
-            throw new RuntimeException("Erro ao gerar token para usuário do tenant");
+            throw new RuntimeException("Erro ao gerar token para usuário do tenant", ex);
         }
     }
 
+    /**
+     * create a JWT based on the user's info
+     * @param user user
+     * @param roles roles
+     * @param isOwner if is an Owner
+     * @param permissions list of permissions
+     * @param email email
+     * @param displayName display name
+     * @param tenant tenant info
+     * @param loginType login type (TENANT)
+     * @return Jwt String
+     */
+    private String createJWT(UserAccount user, List<String> roles, boolean isOwner, List<String> permissions, String email, String displayName, Tenant tenant, String loginType){
+        return JWT.create()
+                .withSubject(String.valueOf(user.getId()))
+                .withIssuer("L-ERP-auth-service")
+                .withExpiresAt(generateExpirationDate())
+                .withIssuedAt(Instant.now())
+                .withClaim("roles", roles)
+                .withClaim("isOwner", isOwner)
+                .withClaim("authorities", permissions)
+                .withClaim("userEmail", email)
+                .withClaim("displayName", displayName)
+                .withClaim("tenantId", tenant.getId())
+                .withClaim("tenantName", tenant.getName())
+                .withClaim("tenantCnpj", tenant.getCnpj())
+                .withClaim("loginType", loginType)
+                .sign(Algorithm.HMAC256(secret));
+    }
+
     private Instant generateExpirationDate(){
-        return LocalDateTime.now().plusHours(1).toInstant(ZoneOffset.of( "-03:00"));
+        return Instant.now().plus(1, ChronoUnit.HOURS);
     }
 }

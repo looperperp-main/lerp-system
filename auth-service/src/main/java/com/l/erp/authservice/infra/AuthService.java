@@ -99,7 +99,7 @@ public class AuthService {
         boolean isOwner = ownerRepo.existsByUser_IdAndEnabledTrue(user.getId());
         List<String> roles = isOwner ? List.of(Roles.APP_OWNER,Roles.TENANT_OWNER) : List.of("ROLE_USER");//TODO: get roles from database
 
-        String jwt = tokenService.generateToken(user, roles, isOwner, getRoles(user.getId()));
+        String jwt = tokenService.generateToken(user, roles, isOwner, getPermissions(user.getId()));
 
         RefreshTokenService.TokenPair tokenPair = refreshTokenService.issue(user);
 
@@ -122,7 +122,7 @@ public class AuthService {
                 });
 
         // 2. Verificar se o tenant está ativo
-        if (!Constants.ATIVO.equalsIgnoreCase(tenant.getStatus())) {
+        if (!Constants.ATIVO.equalsIgnoreCase(tenant.getStatus().getDescription())) {
             logger.warn("Tentativa de login em tenant inativo - CNPJ: {}, Status: {}", cnpj, tenant.getStatus());
             throw new ResponseStatusException(UNAUTHORIZED, Constants.TENANT_NOT_ACTIVE);
         }
@@ -163,7 +163,7 @@ public class AuthService {
                 Constants.SUCCESS, "Login no tenant: " + tenant.getName(), null);
 
         // 8. Buscar permissões do usuário
-        List<String> permissions = getRoles(user.getId());
+        List<String> permissions = getPermissions(user.getId());
 
         // 9. Gerar JWT específico para tenant
         String jwt = tokenService.generateTenantUserToken(user, permissions, tenant);
@@ -183,9 +183,9 @@ public class AuthService {
         UserAccount user = oldRT.getUser();
 
         boolean isOwner = ownerRepo.existsByUser_IdAndEnabledTrue(user.getId());
-        List<String> roles = isOwner ? List.of("ROLE_OWNER", "ROLE_USER") : List.of("ROLE_USER");
+        List<String> roles = isOwner ? List.of(Roles.APP_OWNER,Roles.TENANT_OWNER) : List.of("ROLE_USER");
 
-        String newJwt = tokenService.generateToken(user, roles, isOwner, getRoles(user.getId()));
+        String newJwt = tokenService.generateToken(user, roles, isOwner, getPermissions(user.getId()));
 
         RefreshTokenService.TokenPair newRt = refreshTokenService.issue(user);
         refreshTokenService.revoke(oldRT, newRt.entity());
@@ -203,7 +203,7 @@ public class AuthService {
                 });
     }
 
-    private List<String> getRoles(UUID userId){
+    private List<String> getPermissions(UUID userId){
         return userRoleRepository.findAllByUserId(userId).stream()
                 .flatMap(ur -> rolePermissionRepository.findAllByRoleId(ur.getRole().getId()).stream())
                 .map(rp -> rp.getPermission().getCode()) // Pega o campo "TENANT_INSERT", "TENANT_UPDATE"

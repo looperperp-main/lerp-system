@@ -50,7 +50,7 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, UUID> 
 
 
     /**
-     * Exemplo caso você queira filtrar os usuários por tenantId na paginação
+     * Exemplo caso queira filtrar os usuários por tenantId na paginação
      */
     @Query("SELECT new com.l.erp.authservice.api.dto.UserAccountPageDTO(" +
             "            u.id, t.name, u.email, u.displayName, u.active, " +

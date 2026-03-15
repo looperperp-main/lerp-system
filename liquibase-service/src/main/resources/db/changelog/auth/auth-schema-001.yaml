@@ -175,7 +175,7 @@ databaseChangeLog:
                     nullable: false
               - column:
                   name: token_hash
-                  type: bigint
+                  type: varchar(64)
                   constraints:
                     nullable: false
               - column:

@@ -17,7 +17,7 @@ import com.l.erp.authservice.repositorios.UserRoleRepository;
 import com.l.erp.authservice.services.audit.AuditService;
 import com.l.erp.authservice.util.Constants;
 import com.l.erp.authservice.util.SecurityUtils;
-import com.l.erp.common.exception.custom.BussinessException;
+import com.l.erp.common.exception.custom.BusinessException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -88,15 +88,15 @@ public class RolesService {
 
         // Verifica se a role já existe para este tenant
         if (roleRepository.findByNameAndTenant_Id(roleDTO.name(), roleDTO.tenantId()).isPresent()) {
-            throw new BussinessException("Já existe uma Role com este nome neste Tenant", HttpStatus.BAD_REQUEST);
+            throw new BusinessException("Já existe uma Role com este nome neste Tenant", HttpStatus.BAD_REQUEST);
         }
 
         Tenant tenant = tenantRepository.findById(roleDTO.tenantId())
-                .orElseThrow(() -> new BussinessException("Tenant não encontrado", HttpStatus.BAD_REQUEST));
+                .orElseThrow(() -> new BusinessException("Tenant não encontrado", HttpStatus.BAD_REQUEST));
 
         CurrentUser currentUser = SecurityUtils.getCurrentUserInfo();
         String createdBy = Optional.of(currentUser).map(CurrentUser::email)
-                .orElseThrow(() -> new BussinessException("Usuário não Autenticado",HttpStatus.UNAUTHORIZED));
+                .orElseThrow(() -> new BusinessException("Usuário não Autenticado",HttpStatus.UNAUTHORIZED));
         Role role = new Role();
         role.setName(roleDTO.name());
         role.setTenant(tenant);
@@ -127,17 +127,17 @@ public class RolesService {
         logger.debug("Vinculando Permissao: {} a Role: {}", permissionId, roleId);
 
         Role role = roleRepository.findById(roleId)
-                .orElseThrow(() -> new BussinessException("Role não encontrada", HttpStatus.BAD_REQUEST));
+                .orElseThrow(() -> new BusinessException("Role não encontrada", HttpStatus.BAD_REQUEST));
 
         Permission permission = permissionRepository.findById(permissionId)
-                .orElseThrow(() -> new BussinessException("Permissão não encontrada", HttpStatus.BAD_REQUEST));
+                .orElseThrow(() -> new BusinessException("Permissão não encontrada", HttpStatus.BAD_REQUEST));
 
         Tenant tenant = tenantRepository.findById(tenantId)
-                .orElseThrow(() -> new BussinessException("Tenant não encontrado", HttpStatus.BAD_REQUEST));
+                .orElseThrow(() -> new BusinessException("Tenant não encontrado", HttpStatus.BAD_REQUEST));
 
         // Verifica se a associação já existe através da chave composta
         if (rolePermissionRepository.existsByRoleAndPermission(roleId, permissionId)) {
-            throw new BussinessException("A Role já possui esta permissão vinculada", HttpStatus.BAD_REQUEST);
+            throw new BusinessException("A Role já possui esta permissão vinculada", HttpStatus.BAD_REQUEST);
         }
 
         RolePermission rolePermission = new RolePermission();
@@ -177,7 +177,7 @@ public class RolesService {
 
         // Garante que a role existe
         roleRepository.findById(roleId)
-                .orElseThrow(() -> new BussinessException("Role não encontrada", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new BusinessException("Role não encontrada", HttpStatus.NOT_FOUND));
 
         return rolePermissionRepository.findAllByRoleId(roleId).stream()
                 .map(rp -> new PermissionDTO(
@@ -201,7 +201,7 @@ public class RolesService {
         logger.debug("Atribuindo {} permissões para a Role: {}", permissionIds.size(), roleId);
 
         Role role = roleRepository.findById(roleId)
-                .orElseThrow(() -> new BussinessException("Role não encontrada", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new BusinessException("Role não encontrada", HttpStatus.NOT_FOUND));
 
         // Para evitar duplicidade complexa, na UI de "Atribuição em Lote",
         // costuma-se remover as antigas e inserir as novas,
@@ -215,7 +215,7 @@ public class RolesService {
             if (!rolePermissionRepository.existsById(compositeId)) {
 
                 Permission permission = permissionRepository.findById(permissionId)
-                        .orElseThrow(() -> new BussinessException("Permissão ID " + permissionId + " não encontrada", HttpStatus.NOT_FOUND));
+                        .orElseThrow(() -> new BusinessException("Permissão ID " + permissionId + " não encontrada", HttpStatus.NOT_FOUND));
 
                 RolePermission rp = new RolePermission();
                 rp.setId(compositeId);
@@ -243,7 +243,7 @@ public class RolesService {
         logger.debug("Removendo permissão {} da Role {}", permissionId, roleId);
 
         if (!rolePermissionRepository.existsByRoleAndPermission(roleId, permissionId)) {
-            throw new BussinessException("O vínculo entre esta Role e Permissão não existe", HttpStatus.BAD_REQUEST);
+            throw new BusinessException("O vínculo entre esta Role e Permissão não existe", HttpStatus.BAD_REQUEST);
         }
 
         rolePermissionRepository.deleteByRoleAndPermission(roleId, permissionId);
@@ -268,7 +268,7 @@ public class RolesService {
         logger.debug("Deletando Role ID: {}", roleId);
 
         Role role = roleRepository.findById(roleId)
-                .orElseThrow(() -> new BussinessException("Role não encontrada", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new BusinessException("Role não encontrada", HttpStatus.NOT_FOUND));
 
         // OBS: Se a Role tiver vinculada a Usuários (user_role) ou Permissões (role_permission),
         // O banco de dados pode estourar erro de restrição de chave estrangeira dependendo de como as constraints foram feitas.
@@ -276,12 +276,12 @@ public class RolesService {
 
         // Estratégia de Bloqueio: Verifica se a role está atrelada a alguma Permissão
         if (rolePermissionRepository.existsByRoleId(roleId)) {
-            throw new BussinessException("Não é possível excluir esta Role pois ela possui permissões associadas. Desvincule as permissões antes de excluí-la.", HttpStatus.BAD_REQUEST);
+            throw new BusinessException("Não é possível excluir esta Role pois ela possui permissões associadas. Desvincule as permissões antes de excluí-la.", HttpStatus.BAD_REQUEST);
         }
 
         // Estratégia de Bloqueio: Verifica se a role está atrelada a algum Usuário
         if (userRoleRepository.existsByRoleId(roleId)) {
-            throw new BussinessException("Não é possível excluir esta Role pois ela está vinculada a um ou mais Usuários. Remova o acesso dos usuários antes de excluí-la.", HttpStatus.BAD_REQUEST);
+            throw new BusinessException("Não é possível excluir esta Role pois ela está vinculada a um ou mais Usuários. Remova o acesso dos usuários antes de excluí-la.", HttpStatus.BAD_REQUEST);
         }
 
         roleRepository.delete(role);

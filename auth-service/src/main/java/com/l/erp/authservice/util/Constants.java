@@ -11,6 +11,7 @@ public class Constants {
     }
 
     public static final String SYSTEM = "SYSTEM";
+    public static final String ADMIN = "ADMIN";
     public static final String ATIVO = "ATIVO";
     public static final String INACTIVE = "INACTIVE";
     public static final String BLOCKED = "BLOCKED";

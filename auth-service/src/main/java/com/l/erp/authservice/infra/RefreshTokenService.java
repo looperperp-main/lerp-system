@@ -24,7 +24,7 @@ public class RefreshTokenService {
 
     public TokenPair issue(UserAccount user) {
         String rawToken = UUID.randomUUID().toString();
-        long tokenHash = hashToLong(rawToken);
+        String tokenHash = hashToHex(rawToken);
 
         RefreshToken rt = new RefreshToken();
         rt.setUser(user);
@@ -36,7 +36,7 @@ public class RefreshTokenService {
     }
 
     public Optional<RefreshToken> findValid(String rawToken) {
-        long tokenHash = hashToLong(rawToken);
+        String tokenHash = hashToHex(rawToken);
         return refreshTokenRepository.findByTokenHashAndRevokedAtIsNull(tokenHash)
                 .filter(rt -> rt.getExpiresAt().isAfter(Instant.now()));
     }
@@ -49,13 +49,13 @@ public class RefreshTokenService {
         refreshTokenRepository.save(token);
     }
 
-    private long hashToLong(String token) {
+    private String hashToHex(String token) {
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
             byte[] digest = md.digest(token.getBytes(StandardCharsets.UTF_8));
-            return Long.parseUnsignedLong(HexFormat.of().formatHex(digest).substring(0, 16), 16);
+            return HexFormat.of().formatHex(digest);
         } catch (Exception e) {
-            throw new RuntimeException("Erro ao hash do refresh token");
+            throw new RuntimeException("Erro ao gerar hash do refresh token", e);
         }
     }
 

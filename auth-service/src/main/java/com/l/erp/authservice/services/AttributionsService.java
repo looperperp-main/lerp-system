@@ -11,7 +11,7 @@ import com.l.erp.authservice.repositorios.UserRoleRepository;
 import com.l.erp.authservice.services.audit.AuditService;
 import com.l.erp.authservice.util.Constants;
 import com.l.erp.authservice.util.SecurityUtils;
-import com.l.erp.common.exception.custom.BussinessException;
+import com.l.erp.common.exception.custom.BusinessException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -50,7 +50,7 @@ public class AttributionsService {
         logger.debug("Buscando Roles do Usuário: {}", userId);
 
         userAccountRepository.findById(userId)
-                .orElseThrow(() -> new BussinessException("Usuário não encontrado", HttpStatus.BAD_REQUEST));
+                .orElseThrow(() -> new BusinessException("Usuário não encontrado", HttpStatus.BAD_REQUEST));
 
         return userRoleRepository.findAllByUserId(userId).stream()
                 .map(ur -> {
@@ -72,7 +72,7 @@ public class AttributionsService {
         logger.debug("Sincronizando {} roles para o Usuário: {}", requestRoleIds.size(), userId);
 
         UserAccount user = userAccountRepository.findById(userId)
-                .orElseThrow(() -> new BussinessException("Usuário não encontrado", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new BusinessException("Usuário não encontrado", HttpStatus.NOT_FOUND));
 
         // 1. Busca o que o usuário já tem no banco
         List<UserRole> existingUserRoles = userRoleRepository.findAllByUserId(userId);
@@ -103,11 +103,11 @@ public class AttributionsService {
             if (!existingRoleIds.contains(newRoleId)) {
 
                 Role role = roleRepository.findById(newRoleId)
-                        .orElseThrow(() -> new BussinessException("Role ID " + newRoleId + " não encontrada", HttpStatus.NOT_FOUND));
+                        .orElseThrow(() -> new BusinessException("Role ID " + newRoleId + " não encontrada", HttpStatus.NOT_FOUND));
 
                 // Validação de segurança: Mesma regra de Tenant
                 if (!user.getTenant().getId().equals(role.getTenant().getId())) {
-                    throw new BussinessException("A Role (" + role.getName() + ") pertence a outro Tenant e não pode ser atribuída a este usuário", HttpStatus.BAD_REQUEST);
+                    throw new BusinessException("A Role (" + role.getName() + ") pertence a outro Tenant e não pode ser atribuída a este usuário", HttpStatus.BAD_REQUEST);
                 }
 
                 UserRole ur = new UserRole();
@@ -134,7 +134,7 @@ public class AttributionsService {
         logger.debug("Removendo role {} do usuário {}", roleId, userId);
 
         if (!userRoleRepository.existsByUserAndRole(userId, roleId)) {
-            throw new BussinessException("O vínculo entre este Usuário e Role não existe", HttpStatus.BAD_REQUEST);
+            throw new BusinessException("O vínculo entre este Usuário e Role não existe", HttpStatus.BAD_REQUEST);
         }
 
         userRoleRepository.deleteByUserAndRole(userId, roleId);

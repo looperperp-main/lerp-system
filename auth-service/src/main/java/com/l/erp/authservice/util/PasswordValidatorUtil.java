@@ -1,6 +1,6 @@
 package com.l.erp.authservice.util;
 
-import com.l.erp.common.exception.custom.BussinessException;
+import com.l.erp.common.exception.custom.BusinessException;
 import org.jspecify.annotations.NonNull;
 import org.passay.CharacterCharacteristicsRule;
 import org.passay.CharacterRule;
@@ -72,7 +72,7 @@ public class PasswordValidatorUtil {
         if (!result.isValid()) {
             // Lança erro caso a senha não cumpra a política
             List<String> messages = validator.getMessages(result);
-            throw new BussinessException("Senha fraca: " + String.join(", ", messages), HttpStatus.BAD_REQUEST);
+            throw new BusinessException("Senha fraca: " + String.join(", ", messages), HttpStatus.BAD_REQUEST);
         }
     }
 

@@ -19,7 +19,7 @@ public class RefreshToken {
 
     @NotNull
     @Column(name = "token_hash", nullable = false)
-    private Long tokenHash;
+    private String tokenHash;
 
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

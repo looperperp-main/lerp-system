@@ -9,8 +9,6 @@ import java.util.Optional;
 
 public interface TenantRepository extends JpaRepository<Tenant, Long> {
 
-    Long countAllByNameAndCnpj(String name, String cnpj);
-
     Page<Tenant> findAllByStatusIs(String status, Pageable pageable);
 
     Optional<Tenant> findByCnpj(String cnpj);

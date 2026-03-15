@@ -4,15 +4,15 @@ import lombok.Getter;
 import org.springframework.http.HttpStatus;
 
 @Getter
-public class BussinessException extends RuntimeException{
+public class BusinessException extends RuntimeException{
     private final HttpStatus status;
 
-    public BussinessException(String message) {
+    public BusinessException(String message) {
         super(message);
         this.status = HttpStatus.BAD_REQUEST;
     }
 
-    public BussinessException(String message, HttpStatus status) {
+    public BusinessException(String message, HttpStatus status) {
         super(message);
         this.status = status;
     }
