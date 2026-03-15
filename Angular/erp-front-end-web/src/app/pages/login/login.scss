@@ -1,0 +1,17 @@
+form {
+  width: 100%;
+  max-width: 400px;
+}
+
+.forgot-password {
+  display: block;
+  text-align: right;
+  font-size: 0.875rem;
+  color: #4f46e5;
+  text-decoration: none;
+  margin-top: 0.5rem;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}

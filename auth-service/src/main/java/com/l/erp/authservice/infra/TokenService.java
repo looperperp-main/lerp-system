@@ -3,6 +3,7 @@ package com.l.erp.authservice.infra;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.JWTCreationException;
+import com.l.erp.authservice.dominio.Tenant;
 import com.l.erp.authservice.dominio.UserAccount;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -34,6 +35,35 @@ public class TokenService {
                     .sign(algorithm);
         } catch (JWTCreationException ex){
             throw new RuntimeException("Erro ao gerar token");
+        }
+    }
+
+    /**
+     * Gera token JWT para login de usuário de tenant (sistema principal)
+     * Inclui informações adicionais do tenant para contexto da aplicação
+     */
+    public String generateTenantUserToken(UserAccount user, List<String> permissions, Tenant tenant) {
+        try {
+            Algorithm algorithm = Algorithm.HMAC256(secret);
+
+            return JWT.create()
+                    .withSubject(String.valueOf(user.getId()))
+                    .withIssuer("L-ERP-auth-service")
+                    .withExpiresAt(generateExpirationDate())
+                    .withIssuedAt(Instant.now())
+                    .withClaim("tenantId", tenant.getId())
+                    .withClaim("tenantName", tenant.getName())
+                    .withClaim("tenantCnpj", tenant.getCnpj())
+                    //.withClaim("tenantSlug", tenant.getSlug())
+                    .withClaim("userEmail", user.getEmail())
+                    .withClaim("displayName", user.getDisplayName())
+                    .withClaim("authorities", permissions)
+                    .withClaim("roles", List.of("ROLE_TENANT_USER"))
+                    .withClaim("isOwner", false)
+                    .withClaim("loginType", "TENANT")
+                    .sign(algorithm);
+        } catch (JWTCreationException ex) {
+            throw new RuntimeException("Erro ao gerar token para usuário do tenant");
         }
     }
 

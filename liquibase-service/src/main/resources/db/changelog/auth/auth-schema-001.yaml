@@ -32,6 +32,11 @@ databaseChangeLog:
                   constraints:
                     nullable: false
               - column:
+                  name: slug
+                  type: varchar(7)
+                  constraints:
+                    nullable: true
+              - column:
                   name: creation_date
                   type: timestamp
                   constraints:

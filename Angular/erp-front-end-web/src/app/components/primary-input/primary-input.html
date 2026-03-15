@@ -1,0 +1,16 @@
+<div class="input-container">
+  <label [for]="inputName">{{ label }}</label>
+  <div class="input-wrapper">
+    <ng-content></ng-content>
+    <input
+      [type]="type"
+      [name]="inputName"
+      [id]="inputName"
+      [placeholder]="placeholder"
+      [value]="value"
+      [maxLength]="maxLength || 999"
+      (input)="onInput($event)"
+      (blur)="onTouched()"
+    />
+  </div>
+</div>

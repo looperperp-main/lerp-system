@@ -11,6 +11,10 @@ public class Constants {
     }
 
     public static final String SYSTEM = "SYSTEM";
+    public static final String ATIVO = "ATIVO";
+    public static final String INACTIVE = "INACTIVE";
+    public static final String BLOCKED = "BLOCKED";
+    public static final String UNBLOCKED = "UNBLOCKED";
 
     public static final String SUCCESS = "SUCCESS";
     public static final String ERROR   = "ERROR";
@@ -74,5 +78,12 @@ public class Constants {
     public static final String LOGIN_LOCKED = LOGIN + "_LOCKED";
     public static final String LOGIN_USER_INACTIVE = LOGIN + "_USER_INACTIVE";
     public static final String USER_UNLOCKED = "USER_UNLOCKED";
+
+    // Tenant Login
+    public static final String TENANT_LOGIN = "TENANT_LOGIN";
+    public static final String TENANT_LOGIN_SUCCESS = TENANT_LOGIN + "_" + SUCCESS;
+    public static final String TENANT_LOGIN_FAILED = TENANT_LOGIN + "_" + FAILED;
+    public static final String TENANT_NOT_ACTIVE = "Empresa inativa ou bloqueada. Entre em contato com o suporte.";
+    public static final String TENANT_CNPJ_NOT_FOUND = "Empresa não encontrada. Verifique o CNPJ informado.";
 
 }

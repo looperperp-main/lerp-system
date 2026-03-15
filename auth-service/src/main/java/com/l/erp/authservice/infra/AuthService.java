@@ -2,31 +2,39 @@ package com.l.erp.authservice.infra;
 
 import com.l.erp.authservice.api.dto.LoginResponse;
 import com.l.erp.authservice.api.dto.RefreshResponse;
-import com.l.erp.authservice.services.audit.AuditService;
-import com.l.erp.common.exception.custom.UserLockedException;
+import com.l.erp.authservice.api.dto.TenantLoginResponse;
 import com.l.erp.authservice.api.mappers.AuthMapper;
 import com.l.erp.authservice.dominio.RefreshToken;
+import com.l.erp.authservice.dominio.Tenant;
 import com.l.erp.authservice.dominio.UserAccount;
 import com.l.erp.authservice.infra.config.Roles;
 import com.l.erp.authservice.repositorios.OwnerMarkerRepository;
 import com.l.erp.authservice.repositorios.RolePermissionRepository;
+import com.l.erp.authservice.repositorios.TenantRepository;
 import com.l.erp.authservice.repositorios.UserAccountRepository;
 import com.l.erp.authservice.repositorios.UserRoleRepository;
+import com.l.erp.authservice.services.audit.AuditService;
 import com.l.erp.authservice.util.Constants;
+import com.l.erp.common.exception.custom.UserLockedException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
-
-import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import static org.springframework.http.HttpStatus.UNAUTHORIZED;
+
 @Service
 public class AuthService {
+
+    private final Logger logger = LoggerFactory.getLogger(AuthService.class);
     private final UserAccountRepository userRepo;
     private final OwnerMarkerRepository ownerRepo;
+    private final TenantRepository tenantRepository;
     private final TokenService tokenService;
     private final RefreshTokenService refreshTokenService;
     private final PasswordEncoder passwordEncoder;
@@ -37,6 +45,7 @@ public class AuthService {
 
     public AuthService(UserAccountRepository userRepo,
                        OwnerMarkerRepository ownerRepo,
+                       TenantRepository tenantRepository,
                        TokenService tokenService,
                        RefreshTokenService refreshTokenService,
                        PasswordEncoder passwordEncoder,
@@ -46,6 +55,7 @@ public class AuthService {
                        AuditService auditService) {
         this.userRepo = userRepo;
         this.ownerRepo = ownerRepo;
+        this.tenantRepository = tenantRepository;
         this.tokenService = tokenService;
         this.refreshTokenService = refreshTokenService;
         this.passwordEncoder = passwordEncoder;
@@ -95,6 +105,75 @@ public class AuthService {
 
         return authMapper.toLoginResponse(user, jwt, tokenPair.rawToken());
 
+    }
+
+    /**
+     * Login para usuários de tenant (sistema principal)
+     * Requer CNPJ do tenant + e-mail + senha
+     */
+    public TenantLoginResponse loginWithTenant(String cnpj, String email, String password) {
+        logger.debug("Tentativa de login de tenant - CNPJ: {}, Email: {}", cnpj, email);
+
+        // 1. Buscar e validar o Tenant pelo CNPJ
+        Tenant tenant = tenantRepository.findByCnpj(cnpj)
+                .orElseThrow(() -> {
+                    logger.warn("Tentativa de login com CNPJ inexistente: {}", cnpj);
+                    return new ResponseStatusException(UNAUTHORIZED, Constants.TENANT_CNPJ_NOT_FOUND);
+                });
+
+        // 2. Verificar se o tenant está ativo
+        if (!Constants.ATIVO.equalsIgnoreCase(tenant.getStatus())) {
+            logger.warn("Tentativa de login em tenant inativo - CNPJ: {}, Status: {}", cnpj, tenant.getStatus());
+            throw new ResponseStatusException(UNAUTHORIZED, Constants.TENANT_NOT_ACTIVE);
+        }
+
+        // 3. Buscar usuário pelo e-mail E tenant
+        UserAccount user = userRepo.findByEmailAndTenantId(email, tenant.getId())
+                .orElseThrow(() -> {
+                    logger.warn("Usuário não encontrado para email {} no tenant {}", email, tenant.getId());
+                    return new ResponseStatusException(UNAUTHORIZED, Constants.USER_EMAIL_NOT_CORRECT);
+                });
+
+        // 4. Validar se o usuário está ativo
+        if (!user.isActive()) {
+            auditService.logAuditEventWithActor(Constants.LOGIN_USER_INACTIVE, user.getId(), Constants.USER, user.getId(),
+                    Constants.FAILED, "Tentativa de login em conta inativa - Tenant: " + tenant.getName(), null);
+            throw new ResponseStatusException(UNAUTHORIZED, Constants.USER_INACTIVE);
+        }
+
+        // 5. Verificar bloqueio
+        if (isUserLocked(user)) {
+            auditService.logAuditEventWithActor(Constants.LOGIN_LOCKED, user.getId(), Constants.USER, user.getId(),
+                    Constants.FAILED, "Tentativa de login em conta bloqueada - Tenant: " + tenant.getName(), null);
+            throw new UserLockedException(user.getLockedUntil());
+        }
+
+        // 6. Validar senha
+        if (!passwordEncoder.matches(password, user.getPasswordHash())) {
+            handleFailedLogin(user);
+            auditService.logAuditEventWithActor(Constants.TENANT_LOGIN_FAILED, user.getId(), Constants.USER, user.getId(),
+                    Constants.FAILED, "Senha ou email incorretos - Tentativa " + user.getFailedLoginAttempts() + " - Tenant: " + tenant.getName(), null);
+            throw new ResponseStatusException(UNAUTHORIZED, Constants.USER_EMAIL_NOT_CORRECT);
+        }
+
+        // 7. Login bem-sucedido
+        resetFailedAttempts(user);
+
+        auditService.logAuditEventWithActor(Constants.TENANT_LOGIN_SUCCESS, user.getId(), Constants.USER, user.getId(),
+                Constants.SUCCESS, "Login no tenant: " + tenant.getName(), null);
+
+        // 8. Buscar permissões do usuário
+        List<String> permissions = getRoles(user.getId());
+
+        // 9. Gerar JWT específico para tenant
+        String jwt = tokenService.generateTenantUserToken(user, permissions, tenant);
+
+        // 10. Gerar refresh token
+        RefreshTokenService.TokenPair tokenPair = refreshTokenService.issue(user);
+
+        logger.info("Login de tenant bem-sucedido - Usuário: {}, Tenant: {}", user.getEmail(), tenant.getName());
+
+        return authMapper.toTenantLoginResponse(user, jwt, tokenPair.rawToken(), tenant);
     }
 
     public RefreshResponse refresh(String refreshTokenRaw){

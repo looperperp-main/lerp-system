@@ -37,6 +37,9 @@ public class Tenant {
     @NotNull
     @Column(name = "creation_date", nullable = false)
     private Instant creationDate;
+
+    @Column(name = "slug", length = 7)
+    private String slug;
     
     @Size(max = 30)
     @NotNull

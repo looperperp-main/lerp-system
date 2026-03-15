@@ -13,7 +13,20 @@ import java.util.UUID;
 
 public interface UserAccountRepository extends JpaRepository<UserAccount, UUID> {
 
+    /**
+     * Busca usuário por email
+     * @param email email do usuário
+     * @return Optional<UserAccount> referente ao email
+     */
     Optional<UserAccount> findByEmail(String email);
+
+    /**
+     * Busca user por email e tenantId
+     * @param email email do usuário
+     * @param tenantId tenant a ser buscado
+     * @return Optional<UserAccount> referente ao email e tenantId
+     */
+    Optional<UserAccount> findByEmailAndTenantId(String email, Long tenantId);
 
     /**
      * Retorna uma página de usuários projetada diretamente no DTO.

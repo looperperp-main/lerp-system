@@ -1,0 +1,48 @@
+.input-container {
+  margin-bottom: 1rem;
+  width: 100%;
+  max-width: 400px;
+
+  label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 0.5rem;
+  }
+}
+
+.input-wrapper {
+  display: flex;
+  align-items: center;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 0 1rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+
+  &:focus-within {
+    border-color: #4f46e5;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  }
+
+  ng-content {
+    display: flex;
+    align-items: center;
+    margin-right: 0.75rem;
+  }
+
+  input {
+    flex: 1;
+    padding: 0.875rem 0;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-size: 1rem;
+    color: #1f2937;
+
+    &::placeholder {
+      color: #9ca3af;
+    }
+  }
+}
