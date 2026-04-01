@@ -70,12 +70,19 @@ export class Permission {
   onLazyLoad(event: any) {
     const page = event.first / event.rows;
     const size = event.rows;
-    this.loadPermissions(page, size);
+
+    let sortStr = '';
+    if (event.sortField) {
+      // sortOrder 1 = asc | sortOrder -1 = desc
+      const direction = event.sortOrder === 1 ? 'asc' : 'desc';
+      sortStr = `${event.sortField},${direction}`;
+    }
+    this.loadPermissions(page, size, sortStr);
   }
 
-  loadPermissions(page: number = 0, size: number = 10) {
+  loadPermissions(page: number = 0, size: number = 10, sortStr: string = '') {
     this.loading.set(true);
-    this.permissionService.getPermissions(page, size).subscribe({
+    this.permissionService.getPermissions(page, size, sortStr).subscribe({
       next: (response) => {
         this.permissions.set(response.content || []);
         this.totalRecords.set(response.totalElements || 0);

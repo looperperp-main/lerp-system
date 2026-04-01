@@ -93,12 +93,18 @@ export class Tenant {
   onLazyLoad(event: any) {
     const page = event.first / event.rows;
     const size = event.rows;
-    this.loadTenants(page, size);
+    let sortStr = '';
+    if (event.sortField) {
+      // sortOrder 1 = asc | sortOrder -1 = desc
+      const direction = event.sortOrder === 1 ? 'asc' : 'desc';
+      sortStr = `${event.sortField},${direction}`;
+    }
+    this.loadTenants(page, size, sortStr);
   }
 
-  loadTenants(page: number = 0, size: number = 10) {
+  loadTenants(page: number = 0, size: number = 10, sortStr: string = '') {
     this.loading.set(true);
-    this.tenantService.getTenants(page, size).subscribe({
+    this.tenantService.getTenants(page, size, sortStr).subscribe({
       next: (response) => {
         this.tenants.set(response.content || []);
         this.totalRecords.set(response.totalElements || 0);

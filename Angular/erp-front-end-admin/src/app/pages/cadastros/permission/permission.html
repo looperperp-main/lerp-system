@@ -56,8 +56,8 @@
         <!-- Cabeçalho -->
         <ng-template pTemplate="header" let-columns>
           <tr>
-            <th *ngFor="let col of columns" class="text-xs uppercase text-gray-400 font-semibold border-b border-gray-100 pb-3">
-              {{col.header}}
+            <th *ngFor="let col of columns" [pSortableColumn]="col.field !== 'actions' ? col.field : ''" class="text-xs uppercase text-gray-400 font-semibold border-b border-gray-100 pb-3">
+              {{col.header}}<p-sortIcon *ngIf="col.field !== 'actions'" [field]="col.field"></p-sortIcon>
             </th>
           </tr>
         </ng-template>

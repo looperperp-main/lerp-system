@@ -21,11 +21,11 @@ export class PermissionService {
 
   constructor(private http: HttpClient) { }
 
-  getPermissions(page: number, size: number): Observable<PageResponse<PermissionModel>> {
+  getPermissions(page: number, size: number, sort: string = 'domain,asc'): Observable<PageResponse<PermissionModel>> {
     let params = new HttpParams()
       .set('page', page.toString())
       .set('size', size.toString())
-      .set('sort', 'domain,asc');
+      .set('sort', sort);
 
     return this.http.get<PageResponse<PermissionModel>>(this.apiUrl, { params });
   }

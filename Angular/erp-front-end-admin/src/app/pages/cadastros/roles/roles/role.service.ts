@@ -26,11 +26,11 @@ export class RoleService {
     return this.http.get<RoleModel[]>(this.apiUrl);
   }
 
-  getRolesbyPage(page: number, size: number) : Observable<PageResponse<RoleModel>> {
+  getRolesbyPage(page: number, size: number, sort: string = 'name,asc') : Observable<PageResponse<RoleModel>> {
     let params = new HttpParams()
       .set('page', page.toString())
       .set('size', size.toString())
-      .set('sort', 'name,asc');
+      .set('sort', sort);
     return this.http.get<PageResponse<RoleModel>>(`${this.apiUrl}/pages`, { params });
   }
 
