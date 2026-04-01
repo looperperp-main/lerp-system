@@ -41,10 +41,13 @@ export class UserService {
     return this.http.post<any>(`${this.apiUrl}/search`, filters, { params });
   }
 
-  getActiveUsers(page: number, size: number): Observable<PageResponse<UsersPageModel>> {
+  getActiveUsers(page: number, size: number, sortStr?: string): Observable<PageResponse<UsersPageModel>> {
     let params = new HttpParams()
       .set('page', page.toString())
       .set('size', size.toString());
+    if(sortStr){
+      params = params.set('sort', sortStr);
+    }
 
     return this.http.get<PageResponse<UsersPageModel>>(`${this.apiUrl}/active`, { params });
   }

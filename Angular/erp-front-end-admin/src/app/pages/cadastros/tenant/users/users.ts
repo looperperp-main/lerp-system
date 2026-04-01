@@ -136,12 +136,17 @@ export class Users implements OnInit  {
   onLazyLoad(event: any) {
     const page = event.first / event.rows;
     const size = event.rows;
-    // 1. Extraindo a ordenação do evento do PrimeNG
     let sortStr = '';
     if (event.sortField) {
-      // sortOrder 1 = asc | sortOrder -1 = desc
+      // Se o campo for tenantId (como está no field do json de exibição),
+      // nós traduzimos pro nome do atributo correto do Back-End (UserAccount -> tenant -> name)
+      let fieldToOrder = event.sortField;
+      if (fieldToOrder === 'tenantId') {
+        fieldToOrder = 'tenant.name'; // Ou 'tenant.id' dependendo da sua preferência visual
+      }
+
       const direction = event.sortOrder === 1 ? 'asc' : 'desc';
-      sortStr = `${event.sortField},${direction}`;
+      sortStr = `${fieldToOrder},${direction}`;
     }
 
     this.loadUsers(page, size, sortStr);
