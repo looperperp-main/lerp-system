@@ -8,6 +8,45 @@
     </div>
   </div>
 
+  <div class="content-card mb-4 rounded-xl p-6 bg-white shadow-sm">
+    <div class="content-toolbar flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+      <h3 class="content-toolbar-title text-xl font-bold text-gray-800 flex items-center gap-2 m-0">
+        <i class="pi pi-search text-gray-700"></i> Busca
+      </h3>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <!-- Nome -->
+      <div class="flex flex-col gap-2">
+        <label for="nameFilter" class="font-medium text-gray-700 text-sm">Nome da Role</label>
+        <p-select
+          id="nameFilter"
+          [options]="rolesList()"
+          [(ngModel)]="filters.name"
+          optionLabel="name"
+          optionValue="name"
+          [showClear]="true"
+          placeholder="Selecione a Role"
+          styleClass="w-full">
+        </p-select>
+      </div>
+    </div>
+
+    <div class="flex justify-end gap-2 mt-6">
+      <app-primary-button
+        label="Limpar"
+        icon="pi pi-filter-slash"
+        backgroundColor="#9ca3af"
+        (onClick)="clearFilters()">
+      </app-primary-button>
+      <app-primary-button
+        label="Buscar"
+        icon="pi pi-search"
+        (onClick)="applyFilters()">
+      </app-primary-button>
+    </div>
+  </div>
+
   <div class="content-card">
     <div class="table-container mt-4">
       <p-table
@@ -26,8 +65,8 @@
 
         <ng-template pTemplate="header" let-columns>
           <tr>
-            <th *ngFor="let col of columns" class="text-xs uppercase text-gray-400 font-semibold border-b border-gray-100 pb-3">
-              {{col.header}}
+            <th *ngFor="let col of columns" [pSortableColumn]="col.field !== 'actions' ? col.field : ''" class="text-xs uppercase text-gray-400 font-semibold border-b border-gray-100 pb-3">
+              {{col.header}}<p-sortIcon *ngIf="col.field !== 'actions'" [field]="col.field"></p-sortIcon>
             </th>
           </tr>
         </ng-template>

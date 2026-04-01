@@ -34,6 +34,14 @@ export class RoleService {
     return this.http.get<PageResponse<RoleModel>>(`${this.apiUrl}/pages`, { params });
   }
 
+  searchRoles(page: number, size: number, filters: any, sort: string = 'name,asc') : Observable<PageResponse<RoleModel>> {
+    let params = new HttpParams()
+      .set('page', page.toString())
+      .set('size', size.toString())
+      .set('sort', sort);
+    return this.http.post<PageResponse<RoleModel>>(`${this.apiUrl}/search`, filters, { params });
+  }
+
   createRole(role: RoleModel): Observable<RoleModel> {
     return this.http.post<RoleModel>(this.apiUrl, role);
   }

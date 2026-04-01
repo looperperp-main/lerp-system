@@ -3,6 +3,7 @@ package com.l.erp.authservice.services;
 import com.l.erp.authservice.api.dto.CurrentUser;
 import com.l.erp.authservice.api.dto.PermissionDTO;
 import com.l.erp.authservice.api.dto.RoleDTO;
+import com.l.erp.authservice.api.dto.lists.RoleSearchFilterDTO;
 import com.l.erp.authservice.api.mappers.RoleMapper;
 import com.l.erp.authservice.dominio.Permission;
 import com.l.erp.authservice.dominio.Role;
@@ -75,6 +76,18 @@ public class RolesService {
     public Page<RoleDTO> getAllRoles(Pageable pageable) {
         logger.debug("Recuperando a Lista de Roles Paginada");
         return roleRepository.findAll(pageable).map(roleMapper :: toRoleDTO);
+    }
+
+    /**
+     * Searches for roles using the specified filter criteria and pagination information.
+     *
+     * @param filter   the filter object containing criteria for the search.
+     * @param pageable the pagination information specifying page size and index.
+     * @return a paginated list of roles matching the filter criteria.
+     */
+    public Page<RoleDTO> searchRoles(RoleSearchFilterDTO filter, Pageable pageable) {
+        logger.debug("Buscando Roles Paginadas com Filtros");
+        return roleRepository.findWithFilters(filter, pageable).map(roleMapper :: toRoleDTO);
     }
 
     /**

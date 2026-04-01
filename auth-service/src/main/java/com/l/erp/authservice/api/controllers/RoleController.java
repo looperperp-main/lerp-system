@@ -3,6 +3,7 @@ package com.l.erp.authservice.api.controllers;
 import com.l.erp.authservice.api.dto.PermissionDTO;
 import com.l.erp.authservice.api.dto.RoleDTO;
 import com.l.erp.authservice.api.dto.RolePermissionRequestDTO;
+import com.l.erp.authservice.api.dto.lists.RoleSearchFilterDTO;
 import com.l.erp.authservice.infra.config.Roles;
 import com.l.erp.authservice.services.RolesService;
 import jakarta.validation.Valid;
@@ -58,6 +59,16 @@ public class RoleController {
     public ResponseEntity<Page<RoleDTO>> getAllRolesPages(@PageableDefault(size = 10, sort = "name") Pageable pageable){
         log.debug("REST request to get all roles by page");
         Page<RoleDTO> roles = roleService.getAllRoles(pageable);
+        return ResponseEntity.ok(roles);
+    }
+
+    @PostMapping("/search")
+    @Secured({Roles.APP_OWNER,Roles.TENANT_OWNER})
+    public ResponseEntity<Page<RoleDTO>> searchRoles(
+            @RequestBody RoleSearchFilterDTO filter,
+            @PageableDefault(size = 10, sort = "name") Pageable pageable) {
+        log.debug("REST request to search roles by page and filters");
+        Page<RoleDTO> roles = roleService.searchRoles(filter, pageable);
         return ResponseEntity.ok(roles);
     }
 
