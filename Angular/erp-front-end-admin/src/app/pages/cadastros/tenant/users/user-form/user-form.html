@@ -2,7 +2,7 @@
   [(visible)]="visible"
   (onHide)="hideDialog()"
   [style]="{width: '450px'}"
-  header="Novo Usuário"
+  [header]="user.id ? 'Editar Usuário' : 'Novo Usuário'"
   [modal]="true">
 
   <div class="flex flex-col gap-4 pt-2">
@@ -18,12 +18,16 @@
       <label for="email" class="block text-sm font-medium text-gray-700 mb-1">E-mail <span class="text-red-500">*</span></label>
       <input type="email" pInputText id="email" [(ngModel)]="user.email"
              class="form-input"
-             [ngClass]="{'border-red-500': submitted && !user.email}" />
+             [disabled]="!!user.id"
+             [ngClass]="{'border-red-500': submitted && !user.email, 'bg-gray-100': !!user.id}" />
       <small class="text-red-500 text-xs mt-1 block" *ngIf="submitted && !user.email">O e-mail é obrigatório.</small>
     </div>
 
     <div class="field">
-      <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Senha <span class="text-red-500">*</span></label>
+      <label for="password" class="block text-sm font-medium text-gray-700 mb-1">
+        Senha <span class="text-red-500" *ngIf="!user.id">*</span>
+        <span class="text-gray-400 font-normal text-xs ml-2" *ngIf="user.id">(Deixe em branco para não alterar)</span>
+      </label>
       <p-password
         id="password"
         [(ngModel)]="user.passwordHash"
@@ -59,7 +63,7 @@
           </ul>
         </ng-template>
       </p-password>
-      <small class="text-red-500 text-xs mt-1 block" *ngIf="submitted && !user.passwordHash">A senha é obrigatória.</small>
+      <small class="text-red-500 text-xs mt-1 block" *ngIf="submitted && !user.id && !user.passwordHash">A senha é obrigatória.</small>
       <small class="text-red-500 text-xs mt-1 block" *ngIf="submitted && user.passwordHash && !isPasswordValid()">A senha não atende aos requisitos de complexidade.</small>
     </div>
 
@@ -72,6 +76,7 @@
         [(ngModel)]="user.tenantId"
         optionLabel="name"
         optionValue="id"
+        [dataKey]="'id'"
         placeholder="Selecione um Tenant"
         [filter]="true"
         [appendTo]="'body'"
@@ -85,6 +90,6 @@
 
   <ng-template pTemplate="footer">
     <button pButton pRipple label="Cancelar" icon="pi pi-times" class="p-button-text text-gray-600 hover:bg-gray-100" (click)="hideDialog()"></button>
-    <button pButton pRipple label="Salvar" icon="pi pi-check" class="p-button-success" (click)="onSave()"></button>
+    <button pButton pRipple label="Salvar" icon="pi pi-check" style="background-color: #f04e1a; color: white; border: none;" (click)="onSave()"></button>
   </ng-template>
 </p-dialog>

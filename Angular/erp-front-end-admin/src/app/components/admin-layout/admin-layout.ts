@@ -39,6 +39,11 @@ export class AdminLayout {
       { label: 'Atribuir Acessos', icon: 'pi pi-key', routerLink: '/admin/security/user-roles' }
     ] },
     { label: 'Auditoria', icon: 'pi pi-eye', routerLink: '/admin/audit' },
+    { label: 'Subscrições', icon: 'pi pi-barcode', path: '/admin/subscriptions',items: [
+        { label: 'Planos', icon: 'pi pi-book', routerLink: '/admin/cadastros/plans' },
+        { label: 'Assinaturas', icon: 'pi pi-wallet', routerLink: '/admin/cadastros/subscription' },
+        { label: 'Pagamentos', icon: 'pi pi-receipt', routerLink: '/admin/cadastros/invoices' },
+      ] },
     { label: 'Relatórios', icon: 'pi pi-chart-bar', routerLink: '/admin/relatorios' },
     { label: 'Configurações', icon: 'pi pi-cog', routerLink: '/admin/config' }
   ];

@@ -1,24 +1,22 @@
 <main>
-  <section class="form-section">
-    <img ngSrc="svg/logo_tiny.svg" height="100" width="100"/>
-    <h2>{{ title }}</h2>
-    <ng-content></ng-content>
-    <div class="btn-container">
-      <button
-        class="btn-primary"
-        (click)="submit()"
-        [disabled]="disablePrimaryBtn"
-      >{{ primaryBtnText }}</button>
-      <div class="separator">
-        <div></div>
-        <span>or</span>
-        <div></div>
-      </div>
-      <button class="btn-secondary" (click)="navigate()">{{ secondaryBtnText }}</button><!--TODO: apagar esse botão noi módulo de administrativo-->
-    </div>
-  </section>
   <section class="main-section">
-    <h1>Title</h1>
-    <img ngSrc="svg/main-illustration.svg" height="683" width="683"/>
+    <img ngSrc="svg/desktop-login-image.svg" fill style="object-fit: cover" alt="Background Login" />
+  </section>
+  <section class="form-section">
+    <!-- Logotipo da empresa centralizado acima do formulário -->
+    <img ngSrc="svg/syax-icon.svg" height="80" width="180" alt="Syax Logo" />
+
+    <div class="form-content">
+      <h2 *ngIf="title">{{ title }}</h2>
+      <ng-content></ng-content>
+
+      <div class="btn-container">
+        <button
+          class="btn-primary"
+          (click)="submit()" type="button"
+          [disabled]="disablePrimaryBtn"
+        >{{ primaryBtnText }}</button>
+      </div>
+    </div>
   </section>
 </main>

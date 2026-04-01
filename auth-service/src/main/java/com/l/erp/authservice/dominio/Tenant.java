@@ -38,7 +38,6 @@ public class Tenant {
     @Column(name = "cnpj", nullable = false, length = 14)
     private String cnpj;
 
-    @Size(max = 30)
     @NotNull
     @Column(name = "status", nullable = false, length = 30)
     @Enumerated(EnumType.STRING)

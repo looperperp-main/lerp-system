@@ -1,6 +1,7 @@
 package com.l.erp.authservice.repositorios;
 
 import com.l.erp.authservice.api.dto.UserAccountPageDTO;
+import com.l.erp.authservice.api.dto.lists.UserSearchFilterDTO;
 import com.l.erp.authservice.dominio.UserAccount;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -57,5 +58,14 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, UUID> 
             "            u.lockedUntil, u.createdDate, u.createdBy, u.lastUpdateDate, u.lastUpdatedBy) " +
             "            FROM UserAccount u LEFT JOIN u.tenant t WHERE t.id = :tenantId")
     Page<UserAccountPageDTO> findAllProjectedByTenantId(@Param("tenantId") Long tenantId, Pageable pageable);
+
+    @Query("SELECT new com.l.erp.authservice.api.dto.UserAccountPageDTO(" +
+            "            u.id, t.name, u.email, u.displayName, u.active, " +
+            "            u.lockedUntil, u.createdDate, u.createdBy, u.lastUpdateDate, u.lastUpdatedBy) " +
+            "            FROM UserAccount u LEFT JOIN u.tenant t " +
+            "            WHERE (:#{#filter.tenantId} IS NULL OR t.id = :#{#filter.tenantId}) " +
+            "            AND (:#{#filter.displayName} IS NULL OR LOWER(u.displayName) LIKE LOWER(CONCAT('%', :#{#filter.displayName}, '%'))) " +
+            "            AND (:#{#filter.active} IS NULL OR u.active = :#{#filter.active})")
+    Page<UserAccountPageDTO> findProjectedWithFilters(@Param("filter") UserSearchFilterDTO filter, Pageable pageable);
 
 }

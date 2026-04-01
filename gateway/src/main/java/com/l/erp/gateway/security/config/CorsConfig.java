@@ -25,13 +25,13 @@ public class CorsConfig {
 //    @Value("${cors.allow-credentials}")
 //    private boolean allowCredentials;
 
-    @Value("${cors.allowed-origins:http://localhost:4200,http://localhost:4201}")
+    @Value("${cors.allowed-origins:http://localhost:4200,http://localhost:4201,https://gushiest-dorris-obsolescently.ngrok-free.dev}")
     private String allowedOrigins;
 
     @Value("${cors.allowed-methods:GET,POST,PUT,PATCH,DELETE,OPTIONS}")
     private String allowedMethods;
 
-    @Value("${cors.allowed-headers:Authorization,Content-Type,X-Requested-With,Accept,Origin,Access-Control-Request-Method,Access-Control-Request-Headers}")
+    @Value("${cors.allowed-headers:Authorization,Content-Type,X-Requested-With,Accept,Origin,Access-Control-Request-Method,Access-Control-Request-Headers,ngrok-skip-browser-warning}")
     private String allowedHeaders;
 
     @Value("${cors.allow-credentials:true}")

@@ -1,0 +1,155 @@
+databaseChangeLog:
+  # Tabela de Planos da Empresa
+  - changeSet:
+      id: 005-create-plan-table
+      author: vitor_fernandes
+      changes:
+        - createTable:
+            schemaName: auth
+            tableName: plan
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: name
+                  type: varchar(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: description
+                  type: varchar(255)
+              - column:
+                  name: price
+                  type: decimal(10,2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: billing_cycle
+                  type: varchar(20) # MONTHLY, YEARLY
+                  constraints:
+                    nullable: false
+              - column:
+                  name: features_json # Usado para liberar módulos (ex: {"nfe_limit": 1000, "has_api": true})
+                  type: jsonb
+              - column:
+                  name: is_active
+                  type: boolean
+                  defaultValueBoolean: true
+              - column:
+                  name: created_at
+                  type: timestamp
+                  defaultValueDate: CURRENT_TIMESTAMP
+
+  # Tabela de Assinatura do Tenant
+  - changeSet:
+      id: 006-create-subscription-table
+      author: vitor_fernandes
+      changes:
+        - createTable:
+            schemaName: auth
+            tableName: subscription
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_sub_tenant_id
+                    referencedTableSchemaName: auth
+                    references: auth.tenant(id)
+              - column:
+                  name: plan_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_sub_plan_id
+                    referencedTableSchemaName: auth
+                    references: auth.plan(id)
+              - column:
+                  name: status
+                  type: varchar(50) # TRIAL, ACTIVE, PAST_DUE, SUSPENDED, CANCELED
+                  constraints:
+                    nullable: false
+              - column:
+                  name: start_date
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: next_billing_date
+                  type: timestamp
+              - column:
+                  name: external_subscription_id # ID no Asaas, Stripe, MercadoPago
+                  type: varchar(100)
+              - column:
+                  name: updated_at
+                  type: timestamp
+        # Um Tenant só pode ter uma assinatura ativa por vez
+        - addUniqueConstraint:
+            schemaName: auth
+            tableName: subscription
+            columnNames: tenant_id
+            constraintName: uq_tenant_subscription
+
+  # Tabela de Faturas / Cobranças
+  - changeSet:
+      id: 007-create-invoice-table
+      author: vitor_fernandes
+      changes:
+        - createTable:
+            schemaName: auth
+            tableName: invoice
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: subscription_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_invoice_subscription_id
+                    referencedTableSchemaName: auth
+                    references: auth.subscription(id)
+              - column:
+                  name: amount
+                  type: decimal(10,2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: issue_date
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: due_date
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: varchar(50) # PENDING, PAID, OVERDUE, CANCELED
+                  constraints:
+                    nullable: false
+              - column:
+                  name: payment_method
+                  type: varchar(50) # PIX, CREDIT_CARD, BOLETO
+              - column:
+                  name: external_invoice_id # ID da cobrança no Gateway
+                  type: varchar(100)
+              - column:
+                  name: paid_at
+                  type: timestamp

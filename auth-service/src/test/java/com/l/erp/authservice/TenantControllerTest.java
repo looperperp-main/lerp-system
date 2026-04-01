@@ -7,10 +7,12 @@ import com.l.erp.authservice.api.dto.TenantDTO;
 import com.l.erp.authservice.api.mappers.AuthMapper;
 import com.l.erp.authservice.configuration.ObjectMapperConfig;
 import com.l.erp.authservice.dominio.Tenant;
+import com.l.erp.authservice.dominio.enumerators.EnumTenantStatus;
 import com.l.erp.authservice.repositorios.TenantRepository;
 import com.l.erp.authservice.services.TenantService;
 import com.l.erp.authservice.services.audit.AuditService;
 import com.l.erp.authservice.util.SecurityUtils;
+import io.prometheus.metrics.shaded.com_google_protobuf_4_33_0.Enum;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
@@ -90,10 +92,10 @@ public class TenantControllerTest {
         Tenant tenant = new Tenant();
         tenant.setId(1L);
         tenant.setName("Empresa X");
-        tenant.setStatus("ATIVO");
+        tenant.setStatus(EnumTenantStatus.ATIVO);
         Page<Tenant> page = new PageImpl<>(List.of(tenant));
 
-        when(tenantRepository.findAllByStatusIs(anyString(),any(Pageable.class))).thenReturn(page);
+        when(tenantRepository.findAllByStatusIs(any(),any(Pageable.class))).thenReturn(page);
 
         mockMvc.perform(get("/auth/tenants/active?page=0&size=10"))
                 .andExpect(status().isOk());
@@ -164,10 +166,10 @@ public class TenantControllerTest {
         Tenant oldTenant = new Tenant();
         oldTenant.setId(1L);
         oldTenant.setName("Empresa X");
-        oldTenant.setStatus("ATIVO");
+        oldTenant.setStatus(EnumTenantStatus.ATIVO);
 
         when(tenantRepository.findById(1L)).thenReturn(Optional.of(oldTenant));
-        when(tenantRepository.countAllByNameAndCnpj(any(),any())).thenReturn(0L);
+        //when(tenantRepository.countAllByNameAndCnpj(any(),any())).thenReturn(0L);
 
         Tenant updated = new Tenant();
         updated.setId(1L);
@@ -205,10 +207,10 @@ public class TenantControllerTest {
         Tenant oldTenant = new Tenant();
         oldTenant.setId(1L);
         oldTenant.setName("Empresa X");
-        oldTenant.setStatus("ATIVO");
+        oldTenant.setStatus(EnumTenantStatus.ATIVO);
 
         when(tenantRepository.findById(1L)).thenReturn(Optional.of(oldTenant));
-        when(tenantRepository.countAllByNameAndCnpj(any(),any())).thenReturn(1L);
+        //when(tenantRepository.countAllByNameAndCnpj(any(),any())).thenReturn(1L);
 
         Tenant updated = new Tenant();
         updated.setId(1L);
@@ -246,10 +248,10 @@ public class TenantControllerTest {
         Tenant oldTenant = new Tenant();
         oldTenant.setId(1L);
         oldTenant.setName("Empresa X");
-        oldTenant.setStatus("CANCELADO");
+        oldTenant.setStatus(EnumTenantStatus.CANCELADO);
 
         when(tenantRepository.findById(1L)).thenReturn(Optional.of(oldTenant));
-        when(tenantRepository.countAllByNameAndCnpj(any(),any())).thenReturn(1L);
+        //when(tenantRepository.countAllByNameAndCnpj(any(),any())).thenReturn(1L);
 
 
 
@@ -281,10 +283,10 @@ public class TenantControllerTest {
         Tenant oldTenant = new Tenant();
         oldTenant.setId(1L);
         oldTenant.setName("Empresa X");
-        oldTenant.setStatus("CANCELADO");
+        oldTenant.setStatus(EnumTenantStatus.ATIVO);
 
         when(tenantRepository.findById(1L)).thenReturn(Optional.of(oldTenant));
-        when(tenantRepository.countAllByNameAndCnpj(any(),any())).thenReturn(1L);
+        //when(tenantRepository.countAllByNameAndCnpj(any(),any())).thenReturn(1L);
 
 
 
@@ -313,10 +315,10 @@ public class TenantControllerTest {
         Tenant oldTenant = new Tenant();
         oldTenant.setId(1L);
         oldTenant.setName("Empresa X");
-        oldTenant.setStatus("ATIVO");
+        oldTenant.setStatus(EnumTenantStatus.ATIVO);
 
         when(tenantRepository.findById(1L)).thenReturn(Optional.of(oldTenant));
-        when(tenantRepository.countAllByNameAndCnpj(any(),any())).thenReturn(1L);
+        //when(tenantRepository.countAllByNameAndCnpj(any(),any())).thenReturn(1L);
 
 
 

@@ -29,6 +29,18 @@ export class UserService {
     return this.http.get<PageResponse<UsersPageModel>>(this.apiUrl, { params });
   }
 
+  searchUsers(page: number, size: number, filters: any, sortStr?: string) {
+    let params = new HttpParams()
+      .set('page', page.toString())
+      .set('size', size.toString());
+
+    if(sortStr){
+      params = params.set('sort', sortStr);
+    }
+
+    return this.http.post<any>(`${this.apiUrl}/search`, filters, { params });
+  }
+
   getActiveUsers(page: number, size: number): Observable<PageResponse<UsersPageModel>> {
     let params = new HttpParams()
       .set('page', page.toString())
@@ -39,6 +51,10 @@ export class UserService {
 
   createUser(user: UserAccountModel): Observable<UserAccountModel> {
     return this.http.post<UserAccountModel>(this.apiUrl, user);
+  }
+
+  updateUser(userId: string, user: UserAccountModel): Observable<UserAccountModel> {
+    return this.http.put<UserAccountModel>(`${this.apiUrl}/${userId}`, user);
   }
 
   updateStatus(userId: string): Observable<void> {

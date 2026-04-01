@@ -15,6 +15,10 @@ import {UserService} from './users.service';
 import {UserForm} from './user-form/user-form';
 import {TenantService} from '../tenant/tenant.service';
 import {TenantModel} from '../tenant/tenant.model';
+import {PrimaryButtonComponent} from '../../../../components/primary-button/primary-button';
+import {FormsModule} from '@angular/forms';
+import {InputText} from 'primeng/inputtext';
+import {Select} from 'primeng/select';
 
 @Component({
   selector: 'app-users',
@@ -30,7 +34,11 @@ import {TenantModel} from '../tenant/tenant.model';
     Toast,
     Tooltip,
     DatePipe,
-    UserForm
+    UserForm,
+    PrimaryButtonComponent,
+    FormsModule,
+    InputText,
+    Select
   ],
   providers: [MessageService],
   templateUrl: './users.html',
@@ -62,6 +70,17 @@ export class Users implements OnInit  {
 
   // Lista de tenants para o dropdown
   tenantsList = signal<TenantModel[]>([]);
+  // DTO de Filtros
+  filters = {
+    tenantId: null,
+    displayName: null,
+    active: null as boolean | null
+  };
+
+  statusOptions = [
+    { label: 'Ativo', value: true },
+    { label: 'Inativo', value: false }
+  ];
 
   constructor(
     private messageService: MessageService,
@@ -88,15 +107,56 @@ export class Users implements OnInit  {
     this.userDialogVisible = true;
   }
 
+  editUser(user: UsersPageModel) {
+
+    // 1. O backend está retornando o NOME do tenant no campo tenantId.
+    // 2. Precisamos encontrar qual é o ID numérico correto desse tenant na nossa lista.
+    const tenantName = String(user.tenantId);
+
+    // Busca na lista de tenants o objeto que tem o mesmo nome.
+    // (Uso toLowerCase() para evitar problemas com letras maiúsculas/minúsculas)
+    const foundTenant = this.tenantsList().find(
+      t => t.name && t.name.toLowerCase() === tenantName.toLowerCase()
+    );
+
+    // Se encontrou, pega o ID numérico. Se não encontrou, deixa undefined.
+    const realTenantId = foundTenant ? foundTenant.id : undefined;
+
+    // Clona os dados do usuário para edição (mantemos id para sabermos que é edição)
+    this.userToSave = {
+      id: user.id,
+      displayName: user.displayName,
+      email: user.email,
+      passwordHash: '', // Senha vazia, o backend deve ignorar se não for preenchida
+      tenantId: realTenantId
+    };
+    this.userDialogVisible = true;
+  }
+
   onLazyLoad(event: any) {
     const page = event.first / event.rows;
     const size = event.rows;
-    this.loadUsers(page, size);
+    // 1. Extraindo a ordenação do evento do PrimeNG
+    let sortStr = '';
+    if (event.sortField) {
+      // sortOrder 1 = asc | sortOrder -1 = desc
+      const direction = event.sortOrder === 1 ? 'asc' : 'desc';
+      sortStr = `${event.sortField},${direction}`;
+    }
+
+    this.loadUsers(page, size, sortStr);
   }
 
-  loadUsers(page: number = 0, size: number = 10) {
+  loadUsers(page: number = 0, size: number = 10, sortStr: string = '') {
     this.loading.set(true);
-    this.userService.getUsers(page, size).subscribe({
+
+    const payload = {
+      tenantId: this.filters.tenantId,
+      displayName: this.filters.displayName ? this.filters.displayName : null,
+      active: this.filters.active
+    };
+
+    this.userService.searchUsers(page, size, payload, sortStr).subscribe({
       next: (response) => {
         this.users.set(response.content || []);
         this.totalRecords.set(response.totalElements || 0);
@@ -109,20 +169,47 @@ export class Users implements OnInit  {
     });
   }
 
+  applyFilters() {
+    this.loadUsers(0, 10);
+  }
+
+  clearFilters() {
+    this.filters = {
+      tenantId: null,
+      displayName: null,
+      active: null
+    };
+    this.loadUsers(0, 10);
+  }
+
   exportData() {
     this.messageService.add({ severity: 'info', summary: 'Info', detail: 'Funcionalidade de exportação aqui' });
   }
 
   saveUser(user: UserAccountModel) {
-    this.userService.createUser(user).subscribe({
-      next: () => {
-        this.loadUsers();
-        this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Usuário criado com sucesso!', life: 3000 });
-      },
-      error: (err: HttpErrorResponse) => {
-        this.handleError(err, 'Erro ao criar usuário');
-      }
-    });
+    if (user.id) {
+      // Atualizar existente
+      this.userService.updateUser(user.id, user).subscribe({
+        next: () => {
+          this.loadUsers();
+          this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Usuário atualizado com sucesso!', life: 3000 });
+        },
+        error: (err: HttpErrorResponse) => {
+          this.handleError(err, 'Erro ao atualizar usuário');
+        }
+      });
+    } else {
+      // Criar novo
+      this.userService.createUser(user).subscribe({
+        next: () => {
+          this.loadUsers();
+          this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Usuário criado com sucesso!', life: 3000 });
+        },
+        error: (err: HttpErrorResponse) => {
+          this.handleError(err, 'Erro ao criar usuário');
+        }
+      });
+    }
   }
 
   updateStatus(id: string){

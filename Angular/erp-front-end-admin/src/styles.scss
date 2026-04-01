@@ -78,4 +78,23 @@ app-root {
   .form-input {
     @apply w-full border-gray-300 rounded-md shadow-sm focus:ring-orange-500 focus:border-orange-500 p-2 border bg-white;
   }
+
+  /* 1. Usando variáveis CSS do PrimeNG 18+ (Design Tokens) */
+  :root {
+    --p-focus-ring-color: #F24405;
+    --p-primary-color: #F24405;
+  }
+
+  /* 2. Forçando as classes CSS em componentes de Input e Select (Fallback de segurança) */
+  .p-inputtext:enabled:focus,
+  .p-inputwrapper-focus,
+  .p-select:not(.p-disabled).p-focus,
+  .p-dropdown:not(.p-disabled).p-focus,
+  .p-multiselect:not(.p-disabled).p-focus,
+  .p-password-input:enabled:focus,
+  .p-inputnumber-input:enabled:focus,
+  .p-calendar .p-inputtext:enabled:focus {
+    border-color: #F24405 !important;
+    box-shadow: 0 0 0 0.2rem rgba(242, 68, 5, 0.2) !important;
+  }
 }

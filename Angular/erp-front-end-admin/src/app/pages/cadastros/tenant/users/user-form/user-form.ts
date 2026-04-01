@@ -51,11 +51,14 @@ export class UserForm {
     const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+={}\[\]:;<>,.?/~\\-]).{14,}$/;
 
     // Validação básica do form + Regex da Senha
+    // Se for edição, a senha só precisa ser validada caso ela tenha sido preenchida. Se estiver vazia, ignora
+    const isPasswordOk = !!this.user.id && !this.user.passwordHash ? true : (this.user.passwordHash && this.isPasswordValid());
+
+    // Validação básica do form + Regex da Senha
     if (this.user.displayName?.trim() &&
       this.user.email?.trim() &&
       this.user.tenantId &&
-      this.user.passwordHash &&
-      this.isPasswordValid()) {
+      isPasswordOk) {
 
       this.save.emit(this.user);
       this.hideDialog();

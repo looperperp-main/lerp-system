@@ -56,7 +56,7 @@ public class TenantService {
         CurrentUser currentUser = SecurityUtils.getCurrentUserInfo();
 
         Tenant tenant = authMapper.toTenant(tenantDTO);
-        tenant.setStatus(EnumTenantStatus.P);
+        tenant.setStatus(EnumTenantStatus.PENDENTE);
         tenant.setCreationDate(Instant.now());
         tenant.setCreatedBy(currentUser.email());
         Tenant tenantSaved = tenantRepository.save(tenant);
@@ -84,7 +84,7 @@ public class TenantService {
      */
     public Page<TenantDTO> getAllActiveTenants(Pageable pageable){
         logger.debug("REST request to get all Tenants using a Pageable");
-        Page<Tenant> tenants = tenantRepository.findAllByStatusIs(Constants.ATIVO,pageable);
+        Page<Tenant> tenants = tenantRepository.findAllByStatusIs(EnumTenantStatus.ATIVO,pageable);
         return tenants.map(authMapper::toTenantDTO);
     }
 
@@ -109,7 +109,7 @@ public class TenantService {
 
         CurrentUser currentUser = SecurityUtils.getCurrentUserInfo();
 
-        if(!Objects.equals(oldTenant.getStatus(), EnumTenantStatus.C)){
+        if(!Objects.equals(oldTenant.getStatus(), EnumTenantStatus.CANCELADO)){
             try{
                 Tenant tenant = authMapper.toTenant(tenantDTO);
                 tenant.setUpdateDate(Instant.now());
@@ -136,7 +136,7 @@ public class TenantService {
         CurrentUser currentUser = SecurityUtils.getCurrentUserInfo();
         UUID correlationId = getCorrelationIdFromRequest(logger);
 
-        if(Objects.equals(tenant.getStatus(), EnumTenantStatus.C)){
+        if(Objects.equals(tenant.getStatus(), EnumTenantStatus.CANCELADO)){
             auditService.logAuditEvent(Constants.TENANT_CANCEL, Constants.TENANT, null, Constants.ERROR, null,correlationId);
             throw new BusinessException(ENTITY_NAME + " : Não é possível atualizar um Tenant Cancelado",BAD_REQUEST);
         }else{

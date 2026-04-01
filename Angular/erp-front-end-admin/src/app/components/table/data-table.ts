@@ -4,6 +4,7 @@ import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { TagModule } from 'primeng/tag';
+import {Ripple} from 'primeng/ripple';
 
 export type TagSeverity = 'success' | 'info' | 'warn' | 'danger' | 'secondary' | 'contrast' | undefined;
 
@@ -16,7 +17,7 @@ export interface ColumnConfig {
 @Component({
   selector: 'app-data-table',
   standalone: true,
-  imports: [CommonModule, TableModule, ButtonModule, InputTextModule, TagModule],
+  imports: [CommonModule, TableModule, ButtonModule, InputTextModule, TagModule, Ripple],
   template: `
     <div class="card">
       <p-table
@@ -85,6 +86,7 @@ export interface ColumnConfig {
                   pRipple
                   icon="pi pi-pencil"
                   class="p-button-rounded p-button-success p-button-text mr-2"
+                  style="color: #F24405 !important;"
                   (click)="edit.emit(rowData)">
                 </button>
                 <button

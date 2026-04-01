@@ -4,10 +4,10 @@ import java.io.Serializable;
 
 public enum EnumTenantStatus implements Serializable {
 
-    A("ATIVO"),
-    P("PENDENTE"),
-    S("SUSPENSO"),
-    C("CANCELADO");
+    ATIVO("ATIVO"),
+    PENDENTE("PENDENTE"),
+    SUSPENSO("SUSPENSO"),
+    CANCELADO("CANCELADO");
 
     private String description;
 

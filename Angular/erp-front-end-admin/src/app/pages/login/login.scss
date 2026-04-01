@@ -7,6 +7,42 @@ form{
   gap: 24px;
   margin-bottom: 34px;
 
+  .form-actions-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    margin-top: -10px; // Aproxima as opções dos inputs
+
+    .checkbox-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-size: 12px;
+      color: #666;
+
+      input[type="checkbox"] {
+        cursor: pointer;
+        width: 16px;
+        height: 16px;
+        accent-color: #f04e1a; // Cor laranja para combinar
+      }
+    }
+
+    .forgot-password {
+      font-size: 12px;
+      text-decoration: none; // Removido sublinhado para ficar como a imagem
+      color: #666; // Cinza igual ao Lembrar-me
+      cursor: pointer;
+
+      &:hover {
+        text-decoration: underline;
+        color: #f04e1a;
+      }
+    }
+  }
+
   span{
     font-size: 14px;
     text-decoration: underline;

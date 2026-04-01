@@ -3,6 +3,7 @@ package com.l.erp.authservice.services;
 import com.l.erp.authservice.api.dto.CurrentUser;
 import com.l.erp.authservice.api.dto.UserAccountDTO;
 import com.l.erp.authservice.api.dto.UserAccountPageDTO;
+import com.l.erp.authservice.api.dto.lists.UserSearchFilterDTO;
 import com.l.erp.authservice.api.mappers.UserMapper;
 import com.l.erp.authservice.dominio.Tenant;
 import com.l.erp.authservice.dominio.UserAccount;
@@ -68,9 +69,9 @@ public class UserService {
      * @param pageable pageable com as configs da página
      * @return page com os dados do user
      */
-    public Page<UserAccountPageDTO> getAllAccounts(Pageable pageable) {
+    public Page<UserAccountPageDTO> searchAccounts(UserSearchFilterDTO filter, Pageable pageable) {
         logger.debug("REST request to get all Users");
-        return userAccountRepository.findAllProjectedBy(pageable);
+        return userAccountRepository.findProjectedWithFilters(filter, pageable);
     }
 
     public Page<UserAccountPageDTO> getAllAccountsActive(Pageable pageable) {
@@ -125,6 +126,44 @@ public class UserService {
         UUID correlationId = SecurityUtils.getCorrelationIdFromRequest(logger);
         auditService.logAuditEvent(Constants.USER_CREATION, Constants.USER, savedUser.getId(), Constants.SUCCESS, null, correlationId);
 
+
+        return userMapper.toUserAccountDTO(savedUser);
+    }
+
+    /**
+     * Metodo para atualizar um usuário
+     * @param userId id do usuário
+     * @param userDTO objeto com os dados atualizados
+     * @return usuário atualizado
+     */
+    public UserAccountDTO updateUserById(UUID userId, UserAccountDTO userDTO) {
+        logger.debug("Updating user: {}", userId);
+
+        UserAccount user = userAccountRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(Constants.USER_NOT_FOUND, HttpStatus.NOT_FOUND));
+
+        // Vinculando o Tenant caso seja alterado
+        if (userDTO.tenantId() != null && !userDTO.tenantId().equals(user.getTenant().getId())) {
+            Tenant tenant = tenantRepository.findById(userDTO.tenantId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tenant não encontrado"));
+            user.setTenant(tenant);
+        }
+
+        user.setDisplayName(userDTO.displayName());
+
+        // Se a senha foi informada, significa que o usuário quer alterar a senha
+        if (userDTO.passwordHash() != null && !userDTO.passwordHash().isBlank()) {
+            passwordValidatorUtil.validatePassword(userDTO.passwordHash(), user.getTenant().getName());
+            user.setPasswordHash(passwordEncoder.encode(userDTO.passwordHash()));
+        }
+
+        user.setLastUpdateDate(Instant.now());
+        user.setLastUpdatedBy(SecurityUtils.getCurrentUserInfo().email());
+
+        UserAccount savedUser = userAccountRepository.save(user);
+
+        UUID correlationId = SecurityUtils.getCorrelationIdFromRequest(logger);
+        auditService.logAuditEvent(Constants.USER_UPDATE, Constants.USER, savedUser.getId(), Constants.SUCCESS, null, correlationId);
 
         return userMapper.toUserAccountDTO(savedUser);
     }

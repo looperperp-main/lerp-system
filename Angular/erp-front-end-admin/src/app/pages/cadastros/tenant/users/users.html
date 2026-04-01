@@ -1,4 +1,4 @@
-<div class="page-container">
+<div class="page-container" xmlns="http://www.w3.org/1999/html">
   <p-toast></p-toast>
 
   <!-- Header Section -->
@@ -8,29 +8,91 @@
       <p class="page-subtitle">Crie e gerencie os usuários do sistema</p>
     </div>
   </div>
+  <div class="content-card rounded-xl p-6 bg-white shadow-sm mt-4">
+    <div class="content-toolbar flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+      <h3 class="content-toolbar-title text-xl font-bold text-gray-800 flex items-center gap-2 m-0">
+        <i class="pi pi-arrow-circle-right text-gray-700"></i> Busca
+      </h3>
+    </div>
 
-  <div class="content-card">
-    <div class="content-toolbar">
-      <h3 class="content-toolbar-title">Ações</h3>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <!-- Tenant -->
+      <div class="flex flex-col gap-2">
+        <label for="tenantFilter" class="font-medium text-gray-700 text-sm">Tenant</label>
+        <p-select
+          id="tenantFilter"
+          [options]="tenantsList()"
+          [(ngModel)]="filters.tenantId"
+          optionLabel="name"
+          optionValue="id"
+          [showClear]="true"
+          placeholder="Selecione um Tenant"
+          styleClass="w-full">
+        </p-select>
+      </div>
+
+      <!-- Nome -->
+      <div class="flex flex-col gap-2">
+        <label for="nameFilter" class="font-medium text-gray-700 text-sm">Nome do Usuário</label>
+        <input
+          pInputText
+          id="nameFilter"
+          [(ngModel)]="filters.displayName"
+          placeholder="Digite o nome"
+          class="w-full" />
+      </div>
+
+      <!-- Status -->
+      <div class="flex flex-col gap-2">
+        <label for="statusFilter" class="font-medium text-gray-700 text-sm">Status</label>
+        <p-select
+          id="statusFilter"
+          [options]="statusOptions"
+          [(ngModel)]="filters.active"
+          optionLabel="label"
+          optionValue="value"
+          [showClear]="true"
+          placeholder="Selecione o Status"
+          styleClass="w-full">
+        </p-select>
+      </div>
+    </div>
+
+    <div class="flex justify-end gap-2 mt-6">
+      <app-primary-button
+        label="Limpar"
+        icon="pi pi-filter-slash"
+        backgroundColor="#9ca3af"
+        (onClick)="clearFilters()">
+      </app-primary-button>
+      <app-primary-button
+        label="Buscar"
+        icon="pi pi-search"
+        (onClick)="applyFilters()">
+      </app-primary-button>
+    </div>
+  </div>
+  <br>
+  <div class="content-card rounded-xl p-6 bg-white shadow-sm mt-4">
+    <div class="content-toolbar flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+      <!-- Título de Ações -->
+      <h3 class="content-toolbar-title text-xl font-bold text-gray-800 flex items-center gap-2 m-0">
+        <i class="pi pi-arrow-circle-right text-gray-700"></i> Ações
+      </h3>
       <div class="content-toolbar-actions">
-        <button
-          pButton
-          pRipple
+        <app-primary-button
           label="Novo Usuário"
-          icon="pi pi-plus"
-          class="p-button-success w-full sm:w-auto p-button-sm rounded-lg"
-          (click)="openNew()">
-        </button>
-        <!-- Botão de exportação opcional, deixei caso queira manter do ts -->
-        <button
-          pButton
-          pRipple
+          icon="pi pi-user-plus"
+          (onClick)="openNew()">
+        </app-primary-button>
+        <app-primary-button
           icon="pi pi-upload"
-          class="p-button-help p-button-sm rounded-lg"
-          (click)="exportData()"
-          pTooltip="Exportar"
-          tooltipPosition="bottom">
-        </button>
+          padding="0.5rem 0.8rem"
+          tooltip="Exportar"
+          tooltipPosition="bottom"
+          backgroundColor="#f28705"
+          (onClick)="exportData()">
+        </app-primary-button>
       </div>
     </div>
 
@@ -89,7 +151,9 @@
                     pRipple
                     icon="pi pi-pencil"
                     class="p-button-rounded p-button-text p-button-info p-button-sm w-8 h-8"
+                    style="color: #F24405;"
                     pTooltip="Editar"
+                    (click)="editUser(rowData)"
                     tooltipPosition="top">
                   </button>
 
@@ -99,6 +163,7 @@
                     pRipple
                     [icon]="rowData.active === true ? 'pi pi-ban' : 'pi pi-check-circle'"
                     [class]="'p-button-rounded p-button-text p-button-sm w-8 h-8 ' + (rowData.status === 'ATIVO' ? 'p-button-warning' : 'p-button-success')"
+                    [style]="rowData.active === true ? 'color: #F24405; background-color: rgba(242, 68, 5, 0.15); border: none' : 'color: #22c55e; background-color: rgba(34, 197, 94, 0.15); border: none'"
                     pTooltip="Alterar Status"
                     (click)="updateStatus(rowData.id)"
                     tooltipPosition="top"

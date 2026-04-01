@@ -1,6 +1,9 @@
 package com.l.erp.authservice.repositorios;
 
 import com.l.erp.authservice.dominio.Tenant;
+import com.l.erp.authservice.dominio.enumerators.EnumTenantStatus;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -9,7 +12,7 @@ import java.util.Optional;
 
 public interface TenantRepository extends JpaRepository<Tenant, Long> {
 
-    Page<Tenant> findAllByStatusIs(String status, Pageable pageable);
+    Page<Tenant> findAllByStatusIs(@Size(max = 30) @NotNull EnumTenantStatus status, Pageable pageable);
 
     Optional<Tenant> findByCnpj(String cnpj);
 

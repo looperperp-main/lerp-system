@@ -24,6 +24,12 @@
     >
       <img ngSrc="svg/password-icon.svg" width="20" height="20"/>
     </app-primary-input>
-    <span>Esqueceu sua senha?</span>
+    <div class="form-actions-row">
+      <label class="checkbox-container">
+        <input type="checkbox" formControlName="rememberMe">
+        <span>Lembrar-me</span>
+      </label>
+      <span class="forgot-password">Esqueceu sua senha?</span>
+    </div>
   </form>
 </app-default-login-layout>
