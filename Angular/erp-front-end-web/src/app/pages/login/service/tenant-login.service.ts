@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { tap } from 'rxjs';
+import {Observable, of, tap} from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { TenantLoginResponse } from '../../../util/types/tenant-login-response.type';
 
@@ -38,8 +38,12 @@ export class TenantLoginService {
     sessionStorage.setItem(this.STORAGE_KEYS.TENANT_CNPJ, response.tenantCnpj);
   }
 
-  logout(): void {
-    Object.values(this.STORAGE_KEYS).forEach(key => sessionStorage.removeItem(key));
+  logout() {
+    const refreshToken = sessionStorage.getItem('refresh-token');
+    if (!refreshToken) {
+      return of(void 0);
+    }
+    return this.httpClient.post<void>(`${environment.apiUrl}/auth/logout`, { refreshToken });
   }
 
   isAuthenticated(): boolean {

@@ -15,7 +15,7 @@ public record TenantLoginRequest(
         String email,
 
         @NotBlank(message = "Senha é obrigatória")
-        @Size(min = 14, message = "Senha deve ter no mínimo 14 caracteres")
+        //@Size(min = 14, message = "Senha deve ter no mínimo 14 caracteres")
         String password
 ) {
 }

@@ -1,32 +1,22 @@
 <main>
-  <section class="form-section">
-    <div class="logo-container">
-      <img ngSrc="assets/logo.png" height="80" width="80" alt="Logo" priority />
-    </div>
-    <h2>{{ title }}</h2>
-    <ng-content></ng-content>
-    <div class="btn-container">
-      <button
-        class="btn-primary"
-        (click)="submit()"
-        [disabled]="disablePrimaryBtn"
-      >
-        {{ primaryBtnText }}
-      </button>
-      @if (showSecondaryBtn && secondaryBtnText) {
-        <div class="separator">
-          <div></div>
-          <span>ou</span>
-          <div></div>
-        </div>
-        <button class="btn-secondary" (click)="navigate()">
-          {{ secondaryBtnText }}
-        </button>
-      }
-    </div>
-  </section>
   <section class="main-section">
-    <h1>Gerencie sua empresa de forma simples</h1>
-    <p>Acesse o sistema com as credenciais da sua empresa</p>
+    <img ngSrc="svg/desktop-login-image.svg" fill style="object-fit: cover" alt="Background Login" />
+  </section>
+  <section class="form-section">
+    <!-- Logotipo da empresa centralizado acima do formulário -->
+    <img ngSrc="svg/syax-icon.svg" height="80" width="180" alt="Syax Logo" />
+
+    <div class="form-content">
+      <h2 *ngIf="title">{{ title }}</h2>
+      <ng-content></ng-content>
+
+      <div class="btn-container">
+        <button
+          class="btn-primary"
+          (click)="submit()" type="button"
+          [disabled]="disablePrimaryBtn"
+        >{{ primaryBtnText }}</button>
+      </div>
+    </div>
   </section>
 </main>

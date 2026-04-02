@@ -48,7 +48,7 @@ export class TenantLogin {
             `Bem-vindo(a), ${response.username}!`,
             response.tenantName
           );
-          this.router.navigate(['/dashboard']);
+          this.router.navigate(['/web']);
         },
         error: (err: HttpErrorResponse) => this.handleLoginError(err)
       });
