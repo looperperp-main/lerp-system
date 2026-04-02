@@ -1,0 +1,473 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # TABELA: produto_categoria
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-011-create-produto-categoria
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: cadastros
+            tableName: produto_categoria
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: nome
+                  type: varchar(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: descricao
+                  type: varchar(500)
+              - column:
+                  name: categoria_pai_id
+                  type: uuid
+                  remarks: "Hierarquia de categorias — self-reference"
+                  constraints:
+                    foreignKeyName: fk_categoria_pai_id
+                    referencedTableSchemaName: cadastros
+                    references: cadastros.produto_categoria(id)
+              - column:
+                  name: ativa
+                  type: boolean
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: created_by
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_updated_by
+                  type: uuid
+        - addUniqueConstraint:
+            schemaName: cadastros
+            tableName: produto_categoria
+            columnNames: tenant_id, nome, categoria_pai_id
+            constraintName: uq_produto_categoria_tenant_nome
+        - createIndex:
+            schemaName: cadastros
+            tableName: produto_categoria
+            indexName: idx_produto_categoria_tenant_id
+            columns:
+              - column:
+                  name: tenant_id
+
+  # ──────────────────────────────────────────
+  # TABELA: produto
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-012-create-produto
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: cadastros
+            tableName: produto
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: categoria_id
+                  type: uuid
+                  constraints:
+                    foreignKeyName: fk_produto_categoria_id
+                    referencedTableSchemaName: cadastros
+                    references: cadastros.produto_categoria(id)
+              - column:
+                  name: sku
+                  type: varchar(80)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: codigo_externo
+                  type: varchar(80)
+                  remarks: "Código no sistema do fornecedor ou código de barras adicional"
+              - column:
+                  name: nome
+                  type: varchar(200)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: descricao
+                  type: text
+              - column:
+                  name: unidade
+                  type: varchar(10)
+                  constraints:
+                    nullable: false
+                  remarks: "UN, KG, CX, MT, LT..."
+              - column:
+                  name: unidade_secundaria
+                  type: varchar(10)
+                  remarks: "Unidade de medida alternativa (ex: CX com fator de conversão)"
+              - column:
+                  name: fator_conversao
+                  type: decimal(10,4)
+                  remarks: "Fator entre unidade principal e secundária"
+              - column:
+                  name: ncm
+                  type: varchar(10)
+                  remarks: "Nomenclatura Comum do Mercosul — obrigatório NF-e"
+              - column:
+                  name: ean
+                  type: varchar(14)
+                  remarks: "Código de barras EAN/GTIN"
+              - column:
+                  name: cest
+                  type: varchar(10)
+                  remarks: "Código Especificador da Substituição Tributária"
+              - column:
+                  name: origem
+                  type: varchar(2)
+                  remarks: "0=Nacional, 1=Estrangeira importação direta, etc. (tabela ICMS)"
+              - column:
+                  name: ativo
+                  type: boolean
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: created_by
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_updated_by
+                  type: uuid
+        - addUniqueConstraint:
+            schemaName: cadastros
+            tableName: produto
+            columnNames: tenant_id, sku
+            constraintName: uq_produto_tenant_sku
+        - createIndex:
+            schemaName: cadastros
+            tableName: produto
+            indexName: idx_produto_tenant_id
+            columns:
+              - column:
+                  name: tenant_id
+        - createIndex:
+            schemaName: cadastros
+            tableName: produto
+            indexName: idx_produto_ean
+            columns:
+              - column:
+                  name: ean
+        - createIndex:
+            schemaName: cadastros
+            tableName: produto
+            indexName: idx_produto_ncm
+            columns:
+              - column:
+                  name: ncm
+
+  # ──────────────────────────────────────────
+  # TABELA: produto_fornecedor
+  # Relacionamento N:M Produto <-> Fornecedor com preço e prazo
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-013-create-produto-fornecedor
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: cadastros
+            tableName: produto_fornecedor
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: produto_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_pf_produto_id
+                    referencedTableSchemaName: cadastros
+                    references: cadastros.produto(id)
+              - column:
+                  name: fornecedor_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_pf_fornecedor_id
+                    referencedTableSchemaName: cadastros
+                    references: cadastros.fornecedor(id)
+              - column:
+                  name: codigo_produto_fornecedor
+                  type: varchar(80)
+                  remarks: "Código do produto no catálogo do fornecedor"
+              - column:
+                  name: preco_custo
+                  type: decimal(15,4)
+              - column:
+                  name: lead_time_dias
+                  type: integer
+                  remarks: "Prazo de entrega do fornecedor em dias"
+              - column:
+                  name: preferencial
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: ativo
+                  type: boolean
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: created_by
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_updated_by
+                  type: uuid
+        - addUniqueConstraint:
+            schemaName: cadastros
+            tableName: produto_fornecedor
+            columnNames: tenant_id, produto_id, fornecedor_id
+            constraintName: uq_produto_fornecedor
+        - createIndex:
+            schemaName: cadastros
+            tableName: produto_fornecedor
+            indexName: idx_produto_fornecedor_produto_id
+            columns:
+              - column:
+                  name: produto_id
+        - createIndex:
+            schemaName: cadastros
+            tableName: produto_fornecedor
+            indexName: idx_produto_fornecedor_fornecedor_id
+            columns:
+              - column:
+                  name: fornecedor_id
+
+  # ──────────────────────────────────────────
+  # TABELA: tabela_preco
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-014-create-tabela-preco
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: cadastros
+            tableName: tabela_preco
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: nome
+                  type: varchar(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: moeda
+                  type: varchar(3)
+                  defaultValue: "BRL"
+                  constraints:
+                    nullable: false
+                  remarks: "ISO 4217: BRL, USD, EUR..."
+              - column:
+                  name: ativa
+                  type: boolean
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+              - column:
+                  name: padrao
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+                  remarks: "Indica se é a tabela padrão para novos clientes"
+              - column:
+                  name: inicio_vigencia
+                  type: date
+                  constraints:
+                    nullable: false
+              - column:
+                  name: fim_vigencia
+                  type: date
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: created_by
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_updated_by
+                  type: uuid
+        - addUniqueConstraint:
+            schemaName: cadastros
+            tableName: tabela_preco
+            columnNames: tenant_id, nome
+            constraintName: uq_tabela_preco_tenant_nome
+        - createIndex:
+            schemaName: cadastros
+            tableName: tabela_preco
+            indexName: idx_tabela_preco_tenant_id
+            columns:
+              - column:
+                  name: tenant_id
+
+  # ──────────────────────────────────────────
+  # TABELA: produto_preco
+  # Preço por produto/tabela com vigência
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-015-create-produto-preco
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: cadastros
+            tableName: produto_preco
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: produto_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_produto_preco_produto_id
+                    referencedTableSchemaName: cadastros
+                    references: cadastros.produto(id)
+              - column:
+                  name: tabela_preco_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_produto_preco_tabela_id
+                    referencedTableSchemaName: cadastros
+                    references: cadastros.tabela_preco(id)
+              - column:
+                  name: preco
+                  type: decimal(15,4)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: inicio_vigencia
+                  type: date
+                  constraints:
+                    nullable: false
+              - column:
+                  name: fim_vigencia
+                  type: date
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: created_by
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_updated_by
+                  type: uuid
+        - createIndex:
+            schemaName: cadastros
+            tableName: produto_preco
+            indexName: idx_produto_preco_produto_id
+            columns:
+              - column:
+                  name: produto_id
+        - createIndex:
+            schemaName: cadastros
+            tableName: produto_preco
+            indexName: idx_produto_preco_tabela_id
+            columns:
+              - column:
+                  name: tabela_preco_id
+        - createIndex:
+            schemaName: cadastros
+            tableName: produto_preco
+            indexName: idx_produto_preco_vigencia
+            columns:
+              - column:
+                  name: inicio_vigencia
+              - column:
+                  name: fim_vigencia

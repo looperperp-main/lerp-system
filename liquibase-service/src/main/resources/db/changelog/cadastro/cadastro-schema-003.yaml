@@ -1,0 +1,214 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # TABELA: deposito
+  # Almoxarifados / locais de estoque
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-016-create-deposito
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: cadastros
+            tableName: deposito
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: nome
+                  type: varchar(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: descricao
+                  type: varchar(500)
+              - column:
+                  name: tipo
+                  type: varchar(30)
+                  remarks: "PRINCIPAL, FILIAL, TERCEIRO, TRANSITO"
+              - column:
+                  name: ativo
+                  type: boolean
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: created_by
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_updated_by
+                  type: uuid
+        - addUniqueConstraint:
+            schemaName: cadastros
+            tableName: deposito
+            columnNames: tenant_id, nome
+            constraintName: uq_deposito_tenant_nome
+        - createIndex:
+            schemaName: cadastros
+            tableName: deposito
+            indexName: idx_deposito_tenant_id
+            columns:
+              - column:
+                  name: tenant_id
+
+  # ──────────────────────────────────────────
+  # TABELA: produto_estoque_config
+  # Config de estoque por produto/depósito
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-017-create-produto-estoque-config
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: cadastros
+            tableName: produto_estoque_config
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: produto_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_pec_produto_id
+                    referencedTableSchemaName: cadastros
+                    references: cadastros.produto(id)
+              - column:
+                  name: deposito_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_pec_deposito_id
+                    referencedTableSchemaName: cadastros
+                    references: cadastros.deposito(id)
+              - column:
+                  name: fornecedor_preferencial_id
+                  type: uuid
+                  remarks: "FK para produto_fornecedor — fornecedor padrão de reposição"
+                  constraints:
+                    foreignKeyName: fk_pec_fornecedor_preferencial_id
+                    referencedTableSchemaName: cadastros
+                    references: cadastros.produto_fornecedor(id)
+              - column:
+                  name: estoque_minimo
+                  type: decimal(15,4)
+              - column:
+                  name: estoque_maximo
+                  type: decimal(15,4)
+              - column:
+                  name: ponto_reposicao
+                  type: decimal(15,4)
+                  remarks: "Nível de estoque que dispara pedido de reposição"
+              - column:
+                  name: lead_time_dias
+                  type: integer
+                  remarks: "Prazo médio de reposição para este produto neste depósito"
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: created_by
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_updated_by
+                  type: uuid
+        - addUniqueConstraint:
+            schemaName: cadastros
+            tableName: produto_estoque_config
+            columnNames: tenant_id, produto_id, deposito_id
+            constraintName: uq_produto_estoque_config
+        - createIndex:
+            schemaName: cadastros
+            tableName: produto_estoque_config
+            indexName: idx_pec_produto_id
+            columns:
+              - column:
+                  name: produto_id
+        - createIndex:
+            schemaName: cadastros
+            tableName: produto_estoque_config
+            indexName: idx_pec_deposito_id
+            columns:
+              - column:
+                  name: deposito_id
+
+  # ──────────────────────────────────────────
+  # TABELA: tabela_preco_grupo_cliente
+  # Vincula tabela de preço a grupo de cliente
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-018-create-tabela-preco-grupo-cliente
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: cadastros
+            tableName: tabela_preco_grupo_cliente
+            columns:
+              - column:
+                  name: tabela_preco_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_tpgc_tabela_preco_id
+                    referencedTableSchemaName: cadastros
+                    references: cadastros.tabela_preco(id)
+              - column:
+                  name: grupo_cliente_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_tpgc_grupo_cliente_id
+                    referencedTableSchemaName: cadastros
+                    references: cadastros.grupo_cliente(id)
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+        - addPrimaryKey:
+            schemaName: cadastros
+            tableName: tabela_preco_grupo_cliente
+            columnNames: tabela_preco_id, grupo_cliente_id
+            constraintName: pk_tabela_preco_grupo_cliente
+        - createIndex:
+            schemaName: cadastros
+            tableName: tabela_preco_grupo_cliente
+            indexName: idx_tpgc_tenant_id
+            columns:
+              - column:
+                  name: tenant_id

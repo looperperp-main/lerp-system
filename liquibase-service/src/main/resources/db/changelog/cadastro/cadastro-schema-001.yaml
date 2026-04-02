@@ -1,108 +1,797 @@
-# Tabela Exemplo
-
 databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # TABELA: vendedor
+  # Representa o vendedor/representante interno
+  # ──────────────────────────────────────────
   - changeSet:
-      id: 001-create-roles-table
-      author: erp-team
+      id: cad-001-create-vendedor
+      author: vitor-fernandes
       changes:
         - createTable:
             schemaName: cadastros
-            tableName: roles
+            tableName: vendedor
             columns:
               - column:
                   name: id
-                  type: bigint
-                  autoIncrement: true
+                  type: uuid
                   constraints:
                     primaryKey: true
                     nullable: false
               - column:
-                  name: name
-                  type: varchar(50)
+                  name: tenant_id
+                  type: bigint
                   constraints:
                     nullable: false
-                    unique: true
-        # Insere roles padrão iniciais
-        - insert:
-            tableName: roles
+              - column:
+                  name: user_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: nome
+                  type: varchar(200)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: ativo
+                  type: boolean
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+              - column:
+                  name: comissao_percentual
+                  type: decimal(5,2)
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: created_by
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_updated_by
+                  type: uuid
+        - createIndex:
+            schemaName: cadastros
+            tableName: vendedor
+            indexName: idx_vendedor_tenant_id
             columns:
               - column:
-                  name: name
-                  value: "ROLE_USER"
-        - insert:
-            tableName: roles
+                  name: tenant_id
+
+  # ──────────────────────────────────────────
+  # TABELA: grupo_cliente
+  # Agrupamento de clientes para políticas de preço/desconto
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-002-create-grupo-cliente
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: cadastros
+            tableName: grupo_cliente
             columns:
               - column:
-                  name: name
-                  value: "ROLE_ADMIN"
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: nome
+                  type: varchar(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: descricao
+                  type: varchar(500)
+              - column:
+                  name: ativo
+                  type: boolean
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: created_by
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_updated_by
+                  type: uuid
+        - addUniqueConstraint:
+            schemaName: cadastros
+            tableName: grupo_cliente
+            columnNames: tenant_id, nome
+            constraintName: uq_grupo_cliente_tenant_nome
+        - createIndex:
+            schemaName: cadastros
+            tableName: grupo_cliente
+            indexName: idx_grupo_cliente_tenant_id
+            columns:
+              - column:
+                  name: tenant_id
 
-        # Criação da tabela de usuários
-        - changeSet:
-            id: 002-create-users-table
-            author: erp-team
-            changes:
-              - createTable:
-                  tableName: users
-                  columns:
-                    - column:
-                        name: id
-                        type: bigint
-                        autoIncrement: true
-                        constraints:
-                          primaryKey: true
-                          nullable: false
-                    - column:
-                        name: username
-                        type: varchar(50)
-                        constraints:
-                          nullable: false
-                          unique: true
-                    - column:
-                        name: email
-                        type: varchar(100)
-                        constraints:
-                          nullable: false
-                          unique: true
-                    - column:
-                        name: password
-                        type: varchar(255)
-                        constraints:
-                          nullable: false
-                    - column:
-                        name: active
-                        type: boolean
-                        defaultValueBoolean: true
-                        constraints:
-                          nullable: false
-                    - column:
-                        name: created_at
-                        type: timestamp
-                        defaultValueDate: CURRENT_TIMESTAMP
+  # ──────────────────────────────────────────
+  # TABELA: condicao_pagamento
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-003-create-condicao-pagamento
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: cadastros
+            tableName: condicao_pagamento
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: nome
+                  type: varchar(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: descricao
+                  type: varchar(500)
+              - column:
+                  name: ativa
+                  type: boolean
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: created_by
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_updated_by
+                  type: uuid
+        - addUniqueConstraint:
+            schemaName: cadastros
+            tableName: condicao_pagamento
+            columnNames: tenant_id, nome
+            constraintName: uq_condicao_pagamento_tenant_nome
+        - createIndex:
+            schemaName: cadastros
+            tableName: condicao_pagamento
+            indexName: idx_condicao_pagamento_tenant_id
+            columns:
+              - column:
+                  name: tenant_id
 
-        # Tabela de associação Usuários <-> Roles (Muitos para Muitos)
-        - changeSet:
-            id: 003-create-user-roles-table
-            author: erp-team
-            changes:
-              - createTable:
-                  tableName: user_roles
-                  columns:
-                    - column:
-                        name: user_id
-                        type: bigint
-                        constraints:
-                          nullable: false
-                          foreignKeyName: fk_user_roles_user_id
-                          references: users(id)
-                    - column:
-                        name: role_id
-                        type: bigint
-                        constraints:
-                          nullable: false
-                          foreignKeyName: fk_user_roles_role_id
-                          references: roles(id)
-              # Adiciona chave primária composta para evitar duplicatas
-              - addPrimaryKey:
-                  tableName: user_roles
-                  columnNames: user_id, role_id
-                  constraintName: pk_user_roles
+  # ──────────────────────────────────────────
+  # TABELA: condicao_pagamento_parcela
+  # Detalhe de cada parcela (substitui parcelas:int + intervalo_dias:int)
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-004-create-condicao-pagamento-parcela
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: cadastros
+            tableName: condicao_pagamento_parcela
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: condicao_pagamento_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_cpp_condicao_id
+                    referencedTableSchemaName: cadastros
+                    references: cadastros.condicao_pagamento(id)
+              - column:
+                  name: numero_parcela
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: dias
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: percentual
+                  type: decimal(5,2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: forma_pagamento
+                  type: varchar(30)
+                  constraints:
+                    nullable: false
+                  remarks: "BOLETO, PIX, CARTAO_CREDITO, CARTAO_DEBITO, DINHEIRO, TRANSFERENCIA"
+        - addUniqueConstraint:
+            schemaName: cadastros
+            tableName: condicao_pagamento_parcela
+            columnNames: condicao_pagamento_id, numero_parcela
+            constraintName: uq_cpp_condicao_numero
+
+  # ──────────────────────────────────────────
+  # TABELA: pessoa
+  # Entidade base para PF/PJ
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-005-create-pessoa
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: cadastros
+            tableName: pessoa
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: tipo
+                  type: varchar(2)
+                  constraints:
+                    nullable: false
+                  remarks: "PF = Pessoa Física, PJ = Pessoa Jurídica"
+              - column:
+                  name: nome_razao
+                  type: varchar(200)
+                  constraints:
+                    nullable: false
+                  remarks: "Nome (PF) ou Razão Social (PJ)"
+              - column:
+                  name: apelido_fantasia
+                  type: varchar(200)
+                  remarks: "Apelido (PF) ou Nome Fantasia (PJ)"
+              - column:
+                  name: documento
+                  type: varchar(18)
+                  constraints:
+                    nullable: false
+                  remarks: "CPF (PF) ou CNPJ (PJ)"
+              - column:
+                  name: ie
+                  type: varchar(20)
+                  remarks: "Inscrição Estadual (PJ)"
+              - column:
+                  name: im
+                  type: varchar(20)
+                  remarks: "Inscrição Municipal (PJ)"
+              - column:
+                  name: rg
+                  type: varchar(20)
+                  remarks: "RG (PF)"
+              - column:
+                  name: data_nascimento
+                  type: date
+                  remarks: "Data de nascimento (PF) ou data de fundação (PJ)"
+              - column:
+                  name: email
+                  type: varchar(200)
+              - column:
+                  name: telefone
+                  type: varchar(20)
+              - column:
+                  name: ativo
+                  type: boolean
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: created_by
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_updated_by
+                  type: uuid
+        - addUniqueConstraint:
+            schemaName: cadastros
+            tableName: pessoa
+            columnNames: tenant_id, documento
+            constraintName: uq_pessoa_tenant_documento
+        - createIndex:
+            schemaName: cadastros
+            tableName: pessoa
+            indexName: idx_pessoa_tenant_id
+            columns:
+              - column:
+                  name: tenant_id
+        - createIndex:
+            schemaName: cadastros
+            tableName: pessoa
+            indexName: idx_pessoa_documento
+            columns:
+              - column:
+                  name: documento
+
+  # ──────────────────────────────────────────
+  # TABELA: endereco
+  # Múltiplos endereços por pessoa, com tipo
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-006-create-endereco
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: cadastros
+            tableName: endereco
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: pessoa_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_endereco_pessoa_id
+                    referencedTableSchemaName: cadastros
+                    references: cadastros.pessoa(id)
+              - column:
+                  name: tipo
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+                  remarks: "FISCAL, COBRANCA, ENTREGA, PRINCIPAL"
+              - column:
+                  name: logradouro
+                  type: varchar(200)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: numero
+                  type: varchar(20)
+              - column:
+                  name: complemento
+                  type: varchar(100)
+              - column:
+                  name: bairro
+                  type: varchar(100)
+              - column:
+                  name: cidade
+                  type: varchar(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: uf
+                  type: varchar(2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: cep
+                  type: varchar(9)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: ibge_codigo
+                  type: varchar(10)
+                  remarks: "Código IBGE do município — necessário para NF-e"
+              - column:
+                  name: pais
+                  type: varchar(60)
+                  defaultValue: "Brasil"
+              - column:
+                  name: principal
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: created_by
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_updated_by
+                  type: uuid
+        - createIndex:
+            schemaName: cadastros
+            tableName: endereco
+            indexName: idx_endereco_pessoa_id
+            columns:
+              - column:
+                  name: pessoa_id
+        - createIndex:
+            schemaName: cadastros
+            tableName: endereco
+            indexName: idx_endereco_tenant_id
+            columns:
+              - column:
+                  name: tenant_id
+
+  # ──────────────────────────────────────────
+  # TABELA: contato
+  # Contatos vinculados a uma pessoa, com tipo e cargo
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-007-create-contato
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: cadastros
+            tableName: contato
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: pessoa_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_contato_pessoa_id
+                    referencedTableSchemaName: cadastros
+                    references: cadastros.pessoa(id)
+              - column:
+                  name: nome
+                  type: varchar(200)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: tipo
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+                  remarks: "COMERCIAL, FINANCEIRO, TECNICO, ADMINISTRATIVO, OUTRO"
+              - column:
+                  name: cargo
+                  type: varchar(100)
+              - column:
+                  name: email
+                  type: varchar(200)
+              - column:
+                  name: telefone
+                  type: varchar(20)
+              - column:
+                  name: ativo
+                  type: boolean
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: created_by
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_updated_by
+                  type: uuid
+        - createIndex:
+            schemaName: cadastros
+            tableName: contato
+            indexName: idx_contato_pessoa_id
+            columns:
+              - column:
+                  name: pessoa_id
+
+  # ──────────────────────────────────────────
+  # TABELA: cliente
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-008-create-cliente
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: cadastros
+            tableName: cliente
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: pessoa_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_cliente_pessoa_id
+                    referencedTableSchemaName: cadastros
+                    references: cadastros.pessoa(id)
+              - column:
+                  name: sku
+                  type: varchar(50)
+                  remarks: "Código interno do cliente"
+              - column:
+                  name: condicao_pagamento_id
+                  type: uuid
+                  constraints:
+                    foreignKeyName: fk_cliente_condicao_pagamento_id
+                    referencedTableSchemaName: cadastros
+                    references: cadastros.condicao_pagamento(id)
+              - column:
+                  name: grupo_cliente_id
+                  type: uuid
+                  constraints:
+                    foreignKeyName: fk_cliente_grupo_id
+                    referencedTableSchemaName: cadastros
+                    references: cadastros.grupo_cliente(id)
+              - column:
+                  name: vendedor_id
+                  type: uuid
+                  constraints:
+                    foreignKeyName: fk_cliente_vendedor_id
+                    referencedTableSchemaName: cadastros
+                    references: cadastros.vendedor(id)
+              - column:
+                  name: limite_credito
+                  type: decimal(15,2)
+              - column:
+                  name: classificacao_risco
+                  type: varchar(10)
+                  remarks: "BAIXO, MEDIO, ALTO"
+              - column:
+                  name: prazo_medio_pagamento_dias
+                  type: integer
+              - column:
+                  name: ativo
+                  type: boolean
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: created_by
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_updated_by
+                  type: uuid
+        - addUniqueConstraint:
+            schemaName: cadastros
+            tableName: cliente
+            columnNames: tenant_id, pessoa_id
+            constraintName: uq_cliente_tenant_pessoa
+        - createIndex:
+            schemaName: cadastros
+            tableName: cliente
+            indexName: idx_cliente_tenant_id
+            columns:
+              - column:
+                  name: tenant_id
+        - createIndex:
+            schemaName: cadastros
+            tableName: cliente
+            indexName: idx_cliente_pessoa_id
+            columns:
+              - column:
+                  name: pessoa_id
+
+  # ──────────────────────────────────────────
+  # TABELA: fornecedor
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-009-create-fornecedor
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: cadastros
+            tableName: fornecedor
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: pessoa_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_fornecedor_pessoa_id
+                    referencedTableSchemaName: cadastros
+                    references: cadastros.pessoa(id)
+              - column:
+                  name: ativo
+                  type: boolean
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: created_by
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_updated_by
+                  type: uuid
+        - addUniqueConstraint:
+            schemaName: cadastros
+            tableName: fornecedor
+            columnNames: tenant_id, pessoa_id
+            constraintName: uq_fornecedor_tenant_pessoa
+        - createIndex:
+            schemaName: cadastros
+            tableName: fornecedor
+            indexName: idx_fornecedor_tenant_id
+            columns:
+              - column:
+                  name: tenant_id
+
+  # ──────────────────────────────────────────
+  # TABELA: transportadora
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-010-create-transportadora
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: cadastros
+            tableName: transportadora
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: pessoa_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_transportadora_pessoa_id
+                    referencedTableSchemaName: cadastros
+                    references: cadastros.pessoa(id)
+              - column:
+                  name: rntrc
+                  type: varchar(20)
+                  remarks: "Registro Nacional de Transportadores Rodoviários de Cargas"
+              - column:
+                  name: modal
+                  type: varchar(20)
+                  remarks: "RODOVIARIO, AEREO, FERROVIARIO, MARITIMO"
+              - column:
+                  name: ativo
+                  type: boolean
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: created_by
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_updated_by
+                  type: uuid
+        - addUniqueConstraint:
+            schemaName: cadastros
+            tableName: transportadora
+            columnNames: tenant_id, pessoa_id
+            constraintName: uq_transportadora_tenant_pessoa
+        - createIndex:
+            schemaName: cadastros
+            tableName: transportadora
+            indexName: idx_transportadora_tenant_id
+            columns:
+              - column:
+                  name: tenant_id

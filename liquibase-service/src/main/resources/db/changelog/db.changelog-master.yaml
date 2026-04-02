@@ -16,3 +16,14 @@ databaseChangeLog:
 #  - include:
 #      file: db/changelog/cadastro/cadastro-schema-001.yaml
 #      relativeToChangelogFile: true
+
+  # 2. Schema de Cadastros
+  - include:
+      file: cadastro/cadastro-schema-001.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: cadastro/cadastro-schema-002.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: cadastro/cadastro-schema-003.yaml
+      relativeToChangelogFile: true
