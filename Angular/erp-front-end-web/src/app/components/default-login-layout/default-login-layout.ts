@@ -1,10 +1,10 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
-import { NgOptimizedImage } from '@angular/common';
+import {NgIf, NgOptimizedImage} from '@angular/common';
 
 @Component({
     selector: 'app-default-login-layout',
     standalone: true,
-    imports: [NgOptimizedImage],
+  imports: [NgOptimizedImage, NgIf],
     templateUrl: './default-login-layout.html',
     styleUrl: './default-login-layout.scss',
 })

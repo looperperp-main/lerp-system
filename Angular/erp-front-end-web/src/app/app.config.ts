@@ -6,18 +6,24 @@ import {provideHttpClient, withFetch, withInterceptors} from '@angular/common/ht
 import {provideToastr} from 'ngx-toastr';
 import {provideAnimations} from '@angular/platform-browser/animations';
 import {authInterceptor} from './util/auth.interceptor';
+import {providePrimeNG} from 'primeng/config';
+import Aura from '@primeuix/themes/aura';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
     provideHttpClient(withFetch(),withInterceptors([authInterceptor])),
-    provideToastr({
-      timeOut: 5000,
-      positionClass: 'toast-top-right',
-      preventDuplicates: true,
-      progressBar: true
+    provideToastr(),
+    providePrimeNG({
+      theme: {
+        preset: Aura,
+        options: {
+          // Isso diz ao PrimeNG para aplicar o modo escuro APENAS se a tag HTML tiver a classe '.app-dark'
+          // Como não vamos colocar essa classe, ele vai ficar sempre no modo Claro (Light)!
+          darkModeSelector: '.app-dark'
+        }
+      }
     }),
-    provideAnimations()//TODO: Deprecated
   ]
 };

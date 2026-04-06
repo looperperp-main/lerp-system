@@ -12,6 +12,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.security.Timestamp;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
@@ -68,6 +69,30 @@ public class AuditService {
         auditLog.setDetailsJson(Optional.ofNullable(detailsJson).orElse("{}"));
         auditLog.setCorrelationId(correlationId);
         auditLog.setEventDate(Instant.now());
+        auditRepository.save(auditLog);
+        logger.info("Audit event logged: {}", auditLog);
+    }
+
+    /**
+     * Registra um evento de auditoria com o actor explícito (para casos onde não há contexto de segurança)
+     * @param action ação
+     * @param actorUserId ID do usuário que executou a ação
+     * @param targetType Tipo do Alvo
+     * @param targetId Id do Alvo
+     * @param result resultado
+     * @param detailsJson detalhes em Json se necessário
+     * @param correlationId correlation ID
+     */
+    public void logAuditEventWithActorAndTimestamp(String action, UUID actorUserId, String targetType, UUID targetId, String result, String detailsJson, UUID correlationId, Instant timestamp) {
+        AuditLog auditLog = new AuditLog();
+        auditLog.setAction(action);
+        auditLog.setActorUserId(actorUserId);
+        auditLog.setTargetType(targetType);
+        auditLog.setTargetId(targetId);
+        auditLog.setResult(result);
+        auditLog.setDetailsJson(Optional.ofNullable(detailsJson).orElse("{}"));
+        auditLog.setCorrelationId(correlationId);
+        auditLog.setEventDate(timestamp);
         auditRepository.save(auditLog);
         logger.info("Audit event logged: {}", auditLog);
     }

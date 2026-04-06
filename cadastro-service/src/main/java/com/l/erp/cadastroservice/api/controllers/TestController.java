@@ -1,4 +1,4 @@
-package com.l.erp.cadastroservice.controllers;
+package com.l.erp.cadastroservice.api.controllers;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;

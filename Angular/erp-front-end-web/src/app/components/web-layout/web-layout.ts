@@ -32,25 +32,25 @@ export class WebLayout {
   };
 
   menuItems: MenuItem[] = [
-    { label: 'Overview', icon: 'pi pi-home', routerLink: '/admin/home' },
-    { label: 'Cadastros', icon: 'pi pi-folder', path: '/admin/cadastros',items: [
-        { label: 'Usuários', icon: 'pi pi-user', routerLink: '/admin/cadastros/users' },
-        { label: 'Tenants', icon: 'pi pi-user', routerLink: '/admin/cadastros/tenants' },
-        { label: 'Roles', icon: 'pi pi-id-card', routerLink: '/admin/cadastros/roles' },
-        { label: 'Permissões', icon: 'pi pi-shield', routerLink: '/admin/cadastros/permission' }
+    { label: 'Overview', icon: 'pi pi-home', routerLink: '/web/home' },
+    { label: 'Cadastros', icon: 'pi pi-folder', path: '/web/cadastros',items: [
+        { label: 'Grupo de Clientes', icon: 'pi pi-user', routerLink: '/web/cadastros/grp_c' },
+        { label: 'Tenants', icon: 'pi pi-user', routerLink: '/web/cadastros/tenants' },
+        { label: 'Roles', icon: 'pi pi-id-card', routerLink: '/web/cadastros/roles' },
+        { label: 'Permissões', icon: 'pi pi-shield', routerLink: '/web/cadastros/permission' }
       ] },
-    { label: 'Segurança', icon: 'pi pi-server', routerLink: '/admin/security', items: [
-        { label: 'Configurar Roles', icon: 'pi pi-sitemap', routerLink: '/admin/security/role-permissions' },
-        { label: 'Atribuir Acessos', icon: 'pi pi-key', routerLink: '/admin/security/user-roles' }
+    { label: 'Segurança', icon: 'pi pi-server', routerLink: '/web/security', items: [
+        { label: 'Configurar Roles', icon: 'pi pi-sitemap', routerLink: '/web/security/role-permissions' },
+        { label: 'Atribuir Acessos', icon: 'pi pi-key', routerLink: '/web/security/user-roles' }
       ] },
-    { label: 'Auditoria', icon: 'pi pi-eye', routerLink: '/admin/audit' },
-    { label: 'Subscrições', icon: 'pi pi-barcode', path: '/admin/subscriptions',items: [
-        { label: 'Planos', icon: 'pi pi-book', routerLink: '/admin/cadastros/plans' },
-        { label: 'Assinaturas', icon: 'pi pi-wallet', routerLink: '/admin/cadastros/subscription' },
-        { label: 'Pagamentos', icon: 'pi pi-receipt', routerLink: '/admin/cadastros/invoices' },
+    { label: 'Auditoria', icon: 'pi pi-eye', routerLink: '/web/audit' },
+    { label: 'Subscrições', icon: 'pi pi-barcode', path: '/web/subscriptions',items: [
+        { label: 'Planos', icon: 'pi pi-book', routerLink: '/web/cadastros/plans' },
+        { label: 'Assinaturas', icon: 'pi pi-wallet', routerLink: '/web/cadastros/subscription' },
+        { label: 'Pagamentos', icon: 'pi pi-receipt', routerLink: '/web/cadastros/invoices' },
       ] },
-    { label: 'Relatórios', icon: 'pi pi-chart-bar', routerLink: '/admin/relatorios' },
-    { label: 'Configurações', icon: 'pi pi-cog', routerLink: '/admin/config' }
+    { label: 'Relatórios', icon: 'pi pi-chart-bar', routerLink: '/web/relatorios' },
+    { label: 'Configurações', icon: 'pi pi-cog', routerLink: '/web/config' }
   ];
 
   /*userMenuItems: MenuItem[] = [
