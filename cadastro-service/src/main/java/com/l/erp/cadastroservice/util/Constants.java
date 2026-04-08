@@ -103,5 +103,11 @@ public class Constants {
     public static final String DEPOSITO_NOT_FOUND = "Deposito nao encontrado!";
     public static final String DEPOSITO_ALREADY_EXISTS = "Já existe um deposito com este nome";
 
+    public static final String COND_PAG = "CONDICAO_PAGAMENTO";
+    public static final String COND_PAG_CREATION = COND_PAG + "_" + INSERT;
+    public static final String COND_PAG_UPDATE = COND_PAG +"_" + UPDATE;
+    public static final String COND_PAG_NOT_FOUND = "Condição de Pagamento nao encontrada!";
+    public static final String COND_PAG_ALREADY_EXISTS = "Já existe uma Condição de Pagamento com este nome";
+
 
 }

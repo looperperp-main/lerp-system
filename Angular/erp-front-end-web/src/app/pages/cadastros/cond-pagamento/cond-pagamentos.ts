@@ -1,68 +1,70 @@
 import {Component, inject, OnInit, signal} from '@angular/core';
-import {ButtonDirective} from 'primeng/button';
-import {DatePipe, NgForOf, NgIf} from '@angular/common';
+import {CondPagamentoService} from './cond-pagamento.service';
+import {CondPagamento} from './cond-pagamento.model';
 import {Dialog} from 'primeng/dialog';
-import {HtmlDecodePipe} from '../../../util/pipe/html-decode.pipe';
-import {PrimaryButtonComponent} from '../../../components/primary-button/primary-button';
 import {MessageService, PrimeTemplate} from 'primeng/api';
-import {Ripple} from 'primeng/ripple';
+import {DatePipe, NgForOf, NgIf} from '@angular/common';
+import {ButtonDirective} from 'primeng/button';
 import {TableModule} from 'primeng/table';
-import {Toast} from 'primeng/toast';
-import {Tooltip} from 'primeng/tooltip';
-import {DepositoService} from './deposito.service';
+import {CondPagamentoForm} from './cond-pagamento-form/cond-pagamento-form';
 import {ColumnConfig} from '../../../components/table/data-table';
+import {Ripple} from 'primeng/ripple';
+import {Tooltip} from 'primeng/tooltip';
+import {HtmlDecodePipe} from '../../../util/pipe/html-decode.pipe';
+import {Toast} from 'primeng/toast';
 import {HttpErrorResponse} from '@angular/common/http';
-import {GrupoCliente} from '../grupo-clientes/grupo-cliente.model';
-import {Deposito} from './deposito.model';
-import {DepositoForm} from './deposito-form/deposito-form';
+import {PrimaryButtonComponent} from '../../../components/primary-button/primary-button';
 
 @Component({
-  selector: 'app-deposito',
+  selector: 'app-grupo-clientes',
   imports: [
+    Dialog,
+    PrimeTemplate,
+    TableModule,
+    CondPagamentoForm,
+    NgIf,
+    NgForOf,
     ButtonDirective,
     DatePipe,
-    Dialog,
     HtmlDecodePipe,
-    NgForOf,
-    NgIf,
-    PrimaryButtonComponent,
-    PrimeTemplate,
     Ripple,
-    TableModule,
-    Toast,
     Tooltip,
-    DepositoForm
+    Toast,
+    PrimaryButtonComponent
   ],
   providers: [MessageService],
-  templateUrl: './depositos.html',
-  styleUrl: './depositos.scss',
+  templateUrl: './cond-pagamento.html',
+  styleUrl: './cond-pagamento.scss',
 })
-export class Depositos implements OnInit{
-  private depositoService = inject(DepositoService);
+export class CondPagamentos implements OnInit {
+
+  private cPagService = inject(CondPagamentoService);
   private messageService = inject(MessageService);
 
   loading = signal<boolean>(true);
   totalRecords = signal<number>(0);
-  depositos = signal<Deposito[]>([]);
+  conds = signal<CondPagamento[]>([]);
 
   cols: ColumnConfig[] = [
     { field: 'nome', header: 'Nome', type: 'text' },
     { field: 'descricao', header: 'Descrição', type: 'text' },
-    { field: 'tipo', header: 'Tipo', type: 'text' },
     { field: 'ativo', header: 'Ativo', type: 'status' },
     { field: 'createdAt', header: 'Data Criação', type: 'date' },
+    { field: 'createdBy', header: 'Criado Por', type: 'text' },
     { field: 'updatedAt', header: 'Data Atualização', type: 'date' },
+    { field: 'lastUpdatedBy', header: 'Atualizado Por', type: 'text' },
     { field: 'actions', header: 'Ações', type: 'actions' }
   ];
 
+  // Controle do Modal de Formulário
   displayForm = false;
-  selectedDeposito: Deposito | null = null;
+  selectedCPag: CondPagamento | null = null;
 
   ngOnInit(): void {
     // PrimeNG lazy load inicializa automaticamente
   }
 
-  loadDepositos(event: any): void {
+  loadcPags(event: any): void {
     setTimeout(() => {
       this.loading.set(true);
     });
@@ -72,33 +74,33 @@ export class Depositos implements OnInit{
     const page = first / rows;
     const size = rows;
 
-    this.depositoService.listar(page, size).subscribe({
+    this.cPagService.listar(page, size).subscribe({
       next: (data) => {
-        this.depositos.set(data.content || []);
+        this.conds.set(data.content || []);
         this.totalRecords.set(data.totalElements || 0);
         this.loading.set(false);
       },
       error: (err: HttpErrorResponse) => {
-        this.handleError(err, 'Erro ao carregar os Depositos.');
+        this.handleError(err, 'Erro ao carregar Condições de Pagamento.');
         this.loading.set(false);
       }
     });
   }
 
   openNew(): void {
-    this.selectedDeposito = null;
+    this.selectedCPag = null;
     this.displayForm = true;
   }
 
-  editGrupo(deposito: Deposito): void {
-    this.selectedDeposito = { ...deposito };
+  editGrupo(condPagamento: CondPagamento): void {
+    this.selectedCPag = { ...condPagamento };
     this.displayForm = true;
   }
 
   onFormSaved(): void {
     this.displayForm = false;
     // Força recarga da primeira página
-    this.loadDepositos({ first: 0, rows: 10 });
+    this.loadcPags({ first: 0, rows: 10 });
   }
 
   onFormCanceled(): void {

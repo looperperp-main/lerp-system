@@ -1,36 +1,35 @@
 import {Component, EventEmitter, inject, Input, OnInit, Output} from '@angular/core';
-import {GrupoCliente} from '../../grupo-clientes/grupo-cliente.model';
+import {CondPagamento} from '../cond-pagamento.model';
 import {FormBuilder, FormGroup, ReactiveFormsModule, Validators} from '@angular/forms';
 import {ToastrService} from 'ngx-toastr';
-import {DepositoService} from '../deposito.service';
-import {Deposito} from '../deposito.model';
-import {Button} from 'primeng/button';
+import {CondPagamentoService} from '../cond-pagamento.service';
 import {Checkbox} from 'primeng/checkbox';
-import {InputText} from 'primeng/inputtext';
+import {Button} from 'primeng/button';
 import {NgClass, NgIf} from '@angular/common';
 import {Textarea} from 'primeng/textarea';
+import {InputText} from 'primeng/inputtext';
 
 @Component({
-  selector: 'app-deposito-form',
+  selector: 'app-cond-pagamento-form',
   imports: [
-    Button,
     Checkbox,
-    InputText,
-    NgIf,
     ReactiveFormsModule,
+    Button,
+    NgClass,
     Textarea,
-    NgClass
+    InputText,
+    NgIf
   ],
-  templateUrl: './deposito-form.html',
-  styleUrl: './deposito-form.scss',
+  templateUrl: './cond-pagamento-form.html',
+  styleUrl: './cond-pagamento-form.scss',
 })
-export class DepositoForm implements OnInit{
-  @Input() depositoData: Deposito | null = null;
+export class CondPagamentoForm implements OnInit {
+  @Input() cPagData: CondPagamento | null = null;
   @Output() saved = new EventEmitter<void>();
   @Output() canceled = new EventEmitter<void>();
 
   private fb = inject(FormBuilder);
-  private depositoService = inject(DepositoService);
+  private grupoService = inject(CondPagamentoService);
   private toastService = inject(ToastrService);
 
   form!: FormGroup;
@@ -38,11 +37,10 @@ export class DepositoForm implements OnInit{
 
   ngOnInit(): void {
     this.form = this.fb.group({
-      id: [this.depositoData?.id || null],
-      nome: [this.depositoData?.nome || '', [Validators.required, Validators.maxLength(100)]],
-      descricao: [this.depositoData?.descricao || '', [Validators.maxLength(500)]],
-      tipo: [this.depositoData?.tipo || '', [Validators.maxLength(30)]],
-      ativo: [this.depositoData ? this.depositoData.ativo : true]
+      id: [this.cPagData?.id || null],
+      nome: [this.cPagData?.nome || '', [Validators.required, Validators.maxLength(100)]],
+      descricao: [this.cPagData?.descricao || '', [Validators.maxLength(500)]],
+      ativo: [this.cPagData ? this.cPagData.ativo : true]
     });
   }
 
@@ -53,21 +51,22 @@ export class DepositoForm implements OnInit{
     }
 
     this.isSaving = true;
-    const formValue: Deposito = this.form.value;
+    const formValue: CondPagamento = this.form.value;
 
-    this.depositoService.salvar(formValue).subscribe({
+    this.grupoService.salvar(formValue).subscribe({
       next: () => {
-        this.toastService.success('Deposito salvo com sucesso!');
+        this.toastService.success('Condição de Pagamento salva com sucesso!');
         this.isSaving = false;
         this.saved.emit();
       },
       error: (err) => {
         this.isSaving = false;
-        if (err.error?.message === 'DEPOSITO_ALREADY_EXISTS') {
-          this.toastService.error('Já existe um Deposito com este nome.');
+        // O backend joga "GROUP_C_ALREADY_EXISTS" caso já exista
+        if (err.error?.message === 'COND_PAG_ALREADY_EXISTS') {
+          this.toastService.error('Já existe uma condição com este nome.');
           this.canceled.emit();
         } else {
-          this.toastService.error('Erro ao salvar o deposito.');
+          this.toastService.error('Erro ao salvar a Condição de Pagamento.');
           this.canceled.emit();
         }
       }

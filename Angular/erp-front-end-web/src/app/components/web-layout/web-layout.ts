@@ -36,7 +36,7 @@ export class WebLayout {
     { label: 'Cadastros', icon: 'pi pi-folder', path: '/web/cadastros',items: [
         { label: 'Grupo de Clientes', icon: 'pi pi-user', routerLink: '/web/cadastros/grp_c' },
         { label: 'Depositos', icon: 'pi pi-user', routerLink: '/web/cadastros/depositos' },
-        { label: 'Roles', icon: 'pi pi-id-card', routerLink: '/web/cadastros/roles' },
+        { label: 'Condições de Pagamento', icon: 'pi pi-id-card', routerLink: '/web/cadastros/cond-pagamento' },
         { label: 'Permissões', icon: 'pi pi-shield', routerLink: '/web/cadastros/permission' }
       ] },
     { label: 'Segurança', icon: 'pi pi-server', routerLink: '/web/security', items: [
