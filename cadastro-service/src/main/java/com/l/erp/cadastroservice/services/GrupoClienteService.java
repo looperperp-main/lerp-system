@@ -138,8 +138,11 @@ public class GrupoClienteService {
 
         GrupoCliente grupoCliente = mapper.toEntity(dto);
         grupoCliente.setId(id);
+        grupoCliente.setCreatedBy(oldGrupoCliente.getCreatedBy());
+        grupoCliente.setCreatedAt(oldGrupoCliente.getCreatedAt());
         grupoCliente.setUpdatedAt(Instant.now());
         grupoCliente.setLastUpdatedBy(userId);
+        grupoCliente.setTenantId(tenantID);
 
         GrupoCliente saved = repository.save(grupoCliente);
         sendAuditEvent(

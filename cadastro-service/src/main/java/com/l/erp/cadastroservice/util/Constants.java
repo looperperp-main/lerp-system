@@ -97,5 +97,11 @@ public class Constants {
 
     public static final String TENANT_ASSOC_ERROR = TENANT + "_" + ERROR + "_ Voce nao está autorizado a realizar essa operacao";
 
+    public static final String DEPOSITO = "DEPOSITO";
+    public static final String DEPOSITO_CREATION = DEPOSITO + "_" + INSERT;
+    public static final String DEPOSITO_UPDATE = DEPOSITO +"_" + UPDATE;
+    public static final String DEPOSITO_NOT_FOUND = "Deposito nao encontrado!";
+    public static final String DEPOSITO_ALREADY_EXISTS = "Já existe um deposito com este nome";
+
 
 }

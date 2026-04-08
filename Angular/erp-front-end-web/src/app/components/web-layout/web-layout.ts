@@ -35,7 +35,7 @@ export class WebLayout {
     { label: 'Overview', icon: 'pi pi-home', routerLink: '/web/home' },
     { label: 'Cadastros', icon: 'pi pi-folder', path: '/web/cadastros',items: [
         { label: 'Grupo de Clientes', icon: 'pi pi-user', routerLink: '/web/cadastros/grp_c' },
-        { label: 'Tenants', icon: 'pi pi-user', routerLink: '/web/cadastros/tenants' },
+        { label: 'Depositos', icon: 'pi pi-user', routerLink: '/web/cadastros/depositos' },
         { label: 'Roles', icon: 'pi pi-id-card', routerLink: '/web/cadastros/roles' },
         { label: 'Permissões', icon: 'pi pi-shield', routerLink: '/web/cadastros/permission' }
       ] },
