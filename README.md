@@ -35,11 +35,7 @@ docker-compose up -d postgres zookeeper kafka
 ./mvnw spring-boot:run
 ```
 
----
 
-### 2. README.md para o `cadastro-service`
-
-```markdown
 # Cadastro Service
 
 Microsserviço responsável pelo gerenciamento dos cadastros básicos e essenciais do ERP (Master Data). Ele fornece as entidades fundamentais que serão consumidas e referenciadas por outros módulos do sistema.
@@ -79,6 +75,3 @@ Para rodar a aplicação localmente:
 
 O `cadastro-service` atua primariamente como uma API RESTful para os front-ends (`erp-front-end-admin` e `erp-front-end-web`).
 As requisições devem passar pelo API Gateway, que lida com o roteamento e a injeção dos cabeçalhos do Tenant e do Usuário a partir do JWT gerado pelo `auth-service`.
-```
-
-Você pode copiar e colar esse conteúdo diretamente nos seus arquivos. O formato Markdown (`.md`) garantirá que a documentação fique bem formatada no GitLab/GitHub e na própria IDE (IntelliJ).
