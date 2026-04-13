@@ -6,11 +6,13 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { DefaultLoginLayout } from '../../components/default-login-layout/default-login-layout';
 import { PrimaryInput } from '../../components/primary-input/primary-input';
 import { TenantLoginService } from './service/tenant-login.service';
+import {MessageService} from 'primeng/api';
+import {Toast} from 'primeng/toast';
 
 @Component({
   selector: 'app-tenant-login',
   standalone: true,
-  imports: [DefaultLoginLayout, ReactiveFormsModule, PrimaryInput, FormsModule, ReactiveFormsModule],
+  imports: [DefaultLoginLayout, ReactiveFormsModule, PrimaryInput, FormsModule, ReactiveFormsModule, Toast],
   templateUrl: './login.html',
   styleUrl: './login.scss',
 })
@@ -20,7 +22,7 @@ export class TenantLogin implements OnInit{
   constructor(
     private router: Router,
     private loginService: TenantLoginService,
-    private toastService: ToastrService
+    private toastService: ToastrService, private messageService: MessageService
   ) {
     this.loginForm = new FormGroup({
       cnpj: new FormControl('', [
@@ -68,11 +70,13 @@ export class TenantLogin implements OnInit{
             localStorage.removeItem('rememberedCnpj');
             localStorage.removeItem('rememberedPW');
           }
-          this.toastService.success(
-            `Bem-vindo(a), ${response.username}!`,
-            response.tenantName
-          );
+          this.messageService.add({ severity: 'success', summary: response.tenantName, detail:
+              `Bem-vindo(a), ${response.username}!`,sticky: true
+            });
+
           this.router.navigate(['/web']);
+
+
         },
         error: (err: HttpErrorResponse) => this.handleLoginError(err)
       });

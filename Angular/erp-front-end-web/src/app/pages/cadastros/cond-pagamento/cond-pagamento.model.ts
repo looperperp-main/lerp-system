@@ -7,6 +7,16 @@ export interface CondPagamento {
   updatedAt?: string;
 }
 
+export interface CondPagamentoParcela {
+  id?: string;
+  condicaoPagamentoId?: string;
+  numeroParcela: number;
+  diasPrazo: number;
+  percentual: number;
+  formaPagamento: string;
+  _links?: any; // Para HATEOAS
+}
+
 export interface Page<T> {
   content: T[];
   totalElements: number;

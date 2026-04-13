@@ -1,7 +1,10 @@
 package com.l.erp.cadastroservice.domain;
 
+import com.l.erp.cadastroservice.domain.enumerators.FormaPagamento;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -49,6 +52,11 @@ public class CondicaoPagamentoParcela {
     @NotNull
     @Column(name = "percentual", nullable = false, precision = 5, scale = 2)
     private BigDecimal percentual;
+
+    @NotNull
+    @Enumerated(EnumType.STRING)
+    @Column(name = "forma_pagamento", nullable = false, length = 50)
+    private FormaPagamento formaPagamento;
 
     @NotNull
     @Column(name = "created_at", nullable = false)

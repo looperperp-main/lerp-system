@@ -107,6 +107,10 @@ public class Constants {
     public static final String COND_PAG_NOT_FOUND = "Condição de Pagamento nao encontrada!";
     public static final String COND_PAG_ALREADY_EXISTS = "Já existe uma Condição de Pagamento com este nome";
 
+    public static final String COND_PAG_PAR = "CONDICAO_PAGAMENTO_PARCELA";
+    public static final String COND_PAG_PAR_CREATION = COND_PAG_PAR + "_" + INSERT;
+    public static final String COND_PAG_PAR_UPDATE = COND_PAG_PAR +"_" + UPDATE;
+
     public static final String PESSOA = "PESSOA";
     public static final String PESSOA_CREATION = PESSOA + "_" + INSERT;
     public static final String PESSOA_UPDATE = PESSOA +"_" + UPDATE;

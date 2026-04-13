@@ -7,11 +7,12 @@ import {Router} from '@angular/router';
 import {LoginService} from './service/login';
 import {ToastrService} from 'ngx-toastr';
 import {HttpErrorResponse} from '@angular/common/http';
+import {MessageService} from 'primeng/api';
 
 @Component({
   selector: 'app-login',
   imports: [DefaultLoginLayout, ReactiveFormsModule, PrimaryInput, NgOptimizedImage],
-  providers: [LoginService],
+  providers: [LoginService, MessageService],
   templateUrl: './login.html',
   styleUrl: './login.scss',
 })
@@ -22,7 +23,8 @@ export class Login {
   constructor(
     private router: Router,
     private loginService: LoginService,
-    private toastService: ToastrService
+    private toastService: ToastrService,
+    private messageService: MessageService
   ) {
     this.loginForm = new FormGroup({
       email: new FormControl('', [Validators.required, Validators.email]),
@@ -36,7 +38,7 @@ export class Login {
       console.log('Form is valid, perform login logic here');
       this.loginService.login(this.loginForm.value.email, this.loginForm.value.password).subscribe({
         next: () => {
-          this.toastService.success("Login Feito com sucesso");
+          this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Login Feito com sucesso!' });
           this.router.navigate(['/admin']);
         },//TODO: navegar para as outar páginas
         error: (err: HttpErrorResponse) => this.handleLoginError(err)
@@ -49,26 +51,18 @@ export class Login {
   private handleLoginError(err: HttpErrorResponse) {
     // Status 423 = LOCKED (usuário bloqueado)
     if (err.status === 423 && err.error?.error === 'USER_LOCKED') {
-      this.toastService.error(
-        err.error.message,
-        'Usuário Bloqueado',
-        { timeOut: 10000, closeButton: true, progressBar: true }
-      );
+      this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Usuário Bloqueado!', life: 10000 });
       return;
     }
 
     // Erro de negócio genérico (ex: status 403)
     if (err.error?.message) {
-      this.toastService.error(err.error.message, 'Erro de Login', { timeOut: 7000 });
+      this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Erro de Login!', life: 7000 });
       return;
     }
 
     // Fallback para erros genéricos
-    this.toastService.error(
-      "Erro ao fazer login! Verifique as credenciais ou tente novamente mais tarde.",
-      'Erro',
-      { timeOut: 5000 }
-    );
+    this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao fazer login! Verifique as credenciais ou tente novamente mais tarde.', life: 5000 });
   }
 
   navigate() {

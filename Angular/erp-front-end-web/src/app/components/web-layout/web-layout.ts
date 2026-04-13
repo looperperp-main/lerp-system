@@ -1,9 +1,10 @@
 import { Component } from '@angular/core';
 import {NgForOf, NgIf, NgOptimizedImage} from "@angular/common";
 import {Router, RouterLink, RouterLinkActive, RouterOutlet} from "@angular/router";
-import {MenuItem} from 'primeng/api';
+import {MenuItem, MessageService} from 'primeng/api';
 import {TenantLoginService} from '../../pages/login/service/tenant-login.service';
 import {ToastrService} from 'ngx-toastr';
+import {Toast} from 'primeng/toast';
 
 @Component({
   selector: 'app-web-layout',
@@ -14,7 +15,8 @@ import {ToastrService} from 'ngx-toastr';
     RouterOutlet,
     RouterLink,
     RouterLinkActive,
-    NgOptimizedImage
+    NgOptimizedImage,
+    Toast
   ],
   templateUrl: './web-layout.html',
   styleUrl: './web-layout.scss',
@@ -90,6 +92,7 @@ export class WebLayout {
 
   constructor(private router: Router,
               private logoutService: TenantLoginService,
+              private messageService: MessageService,
               private toastService: ToastrService) {
 
     this.checkScreenSize();
@@ -122,7 +125,7 @@ export class WebLayout {
     this.logoutError = '';
     this.logoutService.logout().subscribe({
       next: () => {
-        this.toastService.success('Logout realizado com sucesso');
+        this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Logout realizado com sucesso!' });
         this.isDropdownOpen = false;
         sessionStorage.clear();
         /*sessionStorage.removeItem('auth-token');
@@ -132,7 +135,7 @@ export class WebLayout {
       },
       error: () => {
         this.logoutError = 'Erro ao sair. Tente novamente.';
-        this.toastService.error('Erro ao realizar logout');
+        this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao realizar logout!' });
       }
     });
   }
