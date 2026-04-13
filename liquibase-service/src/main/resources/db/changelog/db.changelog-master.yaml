@@ -27,3 +27,6 @@ databaseChangeLog:
   - include:
       file: cadastro/cadastro-schema-003.yaml
       relativeToChangelogFile: true
+  - include:
+      file: cadastro/cadastro-schema-004.yaml
+      relativeToChangelogFile: true
