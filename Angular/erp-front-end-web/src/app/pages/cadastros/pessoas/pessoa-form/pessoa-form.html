@@ -1,0 +1,355 @@
+<p-stepper [(value)]="activeStep">
+
+  <!-- Cabeçalho das Abas -->
+  <p-step-list>
+    <p-step [value]="1">Dados Gerais</p-step>
+    <p-step [value]="2" [disabled]="!pessoaId">Endereços</p-step>
+    <p-step [value]="3" [disabled]="!pessoaId">Contatos</p-step>
+  </p-step-list>
+
+  <!-- Conteúdo dos Painéis -->
+  <p-step-panels>
+    <!-- PASSO 1: DADOS GERAIS -->
+    <p-step-panel [value]="1">
+      <ng-template #content let-activateCallback="activateCallback">
+        <form [formGroup]="formPessoa" class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <div class="flex flex-col gap-2">
+            <label for="tipo"
+                   class="font-semibold text-gray-700">Tipo de Pessoa <span class="text-red-500">*</span></label>
+            <p-select
+              id="tipo"
+              formControlName="tipo"
+              [options]="tiposPessoa"
+              optionLabel="label"
+              optionValue="value"
+              placeholder="Selecione..."
+              [style]="{'width':'100%'}">
+            </p-select>
+            <small class="text-red-500" *ngIf="isFieldInvalid('tipo')">Campo obrigatório.</small>
+          </div>
+          <div class="flex flex-col gap-2">
+              <label for="nome" class="font-semibold text-gray-700">Nome <span class="text-red-500">*</span></label>
+              <input
+                id="nome"
+                type="text"
+                pInputText
+                formControlName="nomeRazao"
+                class="w-full"
+                [ngClass]="{'ng-invalid ng-dirty': isFieldInvalid('nome')}"
+                placeholder="Ex: Atacadistas">
+              <small *ngIf="isFieldInvalid('nome')" class="text-red-500">O nome é obrigatório.</small>
+          </div>
+
+          <div class="flex flex-col gap-2">
+
+            <label for="apelidoFantasia" class="font-semibold text-gray-700">Nome Fantasia</label>
+            <input
+              id="apelidoFantasia"
+              type="text"
+              pInputText
+              formControlName="apelidoFantasia"
+              class="w-full"
+              placeholder="Ex: Atacadistas">
+
+          </div>
+          <div class="flex flex-col gap-2">
+
+            <label for="documento" class="font-semibold text-gray-700">Documento (CPF/CNPJ) <span class="text-red-500">*</span></label>
+            <input
+              id="documento"
+              type="text"
+              pInputText
+              formControlName="documento"
+              class="w-full"
+              [ngClass]="{'ng-invalid ng-dirty': isFieldInvalid('documento')}"
+              placeholder="Ex: 11.111.111/1111-11">
+            <small *ngIf="isFieldInvalid('documento')" class="text-red-500">O documento é obrigatório.</small>
+
+          </div>
+
+          <div class="flex flex-col gap-2">
+
+            <label for="ie" class="font-semibold text-gray-700">Inscrição Estadual</label>
+            <input
+              id="ie"
+              type="text"
+              pInputText
+              formControlName="ie"
+              class="w-full"
+              placeholder="111111">
+          </div>
+
+          <div class="flex flex-col gap-2">
+
+            <label for="im" class="font-semibold text-gray-700">Inscrição Municipal</label>
+            <input
+              id="im"
+              type="text"
+              pInputText
+              formControlName="im"
+              class="w-full"
+              placeholder="111111">
+          </div>
+          <div class="flex flex-col gap-2">
+
+            <label for="dataNascimento" class="font-semibold text-gray-700">Data de Nascimento</label>
+            <p-datepicker
+              formControlName="dataNascimento"
+              dateFormat="dd/mm/yy"
+              placeholder="dd/mm/yyyy"
+              appendTo="body"
+              pInputMask="99/99/9999">
+            </p-datepicker>
+          </div>
+        </form>
+        <div class="flex justify-content-end mt-4">
+          <p-button label="Cancelar" severity="secondary" class="mr-2" (onClick)="onCanceled.emit()"></p-button>
+          <!-- Em vez de passar o callback por evento, controlamos a etapa pela variável e a requisição POST no TS -->
+          <p-button label="Salvar e Continuar" (onClick)="salvarPessoa()"></p-button>
+        </div>
+      </ng-template>
+    </p-step-panel>
+
+    <!-- PASSO 2: ENDEREÇOS -->
+    <p-step-panel [value]="2">
+      <ng-template #content let-activateCallback="activateCallback">
+        <form [formGroup]="formEndereco" class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <div class="flex flex-col gap-2">
+            <label for="tipo"
+                   class="font-semibold text-gray-700">Tipo do Endereço<span class="text-red-500">*</span></label>
+            <p-select
+              id="tipo"
+              formControlName="tipo"
+              [options]="tiposEndereco"
+              optionLabel="label"
+              optionValue="value"
+              placeholder="Selecione..."
+              [style]="{'width':'100%'}">
+            </p-select>
+          </div>
+          <div class="flex flex-col gap-2">
+            <label for="logradouro" class="font-semibold text-gray-700">Logradouro<span class="text-red-500">*</span></label>
+            <input id="logradouro"
+                   type="text"
+                   pInputText
+                   formControlName="logradouro"
+                   class="w-full"
+                   [ngClass]="{'ng-invalid ng-dirty': isFieldInvalid('logradouro')}"
+                   placeholder="Ex: Rua E">
+            <small *ngIf="isFieldInvalid('logradouro')" class="text-red-500">O Logradouro é obrigatório.</small>
+          </div>
+          <div class="flex flex-col gap-2">
+            <label for="numero" class="font-semibold text-gray-700">Número</label>
+            <input
+              pInputText
+              formControlName="numero"
+              id="numero"
+              type="text"
+              class="w-full"
+              placeholder="Ex: 10"
+            />
+          </div>
+          <div class="flex flex-col gap-2">
+            <label for="complemento" class="font-semibold text-gray-700">Complemento</label>
+            <input
+              pInputText
+              formControlName="complemento"
+              id="complemento"
+              type="text"
+              class="w-full"
+              placeholder="Ex: Apartamento 101"/>
+          </div>
+          <div class="flex flex-col gap-2">
+            <label for="bairro" class="font-semibold text-gray-700">Bairro</label>
+            <input
+              pInputText
+              formControlName="bairro"
+              id="bairro"
+              type="text"
+              class="w-full"
+              placeholder="Ex: Centro"
+            />
+          </div>
+          <div class="flex flex-col gap-2">
+            <label for="cidade" class="font-semibold text-gray-700">Cidade<span class="text-red-500">*</span></label>
+            <input
+              pInputText
+              formControlName="cidade"
+              id="cidade"
+              type="text"
+              class="w-full"
+              [ngClass]="{'ng-invalid ng-dirty': isFieldInvalid('cidade')}"
+              placeholder="Ex: São Paulo"
+            />
+          </div>
+          <div class="flex flex-col gap-2">
+            <label for="uf" class="font-semibold text-gray-700">UF<span class="text-red-500">*</span></label>
+            <input pInputText
+                   formControlName="uf"
+                   id="uf"
+                   type="text"
+                   class="w-full"
+                   [ngClass]="{'ng-invalid ng-dirty': isFieldInvalid('uf')}"
+                   placeholder="Ex: São Paulo"/>
+          </div>
+          <div class="flex flex-col gap-2">
+            <label for="cep" class="font-semibold text-gray-700">CEP<span class="text-red-500">*</span></label>
+            <input
+              pInputText
+              formControlName="cep"
+              id="cep"
+              type="text"
+              class="w-full"
+              [ngClass]="{'ng-invalid ng-dirty': isFieldInvalid('cep')}"
+              placeholder="Ex: 00000-000"/>
+          </div>
+          <div class="flex flex-col gap-2">
+            <label for="ibgeCodigo" class="font-semibold text-gray-700">Código do IBGE</label>
+            <input pInputText formControlName="ibgeCodigo"
+                   id="ibgeCodigo"
+                   type="text"
+                   class="w-full"
+                   placeholder="Ex: 000000" />
+          </div>
+          <div class="flex flex-col gap-2">
+            <label for="pais" class="font-semibold text-gray-700">País</label>
+            <input
+              pInputText
+              formControlName="pais"
+              value="Brasil"
+              id="pais"
+              type="text"
+              class="w-full"
+              placeholder="Ex: Brasil"/>
+          </div>
+          <div class="flex flex-col gap-2">
+            <p-checkbox
+              inputId="principal"
+              formControlName="principal"
+              [binary]="true"></p-checkbox>
+            <label for="principal" class="font-semibold text-gray-700 cursor-pointer">Principal</label>
+          </div>
+          <div class="col-12 flex justify-content-end mb-3">
+            <p-button label="Adicionar Endereço" icon="pi pi-plus" (onClick)="salvarEndereco()" [disabled]="formEndereco.invalid"></p-button>
+          </div>
+        </form>
+
+        <p-table [value]="enderecos" [rows]="5">
+          <ng-template pTemplate="header">
+            <tr>
+              <th>Tipo</th>
+              <th>Logradouro</th>
+              <th>Cidade/UF</th>
+              <th>Ações</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-end>
+            <tr>
+              <td>{{ end.tipo }}</td>
+              <td>{{ end.logradouro }}, {{ end.numero }}</td>
+              <td>{{ end.cidade }} - {{ end.uf }}</td>
+              <td>
+                <p-button icon="pi pi-pencil" [text]="true" [rounded]="true" (onClick)="editarEndereco(end)"></p-button>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+
+        <div class="flex justify-content-between mt-4">
+          <p-button label="Voltar" severity="secondary" class="mr-2" (onClick)="activateCallback(1)"></p-button>
+          <p-button label="Continuar para Contatos" (onClick)="activateCallback(3); carregarContatos()"></p-button>
+        </div>
+      </ng-template>
+    </p-step-panel>
+
+    <!-- PASSO 3: CONTATOS -->
+    <p-step-panel [value]="3">
+      <ng-template #content let-activateCallback="activateCallback">
+        <form [formGroup]="formContato" class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <div class="flex flex-col gap-2">
+            <label for="tipo"
+                   class="font-semibold text-gray-700">Tipo do Contato<span class="text-red-500">*</span></label>
+            <p-select
+              id="tipo"
+              formControlName="tipo"
+              [options]="tiposContato"
+              optionLabel="label"
+              optionValue="value"
+              placeholder="Selecione..."
+              [style]="{'width':'100%'}">
+            </p-select>
+          </div>
+          <div class="flex flex-col gap-2">
+            <label for="nome" class="font-semibold text-gray-700">Descrição<span class="text-red-500">*</span></label>
+            <input id="nome"
+                   type="text"
+                   pInputText
+                   formControlName="nome"
+                   class="w-full"
+                   [ngClass]="{'ng-invalid ng-dirty': isFieldInvalid('nome')}"
+                   placeholder="Ex: Rua E">
+            <small *ngIf="isFieldInvalid('nome')" class="text-red-500">A descrição é obrigatório.</small>
+          </div>
+          <!--Cargo removido-->
+          <div class="flex flex-col gap-2">
+            <label for="email" class="font-semibold text-gray-700">Email</label>
+            <input
+              pInputText
+              formControlName="email"
+              id="email"
+              type="text"
+              class="w-full"
+              placeholder="Ex: gerente@email.com"/>
+          </div>
+          <div class="flex flex-col gap-2">
+            <label for="telefone" class="font-semibold text-gray-700">Telefone</label>
+            <input
+              pInputText
+              formControlName="telefone"
+              id="telefone"
+              type="text"
+              class="w-full"
+              placeholder="Ex: +55 37 99999-9999"
+            />
+          </div>
+          <div class="flex flex-col gap-2">
+            <p-checkbox
+              inputId="ativo"
+              formControlName="ativo"
+              [binary]="true"></p-checkbox>
+            <label for="ativo" class="font-semibold text-gray-700 cursor-pointer">Ativo</label>
+          </div>
+        </form>
+
+        <p-table [value]="contatos" [rows]="5">
+          <ng-template pTemplate="header">
+            <tr>
+              <th>Tipo</th>
+              <th>Descrição</th>
+              <th>Email</th>
+              <th>Telefone</th>
+              <th>Ações</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-contatos>
+            <tr>
+              <td>{{ contatos.tipo }}</td>
+              <td>{{ contatos.nome }}</td>
+              <td>{{ contatos.email }}</td>
+              <td>{{ contatos.telefone }}</td>
+              <td>
+                <p-button icon="pi pi-pencil" [text]="true" [rounded]="true" (onClick)="editarContato(contatos)"></p-button>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+
+        <div class="flex justify-content-between mt-4">
+          <p-button label="Voltar" severity="secondary" class="mr-2" (onClick)="activateCallback(2)"></p-button>
+          <p-button label="Finalizar" severity="success" (onClick)="salvarContato();onSaved.emit()"></p-button>
+        </div>
+      </ng-template>
+    </p-step-panel>
+  </p-step-panels>
+
+</p-stepper>

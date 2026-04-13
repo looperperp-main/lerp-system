@@ -1,7 +1,5 @@
 package com.l.erp.cadastroservice.util;
 
-import org.apache.tomcat.util.http.parser.TE;
-
 import java.time.Duration;
 
 public class Constants {
@@ -109,5 +107,21 @@ public class Constants {
     public static final String COND_PAG_NOT_FOUND = "Condição de Pagamento nao encontrada!";
     public static final String COND_PAG_ALREADY_EXISTS = "Já existe uma Condição de Pagamento com este nome";
 
+    public static final String PESSOA = "PESSOA";
+    public static final String PESSOA_CREATION = PESSOA + "_" + INSERT;
+    public static final String PESSOA_UPDATE = PESSOA +"_" + UPDATE;
+    public static final String PESSOA_NOT_FOUND = "Pessoa nao encontrada!";
+    public static final String PESSOA_ALREADY_EXISTS = "Já existe uma Pessoa com este nome";
 
+    public static final String END = "ENDERECO";
+    public static final String END_CREATION = END + "_" + INSERT;
+    public static final String END_UPDATE = END +"_" + UPDATE;
+    public static final String END_NOT_FOUND = "Endereço nao encontrada!";
+    public static final String END_ALREADY_EXISTS = "Já existe um Endereço com este nome";
+
+    public static final String CONTATO = "CONTATO";
+    public static final String CONTATO_CREATION = CONTATO + "_" + INSERT;
+    public static final String CONTATO_UPDATE = CONTATO +"_" + UPDATE;
+    public static final String CONTATO_NOT_FOUND = "Contato nao encontrada!";
+    public static final String CONTATO_ALREADY_EXISTS = "Já existe um Contato com este nome";
 }

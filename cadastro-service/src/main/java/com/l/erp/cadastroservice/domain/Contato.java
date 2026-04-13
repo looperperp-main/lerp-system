@@ -1,13 +1,13 @@
 package com.l.erp.cadastroservice.domain;
 
-import com.l.erp.cadastroservice.domain.enumerators.TipoPessoa;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -16,56 +16,39 @@ import lombok.Setter;
 import org.hibernate.annotations.ColumnDefault;
 
 import java.time.Instant;
-import java.time.LocalDate;
 import java.util.UUID;
 
 @Getter
 @Setter
 @Entity
-@Table(name = "pessoa", schema = "cadastros")
-public class Pessoa {
+@Table(name = "contato", schema = "cadastros")
+public class Contato {
     @Id
     @Column(name = "id", nullable = false)
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "pessoa_id", nullable = false)
+    private Pessoa pessoa;
+
     @NotNull
     @Column(name = "tenant_id", nullable = false)
     private Long tenantId;
 
-    @NotNull
-    @Enumerated(EnumType.STRING)
-    @Column(name = "tipo", nullable = false, length = 2)
-    private TipoPessoa tipo;
-
     @Size(max = 200)
     @NotNull
-    @Column(name = "nome_razao", nullable = false, length = 200)
-    private String nomeRazao;
+    @Column(name = "nome", nullable = false, length = 200)
+    private String nome;
 
-    @Size(max = 200)
-    @Column(name = "apelido_fantasia", length = 200)
-    private String apelidoFantasia;
-
-    @Size(max = 18)
+    @Size(max = 20)
     @NotNull
-    @Column(name = "documento", nullable = false, length = 18)
-    private String documento;
+    @Column(name = "tipo", nullable = false, length = 20)
+    private String tipo;
 
-    @Size(max = 20)
-    @Column(name = "ie", length = 20)
-    private String ie;
-
-    @Size(max = 20)
-    @Column(name = "im", length = 20)
-    private String im;
-
-    @Size(max = 20)
-    @Column(name = "rg", length = 20)
-    private String rg;
-
-    @Column(name = "data_nascimento")
-    private LocalDate dataNascimento;
+    @Size(max = 100)
+    @Column(name = "cargo", length = 100)
+    private String cargo;
 
     @Size(max = 200)
     @Column(name = "email", length = 200)

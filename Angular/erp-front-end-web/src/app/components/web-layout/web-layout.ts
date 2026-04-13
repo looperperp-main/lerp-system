@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import {NgForOf, NgIf} from "@angular/common";
+import {NgForOf, NgIf, NgOptimizedImage} from "@angular/common";
 import {Router, RouterLink, RouterLinkActive, RouterOutlet} from "@angular/router";
 import {MenuItem} from 'primeng/api';
 import {TenantLoginService} from '../../pages/login/service/tenant-login.service';
@@ -13,7 +13,8 @@ import {ToastrService} from 'ngx-toastr';
     NgIf,
     RouterOutlet,
     RouterLink,
-    RouterLinkActive
+    RouterLinkActive,
+    NgOptimizedImage
   ],
   templateUrl: './web-layout.html',
   styleUrl: './web-layout.scss',
@@ -35,9 +36,9 @@ export class WebLayout {
     { label: 'Overview', icon: 'pi pi-home', routerLink: '/web/home' },
     { label: 'Cadastros', icon: 'pi pi-folder', path: '/web/cadastros',items: [
         { label: 'Grupo de Clientes', icon: 'pi pi-user', routerLink: '/web/cadastros/grp_c' },
-        { label: 'Depositos', icon: 'pi pi-user', routerLink: '/web/cadastros/depositos' },
+        { label: 'Depositos', icon: 'pi pi-box', routerLink: '/web/cadastros/depositos' },
         { label: 'Condições de Pagamento', icon: 'pi pi-id-card', routerLink: '/web/cadastros/cond-pagamento' },
-        { label: 'Permissões', icon: 'pi pi-shield', routerLink: '/web/cadastros/permission' }
+        { label: 'Pessoas', icon: 'pi pi-user', routerLink: '/web/cadastros/pessoas' }
       ] },
     { label: 'Segurança', icon: 'pi pi-server', routerLink: '/web/security', items: [
         { label: 'Configurar Roles', icon: 'pi pi-sitemap', routerLink: '/web/security/role-permissions' },
