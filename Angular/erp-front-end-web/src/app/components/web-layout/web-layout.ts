@@ -34,17 +34,47 @@ export class WebLayout {
 
   menuItems: MenuItem[] = [
     { label: 'Overview', icon: 'pi pi-home', routerLink: '/web/home' },
-    { label: 'Cadastros', icon: 'pi pi-folder', path: '/web/cadastros',items: [
-        { label: 'Grupo de Clientes', icon: 'pi pi-user', routerLink: '/web/cadastros/grp_c' },
-        { label: 'Depositos', icon: 'pi pi-box', routerLink: '/web/cadastros/depositos' },
+    {
+      label: 'Parceiros de Negócio',
+      icon: 'pi pi-users',
+      path: '/web/cadastros/parceiros',
+      items: [
+        { label: 'Pessoas (Geral)', icon: 'pi pi-user', routerLink: '/web/cadastros/pessoas' },
+        { label: 'Clientes', icon: 'pi pi-shopping-bag', routerLink: '/web/cadastros/clientes' },
+        { label: 'Fornecedores', icon: 'pi pi-truck', routerLink: '/web/cadastros/fornecedores' },
+        { label: 'Vendedores', icon: 'pi pi-briefcase', routerLink: '/web/cadastros/vendedores' },
+        { label: 'Transportadoras', icon: 'pi pi-map', routerLink: '/web/cadastros/transportadoras' },
+        { label: 'Grupo de Clientes', icon: 'pi pi-sitemap', routerLink: '/web/cadastros/grp_c' }
+      ]
+    },
+    {
+      label: 'Estoque & Produtos',
+      icon: 'pi pi-box',
+      path: '/web/cadastros/produtos',
+      items: [
+        { label: 'Produtos', icon: 'pi pi-tags', routerLink: '/web/cadastros/produtos' },
+        { label: 'Categorias', icon: 'pi pi-bookmark', routerLink: '/web/cadastros/categorias' },
+        { label: 'Depósitos', icon: 'pi pi-building', routerLink: '/web/cadastros/depositos' },
+        { label: 'Tabelas de Preço', icon: 'pi pi-dollar', routerLink: '/web/cadastros/tabela-preco' },
+        { label: 'Preços por Grupo', icon: 'pi pi-users', routerLink: '/web/cadastros/tabela-preco-grupo' }
+      ]
+    },
+    {
+      label: 'Comercial & Financeiro',
+      icon: 'pi pi-wallet',
+      path: '/web/financeiro',
+      items: [
         { label: 'Condições de Pagamento', icon: 'pi pi-id-card', routerLink: '/web/cadastros/cond-pagamento' },
-        { label: 'Pessoas', icon: 'pi pi-user', routerLink: '/web/cadastros/pessoas' }
-      ] },
+        // A tabela de "condicao_pagamento_parcela" é gerenciada DENTRO da tela de Condição de Pagamento.
+        { label: 'Contas a Receber', icon: 'pi pi-arrow-right', routerLink: '/web/financeiro/recebiveis' },
+        { label: 'Contas a Pagar', icon: 'pi pi-arrow-left', routerLink: '/web/financeiro/pagaveis' }
+      ]
+    },
+
     { label: 'Segurança', icon: 'pi pi-server', routerLink: '/web/security', items: [
         { label: 'Configurar Roles', icon: 'pi pi-sitemap', routerLink: '/web/security/role-permissions' },
         { label: 'Atribuir Acessos', icon: 'pi pi-key', routerLink: '/web/security/user-roles' }
       ] },
-    { label: 'Auditoria', icon: 'pi pi-eye', routerLink: '/web/audit' },
     { label: 'Subscrições', icon: 'pi pi-barcode', path: '/web/subscriptions',items: [
         { label: 'Planos', icon: 'pi pi-book', routerLink: '/web/cadastros/plans' },
         { label: 'Assinaturas', icon: 'pi pi-wallet', routerLink: '/web/cadastros/subscription' },

@@ -47,7 +47,12 @@
         <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
       </svg>
     </app-primary-input>
-
-    <a href="#" class="forgot-password">Esqueceu sua senha?</a>
+    <div class="form-actions-row">
+      <label class="checkbox-container">
+        <input type="checkbox" formControlName="rememberMe">
+        <span>Lembrar-me</span>
+      </label>
+      <a href="#" class="forgot-password">Esqueceu sua senha?</a>
+    </div>
   </form>
 </app-default-login-layout>

@@ -1,5 +1,5 @@
-import { Component } from '@angular/core';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import {Component, OnInit} from '@angular/core';
+import {FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators} from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -10,11 +10,11 @@ import { TenantLoginService } from './service/tenant-login.service';
 @Component({
   selector: 'app-tenant-login',
   standalone: true,
-  imports: [DefaultLoginLayout, ReactiveFormsModule, PrimaryInput],
+  imports: [DefaultLoginLayout, ReactiveFormsModule, PrimaryInput, FormsModule, ReactiveFormsModule],
   templateUrl: './login.html',
   styleUrl: './login.scss',
 })
-export class TenantLogin {
+export class TenantLogin implements OnInit{
   loginForm!: FormGroup;
 
   constructor(
@@ -35,7 +35,22 @@ export class TenantLogin {
         Validators.required,
         Validators.minLength(6)
       ]),
+      rememberMe: new FormControl(false)
     });
+  }
+
+  ngOnInit(): void {
+    const savedEmail = localStorage.getItem('rememberedEmail');
+    const savedCnpj = localStorage.getItem('rememberedCnpj');
+    const savedPW = localStorage.getItem('rememberedPW');
+    if (savedEmail) {
+      this.loginForm.patchValue({
+        cnpj: savedCnpj,
+        email: savedEmail,
+        password: savedPW,
+        rememberMe: true
+      });
+    }
   }
 
   submit() {
@@ -44,6 +59,15 @@ export class TenantLogin {
 
       this.loginService.login(cnpj, email, password).subscribe({
         next: (response) => {
+          if (this.loginForm.value.rememberMe) {
+            localStorage.setItem('rememberedEmail', this.loginForm.value.email);
+            localStorage.setItem('rememberedCnpj', this.loginForm.value.cnpj);
+            localStorage.setItem('rememberedPW', this.loginForm.value.password);
+          } else {
+            localStorage.removeItem('rememberedEmail');
+            localStorage.removeItem('rememberedCnpj');
+            localStorage.removeItem('rememberedPW');
+          }
           this.toastService.success(
             `Bem-vindo(a), ${response.username}!`,
             response.tenantName
