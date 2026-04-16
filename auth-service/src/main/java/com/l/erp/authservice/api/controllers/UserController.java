@@ -69,8 +69,8 @@ public class UserController {
 
     @GetMapping("/{userId}")
     @Secured({Roles.APP_OWNER,Roles.TENANT_OWNER})
-    public ResponseEntity<String> getUserById(){
-        log.debug("REST request to get a user by id");
+    public ResponseEntity<String> getUserById(@PathVariable UUID userId){
+        log.debug("REST request to get a user by id {}", userId);
         return ResponseEntity.ok().build();
     }
 

@@ -12,7 +12,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import java.security.Timestamp;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
@@ -94,7 +93,7 @@ public class AuditService {
         auditLog.setCorrelationId(correlationId);
         auditLog.setEventDate(timestamp);
         auditRepository.save(auditLog);
-        logger.info("Audit event logged: {}", auditLog);
+        logger.info("Audit event logged: {}, Timestampo: {}", auditLog, timestamp);
     }
 
     /**

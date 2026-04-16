@@ -74,22 +74,22 @@ public class RoleController {
 
     @GetMapping("/{Id}")
     @Secured({Roles.APP_OWNER,Roles.TENANT_OWNER})
-    public ResponseEntity<String> getRoleById(){
-        log.debug("REST request to get a role by id");
+    public ResponseEntity<String> getRoleById(@PathVariable UUID Id){
+        log.debug("REST request to get a role by id {}", Id);
         return ResponseEntity.ok().build();
     }
 
     @PutMapping("/{Id}")
     @Secured({Roles.APP_OWNER,Roles.TENANT_OWNER})
-    public ResponseEntity<String> updateRoleById(){
-        log.debug("REST request to update a role by id");
+    public ResponseEntity<String> updateRoleById(@PathVariable UUID Id){
+        log.debug("REST request to update a role by id {}", Id);
         return ResponseEntity.ok().build();
     }
 
     @DeleteMapping("/{Id}")
     @Secured({Roles.APP_OWNER,Roles.TENANT_OWNER})
-    public ResponseEntity<String> deleteRoleById(){
-        log.debug("REST request to delete a role by id");
+    public ResponseEntity<String> deleteRoleById(@PathVariable UUID Id){
+        log.debug("REST request to delete a role by id {}", Id);
         return ResponseEntity.ok().build();
     }
 
