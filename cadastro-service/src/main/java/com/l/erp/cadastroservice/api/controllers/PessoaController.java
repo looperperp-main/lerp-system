@@ -104,7 +104,6 @@ public class PessoaController {
         PessoaResponseDTO response = assembler.toModel(salva);
 
         return ResponseEntity
-                .created(response.getRequiredLink(org.springframework.hateoas.IanaLinkRelations.SELF).toUri())
-                .body(response);
+                .ok(response);
     }
 }

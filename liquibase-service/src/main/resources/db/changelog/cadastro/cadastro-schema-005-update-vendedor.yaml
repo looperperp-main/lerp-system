@@ -1,0 +1,26 @@
+databaseChangeLog:
+  - changeSet:
+      id: cad-020-rename-user-id-to-pessoa-id-vendedor
+      author: vitor fernandes ferreira
+      changes:
+        - renameColumn:
+            tableName: vendedor
+            schemaName: cadastros
+            oldColumnName: user_id
+            newColumnName: pessoa_id
+            columnDataType: uuid
+
+  - changeSet:
+      id: cad-021-add-fk-vendedor-pessoa
+      author: vitor fernandes ferreira
+      changes:
+        - addForeignKeyConstraint:
+            baseTableName: vendedor
+            baseTableSchemaName: cadastros
+            baseColumnNames: pessoa_id
+            constraintName: fk_vendedor_pessoa_id
+            referencedTableName: pessoa
+            referencedTableSchemaName: cadastros
+            referencedColumnNames: id
+            onDelete: RESTRICT
+            onUpdate: CASCADE

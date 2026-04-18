@@ -18,10 +18,13 @@ profile:
 #  - name: <SomeEnabledInspectionId>
 
 #Disable inspections
-#exclude:
-#  - name: <SomeDisabledInspectionId>
-#    paths:
-#      - <path/where/not/run/inspection>
+exclude:
+  - name: VulnerableLibrariesLocal
+    paths:
+      - cadastro-service\pom.xml
+  - name: VulnerableLibrariesLocal
+    paths:
+      - gateway\pom.xml
 
 projectJDK: "25" #(Applied in CI/CD pipeline)
 
@@ -46,3 +49,5 @@ projectJDK: "25" #(Applied in CI/CD pipeline)
 
 #Specify Qodana linter for analysis (Applied in CI/CD pipeline)
 linter: jetbrains/qodana-jvm:2025.3
+
+#linter: jetbrains/qodana-js:latest

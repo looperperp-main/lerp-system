@@ -72,7 +72,7 @@ public class PessoaService {
         entity.setCreatedAt(Instant.now());
 
         Pessoa saved = pessoaRepository.save(entity);
-        sendAuditEvent("PESSOA_CREATION", userId, saved.getId(), Constants.SUCCESS, null, correlationId);
+        sendAuditEvent(Constants.PESSOA_CREATION, userId, saved.getId(), Constants.SUCCESS, null, correlationId);
 
         return saved;
     }

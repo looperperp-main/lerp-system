@@ -7,6 +7,7 @@ import {GrupoClientes} from './pages/cadastros/grupo-clientes/grupo-clientes';
 import {Depositos} from './pages/cadastros/deposito/depositos';
 import {CondPagamentos} from './pages/cadastros/cond-pagamento/cond-pagamentos';
 import {Pessoas} from './pages/cadastros/pessoas/pessoas';
+import {Vendedores} from './pages/cadastros/vendedores/vendedores';
 
 export const routes: Routes = [
     { path: '', redirectTo: 'login', pathMatch: 'full' },
@@ -21,6 +22,7 @@ export const routes: Routes = [
           { path: 'cadastros/depositos', component: Depositos  },
           { path: 'cadastros/cond-pagamento', component: CondPagamentos  },
           { path: 'cadastros/pessoas', component: Pessoas  },
+          { path: 'cadastros/vendedores', component: Vendedores  },
         ]
         //canActivate: [authGuard]
     },

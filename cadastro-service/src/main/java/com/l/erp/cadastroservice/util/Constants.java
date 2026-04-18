@@ -128,4 +128,10 @@ public class Constants {
     public static final String CONTATO_UPDATE = CONTATO +"_" + UPDATE;
     public static final String CONTATO_NOT_FOUND = "Contato nao encontrada!";
     public static final String CONTATO_ALREADY_EXISTS = "Já existe um Contato com este nome";
+
+    public static final String VENDEDOR = "VENDEDOR";
+    public static final String VENDEDOR_CREATION = VENDEDOR + "_" + INSERT;
+    public static final String VENDEDOR_UPDATE = VENDEDOR +"_" + UPDATE;
+    public static final String VENDEDOR_NOT_FOUND = "Vendedor não encontrado!";
+    public static final String VENDEDOR_ALREADY_EXISTS = "Já existe um Vendedor com este nome";
 }

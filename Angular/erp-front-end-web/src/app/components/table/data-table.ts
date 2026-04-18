@@ -11,7 +11,7 @@ export type TagSeverity = 'success' | 'info' | 'warn' | 'danger' | 'secondary' |
 export interface ColumnConfig {
   field: string;
   header: string;
-  type: 'text' | 'date' | 'status' | 'actions';
+  type: 'text' | 'date' | 'status' | 'percent' |'actions' ;
 }
 
 @Component({
@@ -69,6 +69,10 @@ export interface ColumnConfig {
               <!-- Tipo Data -->
               <span *ngIf="col.type === 'date'">
                 {{ rowData[col.field] | date:'dd/MM/yyyy HH:mm' }}
+              </span>
+
+              <span *ngIf="col.type === 'percent'">
+                {{ rowData[col.field] | number:'1.2-2' }} %
               </span>
 
               <!-- Tipo Status -->

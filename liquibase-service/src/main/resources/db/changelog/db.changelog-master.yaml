@@ -28,5 +28,5 @@ databaseChangeLog:
       file: cadastro/cadastro-schema-003.yaml
       relativeToChangelogFile: true
   - include:
-      file: cadastro/cadastro-schema-004.yaml
+      file: cadastro/cadastro-schema-005-update-vendedor.yaml
       relativeToChangelogFile: true
