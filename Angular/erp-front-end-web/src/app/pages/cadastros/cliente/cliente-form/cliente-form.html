@@ -1,0 +1,79 @@
+<form [formGroup]="form" (ngSubmit)="save()" class="flex flex-col gap-4 mt-2">
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+    <!-- Pessoa Vinculada -->
+    <div class="flex flex-col gap-2 col-span-2">
+      <label for="pessoaId">Pessoa Vinculada <span class="text-red-500">*</span></label>
+      <p-select id="pessoaId" [options]="pessoasOptions()" formControlName="pessoaId"
+                placeholder="Selecione uma pessoa" optionLabel="label" optionValue="value"
+                [showClear]="true" [filter]="true" appendTo="body" class="w-full">
+      </p-select>
+    </div>
+
+    <!-- Código Interno -->
+    <div class="flex flex-col gap-2">
+      <label for="codigoInterno">Código Interno (SKU)</label>
+      <input id="codigoInterno" type="text" pInputText formControlName="codigoInterno" />
+    </div>
+
+    <!-- Classificação de Risco -->
+    <div class="flex flex-col gap-2">
+      <label for="classificacaoRisco">Risco</label>
+      <p-select id="classificacaoRisco" [options]="riscoOptions" formControlName="classificacaoRisco"
+                placeholder="Selecione o risco" optionLabel="label" optionValue="value" appendTo="body" class="w-full">
+      </p-select>
+    </div>
+
+    <!-- Condição Pagamento -->
+    <div class="flex flex-col gap-2">
+      <label for="condicaoPagamentoId">Condição Pagamento Padrão</label>
+      <p-select id="condicaoPagamentoId" [options]="condicoesOptions()" formControlName="condicaoPagamentoId"
+                placeholder="Selecione..." optionLabel="label" optionValue="value"
+                [showClear]="true" [filter]="true" appendTo="body" class="w-full">
+      </p-select>
+    </div>
+
+    <!-- Grupo Cliente -->
+    <div class="flex flex-col gap-2">
+      <label for="grupoClienteId">Grupo</label>
+      <p-select id="grupoClienteId" [options]="gruposOptions()" formControlName="grupoClienteId"
+                placeholder="Selecione..." optionLabel="label" optionValue="value"
+                [showClear]="true" [filter]="true" appendTo="body" class="w-full">
+      </p-select>
+    </div>
+
+    <!-- Vendedor Preferencial -->
+    <div class="flex flex-col gap-2">
+      <label for="vendedorId">Vendedor Padrão</label>
+      <p-select id="vendedorId" [options]="vendedoresOptions()" formControlName="vendedorId"
+                placeholder="Selecione..." optionLabel="label" optionValue="value"
+                [showClear]="true" [filter]="true" appendTo="body" class="w-full">
+      </p-select>
+    </div>
+
+    <!-- Limite Crédito -->
+    <div class="flex flex-col gap-2">
+      <label for="limiteCredito">Limite Crédito</label>
+      <p-inputNumber id="limiteCredito" formControlName="limiteCredito" mode="currency" currency="BRL" locale="pt-BR">
+      </p-inputNumber>
+    </div>
+
+    <div class="flex flex-col gap-2">
+      <label for="prazoMedioPagamentoDias">Prazo Médio do Pagamento em dias</label>
+      <p-inputNumber id="prazoMedioPagamentoDias" formControlName="prazoMedioPagamentoDias" locale="pt-BR">
+      </p-inputNumber>
+    </div>
+
+    <!-- Ativo -->
+    <div class="flex items-center gap-2 mt-4 col-span-2">
+      <p-checkbox inputId="ativo" formControlName="ativo" [binary]="true"></p-checkbox>
+      <label for="ativo" class="font-semibold text-gray-700 cursor-pointer">Cliente Ativo</label>
+    </div>
+
+  </div>
+
+  <div class="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-100">
+    <button pButton type="button" label="Cancelar" icon="pi pi-times" class="p-button-text p-button-secondary" (click)="onCancel()"></button>
+    <button pButton type="submit" label="Salvar" icon="pi pi-check" [disabled]="form.invalid"></button>
+  </div>
+</form>

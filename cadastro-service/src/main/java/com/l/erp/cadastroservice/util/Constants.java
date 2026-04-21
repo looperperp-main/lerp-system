@@ -134,4 +134,16 @@ public class Constants {
     public static final String VENDEDOR_UPDATE = VENDEDOR +"_" + UPDATE;
     public static final String VENDEDOR_NOT_FOUND = "Vendedor não encontrado!";
     public static final String VENDEDOR_ALREADY_EXISTS = "Já existe um Vendedor com este nome";
+
+    public static final String CLIENTE = "CLIENTE";
+    public static final String CLIENTE_CREATION = CLIENTE + "_" + INSERT;
+    public static final String CLIENTE_UPDATE = CLIENTE +"_" + UPDATE;
+    public static final String CLIENTE_NOT_FOUND = "Cliente não encontrado!";
+    public static final String CLIENTE_ALREADY_EXISTS = "Já existe um Cliente com este nome";
+
+    public static final String PROD_CAT = "PRODUTO_CATEGORIA";
+    public static final String PROD_CAT_CREATION = PROD_CAT + "_" + INSERT;
+    public static final String PROD_CAT_UPDATE = PROD_CAT +"_" + UPDATE;
+    public static final String PROD_CAT_NOT_FOUND = "Categoria de Produto não encontrada!";
+    public static final String PROD_CAT_ALREADY_EXISTS = "Já existe uma Categoria de Produto com este nome";
 }

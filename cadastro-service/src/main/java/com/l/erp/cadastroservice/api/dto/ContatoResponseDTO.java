@@ -6,6 +6,7 @@ import org.springframework.hateoas.RepresentationModel;
 import org.springframework.hateoas.server.core.Relation;
 
 import java.time.Instant;
+import java.util.Objects;
 import java.util.UUID;
 
 @Getter
@@ -24,4 +25,17 @@ public class ContatoResponseDTO extends RepresentationModel<ContatoResponseDTO> 
     private Instant updatedAt;
     private UUID createdBy;
     private UUID lastUpdatedBy;
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == null || getClass() != o.getClass()) return false;
+        if (!super.equals(o)) return false;
+        ContatoResponseDTO that = (ContatoResponseDTO) o;
+        return Objects.equals(getId(), that.getId()) && Objects.equals(getTenantId(), that.getTenantId()) && Objects.equals(getNome(), that.getNome()) && Objects.equals(getTipo(), that.getTipo()) && Objects.equals(getCargo(), that.getCargo()) && Objects.equals(getEmail(), that.getEmail()) && Objects.equals(getTelefone(), that.getTelefone()) && Objects.equals(getAtivo(), that.getAtivo()) && Objects.equals(getCreatedAt(), that.getCreatedAt()) && Objects.equals(getUpdatedAt(), that.getUpdatedAt()) && Objects.equals(getCreatedBy(), that.getCreatedBy()) && Objects.equals(getLastUpdatedBy(), that.getLastUpdatedBy());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), getId(), getTenantId(), getNome(), getTipo(), getCargo(), getEmail(), getTelefone(), getAtivo(), getCreatedAt(), getUpdatedAt(), getCreatedBy(), getLastUpdatedBy());
+    }
 }

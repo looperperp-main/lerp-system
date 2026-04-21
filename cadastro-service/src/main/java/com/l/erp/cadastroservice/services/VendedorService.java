@@ -1,8 +1,6 @@
 package com.l.erp.cadastroservice.services;
 
 import com.l.erp.cadastroservice.api.dto.VendedorDTO;
-import com.l.erp.cadastroservice.api.mappers.VendedorAssembler;
-import com.l.erp.cadastroservice.api.mappers.VendedorMapper;
 import com.l.erp.cadastroservice.domain.Vendedor;
 import com.l.erp.cadastroservice.repository.VendedorRepository;
 import com.l.erp.cadastroservice.util.Constants;
@@ -23,12 +21,10 @@ import static com.l.erp.cadastroservice.util.SecurityUtils.getCorrelationIdFromR
 public class VendedorService {
     private final Logger logger = LoggerFactory.getLogger(VendedorService.class);
     private final VendedorRepository repository;
-    private final VendedorMapper mapper;
     private final AuditProducerService auditProducer;
 
-    public VendedorService(VendedorRepository repository, VendedorMapper mapper, AuditProducerService auditProducer) {
+    public VendedorService(VendedorRepository repository, AuditProducerService auditProducer) {
         this.repository = repository;
-        this.mapper = mapper;
         this.auditProducer = auditProducer;
     }
 
@@ -51,7 +47,7 @@ public class VendedorService {
         UUID correlationID = getCorrelationIdFromRequest(logger);
 
         if (repository.existsByTenantIdAndNomeIgnoreCase(tenantId, dto.nome())) {
-            sendAuditEvent(Constants.VENDEDOR_CREATION, userId, null, Constants.ERROR, "{ERROR: "+Constants.VENDEDOR_ALREADY_EXISTS+"}", correlationID);
+            sendAuditEvent(Constants.VENDEDOR_CREATION, userId, null, Constants.ERROR, "{"+Constants.ERROR+": "+Constants.VENDEDOR_ALREADY_EXISTS+"}", correlationID);
             throw new RuntimeException(Constants.VENDEDOR_ALREADY_EXISTS);
         }
 
@@ -60,7 +56,7 @@ public class VendedorService {
                 .pessoaId(dto.pessoaId())
                 .nome(dto.nome())
                 .comissaoPercentual(dto.comissaoPercentual())
-                .ativo(dto.ativo() != null ? dto.ativo() : true)
+                .ativo(dto.ativo())
                 .createdAt(Instant.now())
                 .createdBy(userId)
                 .build();

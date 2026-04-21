@@ -4,7 +4,6 @@ import com.l.erp.authservice.api.dto.RoleDTO;
 import com.l.erp.authservice.api.dto.UserRoleRequestDTO;
 import com.l.erp.authservice.infra.config.Roles;
 import com.l.erp.authservice.services.AttributionsService;
-import com.l.erp.authservice.services.UserService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

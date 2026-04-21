@@ -7,7 +7,7 @@ import {Contato, Endereco, Page, Pessoa} from './pessoa.model';
 @Injectable({ providedIn: 'root'}) //Means it's a singleton app-wide
 export class PessoaService {
   private http = inject(HttpClient);
-  private apiUrl = `${environment.apiUrl}/api/v1/pessoas`;
+  private readonly apiUrl = `${environment.apiUrl}/api/v1/pessoas`;
   listar(page: number = 0, size: number = 10): Observable<Page<Pessoa>> {
     let params = new HttpParams().set('page', page).set('size', size);
     return this.http.get<any>(this.apiUrl, { params }).pipe(
@@ -67,5 +67,11 @@ export class PessoaService {
       return this.http.put<Contato>(`${fixedUrl}/${contato.id}`, contato);
     }
     return this.http.post<Contato>(fixedUrl, contato);
+  }
+
+  // --- BUSCA DE CEP ---
+  buscarCep(cep: string): Observable<any> {
+    // Busca do endpoint criado no nosso backend (passa pelo Gateway/API)
+    return this.http.get<any>(`${environment.apiUrl}/api/v1/cep/${cep}`);
   }
 }

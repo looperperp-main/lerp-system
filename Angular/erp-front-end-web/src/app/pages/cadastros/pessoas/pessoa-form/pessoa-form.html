@@ -55,14 +55,14 @@
           <div class="flex flex-col gap-2">
 
             <label for="documento" class="font-semibold text-gray-700">Documento (CPF/CNPJ) <span class="text-red-500">*</span></label>
-            <input
+            <p-inputmask
               id="documento"
-              type="text"
-              pInputText
               formControlName="documento"
-              class="w-full"
+              [mask]="formPessoa.get('tipo')?.value === 'PF' ? '999.999.999-99' : '99.999.999/9999-99'"
+              styleClass="w-full"
               [ngClass]="{'ng-invalid ng-dirty': isFieldInvalid('documento')}"
-              placeholder="Ex: 11.111.111/1111-11">
+              [placeholder]="formPessoa.get('tipo')?.value === 'PF' ? '999.999.999-99' : '99.999.999/9999-99'">
+            </p-inputmask>
             <small *ngIf="isFieldInvalid('documento')" class="text-red-500">O documento é obrigatório.</small>
 
           </div>
@@ -73,6 +73,7 @@
             <input
               id="ie"
               type="text"
+              pKeyFilter="int"
               pInputText
               formControlName="ie"
               class="w-full"
@@ -86,6 +87,7 @@
               id="im"
               type="text"
               pInputText
+              pKeyFilter="int"
               formControlName="im"
               class="w-full"
               placeholder="111111">
@@ -144,6 +146,7 @@
               pInputText
               formControlName="numero"
               id="numero"
+              pKeyFilter="int"
               type="text"
               class="w-full"
               placeholder="Ex: 10"
@@ -187,6 +190,7 @@
             <input pInputText
                    formControlName="uf"
                    id="uf"
+                   maxlength="2"
                    type="text"
                    class="w-full"
                    [ngClass]="{'ng-invalid ng-dirty': isFieldInvalid('uf')}"
@@ -194,14 +198,14 @@
           </div>
           <div class="flex flex-col gap-2">
             <label for="cep" class="font-semibold text-gray-700">CEP<span class="text-red-500">*</span></label>
-            <input
-              pInputText
+            <p-inputmask
               formControlName="cep"
               id="cep"
-              type="text"
-              class="w-full"
+              mask="99999-999"
+              styleClass="w-full"
               [ngClass]="{'ng-invalid ng-dirty': isFieldInvalid('cep')}"
-              placeholder="Ex: 00000-000"/>
+              placeholder="Ex: 00000-000">
+            </p-inputmask>
           </div>
           <div class="flex flex-col gap-2">
             <label for="ibgeCodigo" class="font-semibold text-gray-700">Código do IBGE</label>
@@ -209,6 +213,7 @@
                    id="ibgeCodigo"
                    type="text"
                    class="w-full"
+                   pKeyFilter="int"
                    placeholder="Ex: 000000" />
           </div>
           <div class="flex flex-col gap-2">
@@ -299,18 +304,19 @@
               id="email"
               type="text"
               class="w-full"
+              [ngClass]="{'ng-invalid ng-dirty': isFieldInvalid('email')}"
               placeholder="Ex: gerente@email.com"/>
+            <small *ngIf="isFieldInvalid('email')" class="text-red-500">Email com formato inválido.</small>
           </div>
           <div class="flex flex-col gap-2">
             <label for="telefone" class="font-semibold text-gray-700">Telefone</label>
-            <input
-              pInputText
+            <p-inputmask
               formControlName="telefone"
               id="telefone"
-              type="text"
-              class="w-full"
-              placeholder="Ex: +55 37 99999-9999"
-            />
+              mask="+99 (99) 99999-9999"
+              styleClass="w-full"
+              placeholder="Ex: +55 (37) 99999-9999">
+            </p-inputmask>
           </div>
           <div class="flex flex-col gap-2">
             <p-checkbox

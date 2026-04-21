@@ -1,13 +1,9 @@
 package com.l.erp.cadastroservice.services;
 
 import com.l.erp.cadastroservice.api.dto.CondicaoPagamentoDTO;
-import com.l.erp.cadastroservice.api.dto.GrupoClienteDTO;
 import com.l.erp.cadastroservice.api.mappers.CondicaoPagamentoMapper;
-import com.l.erp.cadastroservice.api.mappers.GrupoClienteMapper;
 import com.l.erp.cadastroservice.domain.CondicaoPagamento;
-import com.l.erp.cadastroservice.domain.GrupoCliente;
 import com.l.erp.cadastroservice.repository.CondicaoPagamentoRepository;
-import com.l.erp.cadastroservice.repository.GrupoClienteRepository;
 import com.l.erp.cadastroservice.util.Constants;
 import com.l.erp.common.api.dto.AuditEventDTO;
 import com.l.erp.common.exception.custom.BusinessException;
@@ -105,7 +101,7 @@ public class CondicaoPagamentoService {
                 .tenantId(tenantId)
                 .nome(dto.nome())
                 .descricao(dto.descricao())
-                .ativo(dto.ativo() != null ? dto.ativo() : true)
+                .ativo(dto.ativo())
                 .createdBy(userId)
                 .createdAt(Instant.now())
                 .build();

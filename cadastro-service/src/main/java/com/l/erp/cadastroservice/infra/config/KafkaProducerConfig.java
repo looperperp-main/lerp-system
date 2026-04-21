@@ -1,6 +1,5 @@
 package com.l.erp.cadastroservice.infra.config;
 
-import com.l.erp.common.api.dto.AuditEventDTO;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;

@@ -38,7 +38,7 @@ export class Pessoas {
     { field: 'documento', header: 'Documento', type: 'text' },
     { field: 'ativo', header: 'Ativo', type: 'status' },
     { field: 'createdAt', header: 'Data de Criação', type: 'date' },
-    { field: 'lastUpdatedBy', header: 'Data de Atualização', type: 'date' },
+    { field: 'updatedAt', header: 'Data de Atualização', type: 'date' },
     { field: 'actions', header: 'Ações', type: 'actions' }
   ];
 

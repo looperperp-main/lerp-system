@@ -4,16 +4,12 @@ import com.l.erp.cadastroservice.api.dto.CurrentUser;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.Base64;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -85,7 +81,7 @@ public final class SecurityUtils {
             if (headerCorId != null && !headerCorId.isBlank()) {
                 try {
                     return UUID.fromString(headerCorId);
-                } catch (IllegalArgumentException e) {
+                } catch (IllegalArgumentException _) {
                     logger.warn("Formato de Correlation ID inválido recebido no header: {}", headerCorId);
                 }
             }

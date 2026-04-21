@@ -19,9 +19,6 @@ import java.time.Instant;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Tenant {
-//    @ManyToOne(fetch = FetchType.LAZY)
-//    @JoinColumn(name = "tenant_id")
-//    private UserAccount usersAccount;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

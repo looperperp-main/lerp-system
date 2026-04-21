@@ -1,9 +1,7 @@
 package com.l.erp.cadastroservice.api.controllers;
 
 import com.l.erp.cadastroservice.api.dto.DepositoDTO;
-import com.l.erp.cadastroservice.api.dto.GrupoClienteDTO;
 import com.l.erp.cadastroservice.services.DepositoService;
-import com.l.erp.cadastroservice.services.GrupoClienteService;
 import com.l.erp.cadastroservice.util.Constants;
 import com.l.erp.cadastroservice.util.SecurityUtils;
 import jakarta.validation.Valid;

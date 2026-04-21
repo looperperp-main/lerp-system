@@ -11,7 +11,7 @@ export type TagSeverity = 'success' | 'info' | 'warn' | 'danger' | 'secondary' |
 export interface ColumnConfig {
   field: string;
   header: string;
-  type: 'text' | 'date' | 'status' | 'percent' |'actions' ;
+  type: 'text' | 'date' | 'status' | 'percent' |'actions' | 'currency' ;
 }
 
 @Component({

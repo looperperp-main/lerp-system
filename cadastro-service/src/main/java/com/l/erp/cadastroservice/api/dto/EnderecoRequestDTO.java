@@ -11,7 +11,7 @@ public record EnderecoRequestDTO(
         @Size(max = 100) String complemento,
         @Size(max = 100) String bairro,
         @NotBlank @Size(max = 100) String cidade,
-        @NotBlank @Size(max = 2) String uf,
+        @NotBlank @Size(max = 2, message = "UF deve ter no máximo 2 caracteres") String uf,
         @NotBlank @Size(max = 9) String cep,
         @Size(max = 10) String ibgeCodigo,
         @Size(max = 60) String pais,

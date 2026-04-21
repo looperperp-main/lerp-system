@@ -125,6 +125,6 @@ public class EnderecoService {
         entity.setCep(dto.cep());
         entity.setIbgeCodigo(dto.ibgeCodigo());
         entity.setPais(dto.pais() != null ? dto.pais() : "Brasil");
-        entity.setPrincipal(dto.principal() != null ? dto.principal() : false);
+        entity.setPrincipal(dto.principal());
     }
 }

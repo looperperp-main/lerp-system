@@ -12,7 +12,6 @@ import com.l.erp.authservice.repositorios.TenantRepository;
 import com.l.erp.authservice.services.TenantService;
 import com.l.erp.authservice.services.audit.AuditService;
 import com.l.erp.authservice.util.SecurityUtils;
-import io.prometheus.metrics.shaded.com_google_protobuf_4_33_0.Enum;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
@@ -36,7 +35,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;

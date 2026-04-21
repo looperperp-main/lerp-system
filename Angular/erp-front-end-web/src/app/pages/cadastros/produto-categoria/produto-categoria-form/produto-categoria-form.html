@@ -1,0 +1,30 @@
+<form [formGroup]="form" (ngSubmit)="save()" class="flex flex-col gap-4 mt-2">
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="flex flex-col gap-2 col-span-2">
+      <label for="nome">Nome <span class="text-red-500">*</span></label>
+      <input id="nome" type="text" pInputText formControlName="nome" />
+      <small class="p-error" *ngIf="form.controls['nome'].invalid && form.controls['nome'].touched">
+        Nome é obrigatório e deve ter no máximo 100 caracteres.
+      </small>
+    </div>
+
+    <div class="flex flex-col gap-2 col-span-2">
+      <label for="descricao" class="font-bold">Descrição</label>
+      <textarea id="descricao" rows="3" pTextarea formControlName="descricao"></textarea>
+      <small class="p-error" *ngIf="form.controls['descricao'].invalid && form.controls['descricao'].touched">
+        A descrição deve ter no máximo 500 caracteres.
+      </small>
+    </div>
+
+    <div class="field-checkbox mb-4 flex align-items-center gap-2">
+      <p-checkbox inputId="ativa" formControlName="ativa" [binary]="true"></p-checkbox>
+      <label for="ativa">Ativa</label>
+    </div>
+
+    <div class="flex justify-content-end gap-2 mt-4">
+      <button pButton type="button" label="Cancelar" icon="pi pi-times" class="p-button-text p-button-secondary" (click)="onCancel()"></button>
+      <button pButton type="submit" label="Salvar" icon="pi pi-check" class="p-button-primary"></button>
+    </div>
+  </div>
+</form>
+

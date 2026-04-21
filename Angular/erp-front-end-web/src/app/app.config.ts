@@ -1,13 +1,16 @@
-import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
+import {ApplicationConfig, LOCALE_ID, provideBrowserGlobalErrorListeners} from '@angular/core';
 import { provideRouter } from '@angular/router';
 
 import { routes } from './app.routes';
 import {provideHttpClient, withFetch, withInterceptors} from '@angular/common/http';
 import {provideToastr} from 'ngx-toastr';
-import {provideAnimations} from '@angular/platform-browser/animations';
 import {authInterceptor} from './util/auth.interceptor';
 import {providePrimeNG} from 'primeng/config';
 import Aura from '@primeuix/themes/aura';
+import {registerLocaleData} from '@angular/common';
+
+import localePt from '@angular/common/locales/pt';
+registerLocaleData(localePt, 'pt-BR');
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -15,6 +18,7 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes),
     provideHttpClient(withFetch(),withInterceptors([authInterceptor])),
     provideToastr(),
+    { provide: LOCALE_ID, useValue: 'pt-BR' },
     providePrimeNG({
       theme: {
         preset: Aura,

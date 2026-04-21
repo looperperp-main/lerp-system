@@ -4,7 +4,6 @@ import com.l.erp.authservice.dominio.OwnerMarker;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.math.BigInteger;
 import java.util.UUID;
 
 public interface OwnerMarkerRepository extends JpaRepository<OwnerMarker, Long> {
