@@ -46,6 +46,8 @@ public class UserService {
 
     private final OwnerMarkerRepository ownerMarkerRepository;
 
+    private final EmailNotificationService emailNotificationService;
+
     public UserService(
             UserAccountRepository userAccountRepository,
             AuditService auditService,
@@ -53,7 +55,7 @@ public class UserService {
             PasswordEncoder passwordEncoder,
             TenantRepository tenantRepository,
             PasswordValidatorUtil passwordValidatorUtil,
-            OwnerMarkerRepository ownerMarkerRepository
+            OwnerMarkerRepository ownerMarkerRepository, EmailNotificationService emailNotificationService
     ) {
         this.userAccountRepository = userAccountRepository;
         this.auditService = auditService;
@@ -62,6 +64,7 @@ public class UserService {
         this.tenantRepository = tenantRepository;
         this.passwordValidatorUtil = passwordValidatorUtil;
         this.ownerMarkerRepository = ownerMarkerRepository;
+        this.emailNotificationService = emailNotificationService;
     }
 
     /**
@@ -126,6 +129,16 @@ public class UserService {
         UUID correlationId = SecurityUtils.getCorrelationIdFromRequest(logger);
         auditService.logAuditEvent(Constants.USER_CREATION, Constants.USER, savedUser.getId(), Constants.SUCCESS, null, correlationId);
 
+        // Disparar o evento do e-mail de boas-vindas no Kafka
+        try {
+            emailNotificationService.sendWelcomeEmailEvent(savedUser.getEmail(), savedUser.getDisplayName());
+        } catch (Exception e) {
+            // Apenas logamos o erro. A criação do usuário não será desfeita.
+            logger.error("User created successfully, but failed to publish welcome email event to Kafka for: {}", savedUser.getEmail(), e);
+            auditService.logAuditEvent(Constants.USER_CREATION, Constants.USER,
+                    savedUser.getId(), Constants.SUCCESS,
+                    "{Error: User created successfully, but failed to publish welcome email event to Kafka for: " + savedUser.getEmail() + "}", correlationId);
+        }
 
         return userMapper.toUserAccountDTO(savedUser);
     }
