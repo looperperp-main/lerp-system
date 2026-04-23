@@ -1,0 +1,130 @@
+<div class="page-container">
+  <p-toast></p-toast>
+
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Gerenciamento de Transportadoras</h1>
+      <p class="page-subtitle">Crie e gerencie as Transportadoras</p>
+    </div>
+  </div>
+
+  <div class="content-card rounded-xl p-6 bg-white shadow-sm mt-4">
+    <div class="content-toolbar flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+      <h3 class="content-toolbar-title text-xl font-bold text-gray-800 flex items-center gap-2 m-0">
+        <i class="pi pi-arrow-circle-right text-gray-700"></i> Ações
+      </h3>
+      <div class="content-toolbar-actions">
+        <app-primary-button
+          label="Nova Transportadora"
+          icon="pi pi-plus"
+          (onClick)="openNew()">
+        </app-primary-button>
+        <app-primary-button
+          icon="pi pi-upload"
+          padding="0.5rem 0.8rem"
+          tooltip="Exportar"
+          tooltipPosition="bottom"
+          backgroundColor="#f28705"
+          (onClick)="exportData()">
+        </app-primary-button>
+      </div>
+    </div>
+
+    <div class="table-container">
+      <p-table
+        [value]="transportadoras()"
+        [columns]="cols"
+        [loading]="loading()"
+        [lazy]="true"
+        (onLazyLoad)="loadTransportadoras($event)"
+        [totalRecords]="totalRecords()"
+        [paginator]="true"
+        [rows]="10"
+        [showCurrentPageReport]="true"
+        currentPageReportTemplate="Mostrando {first} até {last} de {totalRecords} registros"
+        [rowsPerPageOptions]="[10, 20, 50]"
+        [tableStyle]="{ 'min-width': '60rem' }"
+        styleClass="p-datatable-sm text-sm"
+        [paginatorDropdownAppendTo]="'body'"
+      >
+        <ng-template pTemplate="header" let-columns>
+          <tr>
+            <th *ngFor="let col of columns" [pSortableColumn]="col.field !== 'actions' ? col.field : ''" class="text-xs uppercase text-gray-400 font-semibold border-b border-gray-100 pb-3">
+              {{col.header}} <p-sortIcon *ngIf="col.field !== 'actions'" [field]="col.field"></p-sortIcon>
+            </th>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="body" let-rowData let-columns="columns">
+          <tr class="hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-colors">
+            <td *ngFor="let col of columns" class="py-3 text-gray-600">
+
+              <ng-container *ngIf="col.type === 'status'">
+                <span [class]="'px-2 py-1 rounded text-xs font-medium ' +
+                    (rowData.ativo === true ? 'bg-green-100 text-green-700' :
+                     'bg-red-100 text-red-700')">
+                    {{rowData.ativo === true ? 'ATIVO' : 'INATIVO'}}
+                </span>
+              </ng-container>
+
+              <ng-container *ngIf="col.type === 'date'">
+                {{rowData[col.field] | date:'dd/MM/yyyy HH:mm'}}
+              </ng-container>
+
+              <ng-container *ngIf="col.type === 'actions'">
+                <button
+                  pButton
+                  pRipple
+                  icon="pi pi-pencil"
+                  class="p-button-rounded p-button-text p-button-info p-button-sm w-8 h-8"
+                  style="color: #F24405;"
+                  pTooltip="Editar"
+                  (click)="editTransportadora(rowData)"
+                  tooltipPosition="top">
+                </button>
+
+                <button
+                  pButton
+                  pRipple
+                  [icon]="rowData.ativo === true ? 'pi pi-ban' : 'pi pi-check-circle'"
+                  [class]="'p-button-rounded p-button-text p-button-sm w-8 h-8 ' + (rowData.ativo === true ? 'p-button-warning' : 'p-button-success')"
+                  [style]="rowData.ativo === true ? 'color: #F24405; background-color: rgba(242, 68, 5, 0.15); border: none' : 'color: #22c55e; background-color: rgba(34, 197, 94, 0.15); border: none'"
+                  pTooltip="Alterar Status"
+                  (click)="inativarTransportadora(rowData)"
+                  tooltipPosition="top"
+                >
+                </button>
+              </ng-container>
+
+              <ng-container *ngIf="col.type === 'text'">
+                <span class="font-medium" [class.text-gray-900]="col.field === 'id'">
+                  {{ rowData[col.field] || '-' | htmlDecode }}
+                </span>
+              </ng-container>
+            </td>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td [attr.colspan]="cols.length" class="text-center py-6 text-gray-500">
+              Nenhuma Transportadora encontrada.
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+
+    </div>
+  </div>
+
+</div>
+
+<p-dialog
+  [(visible)]="displayForm"
+  [header]="selectedTransportadora ? 'Editar Transportadora' : 'Nova Transportadora'"
+  [modal]="true"
+  [style]="{width: '450px'}"
+  [draggable]="false"
+  [resizable]="false">
+  <app-transportadora-form *ngIf="displayForm" [TransportadoraData]="selectedTransportadora" (saved)="onFormSaved()" (canceled)="onFormCanceled()"></app-transportadora-form>
+</p-dialog>

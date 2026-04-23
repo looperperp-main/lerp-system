@@ -1,0 +1,52 @@
+<form [formGroup]="form" (ngSubmit)="save()" class="flex flex-col gap-4 mt-2">
+  <div class="grid">
+
+    <!-- Vinculo com Pessoa -->
+    <div class="flex flex-col gap-2">
+      <label for="pessoaId">Pessoa Vinculada <span class="text-red-500">*</span></label>
+      <p-select id="pessoaId" [options]="pessoasOptions()" formControlName="pessoaId" class="text-[10px] font-semibold text-gray-600 block mb-1"
+                placeholder="Selecione uma pessoa" optionLabel="label" optionValue="value"
+                [showClear]="true" [filter]="true" appendTo="body">
+      </p-select>
+    </div>
+
+    <div class="flex flex-col gap-2 mt-2">
+      <label for="rntrc">RNTRC</label>
+      <input pInputText id="rntrc" formControlName="rntrc" maxlength="8" placeholder="Ex: 12345678" />
+      <small class="text-red-500" *ngIf="form.get('rntrc')?.invalid && (form.get('rntrc')?.dirty || form.get('rntrc')?.touched)">
+        O RNTRC deve conter exatamente 8 dígitos numéricos.
+      </small>
+    </div>
+
+    <!-- Modal -->
+    <div class="flex flex-col gap-2 mt-2">
+      <label for="modal">Modal</label>
+      <p-select
+        id="modal"
+        [options]="modalOptions"
+        formControlName="modal"
+        class="text-[10px] font-semibold text-gray-600 block mb-1"
+        placeholder="Selecione um modal"
+        optionLabel="label"
+        optionValue="value"
+        [showClear]="true"
+        appendTo="body">
+      </p-select>
+    </div>
+
+    <!-- Ativo -->
+    <div class="flex items-center gap-2 mt-2">
+      <p-checkbox
+        inputId="ativo"
+        formControlName="ativo"
+        [binary]="true"></p-checkbox>
+      <label for="ativo" class="font-semibold text-gray-700 cursor-pointer">Ativo</label>
+    </div>
+
+  </div>
+
+  <div class="flex justify-content-end gap-2 mt-4">
+    <button pButton type="button" label="Cancelar" icon="pi pi-times" class="p-button-text" (click)="onCancel()"></button>
+    <button pButton type="submit" label="Salvar" icon="pi pi-check" [disabled]="form.invalid"></button>
+  </div>
+</form>

@@ -146,4 +146,16 @@ public class Constants {
     public static final String PROD_CAT_UPDATE = PROD_CAT +"_" + UPDATE;
     public static final String PROD_CAT_NOT_FOUND = "Categoria de Produto não encontrada!";
     public static final String PROD_CAT_ALREADY_EXISTS = "Já existe uma Categoria de Produto com este nome";
+
+    public static final String FORNECEDORES = "FORNECEDORES";
+    public static final String FORNECEDORES_CREATION = FORNECEDORES + "_" + INSERT;
+    public static final String FORNECEDORES_UPDATE = FORNECEDORES +"_" + UPDATE;
+    public static final String FORNECEDORES_NOT_FOUND = "Fornecedor não encontrado!";
+    public static final String FORNECEDORES_ALREADY_EXISTS = "Já existe um Fornecedor com este nome";
+
+    public static final String TRANSPORTADORA = "TRANSPORTADORA";
+    public static final String TRANSPORTADORA_CREATION = TRANSPORTADORA + "_" + INSERT;
+    public static final String TRANSPORTADORA_UPDATE = TRANSPORTADORA +"_" + UPDATE;
+    public static final String TRANSPORTADORA_NOT_FOUND = "Transportadora não encontrada!";
+    public static final String TRANSPORTADORA_ALREADY_EXISTS = "Já existe uma Transportadora com este nome";
 }
