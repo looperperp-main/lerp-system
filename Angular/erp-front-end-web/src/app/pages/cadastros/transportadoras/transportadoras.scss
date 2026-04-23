@@ -1,0 +1,8 @@
+// Ajuste os estilos globais e locais aqui conforme sua necessidade
+:host {
+  ::ng-deep {
+    .p-datatable .p-datatable-thead > tr > th {
+      background-color: transparent;
+    }
+  }
+}

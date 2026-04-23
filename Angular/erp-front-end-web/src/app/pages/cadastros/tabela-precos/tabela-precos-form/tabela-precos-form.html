@@ -1,0 +1,60 @@
+<form [formGroup]="form" class="flex flex-col gap-4 mt-2">
+
+  <div class="flex flex-col gap-2">
+    <label for="nome" class="text-sm font-semibold text-gray-700">Nome <span class="text-red-500">*</span></label>
+    <input pInputText id="nome" formControlName="nome" class="w-full" placeholder="Ex: Tabela Varejo"/>
+    <small class="p-error" *ngIf="form.get('nome')?.invalid && form.get('nome')?.touched">
+      Nome é obrigatório (Máx. 100 caracteres).
+    </small>
+  </div>
+
+  <div class="flex flex-col gap-2">
+    <label for="moeda" class="text-sm font-semibold text-gray-700">Moeda <span class="text-red-500">*</span></label>
+    <input pInputText id="moeda" formControlName="moeda" class="w-full" placeholder="Ex: BRL"/>
+    <small class="p-error" *ngIf="form.get('moeda')?.invalid && form.get('moeda')?.touched">
+      Moeda é obrigatória (Máx. 3 caracteres).
+    </small>
+  </div>
+
+  <div class="flex flex-col md:flex-row gap-4">
+    <div class="flex flex-col gap-2 flex-1">
+      <label for="inicioVigencia" class="text-sm font-semibold text-gray-700">Início Vigência <span class="text-red-500">*</span></label>
+      <p-datepicker id="inicioVigencia" formControlName="inicioVigencia" dateFormat="dd/mm/yy" appendTo="body" class="w-full"></p-datepicker>
+      <small class="p-error" *ngIf="form.get('inicioVigencia')?.invalid && form.get('inicioVigencia')?.touched">
+        Obrigatório.
+      </small>
+    </div>
+
+    <div class="flex flex-col gap-2 flex-1">
+      <label for="fimVigencia" class="text-sm font-semibold text-gray-700">Fim Vigência</label>
+      <p-datepicker id="fimVigencia" formControlName="fimVigencia" dateFormat="dd/mm/yy" appendTo="body" class="w-full"></p-datepicker>
+    </div>
+  </div>
+
+  <div class="flex flex-row gap-6 mt-2">
+    <div class="flex items-center gap-2">
+      <p-checkbox inputId="ativa" formControlName="ativa" [binary]="true"></p-checkbox>
+      <label for="ativa" class="text-sm font-semibold text-gray-700 cursor-pointer">Ativa</label>
+    </div>
+    <div class="flex items-center gap-2">
+      <p-checkbox inputId="padrao" formControlName="padrao" [binary]="true"></p-checkbox>
+      <label for="padrao" class="text-sm font-semibold text-gray-700 cursor-pointer">Tabela Padrão</label>
+    </div>
+  </div>
+
+  <div class="flex justify-end gap-3 mt-4 border-t pt-4 border-gray-100">
+    <p-button
+      label="Cancelar"
+      icon="pi pi-times"
+      styleClass="p-button-text p-button-secondary"
+      (click)="onCancel()"
+      [disabled]="loading">
+    </p-button>
+    <app-primary-button
+      label="Salvar"
+      icon="pi pi-check"
+      [loading]="loading"
+      (onClick)="onSubmit()">
+    </app-primary-button>
+  </div>
+</form>

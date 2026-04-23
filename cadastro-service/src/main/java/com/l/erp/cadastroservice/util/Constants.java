@@ -158,4 +158,10 @@ public class Constants {
     public static final String TRANSPORTADORA_UPDATE = TRANSPORTADORA +"_" + UPDATE;
     public static final String TRANSPORTADORA_NOT_FOUND = "Transportadora não encontrada!";
     public static final String TRANSPORTADORA_ALREADY_EXISTS = "Já existe uma Transportadora com este nome";
+
+    public static final String TABELA_PRECO = "TABELA_PRECO";
+    public static final String TABELA_PRECO_CREATION = TABELA_PRECO + "_" + INSERT;
+    public static final String TABELA_PRECO_UPDATE = TABELA_PRECO +"_" + UPDATE;
+    public static final String TABELA_PRECO_NOT_FOUND = "Tabela de Preco não encontrada!";
+    public static final String TABELA_PRECO_ALREADY_EXISTS = "Já existe uma Tabela de Preco com este nome";
 }

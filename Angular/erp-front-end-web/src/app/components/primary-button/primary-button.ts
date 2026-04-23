@@ -13,6 +13,7 @@ import { TooltipModule } from 'primeng/tooltip';
       pRipple
       [label]="label"
       [icon]="icon"
+      [loading]="loading"
       class="p-button-sm rounded-lg"
       [style]="{ 'background-color': backgroundColor, 'color': 'white', 'border': 'none', 'padding': padding }"
       (click)="onClick.emit($event)"
@@ -28,6 +29,7 @@ export class PrimaryButtonComponent {
   @Input() tooltip: string = '';
   @Input() tooltipPosition: any = 'bottom';
   @Input() backgroundColor: any = '#f04e1a';
+  @Input() loading: boolean = false;
 
   @Output() onClick = new EventEmitter<Event>();
 }

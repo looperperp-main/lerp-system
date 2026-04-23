@@ -12,6 +12,7 @@ import {Clientes} from './pages/cadastros/cliente/clientes';
 import {ProdutoCategoria} from './pages/cadastros/produto-categoria/produto-categoria';
 import {Fornecedores} from './pages/cadastros/fornecedores/fornecedores';
 import {Transportadoras} from './pages/cadastros/transportadoras/transportadoras';
+import {TabelaPrecos} from './pages/cadastros/tabela-precos/tabela-precos';
 
 export const routes: Routes = [
     { path: '', redirectTo: 'login', pathMatch: 'full' },
@@ -31,6 +32,7 @@ export const routes: Routes = [
           { path: 'cadastros/categorias', component: ProdutoCategoria  },
           { path: 'cadastros/fornecedores', component: Fornecedores  },
           { path: 'cadastros/transportadoras', component: Transportadoras  },
+          { path: 'cadastros/tabela-preco', component: TabelaPrecos  },
         ]
         //canActivate: [authGuard]
     },
