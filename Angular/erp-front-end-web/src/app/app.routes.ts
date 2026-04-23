@@ -10,6 +10,7 @@ import {Pessoas} from './pages/cadastros/pessoas/pessoas';
 import {Vendedores} from './pages/cadastros/vendedores/vendedores';
 import {Clientes} from './pages/cadastros/cliente/clientes';
 import {ProdutoCategoria} from './pages/cadastros/produto-categoria/produto-categoria';
+import {Fornecedores} from './pages/cadastros/fornecedores/fornecedores';
 
 export const routes: Routes = [
     { path: '', redirectTo: 'login', pathMatch: 'full' },
@@ -27,6 +28,7 @@ export const routes: Routes = [
           { path: 'cadastros/vendedores', component: Vendedores  },
           { path: 'cadastros/clientes', component: Clientes  },
           { path: 'cadastros/categorias', component: ProdutoCategoria  },
+          { path: 'cadastros/fornecedores', component: Fornecedores  },
         ]
         //canActivate: [authGuard]
     },

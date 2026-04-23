@@ -1,5 +1,6 @@
 package com.l.erp.cadastroservice.domain;
 
+import com.l.erp.cadastroservice.repository.filter.BaseTenantEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -30,15 +31,11 @@ import java.util.UUID;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class Fornecedor {
+public class Fornecedor extends BaseTenantEntity {
     @Id
     @Column(name = "id", nullable = false)
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
-
-    @NotNull
-    @Column(name = "tenant_id", nullable = false)
-    private Long tenantId;
 
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
