@@ -57,7 +57,7 @@ public final class SecurityUtils {
     }
 
     public static Optional<Long> getCurrentTenantId() {
-        // No seu SecurityFilter.java do Gateway eu vi que a claim se chama "tenantId" e foi inserida como String no Auth.
+        // No SecurityFilter.java do Gateway a claim se chama "tenantId" e foi inserida como String no Auth.
         // Vamos garantir que a conversão ocorra adequadamente.
         return getClaimFromJwt("tenantId").map(Long::valueOf);
     }

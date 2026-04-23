@@ -14,4 +14,6 @@ public interface TabelaPrecoRepository extends JpaRepository<TabelaPreco, UUID> 
     boolean existsByNomeIgnoreCase(String nome);
     Page<TabelaPreco> findAll(Pageable pageable);
     Optional<TabelaPreco> findById(UUID id);
+
+    Optional<TabelaPreco> findByIdAndTenantId(UUID tabelaId, Long tenantId);
 }

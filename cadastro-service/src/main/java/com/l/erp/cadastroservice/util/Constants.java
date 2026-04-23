@@ -164,4 +164,7 @@ public class Constants {
     public static final String TABELA_PRECO_UPDATE = TABELA_PRECO +"_" + UPDATE;
     public static final String TABELA_PRECO_NOT_FOUND = "Tabela de Preco não encontrada!";
     public static final String TABELA_PRECO_ALREADY_EXISTS = "Já existe uma Tabela de Preco com este nome";
+
+    public static final String GRP_C_TABELA_PRECO = "TABELA_PRECO_GRUPO_CLIENTE";
+    public static final String GRP_C_TABELA_PRECO_ASSOCIACAO = GRP_C_TABELA_PRECO+"_ASSOCIACAO";
 }

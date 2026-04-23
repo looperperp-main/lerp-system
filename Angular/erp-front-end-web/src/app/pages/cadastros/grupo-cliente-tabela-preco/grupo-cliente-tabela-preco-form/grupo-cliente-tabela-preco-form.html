@@ -1,0 +1,41 @@
+<p-dialog
+  header="Associar Tabelas de Preço"
+  [(visible)]="visible"
+  (onHide)="fechar()"
+  [modal]="true"
+  [style]="{ width: '60vw' }"
+  [draggable]="false"
+  [resizable]="false">
+
+  <div *ngIf="loading()" class="flex justify-center items-center h-40">
+    <i class="pi pi-spin pi-spinner text-3xl text-primary"></i>
+  </div>
+
+  <div *ngIf="!loading()">
+    <p-pickList
+      [source]="sourceTabelas()"
+      [target]="targetTabelas()"
+      sourceHeader="Disponíveis"
+      targetHeader="Selecionadas"
+      [dragdrop]="true"
+      [responsive]="true"
+      [sourceStyle]="{ height: '300px' }"
+      [targetStyle]="{ height: '300px' }">
+
+      <ng-template let-tabela pTemplate="item">
+        <div class="flex items-center gap-2 p-2">
+          <div>
+            <span class="font-bold block">{{ tabela.nome }}</span>
+            <span class="text-sm text-gray-500">Moeda: {{ tabela.moeda }}</span>
+          </div>
+        </div>
+      </ng-template>
+
+    </p-pickList>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <p-button label="Cancelar" icon="pi pi-times" [text]="true" severity="secondary" (click)="fechar()"></p-button>
+    <p-button label="Salvar" icon="pi pi-check" (click)="salvar()" [loading]="loading()"></p-button>
+  </ng-template>
+</p-dialog>

@@ -13,6 +13,9 @@ import {ProdutoCategoria} from './pages/cadastros/produto-categoria/produto-cate
 import {Fornecedores} from './pages/cadastros/fornecedores/fornecedores';
 import {Transportadoras} from './pages/cadastros/transportadoras/transportadoras';
 import {TabelaPrecos} from './pages/cadastros/tabela-precos/tabela-precos';
+import {
+  GrupoClienteTabelaPrecoComponent
+} from './pages/cadastros/grupo-cliente-tabela-preco/grupo-cliente-tabela-preco';
 
 export const routes: Routes = [
     { path: '', redirectTo: 'login', pathMatch: 'full' },
@@ -33,6 +36,7 @@ export const routes: Routes = [
           { path: 'cadastros/fornecedores', component: Fornecedores  },
           { path: 'cadastros/transportadoras', component: Transportadoras  },
           { path: 'cadastros/tabela-preco', component: TabelaPrecos  },
+          { path: 'cadastros/tabela-preco-grupo', component: GrupoClienteTabelaPrecoComponent  },
         ]
         //canActivate: [authGuard]
     },
