@@ -34,7 +34,7 @@ export class Fornecedores implements OnInit {
 
   cols: ColumnConfig[] = [
     { field: 'id', header: 'ID', type: 'text' },
-    { field: 'pessoaId', header: 'ID Pessoa', type: 'text' },
+    { field: 'pessoaNomeRazao', header: 'Fornecedor', type: 'text' },
     { field: 'ativo', header: 'Ativo', type: 'status' },
     { field: 'createdAt', header: 'Data de Criação', type: 'date' },
     { field: 'updatedAt', header: 'Data de Atualização', type: 'date' },

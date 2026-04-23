@@ -23,6 +23,7 @@ public class TransportadoraAssembler extends RepresentationModelAssemblerSupport
     @Override
     public TransportadoraResponseDTO toModel(Transportadora entity) {
         TransportadoraResponseDTO dto = transportadoraMapper.toDtoResponse(entity);
+        dto.setPessoaNomeRazao(entity.getPessoa().getNomeRazao());
 
         // Self Link
         dto.add(linkTo(methodOn(TransportadoraController.class).findById(entity.getId())).withSelfRel());

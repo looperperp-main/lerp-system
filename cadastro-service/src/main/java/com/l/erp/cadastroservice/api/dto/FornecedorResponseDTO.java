@@ -13,6 +13,7 @@ public class FornecedorResponseDTO extends RepresentationModel<FornecedorRespons
     private UUID id;
     private Long tenantId;
     private UUID pessoaId;
+    private String pessoaNomeRazao;
     private Boolean ativo;
     private Instant createdAt;
     private Instant updatedAt;

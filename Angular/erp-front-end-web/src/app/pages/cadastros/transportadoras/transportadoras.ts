@@ -41,7 +41,7 @@ export class Transportadoras implements OnInit {
 
   cols: ColumnConfig[] = [
     { field: 'id', header: 'ID', type: 'text' },
-    { field: 'pessoaId', header: 'ID Pessoa', type: 'text' },
+    { field: 'pessoaNomeRazao', header: 'Transportadora', type: 'text' },
     { field: 'rntrc', header: 'RNTRC', type: 'text' },
     { field: 'modal', header: 'Modal', type: 'text' },
     { field: 'ativo', header: 'Ativo', type: 'status' },

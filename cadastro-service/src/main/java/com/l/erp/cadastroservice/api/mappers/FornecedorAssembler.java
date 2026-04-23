@@ -24,6 +24,7 @@ public class FornecedorAssembler extends RepresentationModelAssemblerSupport<For
     public FornecedorResponseDTO toModel(Fornecedor entity) {
         // Utilizamos o Mapper do MapStruct para fazer o 'de-para' básico
         FornecedorResponseDTO dto = fornecedorMapper.toDtoResponse(entity);
+        dto.setPessoaNomeRazao(entity.getPessoa().getNomeRazao());
 
         // Self Link
         dto.add(linkTo(methodOn(FornecedorController.class).findById(entity.getId())).withSelfRel());

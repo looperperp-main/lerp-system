@@ -22,5 +22,6 @@ public interface FornecedorMapper {
     List<Fornecedor> toEntities(List<FornecedorDto> dtos);
 
     @Mapping(source = "pessoa.id", target = "pessoaId")
+    @Mapping(source = "pessoa.nomeRazao", target = "pessoaNomeRazao")
     FornecedorResponseDTO toDtoResponse(Fornecedor entity);
 }

@@ -1,7 +1,8 @@
 export interface Fornecedor {
   id: string;
   tenantId?: number;
-  pessoaId?: string; // UUID da pessoa vinculada
+  pessoaId?: string;
+  pessoaNomeRazao?: string;
   ativo?: boolean;
   createdAt?: string;
   updatedAt?: string;
