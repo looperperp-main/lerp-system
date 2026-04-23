@@ -1,7 +1,9 @@
 import {Component} from '@angular/core';
 import {CurrencyPipe, NgForOf, NgIf} from '@angular/common';
-import {PrimeTemplate} from 'primeng/api';
+import {MessageService, PrimeTemplate} from 'primeng/api';
 import {TableModule} from 'primeng/table';
+import {ToastModule} from 'primeng/toast';
+import {Router} from '@angular/router';
 
 
 @Component({
@@ -14,8 +16,10 @@ import {TableModule} from 'primeng/table';
     NgForOf,
     NgIf,
     PrimeTemplate,
-    TableModule
+    TableModule,
+    ToastModule
   ],
+  providers: [MessageService],
   templateUrl: './home.html',
   styleUrl: './home.scss',
 })
@@ -24,39 +28,39 @@ export class Home {
 
   cards = [
     {
-      title: 'Pedidos',
-      value: '13.465',
-      description: '24 novos desde a última visita',
+      title: 'Total de Clientes',
+      value: '1.245',
+      description: '24 novos desde a semana passada',
+      icon: 'pi pi-users',
+      bgIcon: 'bg-blue-100',
+      textIcon: 'text-blue-500',
+      isPositive: true
+    },
+    {
+      title: 'Produtos Ativos',
+      value: '356',
+      description: 'Cadastrados no sistema',
       icon: 'pi pi-box',
       bgIcon: 'bg-orange-100',
       textIcon: 'text-orange-500',
       isPositive: true
     },
     {
-      title: 'Receita',
-      value: 'R$2.135',
-      description: '52%+ desde a última semana',
-      icon: 'pi pi-dollar',
-      bgIcon: 'bg-orange-100',
-      textIcon: 'text-orange-500',
-      isPositive: true
+      title: 'Estoque Crítico',
+      value: '12',
+      description: 'Produtos precisando de reposição',
+      icon: 'pi pi-exclamation-triangle',
+      bgIcon: 'bg-red-100',
+      textIcon: 'text-red-500',
+      isPositive: false
     },
     {
-      title: 'Clientes',
-      value: '16.841',
-      description: '520 novos registros',
-      icon: 'pi pi-users',
-      bgIcon: 'bg-orange-100',
-      textIcon: 'text-orange-500',
-      isPositive: true
-    },
-    {
-      title: 'Comentários',
-      value: '152 não lidos',
-      description: '85 respondidos',
-      icon: 'pi pi-comments',
-      bgIcon: 'bg-orange-100',
-      textIcon: 'text-orange-500',
+      title: 'Recebimentos (Hoje)',
+      value: 'R$ 5.430,50',
+      description: '85% já liquidado',
+      icon: 'pi pi-wallet',
+      bgIcon: 'bg-green-100',
+      textIcon: 'text-green-500',
       isPositive: true
     }
   ];
@@ -117,5 +121,23 @@ export class Home {
     { type: 'like', message: '20 usuários adicionaram seus produtos a lista de favoritos', date: 'Última Semana', icon: 'pi pi-heart', color: 'text-orange-500', bg: 'bg-orange-100' }
   ];
 
-  constructor(  ) {  }
+  constructor( private router: Router, private messageService: MessageService ) {  }
+
+  // Métodos de Acesso Rápido
+  novoCliente() {
+    this.router.navigate(['/web/cadastros/clientes']);
+  }
+
+  cadastrarFornecedor() {
+    this.router.navigate(['/web/cadastros/fornecedores']);
+  }
+
+  emDesenvolvimento(recurso: string) {
+    this.messageService.add({
+      severity: 'info',
+      summary: 'Em Desenvolvimento',
+      detail: `A funcionalidade '${recurso}' será liberada em breve!`,
+      life: 3000
+    });
+  }
 }
