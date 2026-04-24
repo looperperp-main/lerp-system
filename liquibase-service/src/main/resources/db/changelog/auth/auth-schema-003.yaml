@@ -1,0 +1,64 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # Aumenta slug de 7 para 20 caracteres
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: auth-010-alter-tenant-slug-length
+      author: vitor-fernandes
+      changes:
+        - modifyDataType:
+            schemaName: auth
+            tableName: tenant
+            columnName: slug
+            newDataType: varchar(20)
+
+  # ──────────────────────────────────────────
+  # Adiciona dados da empresa ao tenant
+  # Necessários para emissão de NF-e e contato
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: auth-011-add-tenant-company-fields
+      author: vitor-fernandes
+      changes:
+        - addColumn:
+            schemaName: auth
+            tableName: tenant
+            columns:
+              - column:
+                  name: nome_fantasia
+                  type: varchar(200)
+              - column:
+                  name: inscricao_estadual
+                  type: varchar(20)
+              - column:
+                  name: email
+                  type: varchar(200)
+              - column:
+                  name: telefone
+                  type: varchar(20)
+              - column:
+                  name: logradouro
+                  type: varchar(200)
+              - column:
+                  name: numero
+                  type: varchar(20)
+              - column:
+                  name: complemento
+                  type: varchar(100)
+              - column:
+                  name: bairro
+                  type: varchar(100)
+              - column:
+                  name: cidade
+                  type: varchar(100)
+              - column:
+                  name: uf
+                  type: varchar(2)
+              - column:
+                  name: cep
+                  type: varchar(9)
+              - column:
+                  name: ibge_codigo
+                  type: varchar(10)
+                  remarks: "Código IBGE do município — obrigatório para NF-e"

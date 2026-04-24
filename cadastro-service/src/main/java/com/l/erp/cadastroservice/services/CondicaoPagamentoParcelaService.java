@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -56,6 +57,14 @@ public class CondicaoPagamentoParcelaService {
                     utils.sendAuditEvent(Constants.COND_PAG_PAR_CREATION, userId, Constants.COND_PAG_PAR,condicaoPagamentoId, Constants.ERROR, "{ERROR: Condicao Nao Encontrada}", correlationId);
                     return new ResponseStatusException(HttpStatus.NOT_FOUND, Constants.COND_PAG_NOT_FOUND);
                 });
+
+        BigDecimal somaPercentual = parcelasDto.stream()
+                .map(CondicaoPagamentoParcelaRequestDTO::percentual)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (somaPercentual.compareTo(new BigDecimal("100.00")) != 0) {
+            utils.sendAuditEvent(Constants.COND_PAG_PAR_CREATION, userId, Constants.COND_PAG_PAR, condicaoPagamentoId, Constants.ERROR, "{ERROR: Soma dos percentuais diferente de 100}", correlationId);
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "A soma dos percentuais das parcelas deve ser 100. Valor recebido: " + somaPercentual);
+        }
 
         try{
             // Limpa as parcelas antigas

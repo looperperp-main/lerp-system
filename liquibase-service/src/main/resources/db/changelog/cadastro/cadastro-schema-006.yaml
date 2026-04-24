@@ -1,0 +1,73 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # Dimensões físicas do produto
+  # Obrigatórias para NF-e (tag <transp>/<vol>)
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-022-add-produto-dimensoes
+      author: vitor-fernandes
+      changes:
+        - addColumn:
+            schemaName: cadastros
+            tableName: produto
+            columns:
+              - column:
+                  name: peso_bruto
+                  type: decimal(10,4)
+                  remarks: "Peso bruto em KG — obrigatório NF-e"
+              - column:
+                  name: peso_liquido
+                  type: decimal(10,4)
+                  remarks: "Peso líquido em KG — obrigatório NF-e"
+              - column:
+                  name: altura
+                  type: decimal(10,4)
+                  remarks: "Altura em CM"
+              - column:
+                  name: largura
+                  type: decimal(10,4)
+                  remarks: "Largura em CM"
+              - column:
+                  name: comprimento
+                  type: decimal(10,4)
+                  remarks: "Comprimento em CM"
+
+  # ──────────────────────────────────────────
+  # Unique constraint: um vendedor por pessoa por tenant
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-023-uq-vendedor-tenant-pessoa
+      author: vitor-fernandes
+      changes:
+        - addUniqueConstraint:
+            schemaName: cadastros
+            tableName: vendedor
+            columnNames: tenant_id, pessoa_id
+            constraintName: uq_vendedor_tenant_pessoa
+
+  # ──────────────────────────────────────────
+  # Partial unique index: apenas uma tabela padrão por tenant
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-024-uidx-tabela-preco-padrao-por-tenant
+      author: vitor-fernandes
+      changes:
+        - sql:
+            sql: >
+              CREATE UNIQUE INDEX uq_tabela_preco_padrao_tenant
+              ON cadastros.tabela_preco (tenant_id)
+              WHERE padrao = true;
+
+  # ──────────────────────────────────────────
+  # Partial unique index: apenas um endereço principal por pessoa
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-025-uidx-endereco-principal-por-pessoa
+      author: vitor-fernandes
+      changes:
+        - sql:
+            sql: >
+              CREATE UNIQUE INDEX uq_endereco_principal_pessoa
+              ON cadastros.endereco (tenant_id, pessoa_id)
+              WHERE principal = true;

@@ -40,7 +40,7 @@ public class Tenant {
     @Enumerated(EnumType.STRING)
     private EnumTenantStatus status;
 
-    @Column(name = "slug", length = 7)
+    @Column(name = "slug", length = 20)
     private String slug;
 
     @NotNull
@@ -58,5 +58,53 @@ public class Tenant {
     @Size(max = 200)
     @Column(name = "last_updated_by", length = 200)
     private String lastUpdatedBy;
+
+    @Size(max = 200)
+    @Column(name = "nome_fantasia", length = 200)
+    private String nomeFantasia;
+
+    @Size(max = 20)
+    @Column(name = "inscricao_estadual", length = 20)
+    private String inscricaoEstadual;
+
+    @Size(max = 200)
+    @Column(name = "email", length = 200)
+    private String email;
+
+    @Size(max = 20)
+    @Column(name = "telefone", length = 20)
+    private String telefone;
+
+    @Size(max = 200)
+    @Column(name = "logradouro", length = 200)
+    private String logradouro;
+
+    @Size(max = 20)
+    @Column(name = "numero", length = 20)
+    private String numero;
+
+    @Size(max = 100)
+    @Column(name = "complemento", length = 100)
+    private String complemento;
+
+    @Size(max = 100)
+    @Column(name = "bairro", length = 100)
+    private String bairro;
+
+    @Size(max = 100)
+    @Column(name = "cidade", length = 100)
+    private String cidade;
+
+    @Size(max = 2)
+    @Column(name = "uf", length = 2)
+    private String uf;
+
+    @Size(max = 9)
+    @Column(name = "cep", length = 9)
+    private String cep;
+
+    @Size(max = 10)
+    @Column(name = "ibge_codigo", length = 10)
+    private String ibgeCodigo;
 
 }

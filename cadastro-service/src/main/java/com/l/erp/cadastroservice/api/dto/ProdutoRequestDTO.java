@@ -48,6 +48,16 @@ public class ProdutoRequestDTO {
     @Size(max = 2)
     private String origem;
 
+    private BigDecimal pesoBruto;
+
+    private BigDecimal pesoLiquido;
+
+    private BigDecimal altura;
+
+    private BigDecimal largura;
+
+    private BigDecimal comprimento;
+
     @NotNull
     private Boolean ativo;
 }

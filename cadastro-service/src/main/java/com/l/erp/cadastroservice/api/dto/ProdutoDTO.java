@@ -48,6 +48,12 @@ public record ProdutoDTO(
         @Size(max = 2)
         String origem,
 
+        BigDecimal pesoBruto,
+        BigDecimal pesoLiquido,
+        BigDecimal altura,
+        BigDecimal largura,
+        BigDecimal comprimento,
+
         @NotNull
         Boolean ativo,
 

@@ -26,6 +26,11 @@ public class ProdutoResponseDTO extends RepresentationModel<ProdutoResponseDTO> 
     private String ean;
     private String cest;
     private String origem;
+    private BigDecimal pesoBruto;
+    private BigDecimal pesoLiquido;
+    private BigDecimal altura;
+    private BigDecimal largura;
+    private BigDecimal comprimento;
     private Boolean ativo;
     private Instant createdAt;
     private Instant updatedAt;

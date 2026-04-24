@@ -83,6 +83,21 @@ public class Produto extends BaseTenantEntity {
     @Column(name = "origem", length = 2)
     private String origem;
 
+    @Column(name = "peso_bruto", precision = 10, scale = 4)
+    private BigDecimal pesoBruto;
+
+    @Column(name = "peso_liquido", precision = 10, scale = 4)
+    private BigDecimal pesoLiquido;
+
+    @Column(name = "altura", precision = 10, scale = 4)
+    private BigDecimal altura;
+
+    @Column(name = "largura", precision = 10, scale = 4)
+    private BigDecimal largura;
+
+    @Column(name = "comprimento", precision = 10, scale = 4)
+    private BigDecimal comprimento;
+
     @NotNull
     @ColumnDefault("true")
     @Column(name = "ativo", nullable = false)

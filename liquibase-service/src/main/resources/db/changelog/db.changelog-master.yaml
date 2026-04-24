@@ -11,11 +11,14 @@ databaseChangeLog:
       file: auth/auth-schema-002.yaml
       relativeToChangelogFile: true
   - include:
+      file: auth/auth-schema-003.yaml
+      relativeToChangelogFile: true
+  - include:
       file: audit/audit-schema-001.yaml
       relativeToChangelogFile: true
-#  - include:
-#      file: db/changelog/cadastro/cadastro-schema-001.yaml
-#      relativeToChangelogFile: true
+  - include:
+      file: audit/audit-schema-002.yaml
+      relativeToChangelogFile: true
 
   # 2. Schema de Cadastros
   - include:
@@ -29,4 +32,7 @@ databaseChangeLog:
       relativeToChangelogFile: true
   - include:
       file: cadastro/cadastro-schema-005-update-vendedor.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: cadastro/cadastro-schema-006.yaml
       relativeToChangelogFile: true

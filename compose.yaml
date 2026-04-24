@@ -29,11 +29,16 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_SERVER_JVMFLAGS: "-Xmx256m -Xms128m"
     healthcheck:
       test: echo srvr | nc localhost 2181 || exit 1
       interval: 5s
       timeout: 10s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 384m
     networks:
       - loop-erp-network
 
@@ -56,6 +61,11 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_HEAP_OPTS: "-Xmx512m -Xms256m"
+    deploy:
+      resources:
+        limits:
+          memory: 768m
     networks:
       - loop-erp-network
 
@@ -121,9 +131,12 @@ services:
       - discovery.type=single-node
       - xpack.security.enabled=false # Desabilitado para ambiente de desenvolvimento local
       - "ES_JAVA_OPTS=-Xms256m -Xmx256m"
-      - mem_limit=768m
     ports:
       - "9200:9200"
+    deploy:
+      resources:
+        limits:
+          memory: 768m
     networks:
       - loop-erp-network
 
@@ -147,10 +160,15 @@ services:
     container_name: kibana
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - NODE_OPTIONS=--max-old-space-size=512
     ports:
       - "5601:5601"
     depends_on:
       - elasticsearch
+    deploy:
+      resources:
+        limits:
+          memory: 768m
     networks:
       - loop-erp-network
 

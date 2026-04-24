@@ -68,6 +68,7 @@ public class TenantControllerTest {
     @WithMockUser(authorities = "TENANT_READ")
     void shouldReturnTenants() throws Exception {
         TenantDTO dto = new TenantDTO(1L, "Empresa X", "12345678000190", "ATIVO",
+                "","","","","","","","","","","","","",
                 Instant.now(), "admin", Instant.now(), "admin");
 
         // Mock para retornar uma Página em vez de lista simples
@@ -107,9 +108,11 @@ public class TenantControllerTest {
         var csrfToken = httpSessionCsrfTokenRepository.generateToken(new MockHttpServletRequest());
 
         TenantDTO input = new TenantDTO(null, "Empresa Y", "98765432000110", "ATIVO",
+                "","","","","","","","","","","","","",
                 Instant.now(), "admin", Instant.now(), "admin");
 
         TenantDTO created = new TenantDTO(2L, "Empresa Y", "98765432000110", "ATIVO",
+                "","","","","","","","","","","","","",
                 Instant.now(), "admin", Instant.now(), "admin");
 
         Tenant entity = new Tenant();
@@ -140,6 +143,7 @@ public class TenantControllerTest {
     @WithMockUser(authorities = "TENANT_READ")
     void shouldReturnAGivenTenants() throws Exception {
         TenantDTO dto = new TenantDTO(1L, "Empresa X", "12345678000190", "ATIVO",
+                "","","","","","","","","","","","","",
                 Instant.now(), "admin", Instant.now(), "admin");
 
         when(tenantRepository.findById(1L)).thenReturn(Optional.of(new Tenant()));
@@ -159,6 +163,7 @@ public class TenantControllerTest {
         var csrfToken = httpSessionCsrfTokenRepository.generateToken(new MockHttpServletRequest());
 
         TenantDTO originalUpdated = new TenantDTO(1L, "Empresa Z", "98765432000110", "ATIVO",
+                "","","","","","","","","","","","","",
                 Instant.now(), "admin", Instant.now(), "admin");
 
         Tenant oldTenant = new Tenant();
@@ -200,6 +205,7 @@ public class TenantControllerTest {
         var csrfToken = httpSessionCsrfTokenRepository.generateToken(new MockHttpServletRequest());
 
         TenantDTO originalUpdated = new TenantDTO(1L, "Empresa Z", "98765432000110", "ATIVO",
+                "","","","","","","","","","","","","",
                 Instant.now(), "admin", Instant.now(), "admin");
 
         Tenant oldTenant = new Tenant();
@@ -241,6 +247,7 @@ public class TenantControllerTest {
         var csrfToken = httpSessionCsrfTokenRepository.generateToken(new MockHttpServletRequest());
 
         TenantDTO originalUpdated = new TenantDTO(1L, "Empresa Z", "98765432000110", "ATIVO",
+                "","","","","","","","","","","","","",
                 Instant.now(), "admin", Instant.now(), "admin");
 
         Tenant oldTenant = new Tenant();
@@ -276,6 +283,7 @@ public class TenantControllerTest {
         var csrfToken = httpSessionCsrfTokenRepository.generateToken(new MockHttpServletRequest());
 
         TenantDTO originalUpdated = new TenantDTO(1L, "Empresa Z", "98765432000110", "ATIVO",
+                "","","","","","","","","","","","","",
                 Instant.now(), "admin", Instant.now(), "admin");
 
         Tenant oldTenant = new Tenant();
