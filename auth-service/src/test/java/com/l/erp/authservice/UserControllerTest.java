@@ -137,7 +137,7 @@ public class UserControllerTest {
         UUID id = UUID.randomUUID();
 
         UserAccountDTO input = new UserAccountDTO(null,1L,"usuario@usuario.com",
-                "asdasdsadasd","USER",true, null, Instant.now(),"seed",null,null);
+                "asdasdsadsd","USER",true, null, Instant.now(),"seed",null,null);
 
         when(userAccountRepository.findByEmail(input.email())).thenReturn(Optional.of(new UserAccount()));
 
