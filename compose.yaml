@@ -154,7 +154,6 @@ services:
     networks:
       - loop-erp-network
 
-      # --- Adicionando o TeamCity ---
   teamcity-server:
     image: jetbrains/teamcity-server:latest
     container_name: teamcity-server
@@ -169,8 +168,11 @@ services:
   teamcity-agent:
     image: jetbrains/teamcity-agent:latest
     container_name: teamcity-agent
+    privileged: true # Necessário para o container conseguir rodar os binários do Docker
+    user: root # Garante permissão total para acessar o docker.sock
     environment:
       - SERVER_URL=http://teamcity-server:8111
+      - DOCKER_IN_DOCKER=start
     volumes:
       - teamcity_agent_conf:/data/teamcity_agent/conf
       # Muito importante: Isso permite que o Agente do TeamCity rode comandos Docker (como o seu docker build)
