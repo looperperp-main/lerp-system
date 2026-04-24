@@ -11,7 +11,8 @@ import java.util.UUID;
 
 @Repository
 public interface TabelaPrecoRepository extends JpaRepository<TabelaPreco, UUID> {
-    boolean existsByNomeIgnoreCase(String nome);
+    boolean existsByNomeIgnoreCaseAndTenantId(String nome, Long tenantId);
+    boolean existsByPadraoIsTrueAndTenantId( Long tenantId);
     Page<TabelaPreco> findAll(Pageable pageable);
     Optional<TabelaPreco> findById(UUID id);
 

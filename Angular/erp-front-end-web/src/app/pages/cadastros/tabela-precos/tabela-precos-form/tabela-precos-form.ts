@@ -11,6 +11,7 @@ import { DatePickerModule } from 'primeng/datepicker';
 import { TabelaPreco } from '../tabela-preco.model';
 import { TabelaPrecoService } from '../tabela-preco.service';
 import { PrimaryButtonComponent } from '../../../../components/primary-button/primary-button';
+import {HttpErrorResponse} from '@angular/common/http';
 
 @Component({
   selector: 'app-tabela-precos-form',
@@ -83,9 +84,9 @@ export class TabelaPrecosForm implements OnInit {
         this.loading = false;
         this.saved.emit();
       },
-      error: (err) => {
-        console.error('Erro ao salvar', err);
-        this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Falha ao salvar a Tabela de Preço.' });
+      error: (errHttpE: HttpErrorResponse) => {
+        console.error('Erro ao salvar', errHttpE);
+        this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Falha ao salvar a Tabela de Preço: ' + errHttpE.error.message });
         this.loading = false;
       }
     });
