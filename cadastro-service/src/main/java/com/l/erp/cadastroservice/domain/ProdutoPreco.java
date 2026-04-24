@@ -1,8 +1,11 @@
 package com.l.erp.cadastroservice.domain;
 
+import com.l.erp.cadastroservice.repository.filter.BaseTenantEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
@@ -20,14 +23,11 @@ import java.util.UUID;
 @Setter
 @Entity
 @Table(name = "produto_preco", schema = "cadastros")
-public class ProdutoPreco {
+public class ProdutoPreco extends BaseTenantEntity {
     @Id
     @Column(name = "id", nullable = false)
+    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
-
-    @NotNull
-    @Column(name = "tenant_id", nullable = false)
-    private Long tenantId;
 
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

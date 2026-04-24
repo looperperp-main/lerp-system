@@ -35,28 +35,30 @@
         [totalRecords]="totalRecords()"
         [lazy]="true"
         (onLazyLoad)="loadGrupos($event)"
-        [showCurrentPageReport]="true"
+        [showCurrentPageReport]="true" [tableStyle]="{ 'min-width': '60rem' }"
         currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords} registros"
-        [rowsPerPageOptions]="[10, 25, 50]"
-        styleClass="p-datatable-sm p-datatable-striped">
+        [rowsPerPageOptions]="[10, 25, 50]" [paginatorDropdownAppendTo]="'body'"
+        styleClass="p-datatable-sm text-sm">
 
         <ng-template pTemplate="header" let-columns>
           <tr>
-            <th *ngFor="let col of columns" [pSortableColumn]="col.field !== 'actions' ? col.field : undefined">
-              {{col.header}}
+            <th *ngFor="let col of columns" [pSortableColumn]="col.field !== 'actions' ? col.field : ''" class="text-xs uppercase text-gray-400 font-semibold border-b border-gray-100 pb-3">
+              {{col.header}} <p-sortIcon *ngIf="col.field !== 'actions'" [field]="col.field"></p-sortIcon>
             </th>
           </tr>
         </ng-template>
 
         <ng-template pTemplate="body" let-rowData let-columns="columns">
-          <tr>
-            <td *ngFor="let col of columns">
+          <tr lass="hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-colors">
+            <td *ngFor="let col of columns" class="py-3 text-gray-600">
 
               <!-- Status -->
               <ng-container *ngIf="col.type === 'status'">
-            <span [class]="rowData[col.field] ? 'text-green-600 font-bold' : 'text-red-600 font-bold'">
-              {{ rowData[col.field] ? 'Sim' : 'Não' }}
-            </span>
+                <span [class]="'px-2 py-1 rounded text-xs font-medium ' +
+                    (rowData[col.field] === true ? 'bg-green-100 text-green-700' :
+                     'bg-red-100 text-red-700')">
+                    {{rowData[col.field] === true ? 'ATIVO' : 'INATIVA'}}
+                </span>
               </ng-container>
 
               <!-- Ações -->
@@ -76,7 +78,9 @@
 
               <!-- Texto Padrão -->
               <ng-container *ngIf="col.type === 'text'">
-                {{ rowData[col.field] }}
+                <span class="font-medium" [class.text-gray-900]="col.field === 'id'">
+                  {{ rowData[col.field] || '-' | htmlDecode }}
+                </span>
               </ng-container>
 
             </td>
@@ -85,8 +89,8 @@
 
         <ng-template pTemplate="emptymessage">
           <tr>
-            <td [attr.colspan]="cols.length" class="text-center p-4">
-              Nenhum grupo de cliente encontrado.
+            <td [attr.colspan]="cols.length" class="text-center py-6 text-gray-500">
+              Nenhuma Tabela de Preço encontrada.
             </td>
           </tr>
         </ng-template>

@@ -11,6 +11,7 @@ import { GrupoClienteService } from '../grupo-clientes/grupo-cliente.service';
 import { ColumnConfig } from '../../../components/table/data-table';
 import { GrupoClienteTabelaPrecoFormComponent } from './grupo-cliente-tabela-preco-form/grupo-cliente-tabela-preco-form';
 import {PrimaryButtonComponent} from '../../../components/primary-button/primary-button';
+import {HtmlDecodePipe} from '../../../util/pipe/html-decode.pipe';
 
 @Component({
   selector: 'app-grupo-cliente-tabela-preco',
@@ -23,7 +24,8 @@ import {PrimaryButtonComponent} from '../../../components/primary-button/primary
     Toast,
     Tooltip,
     GrupoClienteTabelaPrecoFormComponent,
-    PrimaryButtonComponent
+    PrimaryButtonComponent,
+    HtmlDecodePipe
   ],
   templateUrl: './grupo-cliente-tabela-preco.html',
   styleUrl: './grupo-cliente-tabela-preco.scss',

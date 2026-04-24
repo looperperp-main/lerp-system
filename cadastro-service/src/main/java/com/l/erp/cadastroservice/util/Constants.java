@@ -167,4 +167,11 @@ public class Constants {
 
     public static final String GRP_C_TABELA_PRECO = "TABELA_PRECO_GRUPO_CLIENTE";
     public static final String GRP_C_TABELA_PRECO_ASSOCIACAO = GRP_C_TABELA_PRECO+"_ASSOCIACAO";
+
+    public static final String PRODUTO = "PRODUTO";
+    public static final String PRODUTO_CREATION = PRODUTO + "_" + INSERT;
+    public static final String PRODUTO_UPDATE = PRODUTO +"_" + UPDATE;
+    public static final String PRODUTO_DELETE = PRODUTO +"_" + DELETE;
+    public static final String PRODUTO_NOT_FOUND = "Produto não encontrado!";
+    public static final String PRODUTO_ALREADY_EXISTS = "Já existe um Produto com este nome";
 }

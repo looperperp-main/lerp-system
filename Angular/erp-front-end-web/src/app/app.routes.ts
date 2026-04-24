@@ -16,6 +16,7 @@ import {TabelaPrecos} from './pages/cadastros/tabela-precos/tabela-precos';
 import {
   GrupoClienteTabelaPrecoComponent
 } from './pages/cadastros/grupo-cliente-tabela-preco/grupo-cliente-tabela-preco';
+import {Produtos} from './pages/cadastros/produtos/produtos';
 
 export const routes: Routes = [
     { path: '', redirectTo: 'login', pathMatch: 'full' },
@@ -37,6 +38,7 @@ export const routes: Routes = [
           { path: 'cadastros/transportadoras', component: Transportadoras  },
           { path: 'cadastros/tabela-preco', component: TabelaPrecos  },
           { path: 'cadastros/tabela-preco-grupo', component: GrupoClienteTabelaPrecoComponent  },
+          { path: 'cadastros/produtos', component: Produtos  },
         ]
         //canActivate: [authGuard]
     },

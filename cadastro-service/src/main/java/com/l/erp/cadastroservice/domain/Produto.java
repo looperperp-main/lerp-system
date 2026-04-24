@@ -1,8 +1,12 @@
 package com.l.erp.cadastroservice.domain;
 
+import com.l.erp.cadastroservice.repository.filter.BaseTenantEntity;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
@@ -24,14 +28,11 @@ import java.util.UUID;
 @Setter
 @Entity
 @Table(name = "produto", schema = "cadastros")
-public class Produto {
+public class Produto extends BaseTenantEntity {
     @Id
     @Column(name = "id", nullable = false)
+    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
-
-    @NotNull
-    @Column(name = "tenant_id", nullable = false)
-    private Long tenantId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "categoria_id")
@@ -101,13 +102,13 @@ public class Produto {
     @Column(name = "last_updated_by")
     private UUID lastUpdatedBy;
 
-    @OneToMany(mappedBy = "produto")
+    @OneToMany(mappedBy = "produto", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<ProdutoEstoqueConfig> produtoEstoqueConfigs = new LinkedHashSet<>();
 
-    @OneToMany(mappedBy = "produto")
+    @OneToMany(mappedBy = "produto", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<ProdutoFornecedor> produtoFornecedors = new LinkedHashSet<>();
 
-    @OneToMany(mappedBy = "produto")
+    @OneToMany(mappedBy = "produto", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<ProdutoPreco> produtoPrecos = new LinkedHashSet<>();
 
 

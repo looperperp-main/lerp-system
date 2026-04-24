@@ -1,0 +1,234 @@
+<form [formGroup]="form" (ngSubmit)="save()" class="flex flex-col gap-4">
+
+  <p-tabs value="dados_gerais">
+    <p-tablist>
+      <p-tab value="dados_gerais">Dados Gerais</p-tab>
+      <p-tab value="precos">Preços</p-tab>
+      <p-tab value="fornecedores">Fornecedores</p-tab>
+      <p-tab value="estoque">Estoque</p-tab>
+    </p-tablist>
+
+    <p-tabpanels>
+      <!-- Aba Dados Gerais -->
+      <p-tabpanel value="dados_gerais">
+        <div class="grid grid-cols-12 gap-4 mt-2">
+          <!-- SKU -->
+          <div class="col-span-12 md:col-span-4 flex flex-col gap-2">
+            <label for="sku" class="font-medium text-gray-700">SKU *</label>
+            <input pInputText id="sku" formControlName="sku" class="w-full" placeholder="Ex: PRD-001" />
+            <small class="text-red-500" *ngIf="form.get('sku')?.invalid && form.get('sku')?.touched">SKU é obrigatório.</small>
+          </div>
+
+          <!-- Nome -->
+          <div class="col-span-12 md:col-span-8 flex flex-col gap-2">
+            <label for="nome" class="font-medium text-gray-700">Nome do Produto *</label>
+            <input pInputText id="nome" formControlName="nome" class="w-full" placeholder="Ex: Notebook 15.6''" />
+            <small class="text-red-500" *ngIf="form.get('nome')?.invalid && form.get('nome')?.touched">Nome é obrigatório.</small>
+          </div>
+
+          <!-- Descrição -->
+          <div class="col-span-12 flex flex-col gap-2">
+            <label for="descricao" class="font-medium text-gray-700">Descrição</label>
+            <input pInputText id="descricao" formControlName="descricao" class="w-full" />
+          </div>
+
+          <!-- Linha: Categoria e UN -->
+          <div class="col-span-12 md:col-span-6 flex flex-col gap-2">
+            <label for="categoriaId" class="font-medium text-gray-700">Categoria</label>
+            <p-select [options]="categoriasOptions()" formControlName="categoriaId" optionLabel="label" optionValue="value" placeholder="Selecione" [filter]="true" class="w-full" styleClass="w-full"></p-select>
+          </div>
+          <div class="col-span-12 md:col-span-6 flex flex-col gap-2">
+            <label for="unidade" class="font-medium text-gray-700">UN *</label>
+            <input pInputText id="unidade" formControlName="unidade" class="w-full" placeholder="Ex: UN" />
+            <small class="text-red-500" *ngIf="form.get('unidade')?.invalid && form.get('unidade')?.touched">Unidade é obrigatória.</small>
+          </div>
+
+          <!-- Linha: UN Secundária e Fator Conv. -->
+          <div class="col-span-12 md:col-span-6 flex flex-col gap-2">
+            <label for="unidadeSecundaria" class="font-medium text-gray-700">UN Secundária</label>
+            <input pInputText id="unidadeSecundaria" formControlName="unidadeSecundaria" class="w-full" placeholder="Ex: CX" />
+          </div>
+          <div class="col-span-12 md:col-span-6 flex flex-col gap-2">
+            <label for="fatorConversao" class="font-medium text-gray-700">Fator Conv.</label>
+            <p-inputNumber formControlName="fatorConversao" inputId="fatorConversao" [minFractionDigits]="2" [maxFractionDigits]="4" styleClass="w-full" class="w-full"></p-inputNumber>
+          </div>
+
+          <!-- Linha: EAN e NCM -->
+          <div class="col-span-12 md:col-span-6 flex flex-col gap-2">
+            <label for="ean" class="font-medium text-gray-700">EAN</label>
+            <input pInputText id="ean" formControlName="ean" class="w-full" />
+          </div>
+          <div class="col-span-12 md:col-span-6 flex flex-col gap-2">
+            <label for="ncm" class="font-medium text-gray-700">NCM</label>
+            <input pInputText id="ncm" formControlName="ncm" class="w-full" />
+          </div>
+
+          <!-- Linha: CEST e Origem -->
+          <div class="col-span-12 md:col-span-6 flex flex-col gap-2">
+            <label for="cest" class="font-medium text-gray-700">CEST</label>
+            <input pInputText id="cest" formControlName="cest" class="w-full" />
+          </div>
+          <div class="col-span-12 md:col-span-6 flex flex-col gap-2">
+            <label for="origem" class="font-medium text-gray-700">Origem</label>
+            <input pInputText id="origem" formControlName="origem" class="w-full" />
+          </div>
+
+          <!-- Linha: Cód. Externo (vai ocupar 50% e empurrar o "Ativo" para a linha de baixo naturalmente) -->
+          <div class="col-span-12 md:col-span-6 flex flex-col gap-2">
+            <label for="codigoExterno" class="font-medium text-gray-700">Cód. Externo</label>
+            <input pInputText id="codigoExterno" formControlName="codigoExterno" class="w-full" />
+          </div>
+
+          <!-- Ativo -->
+          <div class="col-span-12 flex items-center gap-2 mt-2">
+            <p-checkbox formControlName="ativo" [binary]="true" inputId="ativo"></p-checkbox>
+            <label for="ativo" class="text-gray-700 cursor-pointer font-medium">Produto Ativo</label>
+          </div>
+        </div>
+      </p-tabpanel>
+
+      <!-- Aba Preços -->
+      <p-tabpanel value="precos">
+        <div class="flex justify-end mb-4">
+          <button pButton pRipple type="button" label="Adicionar Preço" icon="pi pi-plus" class="p-button-outlined p-button-sm" (click)="addPreco()"></button>
+        </div>
+
+        <div formArrayName="precos" class="flex flex-col gap-4">
+          <div *ngFor="let precoCtrl of precosFormArray.controls; let i = index" [formGroupName]="i" class="grid grid-cols-12 gap-4 items-end border border-gray-200 p-4 rounded-lg bg-gray-50">
+
+            <!-- Linha 1 -->
+            <div class="col-span-12 md:col-span-6 flex flex-col gap-2">
+              <label class="text-sm font-medium text-gray-700">Tabela de Preço *</label>
+              <p-select [options]="tabelasPrecoOptions()" formControlName="tabelaPrecoId" optionLabel="label" optionValue="value" placeholder="Selecione" [filter]="true" styleClass="w-full" class="w-full"></p-select>
+            </div>
+            <div class="col-span-12 md:col-span-6 flex flex-col gap-2">
+              <label class="text-sm font-medium text-gray-700">Preço *</label>
+              <p-inputNumber formControlName="preco" mode="currency" currency="BRL" locale="pt-BR" styleClass="w-full" class="w-full"></p-inputNumber>
+            </div>
+
+            <!-- Linha 2 -->
+            <div class="col-span-12 md:col-span-6 flex flex-col gap-2">
+              <label class="text-sm font-medium text-gray-700">Início Vigência *</label>
+              <p-datepicker [appendTo]="'body'" formControlName="inicioVigencia" dateFormat="dd/mm/yy" [showIcon]="true" styleClass="w-full" class="w-full"></p-datepicker>
+            </div>
+
+            <div class="col-span-12 md:col-span-6 flex gap-2 items-end">
+              <div class="flex flex-col gap-2 flex-1">
+                <label class="text-sm font-medium text-gray-700">Fim Vigência</label>
+                <p-datepicker [appendTo]="'body'" formControlName="fimVigencia" dateFormat="dd/mm/yy" [showIcon]="true" styleClass="w-full" class="w-full"></p-datepicker>
+              </div>
+              <!-- Ícone de Lixeira no final da linha -->
+              <div class="pb-1">
+                <button pButton pRipple type="button" icon="pi pi-trash" class="p-button-rounded p-button-danger p-button-text" (click)="removePreco(i)"></button>
+              </div>
+            </div>
+
+          </div>
+          <div *ngIf="precosFormArray.controls.length === 0" class="text-center text-gray-500 py-4">Nenhum preço configurado.</div>
+        </div>
+      </p-tabpanel>
+
+      <!-- Aba Fornecedores -->
+      <p-tabpanel value="fornecedores">
+        <div class="flex justify-end mb-4">
+          <button pButton pRipple type="button" label="Adicionar Fornecedor" icon="pi pi-plus" class="p-button-outlined p-button-sm" (click)="addFornecedor()"></button>
+        </div>
+
+        <div formArrayName="fornecedores" class="flex flex-col gap-4">
+          <div *ngFor="let fornCtrl of fornecedoresFormArray.controls; let j = index" [formGroupName]="j" class="grid grid-cols-12 gap-4 items-end border border-gray-200 p-4 rounded-lg bg-gray-50">
+
+            <!-- Linha 1 -->
+            <div class="col-span-12 md:col-span-6 flex flex-col gap-2">
+              <label class="text-sm font-medium text-gray-700">Fornecedor *</label>
+              <p-select [options]="fornecedoresOptions()" formControlName="fornecedorId" optionLabel="label" optionValue="value" placeholder="Selecione" [filter]="true" styleClass="w-full" class="w-full"></p-select>
+            </div>
+            <div class="col-span-12 md:col-span-6 flex flex-col gap-2">
+              <label class="text-sm font-medium text-gray-700">Cód. no Fornecedor</label>
+              <input pInputText formControlName="codigoProdutoFornecedor" class="w-full" />
+            </div>
+
+            <!-- Linha 2 -->
+            <div class="col-span-12 md:col-span-6 flex flex-col gap-2">
+              <label class="text-sm font-medium text-gray-700">Preço Custo</label>
+              <p-inputNumber formControlName="precoCusto" mode="currency" currency="BRL" locale="pt-BR" styleClass="w-full" class="w-full"></p-inputNumber>
+            </div>
+            <div class="col-span-12 md:col-span-6 flex flex-col gap-2">
+              <label class="text-sm font-medium text-gray-700">LeadTime (Dias)</label>
+              <p-inputNumber formControlName="leadTimeDias" [useGrouping]="false" styleClass="w-full" class="w-full"></p-inputNumber>
+            </div>
+
+            <!-- Linha 3 (Preferencial e Lixeira) -->
+            <div class="col-span-12 flex gap-4 items-center mt-2">
+              <div class="flex items-center gap-2">
+                <p-checkbox formControlName="preferencial" [binary]="true" inputId="pref-{{j}}"></p-checkbox>
+                <label for="pref-{{j}}" class="text-sm font-medium text-gray-700 cursor-pointer">Fornecedor Preferencial</label>
+              </div>
+              <!-- Ícone de Lixeira no final -->
+              <div class="ml-auto">
+                <button pButton pRipple type="button" icon="pi pi-trash" class="p-button-rounded p-button-danger p-button-text" (click)="removeFornecedor(j)"></button>
+              </div>
+            </div>
+
+          </div>
+          <div *ngIf="fornecedoresFormArray.controls.length === 0" class="text-center text-gray-500 py-4">Nenhum fornecedor vinculado.</div>
+        </div>
+      </p-tabpanel>
+
+      <!-- Aba Estoque -->
+      <p-tabpanel value="estoque">
+        <div class="flex justify-end mb-4">
+          <button pButton pRipple type="button" label="Adicionar Config." icon="pi pi-plus" class="p-button-outlined p-button-sm" (click)="addEstoqueConfig()"></button>
+        </div>
+
+        <div formArrayName="estoqueConfigs" class="flex flex-col gap-4">
+          <div *ngFor="let estqCtrl of estoqueConfigsFormArray.controls; let k = index" [formGroupName]="k" class="grid grid-cols-12 gap-4 items-end border border-gray-200 p-4 rounded-lg bg-gray-50">
+
+            <!-- Linha Nova (Depósito e Fornecedor) -->
+            <div class="col-span-12 md:col-span-6 flex flex-col gap-2">
+              <label class="text-sm font-medium text-gray-700">Depósito *</label>
+              <p-select [options]="depositosOptions()" formControlName="depositoId" optionLabel="label" optionValue="value" placeholder="Selecione" [filter]="true" styleClass="w-full" class="w-full"></p-select>
+            </div>
+            <div class="col-span-12 md:col-span-6 flex flex-col gap-2">
+              <label class="text-sm font-medium text-gray-700">Fornecedor Preferencial</label>
+              <p-select [options]="fornecedoresOptions()" formControlName="fornecedorPreferencialId" optionLabel="label" optionValue="value" placeholder="Selecione" [filter]="true" styleClass="w-full" class="w-full"></p-select>
+            </div>
+            <!-- Linha 1 -->
+            <div class="col-span-12 md:col-span-6 flex flex-col gap-2">
+              <label class="text-sm font-medium text-gray-700">Estoque Mínimo</label>
+              <p-inputNumber formControlName="estoqueMinimo" [minFractionDigits]="2" styleClass="w-full" class="w-full"></p-inputNumber>
+            </div>
+            <div class="col-span-12 md:col-span-6 flex flex-col gap-2">
+              <label class="text-sm font-medium text-gray-700">Estoque Máximo</label>
+              <p-inputNumber formControlName="estoqueMaximo" [minFractionDigits]="2" styleClass="w-full" class="w-full"></p-inputNumber>
+            </div>
+
+            <!-- Linha 2 -->
+            <div class="col-span-12 md:col-span-6 flex flex-col gap-2">
+              <label class="text-sm font-medium text-gray-700">Ponto Reposição</label>
+              <p-inputNumber formControlName="pontoReposicao" [minFractionDigits]="2" styleClass="w-full" class="w-full"></p-inputNumber>
+            </div>
+
+            <div class="col-span-12 md:col-span-6 flex gap-2 items-end">
+              <div class="flex flex-col gap-2 flex-1">
+                <label class="text-sm font-medium text-gray-700">LeadTime (Dias)</label>
+                <p-inputNumber formControlName="leadTimeDias" [useGrouping]="false" styleClass="w-full" class="w-full"></p-inputNumber>
+              </div>
+              <!-- Ícone de Lixeira no final da linha -->
+              <div class="pb-1">
+                <button pButton pRipple type="button" icon="pi pi-trash" class="p-button-rounded p-button-danger p-button-text" (click)="removeEstoqueConfig(k)"></button>
+              </div>
+            </div>
+
+          </div>
+          <div *ngIf="estoqueConfigsFormArray.controls.length === 0" class="text-center text-gray-500 py-4">Nenhuma configuração de estoque.</div>
+        </div>
+      </p-tabpanel>
+    </p-tabpanels>
+  </p-tabs>
+
+  <!-- Ações -->
+  <div class="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-100">
+    <button pButton pRipple type="button" label="Cancelar" icon="pi pi-times" class="p-button-text p-button-secondary" (click)="onCancel()"></button>
+    <button pButton pRipple type="submit" label="Salvar" icon="pi pi-check" class="p-button-primary" [disabled]="form.invalid" style="background-color: #F24405; border-color: #F24405"></button>
+  </div>
+</form>

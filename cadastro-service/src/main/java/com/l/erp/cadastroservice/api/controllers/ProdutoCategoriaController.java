@@ -51,6 +51,18 @@ public class ProdutoCategoriaController {
         return ResponseEntity.ok(pagedResourcesAssembler.toModel(vendedoresPage, assembler));
     }
 
+    @GetMapping("/ativas")
+    public ResponseEntity<PagedModel<ProdutoCategoriaResponseDTO>> findAllEnabled(Pageable pageable, PagedResourcesAssembler<ProdutoCategoria> pagedResourcesAssembler) {
+        logger.info("Listando Categoria de Produtos Ativas");
+        Optional<Long> tenantId = SecurityUtils.getCurrentTenantId();
+
+        Page<ProdutoCategoria> vendedoresPage = service.getAllProdCategoriasEnabled(
+                tenantId.orElseThrow(() -> new RuntimeException(Constants.TENANT_NOT_FOUND)), pageable);
+
+
+        return ResponseEntity.ok(pagedResourcesAssembler.toModel(vendedoresPage, assembler));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ProdutoCategoriaResponseDTO> findById(@PathVariable UUID id) {
         logger.info("Buscando Categoria de Produto por ID: {}", id);

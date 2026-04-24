@@ -12,4 +12,6 @@ public interface ProdutoCategoriaRepository extends JpaRepository<ProdutoCategor
     Page<ProdutoCategoria> findAllByTenantId(Long tenantId, Pageable pageable);
     Optional<ProdutoCategoria> findByIdAndTenantId(UUID id, Long tenantId);
     boolean existsByTenantIdAndNome(Long tenantId, String nome);
+
+    Page<ProdutoCategoria> findAllByTenantIdAndAtivaIsTrue(Long tenantId, Pageable pageable);
 }

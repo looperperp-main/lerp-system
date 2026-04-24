@@ -37,6 +37,12 @@ public class ProdutoCategoriaService {
     }
 
     @Transactional(readOnly = true)
+    public Page<ProdutoCategoria> getAllProdCategoriasEnabled(Long tenantId, Pageable pageable) {
+        logger.info("Buscando todos as categorias Ativas de Produto do tenant {}", tenantId);
+        return repository.findAllByTenantIdAndAtivaIsTrue(tenantId, pageable);
+    }
+
+    @Transactional(readOnly = true)
     public ProdutoCategoria findById(UUID id, Long tenantId) {
         return repository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new RuntimeException(Constants.PROD_CAT_NOT_FOUND+" - id: " + id));
