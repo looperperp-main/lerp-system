@@ -154,11 +154,41 @@ services:
     networks:
       - loop-erp-network
 
+      # --- Adicionando o TeamCity ---
+  teamcity-server:
+    image: jetbrains/teamcity-server:latest
+    container_name: teamcity-server
+    ports:
+      - "8111:8111"
+    volumes:
+      - teamcity_server_data:/data/teamcity_server/datadir
+      - teamcity_server_logs:/opt/teamcity/logs
+    networks:
+      - loop-erp-network
+
+  teamcity-agent:
+    image: jetbrains/teamcity-agent:latest
+    container_name: teamcity-agent
+    environment:
+      - SERVER_URL=http://teamcity-server:8111
+    volumes:
+      - teamcity_agent_conf:/data/teamcity_agent/conf
+      # Muito importante: Isso permite que o Agente do TeamCity rode comandos Docker (como o seu docker build)
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - teamcity-server
+    networks:
+      - loop-erp-network
+
+
 volumes:
   pg_data:
   kafka_data:
   prometheus_data:
   grafana_data:
+  teamcity_server_data:
+  teamcity_server_logs:
+  teamcity_agent_conf:
 
 networks:
   loop-erp-network:
