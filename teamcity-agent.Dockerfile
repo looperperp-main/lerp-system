@@ -14,3 +14,7 @@ RUN apt-get update && \
 
 ENV JAVA_HOME=/usr/lib/jvm/temurin-25-jdk-amd64
 ENV PATH=$JAVA_HOME/bin:$PATH
+
+RUN mkdir -p /opt/buildagent/tools/jacoco.0.8.14 && \
+    wget -q "https://repo1.maven.org/maven2/org/jacoco/org.jacoco.agent/0.8.14/org.jacoco.agent-0.8.14-runtime.jar" \
+    -O "/opt/buildagent/tools/jacoco.0.8.14/org.jacoco.agent-0.8.14-runtime.jar"
