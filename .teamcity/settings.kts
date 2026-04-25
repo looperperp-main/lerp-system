@@ -51,6 +51,8 @@ project {
 object Build : BuildType({
     name = "Build"
 
+    artifactRules = "auth-service/target/site/jacoco/** => coverage-report"
+
     params {
         password("env.DOCKER_PASSWORD", "credentialsJSON:9cd22375-1696-4251-8670-dc5f24766f3a")
     }
