@@ -65,7 +65,7 @@ object Build : BuildType({
         maven {
             name = "Compilar e Testar Auth Service"
             id = "Maven2"
-            goals = "clean package"
+            goals = "clean verify"
             runnerArgs = "-pl auth-service -am -Dmaven.test.failure.ignore=true -X"
             param("teamcity.coverage.jacoco.classpath", """
                 auth-service/target/classes
