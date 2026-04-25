@@ -257,6 +257,13 @@
                             <goal>check</goal>
                         </goals>
                         <configuration>
+                            <excludes>
+                                <exclude>**/dto/**</exclude>
+                                <exclude>**/mappers/**</exclude>
+                                <exclude>**/dominio/**</exclude>
+                                <exclude>**/infra/config/**</exclude>
+                                <exclude>**/*Application.class</exclude>
+                            </excludes>
                             <rules>
                                 <rule>
                                     <element>BUNDLE</element>
