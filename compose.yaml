@@ -184,7 +184,10 @@ services:
       - loop-erp-network
 
   teamcity-agent:
-    image: jetbrains/teamcity-agent:latest
+    build:
+      context: .
+      dockerfile: teamcity-agent.Dockerfile
+    image: teamcity-agent-jdk25
     container_name: teamcity-agent
     privileged: true # Necessário para o container conseguir rodar os binários do Docker
     user: root # Garante permissão total para acessar o docker.sock
