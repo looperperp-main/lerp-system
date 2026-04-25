@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.nio.file.AccessDeniedException;
 import java.time.Duration;
@@ -22,6 +23,20 @@ public class GlobalExceptionHandler {
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter
             .ofPattern("dd/MM/yyyy HH:mm:ss")
             .withZone(ZoneId.systemDefault());
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<StandardError> handleResponseStatusException(ResponseStatusException e, HttpServletRequest request) {
+        HttpStatus status = HttpStatus.resolve(e.getStatusCode().value());
+        String error = status != null ? status.getReasonPhrase() : "Error";
+        StandardError err = StandardError.builder()
+                .timestamp(Instant.now())
+                .status(e.getStatusCode().value())
+                .error(error)
+                .message(e.getReason())
+                .path(request.getRequestURI())
+                .build();
+        return ResponseEntity.status(e.getStatusCode()).body(err);
+    }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<StandardError> handleGenericException(Exception e, HttpServletRequest request) {
