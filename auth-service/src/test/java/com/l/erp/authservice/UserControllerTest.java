@@ -5,6 +5,7 @@ import com.l.erp.authservice.api.controllers.UserController;
 import com.l.erp.authservice.api.dto.CurrentUser;
 import com.l.erp.authservice.api.dto.UserAccountDTO;
 import com.l.erp.authservice.api.dto.UserAccountPageDTO;
+import com.l.erp.authservice.api.dto.lists.UserSearchFilterDTO;
 import com.l.erp.authservice.api.mappers.UserMapper;
 import com.l.erp.authservice.configuration.ObjectMapperConfig;
 import com.l.erp.authservice.dominio.Tenant;
@@ -12,6 +13,7 @@ import com.l.erp.authservice.dominio.UserAccount;
 import com.l.erp.authservice.repositorios.OwnerMarkerRepository;
 import com.l.erp.authservice.repositorios.TenantRepository;
 import com.l.erp.authservice.repositorios.UserAccountRepository;
+import com.l.erp.authservice.services.EmailNotificationService;
 import com.l.erp.authservice.services.UserService;
 import com.l.erp.authservice.services.audit.AuditService;
 import com.l.erp.authservice.util.Constants;
@@ -52,8 +54,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(controllers = UserController.class)
 @AutoConfigureMockMvc(addFilters = false)
-@Import({ UserService.class, ObjectMapperConfig.class})
-public class UserControllerTest {
+@Import({UserService.class, ObjectMapperConfig.class})
+class UserControllerTest {
+
     @Autowired
     private MockMvc mockMvc;
 
@@ -81,21 +84,23 @@ public class UserControllerTest {
     @MockitoBean
     private OwnerMarkerRepository ownerMarkerRepository;
 
+    @MockitoBean
+    private EmailNotificationService emailNotificationService;
+
     @Test
     @WithMockUser(roles = "APP_OWNER")
     void shouldCreateUser() throws Exception {
-        var TOKEN_ATTR_NAME = "_csrf";
+        var tokenAttrName = "_csrf";
         var httpSessionCsrfTokenRepository = new HttpSessionCsrfTokenRepository();
         var csrfToken = httpSessionCsrfTokenRepository.generateToken(new MockHttpServletRequest());
 
         UUID id = UUID.randomUUID();
 
-        UserAccountDTO input = new UserAccountDTO(null,1L,"usuario@usuario.com",
-                "asdasdsadasd","USER",true, null, Instant.now(),"seed",null,null);
+        UserAccountDTO input = new UserAccountDTO(null, 1L, "usuario@usuario.com",
+                "asdasdsadasd", "USER", true, null, Instant.now(), "seed", null, null);
 
-        UserAccountDTO created = new UserAccountDTO(id,1L,"usuario@usuario.com",
-                "asdasdsadasd","USER",true, null, Instant.now(),"seed",null,null);
-
+        UserAccountDTO created = new UserAccountDTO(id, 1L, "usuario@usuario.com",
+                "asdasdsadasd", "USER", true, null, Instant.now(), "seed", null, null);
 
         UserAccount entity = new UserAccount();
         UserAccount saved = new UserAccount();
@@ -106,115 +111,103 @@ public class UserControllerTest {
         tenant.setName("Empresa X");
 
         when(tenantRepository.findById(anyLong())).thenReturn(Optional.of(tenant));
-
         when(userMapper.toUserAccount(input)).thenReturn(entity);
         when(userAccountRepository.save(any())).thenReturn(saved);
         when(userMapper.toUserAccountDTO(any())).thenReturn(created);
 
         try (MockedStatic<SecurityUtils> securityUtils = Mockito.mockStatic(SecurityUtils.class)) {
-            securityUtils.when(SecurityUtils::getCurrentUserInfo).thenReturn(new CurrentUser(UUID.randomUUID(),"usuario@teste.com"));
-
+            securityUtils.when(SecurityUtils::getCurrentUserInfo).thenReturn(new CurrentUser(UUID.randomUUID(), "usuario@teste.com"));
 
             mockMvc.perform(post("/auth/users")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(input))
-                            .sessionAttr(TOKEN_ATTR_NAME, csrfToken)
+                            .sessionAttr(tokenAttrName, csrfToken)
                             .param(csrfToken.getParameterName(), csrfToken.getToken()))
                     .andDo(print())
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.email").value("usuario@usuario.com"));
         }
-
     }
 
     @Test
     @WithMockUser(roles = "APP_OWNER")
     void shouldntCreateUserDuplicated() throws Exception {
-        var TOKEN_ATTR_NAME = "_csrf";
+        var tokenAttrName = "_csrf";
         var httpSessionCsrfTokenRepository = new HttpSessionCsrfTokenRepository();
         var csrfToken = httpSessionCsrfTokenRepository.generateToken(new MockHttpServletRequest());
 
-        UUID id = UUID.randomUUID();
-
-        UserAccountDTO input = new UserAccountDTO(null,1L,"usuario@usuario.com",
-                "asdasdsadsd","USER",true, null, Instant.now(),"seed",null,null);
+        UserAccountDTO input = new UserAccountDTO(null, 1L, "usuario@usuario.com",
+                "asdasdsadsd", "USER", true, null, Instant.now(), "seed", null, null);
 
         when(userAccountRepository.findByEmail(input.email())).thenReturn(Optional.of(new UserAccount()));
 
         try (MockedStatic<SecurityUtils> securityUtils = Mockito.mockStatic(SecurityUtils.class)) {
-            securityUtils.when(SecurityUtils::getCurrentUserInfo).thenReturn(new CurrentUser(UUID.randomUUID(),"usuario@teste.com"));
-
+            securityUtils.when(SecurityUtils::getCurrentUserInfo).thenReturn(new CurrentUser(UUID.randomUUID(), "usuario@teste.com"));
 
             mockMvc.perform(post("/auth/users")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(input))
-                            .sessionAttr(TOKEN_ATTR_NAME, csrfToken)
+                            .sessionAttr(tokenAttrName, csrfToken)
                             .param(csrfToken.getParameterName(), csrfToken.getToken()))
                     .andDo(print())
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.message").value("E-mail já está em uso"));
         }
-
     }
 
     @Test
     @WithMockUser(roles = "APP_OWNER")
     void shouldntCreateUserWithoutTenant() throws Exception {
-        var TOKEN_ATTR_NAME = "_csrf";
+        var tokenAttrName = "_csrf";
         var httpSessionCsrfTokenRepository = new HttpSessionCsrfTokenRepository();
         var csrfToken = httpSessionCsrfTokenRepository.generateToken(new MockHttpServletRequest());
 
-        UUID id = UUID.randomUUID();
-
-        UserAccountDTO input = new UserAccountDTO(null,null,"usuario@usuario.com",
-                "asdasdsadasd","USER",true, null, Instant.now(),"seed",null,null);
-
+        UserAccountDTO input = new UserAccountDTO(null, null, "usuario@usuario.com",
+                "asdasdsadasd", "USER", true, null, Instant.now(), "seed", null, null);
 
         try (MockedStatic<SecurityUtils> securityUtils = Mockito.mockStatic(SecurityUtils.class)) {
-            securityUtils.when(SecurityUtils::getCurrentUserInfo).thenReturn(new CurrentUser(UUID.randomUUID(),"usuario@teste.com"));
-
+            securityUtils.when(SecurityUtils::getCurrentUserInfo).thenReturn(new CurrentUser(UUID.randomUUID(), "usuario@teste.com"));
 
             mockMvc.perform(post("/auth/users")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(input))
-                            .sessionAttr(TOKEN_ATTR_NAME, csrfToken)
+                            .sessionAttr(tokenAttrName, csrfToken)
                             .param(csrfToken.getParameterName(), csrfToken.getToken()))
                     .andDo(print())
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.message").value("O ID do Tenant é obrigatório para criar um usuário"));
         }
-
     }
 
     @Test
     @WithMockUser(roles = "APP_OWNER")
-    void shouldReturnUsers() throws Exception {
-
+    void shouldSearchUsers() throws Exception {
         UserAccountPageDTO user = new UserAccountPageDTO(
-                null,null,null,null,
-                true,null,null,null,null,null
+                null, null, null, null,
+                true, null, null, null, null, null
         );
 
-
         Page<UserAccountPageDTO> page = new PageImpl<>(List.of(user));
-        when(userAccountRepository.findAllProjectedBy(any(Pageable.class))).thenReturn(page);
+        when(userAccountRepository.findProjectedWithFilters(any(), any(Pageable.class))).thenReturn(page);
 
-        mockMvc.perform(get("/auth/users?page=0&size=10"))
+        UserSearchFilterDTO filter = new UserSearchFilterDTO(null, null, null);
+
+        mockMvc.perform(post("/auth/users/search")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(filter)))
                 .andExpect(status().isOk());
     }
 
     @Test
     @WithMockUser(roles = "APP_OWNER")
     void shouldReturnActiveUsers() throws Exception {
-
         UserAccountPageDTO user = new UserAccountPageDTO(
-                null,null,null,null,
-                true,null,null,null,null,null
+                null, null, null, null,
+                true, null, null, null, null, null
         );
 
-
         Page<UserAccountPageDTO> page = new PageImpl<>(List.of(user));
-        when(userAccountRepository.findAllProjectedBy(any(Pageable.class))).thenReturn(page);
+        when(userAccountRepository.findAllActiveProjectedBy(any(Pageable.class))).thenReturn(page);
 
         mockMvc.perform(get("/auth/users/active?page=0&size=10"))
                 .andExpect(status().isOk());
@@ -222,9 +215,9 @@ public class UserControllerTest {
 
     @Test
     @WithMockUser(roles = "APP_OWNER")
-    void shouldupdateUserStatusById() throws Exception {
+    void shouldUpdateUserStatusById() throws Exception {
         UUID id = UUID.randomUUID();
-        var TOKEN_ATTR_NAME = "_csrf";
+        var tokenAttrName = "_csrf";
         var httpSessionCsrfTokenRepository = new HttpSessionCsrfTokenRepository();
         var csrfToken = httpSessionCsrfTokenRepository.generateToken(new MockHttpServletRequest());
 
@@ -237,10 +230,10 @@ public class UserControllerTest {
         when(ownerMarkerRepository.existsByUser_IdAndEnabledTrue(any())).thenReturn(false);
 
         try (MockedStatic<SecurityUtils> securityUtils = Mockito.mockStatic(SecurityUtils.class)) {
-            securityUtils.when(SecurityUtils::getCurrentUserInfo).thenReturn(new CurrentUser(UUID.randomUUID(),"usuario@teste.com"));
+            securityUtils.when(SecurityUtils::getCurrentUserInfo).thenReturn(new CurrentUser(UUID.randomUUID(), "usuario@teste.com"));
 
-            mockMvc.perform(patch("/auth/users/{userId}/status",id)
-                            .sessionAttr(TOKEN_ATTR_NAME, csrfToken)
+            mockMvc.perform(patch("/auth/users/{userId}/status", id)
+                            .sessionAttr(tokenAttrName, csrfToken)
                             .param(csrfToken.getParameterName(), csrfToken.getToken()))
                     .andDo(print())
                     .andExpect(status().isNoContent());
@@ -249,37 +242,31 @@ public class UserControllerTest {
 
     @Test
     @WithMockUser(roles = "APP_OWNER")
-    void shouldupdateUserStatusByIdErrorUserNotFound() throws Exception {
+    void shouldntUpdateUserStatusByIdUserNotFound() throws Exception {
         UUID id = UUID.randomUUID();
-        var TOKEN_ATTR_NAME = "_csrf";
+        var tokenAttrName = "_csrf";
         var httpSessionCsrfTokenRepository = new HttpSessionCsrfTokenRepository();
         var csrfToken = httpSessionCsrfTokenRepository.generateToken(new MockHttpServletRequest());
-
-        UserAccount user = new UserAccount();
-        user.setId(id);
-        user.setDisplayName("NAME");
-        user.setActive(true);
 
         when(ownerMarkerRepository.existsByUser_IdAndEnabledTrue(any())).thenReturn(false);
 
         try (MockedStatic<SecurityUtils> securityUtils = Mockito.mockStatic(SecurityUtils.class)) {
-            securityUtils.when(SecurityUtils::getCurrentUserInfo).thenReturn(new CurrentUser(UUID.randomUUID(),"usuario@teste.com"));
+            securityUtils.when(SecurityUtils::getCurrentUserInfo).thenReturn(new CurrentUser(UUID.randomUUID(), "usuario@teste.com"));
 
-            mockMvc.perform(patch("/auth/users/{userId}/status",id)
-                            .sessionAttr(TOKEN_ATTR_NAME, csrfToken)
+            mockMvc.perform(patch("/auth/users/{userId}/status", id)
+                            .sessionAttr(tokenAttrName, csrfToken)
                             .param(csrfToken.getParameterName(), csrfToken.getToken()))
                     .andDo(print())
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.message").value("Usuário não Encontrado"));
-
         }
     }
 
     @Test
     @WithMockUser(roles = "APP_OWNER")
-    void shouldupdateUserStatusByIdErrorOwnerError() throws Exception {
+    void shouldntUpdateUserStatusByIdOwnerMarker() throws Exception {
         UUID id = UUID.randomUUID();
-        var TOKEN_ATTR_NAME = "_csrf";
+        var tokenAttrName = "_csrf";
         var httpSessionCsrfTokenRepository = new HttpSessionCsrfTokenRepository();
         var csrfToken = httpSessionCsrfTokenRepository.generateToken(new MockHttpServletRequest());
 
@@ -292,17 +279,14 @@ public class UserControllerTest {
         when(ownerMarkerRepository.existsByUser_IdAndEnabledTrue(any())).thenReturn(true);
 
         try (MockedStatic<SecurityUtils> securityUtils = Mockito.mockStatic(SecurityUtils.class)) {
-            securityUtils.when(SecurityUtils::getCurrentUserInfo).thenReturn(new CurrentUser(UUID.randomUUID(),"usuario@teste.com"));
+            securityUtils.when(SecurityUtils::getCurrentUserInfo).thenReturn(new CurrentUser(UUID.randomUUID(), "usuario@teste.com"));
 
-            mockMvc.perform(patch("/auth/users/{userId}/status",id)
-                            .sessionAttr(TOKEN_ATTR_NAME, csrfToken)
+            mockMvc.perform(patch("/auth/users/{userId}/status", id)
+                            .sessionAttr(tokenAttrName, csrfToken)
                             .param(csrfToken.getParameterName(), csrfToken.getToken()))
                     .andDo(print())
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.message").value(Constants.USER_HAS_OWNER_MARKER));
-
         }
     }
-
-
 }
