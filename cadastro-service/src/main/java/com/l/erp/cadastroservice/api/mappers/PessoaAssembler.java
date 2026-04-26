@@ -32,8 +32,6 @@ public class PessoaAssembler extends RepresentationModelAssemblerSupport<Pessoa,
         dto.setIm(entity.getDocumento());
         dto.setRg(entity.getDocumento());
         dto.setDataNascimento(entity.getDataNascimento());
-        dto.setEmail(entity.getEmail());
-        dto.setTelefone(entity.getTelefone());
         dto.setAtivo(entity.getAtivo());
         dto.setCreatedAt(entity.getCreatedAt());
         dto.setUpdatedAt(entity.getUpdatedAt());

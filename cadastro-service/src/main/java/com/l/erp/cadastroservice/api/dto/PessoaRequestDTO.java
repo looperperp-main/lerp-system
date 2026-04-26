@@ -7,8 +7,6 @@ import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
 
-
-
 public record PessoaRequestDTO(
         @NotNull(message = "O tipo de pessoa (PF/PJ) é obrigatório")
         TipoPessoa tipo,
@@ -23,11 +21,6 @@ public record PessoaRequestDTO(
         String im,
         String rg,
         LocalDate dataNascimento,
-        @Size(max = 200)
-        String email,
-        @Size(max = 20)
-        String telefone,
         Boolean ativo
 ) {
-
 }

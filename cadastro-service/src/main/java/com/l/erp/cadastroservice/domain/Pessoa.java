@@ -1,6 +1,7 @@
 package com.l.erp.cadastroservice.domain;
 
 import com.l.erp.cadastroservice.domain.enumerators.TipoPessoa;
+import com.l.erp.cadastroservice.repository.filter.BaseTenantEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -23,15 +24,11 @@ import java.util.UUID;
 @Setter
 @Entity
 @Table(name = "pessoa", schema = "cadastros")
-public class Pessoa {
+public class Pessoa extends BaseTenantEntity {
     @Id
     @Column(name = "id", nullable = false)
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
-
-    @NotNull
-    @Column(name = "tenant_id", nullable = false)
-    private Long tenantId;
 
     @NotNull
     @Enumerated(EnumType.STRING)
@@ -67,14 +64,6 @@ public class Pessoa {
     @Column(name = "data_nascimento")
     private LocalDate dataNascimento;
 
-    @Size(max = 200)
-    @Column(name = "email", length = 200)
-    private String email;
-
-    @Size(max = 20)
-    @Column(name = "telefone", length = 20)
-    private String telefone;
-
     @NotNull
     @ColumnDefault("true")
     @Column(name = "ativo", nullable = false)
@@ -93,6 +82,4 @@ public class Pessoa {
 
     @Column(name = "last_updated_by")
     private UUID lastUpdatedBy;
-
-
 }

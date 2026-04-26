@@ -46,8 +46,8 @@ export class PessoaForm implements OnInit {
   tiposEndereco = [
     { label: 'Fiscal', value: 'FISCAL' },
     { label: 'Cobrança', value: 'COBRANCA' },
-    { label: 'Entrega', value: 'ENTREGA' },
-    { label: 'Principal', value: 'PRINCIPAL' }
+    { label: 'Entrega', value: 'ENTREGA' }//,
+    //{ label: 'Principal', value: 'PRINCIPAL' }
   ];
 
   tiposContato = [

@@ -61,9 +61,9 @@ public class CondicaoPagamentoParcelaService {
         BigDecimal somaPercentual = parcelasDto.stream()
                 .map(CondicaoPagamentoParcelaRequestDTO::percentual)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        if (somaPercentual.compareTo(new BigDecimal("100.00")) != 0) {
+        if (somaPercentual.compareTo(new BigDecimal(Constants.MAXIMUM_PAYMENT_VALUE_PERCENT)) != 0) {
             utils.sendAuditEvent(Constants.COND_PAG_PAR_CREATION, userId, Constants.COND_PAG_PAR, condicaoPagamentoId, Constants.ERROR, "{ERROR: Soma dos percentuais diferente de 100}", correlationId);
-            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "A soma dos percentuais das parcelas deve ser 100. Valor recebido: " + somaPercentual);
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT, "A soma dos percentuais das parcelas deve ser 100. Valor recebido: " + somaPercentual);
         }
 
         try{

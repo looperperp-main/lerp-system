@@ -1,10 +1,14 @@
 package com.l.erp.cadastroservice.domain;
 
+import com.l.erp.cadastroservice.repository.filter.BaseTenantEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -26,19 +30,15 @@ import java.util.UUID;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class Vendedor {
+public class Vendedor extends BaseTenantEntity {
     @Id
     @Column(name = "id", nullable = false)
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @NotNull
-    @Column(name = "tenant_id", nullable = false)
-    private Long tenantId;
-
-    // Relacionamento opcional com a Pessoa (Party Model)
-    @Column(name = "pessoa_id")
-    private UUID pessoaId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "pessoa_id")
+    private Pessoa pessoa;
 
     @Size(max = 100)
     @NotNull
@@ -46,7 +46,7 @@ public class Vendedor {
     private String nome;
 
     @Column(name = "comissao_percentual", precision = 5, scale = 2)
-    private BigDecimal comissaoPercentual; // Percentual de comissão Ex: 5.50
+    private BigDecimal comissaoPercentual;
 
     @NotNull
     @ColumnDefault("true")

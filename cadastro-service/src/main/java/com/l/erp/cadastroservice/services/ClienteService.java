@@ -61,7 +61,7 @@ public class ClienteService {
     @Transactional(readOnly = true)
     public Cliente findById(UUID id, Long tenantId) {
         return clienteRepository.findByIdAndTenantId(id, tenantId)
-                .orElseThrow(() -> new RuntimeException(Constants.CLIENTE_NOT_FOUND+" - id: " + id));
+                .orElseThrow(() -> new RuntimeException(Constants.CLIENTE_NOT_FOUND + Constants._ID + id));
     }
 
     @Transactional
@@ -99,7 +99,6 @@ public class ClienteService {
 
         // 3. Monta a entidade
         Cliente cliente = Cliente.builder()
-                .tenantId(tenantId)
                 .pessoa(pessoa)
                 .codigoInterno(dto.codigoInterno())
                 .condicaoPagamento(condicaoPagamento)
@@ -112,6 +111,7 @@ public class ClienteService {
                 .createdAt(Instant.now())
                 .createdBy(userId)
                 .build();
+        cliente.setTenantId(tenantId);
 
         Cliente saved = clienteRepository.save(cliente);
 
@@ -127,7 +127,7 @@ public class ClienteService {
         Cliente cliente = clienteRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> {
                     sendAuditEvent(Constants.CLIENTE_UPDATE, userId, null, Constants.ERROR, "{ERROR: Cliente não encontrado}", correlationID);
-                    return new BusinessException(Constants.CLIENTE_NOT_FOUND+" - id: " + id,HttpStatus.BAD_REQUEST);
+                    return new BusinessException(Constants.CLIENTE_NOT_FOUND+Constants._ID + id,HttpStatus.BAD_REQUEST);
                 });
 
         // Se trocou de Pessoa (raro mas possível), valida se a nova pessoa já não é cliente
@@ -156,7 +156,7 @@ public class ClienteService {
         cliente.setLimiteCredito(dto.limiteCredito());
         cliente.setClassificacaoRisco(dto.classificacaoRisco());
         cliente.setPrazoMedioPagamentoDias(dto.prazoMedioPagamentoDias());
-        cliente.setAtivo(dto.ativo() != null ? dto.ativo() : cliente.getAtivo());
+        cliente.setAtivo(dto.ativo());
         cliente.setUpdatedAt(Instant.now());
         cliente.setLastUpdatedBy(userId);
 
@@ -174,7 +174,7 @@ public class ClienteService {
         Cliente cliente = clienteRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> {
                     sendAuditEvent(Constants.CLIENTE_UPDATE, userId, null, Constants.ERROR, "{ERROR: Cliente não encontrado}", correlationID);
-                    return new BusinessException(Constants.CLIENTE_NOT_FOUND + " - id: " + id, HttpStatus.BAD_REQUEST);
+                    return new BusinessException(Constants.CLIENTE_NOT_FOUND + Constants._ID + id, HttpStatus.BAD_REQUEST);
                 });
 
         cliente.setAtivo(!cliente.getAtivo());

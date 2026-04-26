@@ -1,5 +1,6 @@
 package com.l.erp.cadastroservice.domain;
 
+import com.l.erp.cadastroservice.repository.filter.BaseTenantEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -29,15 +30,11 @@ import java.util.UUID;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class Cliente {
+public class Cliente extends BaseTenantEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "id", nullable = false)
     private UUID id;
-
-    @NotNull
-    @Column(name = "tenant_id", nullable = false)
-    private Long tenantId;
 
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -45,7 +42,7 @@ public class Cliente {
     private Pessoa pessoa;
 
     @Size(max = 50)
-    @Column(name = "sku", length = 50)// TODO: Renomear a coluna no DB de 'sku' para 'codigo_interno' no Liquibase futuramente
+    @Column(name = "sku", length = 50)
     private String codigoInterno;
 
     @ManyToOne(fetch = FetchType.LAZY)

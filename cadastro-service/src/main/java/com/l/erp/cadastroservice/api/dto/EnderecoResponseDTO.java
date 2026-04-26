@@ -1,5 +1,6 @@
 package com.l.erp.cadastroservice.api.dto;
 
+import com.l.erp.cadastroservice.domain.enumerators.TipoEndereco;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.hateoas.RepresentationModel;
@@ -10,11 +11,11 @@ import java.util.UUID;
 
 @Getter
 @Setter
-@Relation(collectionRelation = "enderecos",itemRelation = "endereco")
+@Relation(collectionRelation = "enderecos", itemRelation = "endereco")
 public class EnderecoResponseDTO extends RepresentationModel<EnderecoResponseDTO> {
     private UUID id;
     private Long tenantId;
-    private String tipo;
+    private TipoEndereco tipo;
     private String logradouro;
     private String numero;
     private String complemento;

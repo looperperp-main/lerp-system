@@ -68,6 +68,8 @@ public class Constants {
 
     public static final int MAX_FAILED_ATTEMPTS = 5;
     public static final Duration LOCK_DURATION = Duration.ofMinutes(30);
+    public static final String MAXIMUM_PAYMENT_VALUE_PERCENT = "100.00";
+    public static final String _ID = " - id: ";
 
     // Eventos de Login/Auditoria
     public static final String LOGIN = "LOGIN";

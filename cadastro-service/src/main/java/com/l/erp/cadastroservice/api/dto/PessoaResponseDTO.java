@@ -10,7 +10,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 
-
 @Getter
 @Setter
 @Relation(collectionRelation = "pessoas", itemRelation = "pessoa")
@@ -25,8 +24,6 @@ public class PessoaResponseDTO extends RepresentationModel<PessoaResponseDTO> {
     private String im;
     private String rg;
     private LocalDate dataNascimento;
-    private String email;
-    private String telefone;
     private Boolean ativo;
     private Instant createdAt;
     private Instant updatedAt;

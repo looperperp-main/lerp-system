@@ -129,25 +129,54 @@ public class ProdutoService {
     }
 
     private void processarSubEntidades(Produto produto, ProdutoDTO dto, Long tenantId, UUID userId, boolean isCreate) {
-        if (dto.precos() != null) {
-            produto.getProdutoPrecos().addAll(dto.precos().stream().map(precoDto -> {
-                ProdutoPreco preco = new ProdutoPreco();
-                preco.setTenantId(tenantId);
-                preco.setProduto(produto);
-                preco.setTabelaPreco(tabelaPrecoRepository.findById(precoDto.tabelaPrecoId()).orElse(null));
-                preco.setPreco(precoDto.preco());
-                preco.setInicioVigencia(precoDto.inicioVigencia());
-                preco.setFimVigencia(precoDto.fimVigencia());
-                preco.setCreatedAt(isCreate ? Instant.now() : precoDto.createdAt());
-                preco.setCreatedBy(isCreate ? userId : precoDto.createdBy());
-                if (!isCreate) {
-                    preco.setUpdatedAt(Instant.now());
-                    preco.setLastUpdatedBy(userId);
+        processProducts(produto, dto, tenantId, userId, isCreate);
+
+        processSuppliers(produto, dto, tenantId, userId, isCreate);
+
+        processEstoque(produto, dto, tenantId, userId, isCreate);
+    }
+
+    private void processEstoque(Produto produto, ProdutoDTO dto, Long tenantId, UUID userId, boolean isCreate) {
+        if (dto.estoqueConfigs() != null) {
+            produto.getProdutoEstoqueConfigs().addAll(dto.estoqueConfigs().stream().map(configDto -> {
+                ProdutoEstoqueConfig config = new ProdutoEstoqueConfig();
+                config.setTenantId(tenantId);
+                config.setProduto(produto);
+                // VINVULA O DEPÓSITO (Obrigatório)
+                if(configDto.depositoId() != null) {
+                    config.setDeposito(depositoRepository.findById(configDto.depositoId()).orElseThrow(() -> new BusinessException("Depósito não encontrado", HttpStatus.BAD_REQUEST)));
+                } else {
+                    throw new BusinessException("Depósito é obrigatório na configuração de estoque", HttpStatus.BAD_REQUEST);
                 }
-                return preco;
+                // Precedência: fornecedorPreferencial explícito no config > flag preferencial no ProdutoFornecedor
+                if (configDto.fornecedorPreferencialId() != null) {
+                    config.setFornecedorPreferencial(produto.getProdutoFornecedors().stream()
+                            .filter(f -> f.getFornecedor() != null && f.getFornecedor().getId().equals(configDto.fornecedorPreferencialId()))
+                            .findFirst().orElse(null));
+                } else {
+                    config.setFornecedorPreferencial(produto.getProdutoFornecedors().stream()
+                            .filter(f -> Boolean.TRUE.equals(f.getPreferencial()))
+                            .findFirst().orElse(null));
+                }
+                config.setEstoqueMinimo(configDto.estoqueMinimo());
+                config.setEstoqueMaximo(configDto.estoqueMaximo());
+                config.setPontoReposicao(configDto.pontoReposicao());
+                config.setLeadTimeDias(configDto.leadTimeDias());
+                if(isCreate){
+                    config.setCreatedAt(Instant.now());
+                    config.setCreatedBy(userId);
+                }else{
+                    config.setCreatedAt(configDto.createdAt());
+                    config.setCreatedBy(configDto.createdBy());
+                    config.setUpdatedAt(Instant.now());
+                    config.setLastUpdatedBy(userId);
+                }
+                return config;
             }).collect(Collectors.toSet()));
         }
+    }
 
+    private void processSuppliers(Produto produto, ProdutoDTO dto, Long tenantId, UUID userId, boolean isCreate) {
         if (dto.fornecedores() != null) {
             produto.getProdutoFornecedors().addAll(dto.fornecedores().stream().map(fornDto -> {
                 ProdutoFornecedor fornecedor = new ProdutoFornecedor();
@@ -168,35 +197,25 @@ public class ProdutoService {
                 return fornecedor;
             }).collect(Collectors.toSet()));
         }
+    }
 
-        if (dto.estoqueConfigs() != null) {
-            produto.getProdutoEstoqueConfigs().addAll(dto.estoqueConfigs().stream().map(configDto -> {
-                ProdutoEstoqueConfig config = new ProdutoEstoqueConfig();
-                config.setTenantId(tenantId);
-                config.setProduto(produto);
-                // VINVULA O DEPÓSITO (Obrigatório)
-                if(configDto.depositoId() != null) {
-                    config.setDeposito(depositoRepository.findById(configDto.depositoId()).orElseThrow(() -> new BusinessException("Depósito não encontrado", HttpStatus.BAD_REQUEST)));
-                } else {
-                    throw new BusinessException("Depósito é obrigatório na configuração de estoque", HttpStatus.BAD_REQUEST);
-                }
-                // Vincula ao fornecedor preferencial se existir
-                if (configDto.fornecedorPreferencialId() != null) {
-                    config.setFornecedorPreferencial(produto.getProdutoFornecedors().stream()
-                            .filter(f -> f.getFornecedor() != null && f.getFornecedor().getId().equals(configDto.fornecedorPreferencialId()))
-                            .findFirst().orElse(null));
-                }
-                config.setEstoqueMinimo(configDto.estoqueMinimo());
-                config.setEstoqueMaximo(configDto.estoqueMaximo());
-                config.setPontoReposicao(configDto.pontoReposicao());
-                config.setLeadTimeDias(configDto.leadTimeDias());
-                config.setCreatedAt(isCreate ? Instant.now() : configDto.createdAt());
-                config.setCreatedBy(isCreate ? userId : configDto.createdBy());
+    private void processProducts(Produto produto, ProdutoDTO dto, Long tenantId, UUID userId, boolean isCreate) {
+        if (dto.precos() != null) {
+            produto.getProdutoPrecos().addAll(dto.precos().stream().map(precoDto -> {
+                ProdutoPreco preco = new ProdutoPreco();
+                preco.setTenantId(tenantId);
+                preco.setProduto(produto);
+                preco.setTabelaPreco(tabelaPrecoRepository.findById(precoDto.tabelaPrecoId()).orElse(null));
+                preco.setPreco(precoDto.preco());
+                preco.setInicioVigencia(precoDto.inicioVigencia());
+                preco.setFimVigencia(precoDto.fimVigencia());
+                preco.setCreatedAt(isCreate ? Instant.now() : precoDto.createdAt());
+                preco.setCreatedBy(isCreate ? userId : precoDto.createdBy());
                 if (!isCreate) {
-                    config.setUpdatedAt(Instant.now());
-                    config.setLastUpdatedBy(userId);
+                    preco.setUpdatedAt(Instant.now());
+                    preco.setLastUpdatedBy(userId);
                 }
-                return config;
+                return preco;
             }).collect(Collectors.toSet()));
         }
     }

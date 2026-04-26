@@ -106,6 +106,7 @@ public class ContatoService {
         entity.setCargo(dto.cargo());
         entity.setEmail(dto.email());
         entity.setTelefone(dto.telefone());
+        entity.setPrincipal(dto.principal());
         entity.setAtivo(dto.ativo());
     }
 }

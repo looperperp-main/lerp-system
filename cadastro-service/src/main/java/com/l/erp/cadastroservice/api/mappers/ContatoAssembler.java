@@ -29,6 +29,7 @@ public class ContatoAssembler extends RepresentationModelAssemblerSupport<Contat
         dto.setCargo(entity.getCargo());
         dto.setEmail(entity.getEmail());
         dto.setTelefone(entity.getTelefone());
+        dto.setPrincipal(entity.getPrincipal());
         dto.setAtivo(entity.getAtivo());
         dto.setCreatedAt(entity.getCreatedAt());
         dto.setUpdatedAt(entity.getUpdatedAt());

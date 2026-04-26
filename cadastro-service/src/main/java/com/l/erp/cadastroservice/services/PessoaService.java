@@ -3,6 +3,7 @@ package com.l.erp.cadastroservice.services;
 import com.l.erp.cadastroservice.api.dto.PessoaRequestDTO;
 import com.l.erp.cadastroservice.api.mappers.PessoaMapper;
 import com.l.erp.cadastroservice.domain.Pessoa;
+import com.l.erp.cadastroservice.domain.enumerators.TipoPessoa;
 import com.l.erp.cadastroservice.repository.PessoaRepository;
 import com.l.erp.cadastroservice.util.Constants;
 import com.l.erp.common.api.dto.AuditEventDTO;
@@ -54,6 +55,8 @@ public class PessoaService {
         logger.debug("Criando pessoa para o tenant {}", tenantId);
         UUID correlationId = getCorrelationIdFromRequest(logger);
 
+        validateDocumento(dto.tipo(), dto.documento());
+
         if (pessoaRepository.existsByDocumentoAndNomeRazaoAndTenantId(dto.documento(),dto.nomeRazao(), tenantId)) {
             sendAuditEvent(
                     Constants.PESSOA_CREATION,
@@ -80,6 +83,8 @@ public class PessoaService {
     public Pessoa update(UUID id, @Valid PessoaRequestDTO dto, Long tenantID, UUID userId) {
         logger.debug("Updating Pessoa: {}", id);
         UUID correlationId = getCorrelationIdFromRequest(logger);
+
+        validateDocumento(dto.tipo(), dto.documento());
 
         Pessoa oldPessoa = pessoaRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(Constants.PESSOA_NOT_FOUND, HttpStatus.NOT_FOUND));
@@ -117,6 +122,16 @@ public class PessoaService {
         return saved;
     }
 
+
+    private void validateDocumento(TipoPessoa tipo, String documento) {
+        String digits = documento.replaceAll("[^0-9]", "");
+        if (tipo == TipoPessoa.PF && digits.length() != 11) {
+            throw new BusinessException("CPF inválido: deve conter 11 dígitos", HttpStatus.BAD_REQUEST);
+        }
+        if (tipo == TipoPessoa.PJ && digits.length() != 14) {
+            throw new BusinessException("CNPJ inválido: deve conter 14 dígitos", HttpStatus.BAD_REQUEST);
+        }
+    }
 
     private void sendAuditEvent(String action, UUID actorId, UUID targetId, String result, String detailsJson, UUID correlationId) {
         AuditEventDTO auditEvent = new AuditEventDTO(

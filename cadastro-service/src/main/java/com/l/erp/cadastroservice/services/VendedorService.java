@@ -1,14 +1,18 @@
 package com.l.erp.cadastroservice.services;
 
 import com.l.erp.cadastroservice.api.dto.VendedorDTO;
+import com.l.erp.cadastroservice.domain.Pessoa;
 import com.l.erp.cadastroservice.domain.Vendedor;
+import com.l.erp.cadastroservice.repository.PessoaRepository;
 import com.l.erp.cadastroservice.repository.VendedorRepository;
 import com.l.erp.cadastroservice.util.Constants;
 import com.l.erp.common.api.dto.AuditEventDTO;
+import com.l.erp.common.exception.custom.BusinessException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,10 +25,12 @@ import static com.l.erp.cadastroservice.util.SecurityUtils.getCorrelationIdFromR
 public class VendedorService {
     private final Logger logger = LoggerFactory.getLogger(VendedorService.class);
     private final VendedorRepository repository;
+    private final PessoaRepository pessoaRepository;
     private final AuditProducerService auditProducer;
 
-    public VendedorService(VendedorRepository repository, AuditProducerService auditProducer) {
+    public VendedorService(VendedorRepository repository, PessoaRepository pessoaRepository, AuditProducerService auditProducer) {
         this.repository = repository;
+        this.pessoaRepository = pessoaRepository;
         this.auditProducer = auditProducer;
     }
 
@@ -37,7 +43,7 @@ public class VendedorService {
     @Transactional(readOnly = true)
     public Vendedor findById(UUID id, Long tenantId) {
         return repository.findByIdAndTenantId(id, tenantId)
-                .orElseThrow(() -> new RuntimeException(Constants.VENDEDOR_NOT_FOUND +" - id: " + id));
+                .orElseThrow(() -> new BusinessException(Constants.VENDEDOR_NOT_FOUND + " - id: " + id, HttpStatus.NOT_FOUND));
     }
 
     @Transactional
@@ -47,19 +53,26 @@ public class VendedorService {
         UUID correlationID = getCorrelationIdFromRequest(logger);
 
         if (repository.existsByTenantIdAndNomeIgnoreCase(tenantId, dto.nome())) {
-            sendAuditEvent(Constants.VENDEDOR_CREATION, userId, null, Constants.ERROR, "{"+Constants.ERROR+": "+Constants.VENDEDOR_ALREADY_EXISTS+"}", correlationID);
-            throw new RuntimeException(Constants.VENDEDOR_ALREADY_EXISTS);
+            sendAuditEvent(Constants.VENDEDOR_CREATION, userId, null, Constants.ERROR, "{" + Constants.ERROR + ": " + Constants.VENDEDOR_ALREADY_EXISTS + "}", correlationID);
+            throw new BusinessException(Constants.VENDEDOR_ALREADY_EXISTS, HttpStatus.BAD_REQUEST);
+        }
+
+        Pessoa pessoa = null;
+        if (dto.pessoaId() != null) {
+            pessoa = pessoaRepository.findByIdAndTenantId(dto.pessoaId(), tenantId)
+                    .orElseThrow(() -> new BusinessException(Constants.PESSOA_NOT_FOUND, HttpStatus.BAD_REQUEST));
         }
 
         Vendedor vendedor = Vendedor.builder()
-                .tenantId(tenantId)
-                .pessoaId(dto.pessoaId())
+                .pessoa(pessoa)
                 .nome(dto.nome())
                 .comissaoPercentual(dto.comissaoPercentual())
                 .ativo(dto.ativo())
                 .createdAt(Instant.now())
                 .createdBy(userId)
                 .build();
+        vendedor.setTenantId(tenantId);
+
         Vendedor saved = repository.save(vendedor);
         sendAuditEvent(Constants.VENDEDOR_CREATION, userId, saved.getId(), Constants.SUCCESS, null, correlationID);
 
@@ -73,18 +86,24 @@ public class VendedorService {
 
         Vendedor vendedor = repository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> {
-                    sendAuditEvent(Constants.VENDEDOR_UPDATE, userId, null, Constants.ERROR, "{ERROR: "+Constants.VENDEDOR_NOT_FOUND+"}", correlationID);
-                    return new RuntimeException(Constants.VENDEDOR_NOT_FOUND + " - id: " + id);
+                    sendAuditEvent(Constants.VENDEDOR_UPDATE, userId, null, Constants.ERROR, "{ERROR: " + Constants.VENDEDOR_NOT_FOUND + "}", correlationID);
+                    return new BusinessException(Constants.VENDEDOR_NOT_FOUND + " - id: " + id, HttpStatus.NOT_FOUND);
                 });
 
         if (!vendedor.getNome().equalsIgnoreCase(dto.nome()) &&
                 repository.existsByTenantIdAndNomeIgnoreCase(tenantId, dto.nome())) {
-            sendAuditEvent(Constants.VENDEDOR_UPDATE, userId, null, Constants.ERROR, "{ERROR: "+Constants.VENDEDOR_ALREADY_EXISTS+"}", correlationID);
-            throw new RuntimeException(Constants.VENDEDOR_ALREADY_EXISTS);
+            sendAuditEvent(Constants.VENDEDOR_UPDATE, userId, null, Constants.ERROR, "{ERROR: " + Constants.VENDEDOR_ALREADY_EXISTS + "}", correlationID);
+            throw new BusinessException(Constants.VENDEDOR_ALREADY_EXISTS, HttpStatus.BAD_REQUEST);
+        }
+
+        Pessoa pessoa = null;
+        if (dto.pessoaId() != null) {
+            pessoa = pessoaRepository.findByIdAndTenantId(dto.pessoaId(), tenantId)
+                    .orElseThrow(() -> new BusinessException(Constants.PESSOA_NOT_FOUND, HttpStatus.BAD_REQUEST));
         }
 
         vendedor.setNome(dto.nome());
-        vendedor.setPessoaId(dto.pessoaId());
+        vendedor.setPessoa(pessoa);
         vendedor.setComissaoPercentual(dto.comissaoPercentual());
         vendedor.setAtivo(dto.ativo());
         vendedor.setUpdatedAt(Instant.now());

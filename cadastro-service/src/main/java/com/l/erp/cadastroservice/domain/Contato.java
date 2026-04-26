@@ -1,7 +1,11 @@
 package com.l.erp.cadastroservice.domain;
 
+import com.l.erp.cadastroservice.domain.enumerators.TipoContato;
+import com.l.erp.cadastroservice.repository.filter.BaseTenantEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -22,7 +26,7 @@ import java.util.UUID;
 @Setter
 @Entity
 @Table(name = "contato", schema = "cadastros")
-public class Contato {
+public class Contato extends BaseTenantEntity {
     @Id
     @Column(name = "id", nullable = false)
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -32,19 +36,15 @@ public class Contato {
     @JoinColumn(name = "pessoa_id", nullable = false)
     private Pessoa pessoa;
 
-    @NotNull
-    @Column(name = "tenant_id", nullable = false)
-    private Long tenantId;
-
     @Size(max = 200)
     @NotNull
     @Column(name = "nome", nullable = false, length = 200)
     private String nome;
 
-    @Size(max = 20)
     @NotNull
+    @Enumerated(EnumType.STRING)
     @Column(name = "tipo", nullable = false, length = 20)
-    private String tipo;
+    private TipoContato tipo;
 
     @Size(max = 100)
     @Column(name = "cargo", length = 100)
@@ -57,6 +57,11 @@ public class Contato {
     @Size(max = 20)
     @Column(name = "telefone", length = 20)
     private String telefone;
+
+    @NotNull
+    @ColumnDefault("false")
+    @Column(name = "principal", nullable = false)
+    private Boolean principal;
 
     @NotNull
     @ColumnDefault("true")
@@ -76,6 +81,4 @@ public class Contato {
 
     @Column(name = "last_updated_by")
     private UUID lastUpdatedBy;
-
-
 }

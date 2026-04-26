@@ -1,11 +1,12 @@
 package com.l.erp.cadastroservice.api.dto;
 
+import com.l.erp.cadastroservice.domain.enumerators.TipoEndereco;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public record EnderecoRequestDTO(
-        @NotBlank @Size(max = 20) String tipo,
+        @NotNull TipoEndereco tipo,
         @NotBlank @Size(max = 200) String logradouro,
         @Size(max = 20) String numero,
         @Size(max = 100) String complemento,
