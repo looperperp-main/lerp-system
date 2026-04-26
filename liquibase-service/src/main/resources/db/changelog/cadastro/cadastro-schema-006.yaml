@@ -71,3 +71,16 @@ databaseChangeLog:
               CREATE UNIQUE INDEX uq_endereco_principal_pessoa
               ON cadastros.endereco (tenant_id, pessoa_id)
               WHERE principal = true;
+
+  - changeSet:
+      id: cad-026-add-principal-coluna
+      author: vitor-fernandes
+      changes:
+        - addColumn:
+            schemaName: cadastros
+            tableName: contato
+            columns:
+              - column:
+                  name: principal
+                  type: boolean
+                  remarks: "Define se o contato é o contato principal da pessoa."
