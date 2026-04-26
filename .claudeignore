@@ -1,0 +1,11 @@
+/build
+/target
+/.idea
+/Angular/node_modules
+/Angular/erp-front-end-admin/node_modules
+/Angular/erp-front-end-admin/.angular
+/Angular/erp-front-end-admin/.vscode
+/Angular/erp-front-end-web/node_modules
+/Angular/erp-front-end-web/.vscode
+/Angular/erp-front-end-web/.angular
+*.log
