@@ -1,0 +1,110 @@
+databaseChangeLog:
+  - changeSet:
+      id: "005-create-commission-table"
+      author: billing-service
+      changes:
+        - createTable:
+            schemaName: billing
+            tableName: commission
+            remarks: Comissões geradas a cada pagamento confirmado de tenant indicado por parceiro
+            columns:
+              - column:
+                  name: id
+                  type: BIGSERIAL
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_commission
+                    nullable: false
+
+              - column:
+                  name: partner_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_commission_partner
+                    references: billing.partner(id)
+
+              - column:
+                  name: tenant_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: subscription_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_commission_subscription
+                    references: billing.subscription(id)
+
+              - column:
+                  name: amount
+                  type: NUMERIC(10,2)
+                  remarks: "Valor da comissão: subscription.value * partner.commission_rate"
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: period
+                  type: VARCHAR(7)
+                  remarks: "Período de referência no formato YYYY-MM ex: 2025-05"
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: status
+                  type: VARCHAR(20)
+                  remarks: "PENDENTE | PAGO | CANCELADO"
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: asaas_payment_id
+                  type: VARCHAR(50)
+                  remarks: ID do payment no Asaas que originou esta comissão — usado para idempotência
+
+              - column:
+                  name: asaas_transfer_id
+                  type: VARCHAR(50)
+                  remarks: ID da transferência de repasse no Asaas
+
+              - column:
+                  name: calculated_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: paid_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  remarks: Preenchido quando o repasse é confirmado
+
+        - addUniqueConstraint:
+            schemaName: billing
+            tableName: commission
+            columnNames: asaas_payment_id
+            constraintName: uq_commission_asaas_payment
+
+        - createIndex:
+            schemaName: billing
+            tableName: commission
+            indexName: idx_commission_partner_period
+            columns:
+              - column:
+                  name: partner_id
+              - column:
+                  name: period
+
+        - createIndex:
+            schemaName: billing
+            tableName: commission
+            indexName: idx_commission_status
+            columns:
+              - column:
+                  name: status
+
+      rollback:
+        - dropTable:
+            schemaName: billing
+            tableName: commission

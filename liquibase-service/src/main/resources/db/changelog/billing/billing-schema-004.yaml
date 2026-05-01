@@ -1,0 +1,127 @@
+databaseChangeLog:
+  - changeSet:
+      id: "004-create-subscription-table"
+      author: billing-service
+      changes:
+        - createTable:
+            schemaName: billing
+            tableName: subscription
+            remarks: Assinaturas dos tenants — trial e plano pago via Asaas
+            columns:
+              - column:
+                  name: id
+                  type: BIGSERIAL
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_subscription
+                    nullable: false
+
+              - column:
+                  name: tenant_id
+                  type: BIGINT
+                  remarks: Referência cross-schema — tenant vive no schema principal
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: plan_type
+                  type: VARCHAR(30)
+                  remarks: "MONTHLY | ANNUAL"
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: billing_cycle
+                  type: VARCHAR(30)
+                  remarks: "MONTHLY | YEARLY — ciclo configurado no Asaas"
+
+              - column:
+                  name: value
+                  type: NUMERIC(10,2)
+                  remarks: Valor cobrado — já com desconto de 2 meses se anual
+
+              - column:
+                  name: status
+                  type: VARCHAR(30)
+                  remarks: "TRIAL | ATIVO | SUSPENSO | CANCELADO"
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: trial_started_at
+                  type: TIMESTAMP WITH TIME ZONE
+
+              - column:
+                  name: trial_expires_at
+                  type: TIMESTAMP WITH TIME ZONE
+
+              - column:
+                  name: asaas_customer_id
+                  type: VARCHAR(50)
+                  remarks: Preenchido na conversão quando o cliente Asaas é criado
+
+              - column:
+                  name: asaas_subscription_id
+                  type: VARCHAR(50)
+                  remarks: ID da assinatura recorrente no Asaas
+
+              - column:
+                  name: activated_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  remarks: Primeiro PAYMENT_RECEIVED confirmado
+
+              - column:
+                  name: next_due_date
+                  type: TIMESTAMP WITH TIME ZONE
+                  remarks: Próximo vencimento — atualizado a cada renovação
+
+              - column:
+                  name: suspended_at
+                  type: TIMESTAMP WITH TIME ZONE
+
+              - column:
+                  name: cancelled_at
+                  type: TIMESTAMP WITH TIME ZONE
+
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP WITH TIME ZONE
+
+        - addUniqueConstraint:
+            schemaName: billing
+            tableName: subscription
+            columnNames: tenant_id
+            constraintName: uq_subscription_tenant
+
+        - addUniqueConstraint:
+            schemaName: billing
+            tableName: subscription
+            columnNames: asaas_subscription_id
+            constraintName: uq_subscription_asaas_id
+
+        - createIndex:
+            schemaName: billing
+            tableName: subscription
+            indexName: idx_subscription_status
+            columns:
+              - column:
+                  name: status
+
+        - createIndex:
+            schemaName: billing
+            tableName: subscription
+            indexName: idx_subscription_trial_expires
+            columns:
+              - column:
+                  name: trial_expires_at
+
+      rollback:
+        - dropTable:
+            schemaName: billing
+            tableName: subscription

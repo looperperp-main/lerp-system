@@ -1,0 +1,65 @@
+databaseChangeLog:
+  - changeSet:
+      id: "006-create-trial-engagement-table"
+      author: billing-service
+      changes:
+        - createTable:
+            schemaName: billing
+            tableName: trial_engagement
+            remarks: Rastreamento de uso de features durante o trial — alimenta o relatório D+10 enviado ao contador parceiro
+            columns:
+              - column:
+                  name: id
+                  type: BIGSERIAL
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_trial_engagement
+                    nullable: false
+
+              - column:
+                  name: tenant_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: feature_key
+                  type: VARCHAR(100)
+                  remarks: "Identificador da feature ex: EMISSAO_NFE, CONTAS_PAGAR, RELATORIOS"
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: access_count
+                  type: INT
+                  defaultValue: 0
+                  remarks: Número de vezes que a feature foi acessada
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: first_accessed_at
+                  type: TIMESTAMP WITH TIME ZONE
+
+              - column:
+                  name: last_accessed_at
+                  type: TIMESTAMP WITH TIME ZONE
+
+        - addUniqueConstraint:
+            schemaName: billing
+            tableName: trial_engagement
+            columnNames: tenant_id, feature_key
+            constraintName: uq_engagement_tenant_feature
+
+        - createIndex:
+            schemaName: billing
+            tableName: trial_engagement
+            indexName: idx_engagement_tenant_id
+            columns:
+              - column:
+                  name: tenant_id
+
+      rollback:
+        - dropTable:
+            schemaName: billing
+            tableName: trial_engagement

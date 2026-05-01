@@ -81,6 +81,6 @@ databaseChangeLog:
             tableName: contato
             columns:
               - column:
-                  name: principal
+                  name: princiapl
                   type: boolean
                   remarks: "Define se o contato é o contato principal da pessoa."

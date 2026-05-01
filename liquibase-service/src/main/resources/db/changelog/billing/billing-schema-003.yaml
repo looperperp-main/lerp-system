@@ -1,0 +1,94 @@
+databaseChangeLog:
+  - changeSet:
+      id: "003-create-partner-referral-table"
+      author: billing-service
+      changes:
+        - createTable:
+            schemaName: billing
+            tableName: partner_referral
+            remarks: Vínculo entre contador parceiro e tenant indicado
+            columns:
+              - column:
+                  name: id
+                  type: BIGSERIAL
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_partner_referral
+                    nullable: false
+
+              - column:
+                  name: partner_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_referral_partner
+                    references: billing.partner(id)
+
+              - column:
+                  name: tenant_id
+                  type: BIGINT
+                  remarks: Referência cross-schema — tenant vive no schema principal
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: status
+                  type: VARCHAR(30)
+                  remarks: "CONVIDADO | ATIVADO | CONVERTIDO | PERDIDO"
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: invited_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: activation_token
+                  type: VARCHAR(255)
+                  remarks: JWT de ativação enviado por e-mail — nulo após uso
+
+              - column:
+                  name: token_expires_at
+                  type: TIMESTAMP WITH TIME ZONE
+
+              - column:
+                  name: activated_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  remarks: Momento em que o cliente clicou no link e criou a senha
+
+              - column:
+                  name: converted_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  remarks: Momento do primeiro pagamento confirmado
+
+              - column:
+                  name: lost_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  remarks: Marcado após esgotar tentativas de follow-up
+
+              - column:
+                  name: followup_attempts
+                  type: INT
+                  defaultValue: 0
+                  remarks: Contador de tentativas de recuperação
+
+        - addUniqueConstraint:
+            schemaName: billing
+            tableName: partner_referral
+            columnNames: tenant_id
+            constraintName: uq_referral_tenant
+
+        - createIndex:
+            schemaName: billing
+            tableName: partner_referral
+            indexName: idx_referral_partner_id
+            columns:
+              - column:
+                  name: partner_id
+
+      rollback:
+        - dropTable:
+            schemaName: billing
+            tableName: partner_referral
