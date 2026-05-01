@@ -6,7 +6,7 @@ import com.l.erp.cadastroservice.domain.CondicaoPagamento;
 import com.l.erp.cadastroservice.domain.CondicaoPagamentoParcela;
 import com.l.erp.cadastroservice.repository.CondicaoPagamentoParcelaRepository;
 import com.l.erp.cadastroservice.repository.CondicaoPagamentoRepository;
-import com.l.erp.cadastroservice.util.Constants;
+import com.l.erp.common.util.Constants;
 import com.l.erp.cadastroservice.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -11,7 +11,7 @@ import com.l.erp.cadastroservice.repository.FornecedorRepository;
 import com.l.erp.cadastroservice.repository.ProdutoCategoriaRepository;
 import com.l.erp.cadastroservice.repository.ProdutoRepository;
 import com.l.erp.cadastroservice.repository.TabelaPrecoRepository;
-import com.l.erp.cadastroservice.util.Constants;
+import com.l.erp.common.util.Constants;
 import com.l.erp.common.api.dto.AuditEventDTO;
 import com.l.erp.common.exception.custom.BusinessException;
 import org.slf4j.Logger;

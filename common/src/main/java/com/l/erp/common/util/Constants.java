@@ -1,5 +1,6 @@
-package com.l.erp.cadastroservice.util;
+package com.l.erp.common.util;
 
+import java.math.BigDecimal;
 import java.time.Duration;
 
 public class Constants {
@@ -7,6 +8,13 @@ public class Constants {
     private Constants(){
         //construtor vazio
     }
+
+    public static final BigDecimal DEFAULT_COMMISSION_RATE = new BigDecimal("10.00");
+
+    public static final String STATUS_PENDENTE  = "PENDENTE";
+    public static final String STATUS_ATIVO     = "ATIVO";
+    public static final String STATUS_REPROVADO = "REPROVADO";
+    public static final String STATUS_INATIVO   = "INATIVO";
 
     public static final String SYSTEM = "SYSTEM";
     public static final String ADMIN = "ADMIN";
@@ -177,4 +185,14 @@ public class Constants {
     public static final String PRODUTO_DELETE = PRODUTO +"_" + DELETE;
     public static final String PRODUTO_NOT_FOUND = "Produto não encontrado!";
     public static final String PRODUTO_ALREADY_EXISTS = "Já existe um Produto com este nome";
+
+    //Parceiros
+    public static final String PARCEIRO = "PARCEIRO";
+    public static final String PARCEIRO_CREATION = PARCEIRO + "_" + INSERT;
+    public static final String PARCEIRO_UPDATE = PARCEIRO +"_" + UPDATE;
+    public static final String PARCEIRO_DELETE = PARCEIRO +"_" + DELETE;
+    public static final String PARCEIRO_NOT_FOUND = "Parceiro não encontrado!";
+    public static final String PARCEIRO_CNPJ_ALREADY_EXISTS = "CNPJ já cadastrado";
+    public static final String PARCEIRO_EMAIL_ALREADY_EXISTS = "E-mail já cadastrado";
+    public static final String PARCEIRO_INACTIVATE = PARCEIRO + "_INACTIVATE";
 }

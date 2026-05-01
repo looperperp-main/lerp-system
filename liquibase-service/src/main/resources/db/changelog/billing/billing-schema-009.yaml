@@ -1,0 +1,34 @@
+databaseChangeLog:
+  - changeSet:
+      id: "009-add-review-fields-to-partner"
+      author: billing-service
+      changes:
+        - addColumn:
+            schemaName: billing
+            tableName: partner
+            columns:
+              - column:
+                  name: reviewed_by
+                  type: VARCHAR(200)
+                  remarks: Usuário admin que realizou a revisão
+              - column:
+                  name: reviewed_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  remarks: Data/hora da revisão
+              - column:
+                  name: review_notes
+                  type: VARCHAR(500)
+                  remarks: Observações do admin sobre a aprovação ou rejeição
+      rollback:
+        - dropColumn:
+            schemaName: billing
+            tableName: partner
+            columnName: reviewed_by
+        - dropColumn:
+            schemaName: billing
+            tableName: partner
+            columnName: reviewed_at
+        - dropColumn:
+            schemaName: billing
+            tableName: partner
+            columnName: review_notes

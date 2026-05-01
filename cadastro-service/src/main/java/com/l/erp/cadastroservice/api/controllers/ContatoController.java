@@ -5,7 +5,7 @@ import com.l.erp.cadastroservice.api.dto.ContatoResponseDTO;
 import com.l.erp.cadastroservice.api.mappers.ContatoAssembler;
 import com.l.erp.cadastroservice.domain.Contato;
 import com.l.erp.cadastroservice.services.ContatoService;
-import com.l.erp.cadastroservice.util.Constants;
+import com.l.erp.common.util.Constants;
 import jakarta.validation.Valid;
 import org.springframework.hateoas.CollectionModel;
 import org.springframework.http.ResponseEntity;

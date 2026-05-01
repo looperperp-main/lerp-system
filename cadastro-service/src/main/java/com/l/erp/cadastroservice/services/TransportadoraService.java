@@ -6,7 +6,7 @@ import com.l.erp.cadastroservice.domain.Transportadora;
 import com.l.erp.cadastroservice.repository.PessoaRepository;
 import com.l.erp.cadastroservice.repository.TransportadoraRepository;
 import com.l.erp.cadastroservice.repository.filter.TenantContext;
-import com.l.erp.cadastroservice.util.Constants;
+import com.l.erp.common.util.Constants;
 import com.l.erp.common.api.dto.AuditEventDTO;
 import com.l.erp.common.exception.custom.BusinessException;
 import org.slf4j.Logger;

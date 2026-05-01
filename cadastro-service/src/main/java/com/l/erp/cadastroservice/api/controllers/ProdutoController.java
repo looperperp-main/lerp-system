@@ -1,19 +1,16 @@
 package com.l.erp.cadastroservice.api.controllers;
 
 import com.l.erp.cadastroservice.api.dto.ProdutoDTO;
-import com.l.erp.cadastroservice.api.dto.ProdutoRequestDTO;
 import com.l.erp.cadastroservice.api.dto.ProdutoResponseDTO;
 import com.l.erp.cadastroservice.api.mappers.ProdutoAssembler;
 import com.l.erp.cadastroservice.domain.Produto;
-import com.l.erp.cadastroservice.domain.Vendedor;
 import com.l.erp.cadastroservice.services.ProdutoService;
-import com.l.erp.cadastroservice.util.Constants;
+import com.l.erp.common.util.Constants;
 import com.l.erp.cadastroservice.util.SecurityUtils;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PagedResourcesAssembler;
-import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.PagedModel;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;

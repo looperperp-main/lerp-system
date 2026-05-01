@@ -6,7 +6,7 @@ import com.l.erp.cadastroservice.domain.Pessoa;
 import com.l.erp.cadastroservice.repository.FornecedorRepository;
 import com.l.erp.cadastroservice.repository.PessoaRepository;
 import com.l.erp.cadastroservice.repository.filter.TenantContext;
-import com.l.erp.cadastroservice.util.Constants;
+import com.l.erp.common.util.Constants;
 import com.l.erp.common.api.dto.AuditEventDTO;
 import com.l.erp.common.exception.custom.BusinessException;
 import org.slf4j.Logger;
@@ -57,7 +57,7 @@ public class FornecedorService {
         Long tenantId = TenantContext.getTenantId();
 
         if (fornecedorRepository.existsByPessoaId(dto.pessoaId())) {
-            sendAuditEvent("FORNECEDOR_CREATION", userId, null, Constants.ERROR, "{ERROR: Fornecedor já existe para esta Pessoa}", correlationID);
+            sendAuditEvent(Constants.FORNECEDORES_CREATION, userId, null, Constants.ERROR, "{ERROR: Fornecedor já existe para esta Pessoa}", correlationID);
             throw new BusinessException("Fornecedor já cadastrado para esta pessoa - pessoaId: " + dto.pessoaId(), HttpStatus.BAD_REQUEST);
         }
 
@@ -88,13 +88,13 @@ public class FornecedorService {
 
         Fornecedor fornecedor = fornecedorRepository.findById(id)
                 .orElseThrow(() -> {
-                    sendAuditEvent("FORNECEDOR_UPDATE", userId, null, Constants.ERROR, "{ERROR: Fornecedor não encontrado}", correlationID);
+                    sendAuditEvent(Constants.FORNECEDORES_UPDATE, userId, null, Constants.ERROR, "{ERROR: Fornecedor não encontrado}", correlationID);
                     return new BusinessException("Fornecedor não encontrado - id: " + id, HttpStatus.NOT_FOUND);
                 });
 
         if (!fornecedor.getPessoa().getId().equals(dto.pessoaId())) {
             if (fornecedorRepository.existsByPessoaId(dto.pessoaId())) {
-                sendAuditEvent("FORNECEDOR_UPDATE", userId, null, Constants.ERROR, "{ERROR: A nova Pessoa já possui cadastro de Fornecedor}", correlationID);
+                sendAuditEvent(Constants.FORNECEDORES_UPDATE, userId, null, Constants.ERROR, "{ERROR: A nova Pessoa já possui cadastro de Fornecedor}", correlationID);
                 throw new BusinessException("A nova Pessoa já possui cadastro de Fornecedor", HttpStatus.BAD_REQUEST);
             }
             Pessoa novaPessoa = pessoaRepository.findByIdAndTenantId(dto.pessoaId(), tenantId)
@@ -108,7 +108,7 @@ public class FornecedorService {
 
         Fornecedor updated = fornecedorRepository.save(fornecedor);
 
-        sendAuditEvent("FORNECEDOR_UPDATE", userId, updated.getId(), Constants.SUCCESS, null, correlationID);
+        sendAuditEvent(Constants.FORNECEDORES_UPDATE, userId, updated.getId(), Constants.SUCCESS, null, correlationID);
         return updated;
     }
 
@@ -119,7 +119,7 @@ public class FornecedorService {
 
         Fornecedor fornecedor = fornecedorRepository.findById(id)
                 .orElseThrow(() -> {
-                    sendAuditEvent("FORNECEDOR_UPDATE", userId, null, Constants.ERROR, "{ERROR: Fornecedor não encontrado}", correlationID);
+                    sendAuditEvent(Constants.FORNECEDORES_UPDATE, userId, null, Constants.ERROR, "{ERROR: Fornecedor não encontrado}", correlationID);
                     return new BusinessException("Fornecedor não encontrado - id: " + id, HttpStatus.NOT_FOUND);
                 });
 
@@ -129,12 +129,12 @@ public class FornecedorService {
 
         fornecedorRepository.save(fornecedor);
 
-        sendAuditEvent("FORNECEDOR_UPDATE", userId, id, Constants.SUCCESS, "{\"status_alterado\": " + fornecedor.getAtivo() + "}", correlationID);
+        sendAuditEvent(Constants.FORNECEDORES_UPDATE, userId, id, Constants.SUCCESS, "{\"status_alterado\": " + fornecedor.getAtivo() + "}", correlationID);
     }
 
     private void sendAuditEvent(String action, UUID actorId, UUID targetId, String result, String detailsJson, UUID correlationId) {
         AuditEventDTO auditEvent = new AuditEventDTO(
-                action, actorId, "FORNECEDOR", targetId, result, detailsJson, correlationId, Instant.now()
+                action, actorId, Constants.FORNECEDORES, targetId, result, detailsJson, correlationId, Instant.now()
         );
         auditProducer.sendAuditEvent(auditEvent);
     }

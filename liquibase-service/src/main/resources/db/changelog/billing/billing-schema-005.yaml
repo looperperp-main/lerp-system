@@ -1,7 +1,7 @@
 databaseChangeLog:
   - changeSet:
       id: "005-create-commission-table"
-      author: billing-service
+      author: vitor fernandes ferreira
       changes:
         - createTable:
             schemaName: billing
@@ -10,7 +10,7 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: BIGSERIAL
+                  type: UUID
                   constraints:
                     primaryKey: true
                     primaryKeyName: pk_commission
@@ -18,7 +18,7 @@ databaseChangeLog:
 
               - column:
                   name: partner_id
-                  type: BIGINT
+                  type: UUID
                   constraints:
                     nullable: false
                     foreignKeyName: fk_commission_partner
@@ -32,7 +32,7 @@ databaseChangeLog:
 
               - column:
                   name: subscription_id
-                  type: BIGINT
+                  type: UUID
                   constraints:
                     nullable: false
                     foreignKeyName: fk_commission_subscription

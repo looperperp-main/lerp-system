@@ -6,6 +6,7 @@ import com.l.erp.cadastroservice.api.mappers.TransportadoraAssembler;
 import com.l.erp.cadastroservice.domain.Transportadora;
 import com.l.erp.cadastroservice.services.TransportadoraService;
 import com.l.erp.cadastroservice.util.SecurityUtils;
+import com.l.erp.common.util.Constants;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,7 +48,7 @@ public class TransportadoraController {
     @PostMapping
     public ResponseEntity<TransportadoraResponseDTO> save(@RequestBody @Valid TransportadoraDTO dto) {
         logger.info("Criando Transportadora: {}", dto);
-        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new RuntimeException("User Id não encontrado!"));
+        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new RuntimeException(Constants.USER_NOT_FOUND));
 
         Transportadora salvo = service.save(dto, userId);
         TransportadoraResponseDTO response = assembler.toModel(salvo);
@@ -59,7 +60,7 @@ public class TransportadoraController {
     @PutMapping("/{id}")
     public ResponseEntity<TransportadoraResponseDTO> update(@PathVariable UUID id, @RequestBody @Valid TransportadoraDTO dto) {
         logger.info("Atualizando Transportadora: {}", dto);
-        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new RuntimeException("User Id não encontrado!"));
+        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new RuntimeException(Constants.USER_NOT_FOUND));
 
         Transportadora salvo = service.update(id, dto, userId);
         TransportadoraResponseDTO response = assembler.toModel(salvo);
@@ -70,7 +71,7 @@ public class TransportadoraController {
     @PatchMapping("/{id}/status")
     public ResponseEntity<Void> updateStatus(@PathVariable UUID id) {
         logger.info("Alterando status da Transportadora por ID: {}", id);
-        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new RuntimeException("User Id não encontrado!"));
+        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new RuntimeException(Constants.USER_NOT_FOUND));
 
         service.updateStatus(id, userId);
 

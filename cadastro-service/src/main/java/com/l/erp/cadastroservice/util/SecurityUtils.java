@@ -8,6 +8,7 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import com.l.erp.common.util.Constants;
 
 import java.util.Base64;
 import java.util.Optional;
@@ -69,7 +70,7 @@ public final class SecurityUtils {
 
     public static CurrentUser getCurrentUserInfo() {
         UUID userId = getCurrentUserId().orElseThrow(() -> new RuntimeException(Constants.USUARIO_NAO_AUTENTICADO));
-        String email = getCurrentUserEmail().orElse("user-" + userId.toString());
+        String email = getCurrentUserEmail().orElse("user-" + userId);
         return new CurrentUser(userId, email);
     }
 

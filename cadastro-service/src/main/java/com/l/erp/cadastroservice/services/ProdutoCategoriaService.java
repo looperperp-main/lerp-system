@@ -3,7 +3,7 @@ package com.l.erp.cadastroservice.services;
 import com.l.erp.cadastroservice.api.dto.ProdutoCategoriaDTO;
 import com.l.erp.cadastroservice.domain.ProdutoCategoria;
 import com.l.erp.cadastroservice.repository.ProdutoCategoriaRepository;
-import com.l.erp.cadastroservice.util.Constants;
+import com.l.erp.common.util.Constants;
 import com.l.erp.common.api.dto.AuditEventDTO;
 import com.l.erp.common.exception.custom.BusinessException;
 import org.slf4j.Logger;

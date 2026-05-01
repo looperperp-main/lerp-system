@@ -4,7 +4,7 @@ import com.l.erp.cadastroservice.api.dto.DepositoDTO;
 import com.l.erp.cadastroservice.api.mappers.DepositoMapper;
 import com.l.erp.cadastroservice.domain.Deposito;
 import com.l.erp.cadastroservice.repository.DepositoRepository;
-import com.l.erp.cadastroservice.util.Constants;
+import com.l.erp.common.util.Constants;
 import com.l.erp.common.api.dto.AuditEventDTO;
 import com.l.erp.common.exception.custom.BusinessException;
 import jakarta.validation.Valid;

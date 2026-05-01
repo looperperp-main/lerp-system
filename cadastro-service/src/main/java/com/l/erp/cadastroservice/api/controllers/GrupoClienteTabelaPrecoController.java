@@ -5,7 +5,7 @@ import com.l.erp.cadastroservice.api.dto.GrupoClienteTabelaPrecoResponseDTO;
 import com.l.erp.cadastroservice.api.mappers.GrupoClienteTabelaPrecoAssembler;
 import com.l.erp.cadastroservice.domain.TabelaPrecoGrupoCliente;
 import com.l.erp.cadastroservice.services.GrupoClienteTabelaPrecoService;
-import com.l.erp.cadastroservice.util.Constants;
+import com.l.erp.common.util.Constants;
 import com.l.erp.cadastroservice.util.SecurityUtils;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

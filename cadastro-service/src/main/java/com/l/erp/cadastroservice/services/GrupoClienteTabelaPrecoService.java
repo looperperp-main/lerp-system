@@ -7,7 +7,7 @@ import com.l.erp.cadastroservice.domain.TabelaPrecoGrupoClienteId;
 import com.l.erp.cadastroservice.repository.GrupoClienteRepository;
 import com.l.erp.cadastroservice.repository.TabelaPrecoGrupoClienteRepository;
 import com.l.erp.cadastroservice.repository.TabelaPrecoRepository;
-import com.l.erp.cadastroservice.util.Constants;
+import com.l.erp.common.util.Constants;
 import com.l.erp.common.api.dto.AuditEventDTO;
 import com.l.erp.common.exception.custom.BusinessException;
 import lombok.extern.slf4j.Slf4j;

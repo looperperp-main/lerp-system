@@ -35,6 +35,10 @@ public class SecurityFilter extends OncePerRequestFilter {
             "/auth/login", "/auth/tenant/login", "/auth/refresh", "/auth/logout"
     );
 
+    private static final Map<String, Set<String>> PUBLIC_METHOD_PATHS = Map.of(
+            "POST", Set.of("/billing/api/v1/partners")
+    );
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain) throws ServletException, IOException {
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
@@ -51,6 +55,12 @@ public class SecurityFilter extends OncePerRequestFilter {
         }
 
         if (PUBLIC_PATHS.contains(path)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        Set<String> publicPathsForMethod = PUBLIC_METHOD_PATHS.get(request.getMethod().toUpperCase());
+        if (publicPathsForMethod != null && publicPathsForMethod.contains(path)) {
             filterChain.doFilter(request, response);
             return;
         }

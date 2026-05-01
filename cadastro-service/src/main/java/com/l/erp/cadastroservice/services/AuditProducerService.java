@@ -1,6 +1,6 @@
 package com.l.erp.cadastroservice.services;
 
-import com.l.erp.cadastroservice.util.Constants;
+import com.l.erp.common.util.Constants;
 import com.l.erp.common.api.dto.AuditEventDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -4,7 +4,7 @@ import com.l.erp.cadastroservice.api.dto.GrupoClienteDTO;
 import com.l.erp.cadastroservice.api.mappers.GrupoClienteMapper;
 import com.l.erp.cadastroservice.domain.GrupoCliente;
 import com.l.erp.cadastroservice.repository.GrupoClienteRepository;
-import com.l.erp.cadastroservice.util.Constants;
+import com.l.erp.common.util.Constants;
 import com.l.erp.common.api.dto.AuditEventDTO;
 import com.l.erp.common.exception.custom.BusinessException;
 import jakarta.validation.Valid;
@@ -43,9 +43,9 @@ public class GrupoClienteService {
 
     /**
      * Retorna todos os grupos de clientes de um determinado tenant
-     * @param tenantId
-     * @param pageable
-     * @return
+     * @param tenantId Tenant ID
+     * @param pageable Pageable
+     * @return Page with Data
      */
     @Transactional(readOnly = true)
     public Page<GrupoClienteDTO> getAllGroups(Long tenantId, Pageable pageable) {

@@ -1,0 +1,18 @@
+databaseChangeLog:
+  - changeSet:
+      id: "008-add-phone-to-partner"
+      author: billing-service
+      changes:
+        - addColumn:
+            schemaName: billing
+            tableName: partner
+            columns:
+              - column:
+                  name: phone
+                  type: VARCHAR(20)
+                  remarks: Telefone de contato do parceiro
+      rollback:
+        - dropColumn:
+            schemaName: billing
+            tableName: partner
+            columnName: phone

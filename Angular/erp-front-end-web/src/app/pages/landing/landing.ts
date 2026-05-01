@@ -28,6 +28,10 @@ export class Landing implements AfterViewInit, OnDestroy {
     this.router.navigate(['/login']);
   }
 
+  goToPartnerSignup() {
+    this.router.navigate(['/cadastrar-parceiro']);
+  }
+
   scrollTo(id: string) {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
   }

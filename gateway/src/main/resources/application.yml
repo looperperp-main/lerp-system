@@ -21,6 +21,12 @@ spring:
 #                    redis-rate-limiter.replenishRate: 20
 #                    redis-rate-limiter.burstCapacity: 10
 #                    key-resolver: "#{@ipKeyResolver}"
+            - id: billing-service
+              uri: lb://billing-service
+              predicates:
+                - Path=/billing/**
+              filters:
+                - StripPrefix=1
             - id: cadastro-service
               uri: lb://cadastro-service
               predicates:

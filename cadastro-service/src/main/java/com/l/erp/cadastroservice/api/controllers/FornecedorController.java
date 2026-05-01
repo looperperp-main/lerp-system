@@ -6,6 +6,7 @@ import com.l.erp.cadastroservice.api.mappers.FornecedorAssembler;
 import com.l.erp.cadastroservice.domain.Fornecedor;
 import com.l.erp.cadastroservice.services.FornecedorService;
 import com.l.erp.cadastroservice.util.SecurityUtils;
+import com.l.erp.common.util.Constants;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,7 +55,7 @@ public class FornecedorController {
     @PostMapping
     public ResponseEntity<FornecedorResponseDTO> save(@RequestBody @Valid FornecedorDto dto) {
         logger.info("Criando Fornecedor: {}", dto);
-        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new RuntimeException("User Id não encontrado!"));
+        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new RuntimeException(Constants.USER_NOT_FOUND));
 
         Fornecedor salvo = service.save(dto, userId);
         FornecedorResponseDTO response = assembler.toModel(salvo);
@@ -66,7 +67,7 @@ public class FornecedorController {
     @PutMapping("/{id}")
     public ResponseEntity<FornecedorResponseDTO> update(@PathVariable UUID id, @RequestBody @Valid FornecedorDto dto) {
         logger.info("Atualizando Fornecedor: {}", dto);
-        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new RuntimeException("User Id não encontrado!"));
+        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new RuntimeException(Constants.USER_NOT_FOUND));
 
         Fornecedor salvo = service.update(id, dto, userId);
         FornecedorResponseDTO response = assembler.toModel(salvo);
@@ -77,7 +78,7 @@ public class FornecedorController {
     @PatchMapping("/{id}/status")
     public ResponseEntity<Void> updateStatus(@PathVariable UUID id) {
         logger.info("Alterando status do Fornecedor por ID: {}", id);
-        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new RuntimeException("User Id não encontrado!"));
+        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new RuntimeException(Constants.USER_NOT_FOUND));
 
         service.updateStatus(id, userId);
 

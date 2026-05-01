@@ -4,7 +4,7 @@ import com.l.erp.cadastroservice.api.dto.CondicaoPagamentoDTO;
 import com.l.erp.cadastroservice.api.mappers.CondicaoPagamentoMapper;
 import com.l.erp.cadastroservice.domain.CondicaoPagamento;
 import com.l.erp.cadastroservice.repository.CondicaoPagamentoRepository;
-import com.l.erp.cadastroservice.util.Constants;
+import com.l.erp.common.util.Constants;
 import com.l.erp.common.api.dto.AuditEventDTO;
 import com.l.erp.common.exception.custom.BusinessException;
 import jakarta.validation.Valid;
@@ -44,7 +44,7 @@ public class CondicaoPagamentoService {
 
     /**
      * Retorna todos as condições de pagamento de um determinado tenant
-     * @param tenantId
+     * @param tenantId Tenant ID
      * @param pageable
      * @return
      */

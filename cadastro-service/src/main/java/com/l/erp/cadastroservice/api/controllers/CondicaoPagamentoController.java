@@ -2,8 +2,8 @@ package com.l.erp.cadastroservice.api.controllers;
 
 import com.l.erp.cadastroservice.api.dto.CondicaoPagamentoDTO;
 import com.l.erp.cadastroservice.services.CondicaoPagamentoService;
-import com.l.erp.cadastroservice.util.Constants;
 import com.l.erp.cadastroservice.util.SecurityUtils;
+import com.l.erp.common.util.Constants;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;

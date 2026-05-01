@@ -1,7 +1,7 @@
 databaseChangeLog:
   - changeSet:
       id: "007-create-webhook-log-table"
-      author: billing-service
+      author: vitor fernandes ferreira
       changes:
         - createTable:
             schemaName: billing
@@ -10,7 +10,7 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: BIGSERIAL
+                  type: UUID
                   constraints:
                     primaryKey: true
                     primaryKeyName: pk_webhook_log

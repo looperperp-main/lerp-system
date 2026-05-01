@@ -5,7 +5,7 @@ import com.l.erp.cadastroservice.api.dto.EnderecoResponseDTO;
 import com.l.erp.cadastroservice.api.mappers.EnderecoAssembler;
 import com.l.erp.cadastroservice.domain.Endereco;
 import com.l.erp.cadastroservice.services.EnderecoService;
-import com.l.erp.cadastroservice.util.Constants;
+import com.l.erp.common.util.Constants;
 import jakarta.validation.Valid;
 import org.springframework.hateoas.CollectionModel;
 import org.springframework.http.ResponseEntity;

@@ -5,7 +5,7 @@ import com.l.erp.cadastroservice.api.dto.PessoaResponseDTO;
 import com.l.erp.cadastroservice.api.mappers.PessoaAssembler;
 import com.l.erp.cadastroservice.domain.Pessoa;
 import com.l.erp.cadastroservice.services.PessoaService;
-import com.l.erp.cadastroservice.util.Constants;
+import com.l.erp.common.util.Constants;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

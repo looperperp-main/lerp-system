@@ -5,7 +5,7 @@ import com.l.erp.cadastroservice.api.dto.VendedorResponseDTO;
 import com.l.erp.cadastroservice.api.mappers.VendedorAssembler;
 import com.l.erp.cadastroservice.domain.Vendedor;
 import com.l.erp.cadastroservice.services.VendedorService;
-import com.l.erp.cadastroservice.util.Constants;
+import com.l.erp.common.util.Constants;
 import com.l.erp.cadastroservice.util.SecurityUtils;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;

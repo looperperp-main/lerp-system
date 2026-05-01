@@ -5,7 +5,7 @@ import com.l.erp.cadastroservice.api.dto.ProdutoCategoriaResponseDTO;
 import com.l.erp.cadastroservice.api.mappers.ProdutoCategoriaAssembler;
 import com.l.erp.cadastroservice.domain.ProdutoCategoria;
 import com.l.erp.cadastroservice.services.ProdutoCategoriaService;
-import com.l.erp.cadastroservice.util.Constants;
+import com.l.erp.common.util.Constants;
 import com.l.erp.cadastroservice.util.SecurityUtils;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;

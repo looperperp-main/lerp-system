@@ -1,7 +1,7 @@
 databaseChangeLog:
   - changeSet:
       id: "003-create-partner-referral-table"
-      author: billing-service
+      author: vitor fernandes ferreira
       changes:
         - createTable:
             schemaName: billing
@@ -10,7 +10,7 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: BIGSERIAL
+                  type: UUID
                   constraints:
                     primaryKey: true
                     primaryKeyName: pk_partner_referral
@@ -18,7 +18,7 @@ databaseChangeLog:
 
               - column:
                   name: partner_id
-                  type: BIGINT
+                  type: UUID
                   constraints:
                     nullable: false
                     foreignKeyName: fk_referral_partner

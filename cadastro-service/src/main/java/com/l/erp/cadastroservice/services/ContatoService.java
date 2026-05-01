@@ -4,7 +4,7 @@ import com.l.erp.cadastroservice.api.dto.ContatoRequestDTO;
 import com.l.erp.cadastroservice.domain.Contato;
 import com.l.erp.cadastroservice.domain.Pessoa;
 import com.l.erp.cadastroservice.repository.ContatoRepository;
-import com.l.erp.cadastroservice.util.Constants;
+import com.l.erp.common.util.Constants;
 import com.l.erp.cadastroservice.util.Utils;
 import com.l.erp.common.exception.custom.BusinessException;
 import org.slf4j.Logger;

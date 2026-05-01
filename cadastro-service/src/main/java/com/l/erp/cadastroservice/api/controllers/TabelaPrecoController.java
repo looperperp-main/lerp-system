@@ -5,7 +5,7 @@ import com.l.erp.cadastroservice.api.dto.TabelaPrecoResponseDTO;
 import com.l.erp.cadastroservice.api.mappers.TabelaPrecoAssembler;
 import com.l.erp.cadastroservice.domain.TabelaPreco;
 import com.l.erp.cadastroservice.services.TabelaPrecoService;
-import com.l.erp.cadastroservice.util.Constants;
+import com.l.erp.common.util.Constants;
 import com.l.erp.cadastroservice.util.SecurityUtils;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;

@@ -1,0 +1,235 @@
+<div class="card">
+  <p-toast></p-toast>
+
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Gerenciamento de Contadores Parceiros</h1>
+      <p class="page-subtitle">Crie e gerencie os Parceiros do sistema</p>
+    </div>
+  </div>
+
+  <div class="content-card">
+    <div class="content-toolbar">
+      <h3 class="content-toolbar-title">Ações</h3>
+      <div class="content-toolbar-actions">
+        <button
+          pButton
+          pRipple
+          icon="pi pi-upload"
+          class="p-button-help p-button-sm rounded-lg"
+          (click)="exportData()"
+          pTooltip="Exportar"
+          tooltipPosition="bottom">
+        </button>
+      </div>
+    </div>
+
+    <div class="table-container">
+      <p-table
+        #dt
+        [value]="parceiros()"
+        [columns]="cols"
+        [loading]="loading()"
+        [lazy]="true"
+        (onLazyLoad)="loadPartners($event)"
+        [totalRecords]="totalRecords()"
+        [paginator]="true"
+        [rows]="10"
+        [showCurrentPageReport]="true"
+        currentPageReportTemplate="Mostrando {first} até {last} de {totalRecords} registros"
+        [paginatorDropdownAppendTo]="'body'"
+        [rowsPerPageOptions]="[10, 25, 50]"
+        [tableStyle]="{ 'min-width': '60rem' }"
+        styleClass="p-datatable-sm text-sm"
+      >
+
+        <ng-template pTemplate="header" let-columns>
+          <tr>
+            <th *ngFor="let col of columns" [pSortableColumn]="col.field !== 'actions' ? col.field : ''" class="text-xs uppercase text-gray-400 font-semibold border-b border-gray-100 pb-3">
+              {{col.header}} <p-sortIcon *ngIf="col.field !== 'actions'" [field]="col.field"></p-sortIcon>
+            </th>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="body" let-rowData let-columns="columns">
+          <tr class="hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-colors">
+            <td *ngFor="let col of columns" class="py-3 text-gray-600">
+
+              <ng-container *ngIf="col.type === 'status'">
+                <span [class]="'px-2 py-1 rounded text-xs font-medium ' +
+                  (rowData.status === 'ATIVO'     ? 'bg-green-100 text-green-700' :
+                   rowData.status === 'PENDENTE'  ? 'bg-orange-100 text-orange-700' :
+                   rowData.status === 'INATIVO'   ? 'bg-gray-100 text-gray-600' :
+                   'bg-red-100 text-red-700')">
+                  {{rowData.status}}
+                </span>
+              </ng-container>
+
+              <ng-container *ngIf="col.type === 'date'">
+                {{rowData[col.field] | date:'dd/MM/yyyy HH:mm'}}
+              </ng-container>
+
+              <ng-container *ngIf="col.type === 'actions'">
+                <div class="flex gap-2">
+                  <button *ngIf="rowData.status === 'PENDENTE'"
+                    pButton
+                    pRipple
+                    icon="pi pi-check-circle"
+                    class="p-button-rounded p-button-text p-button-warning p-button-sm w-8 h-8"
+                    (click)="openReviewDialog(rowData)"
+                    pTooltip="Revisar Parceiro"
+                    tooltipPosition="top">
+                  </button>
+                  <button *ngIf="rowData.status === 'ATIVO'"
+                    pButton
+                    pRipple
+                    icon="pi pi-ban"
+                    class="p-button-rounded p-button-text p-button-danger p-button-sm w-8 h-8"
+                    (click)="openInactivateDialog(rowData)"
+                    pTooltip="Inativar Parceiro"
+                    tooltipPosition="top">
+                  </button>
+                  <button
+                    pButton
+                    pRipple
+                    icon="pi pi-pencil"
+                    class="p-button-rounded p-button-text p-button-info p-button-sm w-8 h-8"
+                    pTooltip="Editar"
+                    tooltipPosition="top">
+                  </button>
+                </div>
+              </ng-container>
+
+              <ng-container *ngIf="col.type === 'text'">
+                <span class="font-medium" [class.text-gray-900]="col.field === 'name'">
+                  <ng-container *ngIf="col.field === 'cnpj'; else normalText">
+                    {{ rowData[col.field] | cnpj }}
+                  </ng-container>
+                  <ng-template #normalText>
+                    {{ rowData[col.field] | htmlDecode }}
+                  </ng-template>
+                </span>
+              </ng-container>
+
+            </td>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td [attr.colspan]="cols.length" class="text-center py-6 text-gray-500">
+              Nenhum Parceiro encontrado.
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </div>
+  </div>
+</div>
+
+<p-dialog
+  [(visible)]="inactivateDialogVisible"
+  [style]="{ width: '420px' }"
+  header="Inativar Parceiro"
+  [modal]="true"
+  [closable]="true"
+  (onHide)="closeInactivateDialog()">
+
+  <div class="flex flex-col gap-3 pt-2">
+    <div class="flex items-center gap-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+      <i class="pi pi-exclamation-triangle text-red-500 text-xl"></i>
+      <p class="text-sm text-red-700 m-0">
+        Esta ação irá <strong>inativar</strong> o parceiro <strong>{{ partnerToInactivate?.name }}</strong>.
+        O parceiro não poderá mais operar no sistema.
+      </p>
+    </div>
+    <p class="text-sm text-gray-500 m-0">Deseja continuar?</p>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <button
+      pButton
+      pRipple
+      label="Cancelar"
+      icon="pi pi-times"
+      class="p-button-text text-gray-600"
+      (click)="closeInactivateDialog()">
+    </button>
+    <button
+      pButton
+      pRipple
+      label="Inativar"
+      icon="pi pi-ban"
+      class="p-button-danger"
+      [disabled]="inactivateLoading"
+      [loading]="inactivateLoading"
+      (click)="confirmInactivate()">
+    </button>
+  </ng-template>
+</p-dialog>
+
+<p-dialog
+  [(visible)]="reviewDialogVisible"
+  [style]="{ width: '480px' }"
+  header="Revisão de Parceiro"
+  [modal]="true"
+  [closable]="true"
+  (onHide)="closeReviewDialog()">
+
+  <div class="flex flex-col gap-4 pt-2">
+
+    <div class="flex flex-col gap-1">
+      <label class="text-sm font-medium text-gray-700">Parceiro</label>
+      <span class="text-gray-900 font-semibold">{{ partnerToReview?.name }}</span>
+    </div>
+
+    <div class="flex flex-col gap-1">
+      <label class="text-sm font-medium text-gray-700">Ação <span class="text-red-500">*</span></label>
+      <p-select
+        [(ngModel)]="selectedAction"
+        [options]="reviewOptions"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Selecione a ação"
+        styleClass="w-full">
+      </p-select>
+    </div>
+
+    <div class="flex flex-col gap-1">
+      <label class="text-sm font-medium text-gray-700">
+        Notas
+        <span class="text-gray-400 font-normal text-xs ml-1">({{ reviewNotes.length }}/500)</span>
+      </label>
+      <textarea
+        pTextarea
+        [(ngModel)]="reviewNotes"
+        [maxlength]="500"
+        rows="4"
+        placeholder="Observações sobre a revisão..."
+        class="w-full resize-none">
+      </textarea>
+    </div>
+
+  </div>
+
+  <ng-template pTemplate="footer">
+    <button
+      pButton
+      pRipple
+      label="Cancelar"
+      icon="pi pi-times"
+      class="p-button-text text-gray-600"
+      (click)="closeReviewDialog()">
+    </button>
+    <button
+      pButton
+      pRipple
+      [label]="selectedAction === 'approve' ? 'Aprovar' : selectedAction === 'reject' ? 'Rejeitar' : 'Confirmar'"
+      [icon]="selectedAction === 'approve' ? 'pi pi-check' : selectedAction === 'reject' ? 'pi pi-ban' : 'pi pi-check'"
+      [class]="selectedAction === 'reject' ? 'p-button-danger' : 'p-button-success'"
+      [disabled]="!selectedAction || reviewLoading"
+      [loading]="reviewLoading"
+      (click)="confirmReview()">
+    </button>
+  </ng-template>
+</p-dialog>

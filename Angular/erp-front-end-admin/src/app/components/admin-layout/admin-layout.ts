@@ -38,6 +38,12 @@ export class AdminLayout {
       { label: 'Configurar Roles', icon: 'pi pi-sitemap', routerLink: '/admin/security/role-permissions' },
       { label: 'Atribuir Acessos', icon: 'pi pi-key', routerLink: '/admin/security/user-roles' }
     ] },
+    { label: 'Parceiros', icon: 'pi pi-star', routerLink: '/admin/parceiros', items: [
+        { label: 'Contadores', icon: 'pi pi-calculator', routerLink: '/admin/parceiros/contadores' },
+        { label: 'Comissões', icon: 'pi pi-percentage', routerLink: '/admin/parceiros/comissoes' },
+        //{ label: 'Indicações', icon: 'pi pi-bullhorn', routerLink: '/admin/parceiros/indicacoes' }
+        { label: 'Indicações', icon: 'pi pi-megaphone', routerLink: '/admin/parceiros/indicacoes' }
+      ] },
     { label: 'Auditoria', icon: 'pi pi-eye', routerLink: '/admin/audit' },
     { label: 'Subscrições', icon: 'pi pi-barcode', path: '/admin/subscriptions',items: [
         { label: 'Planos', icon: 'pi pi-book', routerLink: '/admin/cadastros/plans' },
