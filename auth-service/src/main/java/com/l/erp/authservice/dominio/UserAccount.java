@@ -31,9 +31,15 @@ public class UserAccount {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
     @JoinColumn(name = "tenant_id")
     private Tenant tenant;
+
+    @Column(name = "partner_id")
+    private UUID partnerId;
+
+    @Column(name = "user_type")
+    private String userType;
 
     @Column(name = "email")
     private String email;

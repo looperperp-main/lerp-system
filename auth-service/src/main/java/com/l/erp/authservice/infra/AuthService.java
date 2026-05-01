@@ -65,9 +65,51 @@ public class AuthService {
         this.auditService = auditService;
     }
 
+    public LoginResponse loginPartner(String email, String password) {
+        UserAccount user = userRepo.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(UNAUTHORIZED, Constants.USER_EMAIL_NOT_CORRECT));
+
+        if (!Constants.PARTNER.equals(user.getUserType())) {
+            throw new ResponseStatusException(UNAUTHORIZED, Constants.USER_EMAIL_NOT_CORRECT);
+        }
+
+        if (!user.isActive()) {
+            auditService.logAuditEventWithActor(Constants.LOGIN_USER_INACTIVE, user.getId(), Constants.USER, user.getId(),
+                    Constants.FAILED, "Tentativa de login em conta de parceiro inativa", null);
+            throw new ResponseStatusException(UNAUTHORIZED, Constants.USER_INACTIVE);
+        }
+
+        if (isUserLocked(user)) {
+            auditService.logAuditEventWithActor(Constants.LOGIN_LOCKED, user.getId(), Constants.USER, user.getId(),
+                    Constants.FAILED, "Tentativa de login em conta de parceiro bloqueada", null);
+            throw new UserLockedException(user.getLockedUntil());
+        }
+
+        if (!passwordEncoder.matches(password, user.getPasswordHash())) {
+            handleFailedLogin(user);
+            auditService.logAuditEventWithActor(Constants.PARTNER_LOGIN_FAILED, user.getId(), Constants.USER, user.getId(),
+                    Constants.FAILED, "Senha incorreta - Tentativa " + user.getFailedLoginAttempts(), null);
+            throw new ResponseStatusException(UNAUTHORIZED, Constants.USER_EMAIL_NOT_CORRECT);
+        }
+
+        resetFailedAttempts(user);
+
+        auditService.logAuditEventWithActor(Constants.PARTNER_LOGIN_SUCCESS, user.getId(), Constants.USER, user.getId(),
+                Constants.SUCCESS, null, null);
+
+        String jwt = tokenService.generatePartnerToken(user);
+        RefreshTokenService.TokenPair tokenPair = refreshTokenService.issue(user);
+
+        return authMapper.toLoginResponse(user, jwt, tokenPair.rawToken());
+    }
+
     public LoginResponse login(String email, String password){
         UserAccount user = userRepo.findByEmail(email).
                 orElseThrow(() -> new ResponseStatusException(UNAUTHORIZED,Constants.USER_EMAIL_NOT_CORRECT));
+
+        if (Constants.PARTNER.equals(user.getUserType())) {
+            throw new ResponseStatusException(UNAUTHORIZED, Constants.USER_EMAIL_NOT_CORRECT);
+        }
 
         if(!user.isActive()){
             auditService.logAuditEventWithActor(Constants.LOGIN_USER_INACTIVE, user.getId(), Constants.USER, user.getId(),

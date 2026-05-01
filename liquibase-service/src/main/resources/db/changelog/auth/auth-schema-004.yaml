@@ -1,0 +1,31 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────────────────────────────
+  # Suporte a usuários do tipo PARTNER (portal de parceiros)
+  # tenant_id passa a ser nullable; partner_id e user_type adicionados
+  # ──────────────────────────────────────────────────────────────────
+  - changeSet:
+      id: auth-012-partner-user-support
+      author: vitor-fernandes
+      changes:
+        - dropNotNullConstraint:
+            schemaName: auth
+            tableName: users_account
+            columnName: tenant_id
+            columnDataType: bigint
+
+        - addColumn:
+            schemaName: auth
+            tableName: users_account
+            columns:
+              - column:
+                  name: partner_id
+                  type: uuid
+                  constraints:
+                    nullable: true
+              - column:
+                  name: user_type
+                  type: varchar(20)
+                  defaultValue: 'TENANT_USER'
+                  constraints:
+                    nullable: false

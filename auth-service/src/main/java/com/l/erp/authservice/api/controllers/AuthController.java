@@ -28,6 +28,15 @@ public class AuthController {
     }
 
     /**
+     * Login de parceiros (portal de parceiros)
+     * Apenas email + senha — não requer CNPJ
+     */
+    @PostMapping("/partner/login")
+    public ResponseEntity<LoginResponse> loginPartner(@RequestBody LoginRequest request) {
+        return ResponseEntity.ok(authService.loginPartner(request.email(), request.password()));
+    }
+
+    /**
      * Login de usuários de tenant (Sistema Principal)
      * Requer CNPJ da empresa + e-mail + senha
      */

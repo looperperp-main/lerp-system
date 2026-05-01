@@ -1,7 +1,5 @@
 package com.l.erp.authservice.util;
 
-import org.jspecify.annotations.Nullable;
-
 import java.time.Duration;
 
 public class Constants {
@@ -86,5 +84,11 @@ public class Constants {
     public static final String TENANT_LOGIN_FAILED = TENANT_LOGIN + "_" + FAILED;
     public static final String TENANT_NOT_ACTIVE = "Empresa inativa ou bloqueada. Entre em contato com o suporte.";
     public static final String TENANT_CNPJ_NOT_FOUND = "Empresa não encontrada. Verifique o CNPJ informado.";
+
+    // Partner
+    public static final String PARTNER = "PARTNER";
+    public static final String PARTNER_LOGIN = "PARTNER_LOGIN";
+    public static final String PARTNER_LOGIN_SUCCESS = PARTNER_LOGIN + "_" + SUCCESS;
+    public static final String PARTNER_LOGIN_FAILED = PARTNER_LOGIN + "_" + FAILED;
 
 }

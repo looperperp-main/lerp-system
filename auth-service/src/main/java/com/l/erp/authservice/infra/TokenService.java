@@ -44,6 +44,30 @@ public class TokenService {
     }
 
     /**
+     * Gera token JWT para parceiro (portal de parceiros)
+     * Não contém tenantId — contém partnerId e loginType=PARTNER
+     */
+    public String generatePartnerToken(UserAccount user) {
+        try {
+            return JWT.create()
+                    .withSubject(String.valueOf(user.getId()))
+                    .withIssuer("L-ERP-auth-service")
+                    .withExpiresAt(generateExpirationDate())
+                    .withIssuedAt(Instant.now())
+                    .withClaim("roles", List.of("ROLE_PARTNER"))
+                    .withClaim("isOwner", false)
+                    .withClaim("authorities", List.of())
+                    .withClaim("userEmail", user.getEmail())
+                    .withClaim("displayName", user.getDisplayName())
+                    .withClaim("partnerId", user.getPartnerId() != null ? user.getPartnerId().toString() : null)
+                    .withClaim("loginType", Constants.PARTNER)
+                    .sign(Algorithm.HMAC256(secret));
+        } catch (JWTCreationException ex) {
+            throw new RuntimeException("Erro ao gerar token para parceiro", ex);
+        }
+    }
+
+    /**
      * create a JWT based on the user's info
      * @param user user
      * @param roles roles

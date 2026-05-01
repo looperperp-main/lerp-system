@@ -32,7 +32,7 @@ public class SecurityFilter extends OncePerRequestFilter {
     private final Logger log = LoggerFactory.getLogger(SecurityFilter.class);
 
     private static final Set<String> PUBLIC_PATHS = Set.of(
-            "/auth/login", "/auth/tenant/login", "/auth/refresh", "/auth/logout"
+            "/auth/login", "/auth/tenant/login", "/auth/partner/login", "/auth/refresh", "/auth/logout"
     );
 
     private static final Map<String, Set<String>> PUBLIC_METHOD_PATHS = Map.of(
@@ -80,6 +80,13 @@ public class SecurityFilter extends OncePerRequestFilter {
                 String tenantId = decodedJWT.getClaim("tenantId").asString();
 
                 // Lista final que o Spring vai usar
+                String loginType = decodedJWT.getClaim("loginType").asString();
+
+                if ("PARTNER".equals(loginType) && !path.startsWith("/billing/partner/")) {
+                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    return;
+                }
+
                 List<SimpleGrantedAuthority> grantedAuthorities = new ArrayList<>();
 
                 // Adiciona as roles
@@ -101,9 +108,14 @@ public class SecurityFilter extends OncePerRequestFilter {
                 );
                 SecurityContextHolder.getContext().setAuthentication(authentication);
 
+                String partnerId = decodedJWT.getClaim("partnerId").asString();
                 Map<String, String> extraHeaders = new HashMap<>();
-                extraHeaders.put("X-Tenant-Id", tenantId);
-                extraHeaders.put("X-Is-Owner", String.valueOf(isOwner));
+                if ("PARTNER".equals(loginType)) {
+                    extraHeaders.put("X-Partner-Id", partnerId != null ? partnerId : "");
+                } else {
+                    extraHeaders.put("X-Tenant-Id", tenantId);
+                    extraHeaders.put("X-Is-Owner", String.valueOf(isOwner));
+                }
 
                 HttpServletRequest wrappedRequest = new HttpServletRequestWrapper(request){
                     @Override
