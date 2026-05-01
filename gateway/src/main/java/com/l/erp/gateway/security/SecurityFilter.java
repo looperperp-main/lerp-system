@@ -39,6 +39,17 @@ public class SecurityFilter extends OncePerRequestFilter {
             "POST", Set.of("/billing/api/v1/partners")
     );
 
+    /**
+     * Processes incoming HTTP requests and applies security filtering logic to determine
+     * whether a request should be allowed, rejected, or requires further processing.
+     * Handles pre-flight (OPTIONS) requests, public endpoint filtering, and JWT token validation.
+     *
+     * @param request     The HTTP servlet request containing details about the client's request.
+     * @param response    The HTTP servlet response to send back status or error details as necessary.
+     * @param filterChain The filter chain to pass the request and response to the next filter if allowed.
+     * @throws ServletException If any servlet-specific error occurs during request processing.
+     * @throws IOException      If an I/O error occurs during request processing.
+     */
     @Override
     protected void doFilterInternal(HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain) throws ServletException, IOException {
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
@@ -66,6 +77,24 @@ public class SecurityFilter extends OncePerRequestFilter {
         }
 
         String authHeader = request.getHeader("Authorization");
+        if (validateJWTToken(request, response, filterChain, authHeader, path)) return;
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+    }
+
+    /**
+     * Validates the given JWT token from the request's Authorization header and processes the associated claims.
+     * If valid, sets the authentication context and appends additional headers to the request before passing it
+     * along the filter chain. Handles token expiration, missing tokens, and invalid tokens with appropriate HTTP responses.
+     *
+     * @param request      The HTTP servlet request containing the client request details.
+     * @param response     The HTTP servlet response to modify or send back error statuses if needed.
+     * @param filterChain  The filter chain to continue processing the request after validation.
+     * @param authHeader   The Authorization header from the request, expected to contain the JWT token.
+     * @param path         The request path for determining specific token handling rules.
+     * @return             {@code true} if the token is successfully validated or an error response has been set, 
+     *                     {@code false} if the validation was skipped (e.g., missing authHeader).
+     */
+    private boolean validateJWTToken(HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain, String authHeader, String path) {
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.replace("Bearer ", "");
 
@@ -82,88 +111,144 @@ public class SecurityFilter extends OncePerRequestFilter {
                 // Lista final que o Spring vai usar
                 String loginType = decodedJWT.getClaim("loginType").asString();
 
-                if ("PARTNER".equals(loginType) && !path.startsWith("/billing/partner/")) {
-                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                    return;
-                }
+                if (verifyPartnerURL(response, path, loginType)) return true;
 
                 List<SimpleGrantedAuthority> grantedAuthorities = new ArrayList<>();
 
-                // Adiciona as roles
-                if (roles != null) {
-                    for (String role : roles) {
-                        grantedAuthorities.add(new SimpleGrantedAuthority(role));
-                    }
-                }
-
-                // Adiciona as permissões granulares
-                if (permissions != null) {
-                    for (String perm : permissions) {
-                        grantedAuthorities.add(new SimpleGrantedAuthority(perm));
-                    }
-                }
+                addRolesAndPermissions(roles, grantedAuthorities, permissions);
 
                 var authentication = new UsernamePasswordAuthenticationToken(
                         decodedJWT.getSubject(), null, grantedAuthorities
                 );
                 SecurityContextHolder.getContext().setAuthentication(authentication);
 
-                String partnerId = decodedJWT.getClaim("partnerId").asString();
-                Map<String, String> extraHeaders = new HashMap<>();
-                if ("PARTNER".equals(loginType)) {
-                    extraHeaders.put("X-Partner-Id", partnerId != null ? partnerId : "");
-                } else {
-                    extraHeaders.put("X-Tenant-Id", tenantId);
-                    extraHeaders.put("X-Is-Owner", String.valueOf(isOwner));
-                }
+                Map<String, String> extraHeaders = getExtraHeaders(decodedJWT, loginType, tenantId, isOwner);
 
-                HttpServletRequest wrappedRequest = new HttpServletRequestWrapper(request){
-                    @Override
-                    public String getHeader(String name) {
-                        if (extraHeaders.containsKey(name)) {
-                            return extraHeaders.get(name);
-                        }
-                        return super.getHeader(name);
-                    }
-
-                    @Override
-                    public Enumeration<String> getHeaderNames(){
-                        var names = Collections.list(super.getHeaderNames());
-                        names.addAll(extraHeaders.keySet());
-                        return Collections.enumeration(names);
-                    }
-
-                    @Override
-                    public Enumeration<String> getHeaders(String name){
-                        if (extraHeaders.containsKey(name)) {
-                            return Collections.enumeration(Collections.singletonList(extraHeaders.get(name)));
-                        }
-                        return super.getHeaders(name);
-                    }
-                };
+                HttpServletRequest wrappedRequest = getWrappedRequest(request, extraHeaders);
 
                 filterChain.doFilter(wrappedRequest, response);
-                return;
+                return true;
             }catch (NullPointerException ex){
                 logger.error("JWT token is null or invalid", ex);
                 response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-                return;
+                return true;
             }catch (TokenExpiredException exception){
                 log.warn("Token expirado: {}", exception.getMessage());
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 response.setHeader("X-Token-Expired", "true");
-                return;
+                return true;
             }catch (JWTVerificationException ex){
                 log.warn("Token inválido: {}", ex.getMessage());
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                return;
+                return true;
             }catch (Exception ex){
                 log.error("Erro inesperado na validação do token", ex);
                 response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-                return;
+                return true;
             }
 
         }
-        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        return false;
+    }
+
+    /**
+     * Creates a wrapped {@link HttpServletRequest} that overrides the behavior of header-related
+     * methods to include additional headers specified in the provided map.
+     *
+     * @param request      The original {@link HttpServletRequest} to be wrapped.
+     * @param extraHeaders A map containing additional header names and their corresponding values
+     *                     to be added to the request.
+     * @return A wrapped {@link HttpServletRequest} instance that includes the extra headers along
+     *         with the headers from the original request.
+     */
+    private static @NonNull HttpServletRequest getWrappedRequest(HttpServletRequest request, Map<String, String> extraHeaders) {
+        return new HttpServletRequestWrapper(request){
+            @Override
+            public String getHeader(String name) {
+                if (extraHeaders.containsKey(name)) {
+                    return extraHeaders.get(name);
+                }
+                return super.getHeader(name);
+            }
+
+            @Override
+            public Enumeration<String> getHeaderNames(){
+                var names = Collections.list(super.getHeaderNames());
+                names.addAll(extraHeaders.keySet());
+                return Collections.enumeration(names);
+            }
+
+            @Override
+            public Enumeration<String> getHeaders(String name){
+                if (extraHeaders.containsKey(name)) {
+                    return Collections.enumeration(Collections.singletonList(extraHeaders.get(name)));
+                }
+                return super.getHeaders(name);
+            }
+        };
+    }
+
+    /**
+     * Verifies if the given request path and login type adhere to the partner-specific URL rules.
+     * Responds with a "403 Forbidden" status if the login type is "PARTNER" and the path does not begin
+     * with "/billing/partner/".
+     *
+     * @param response  The HTTP servlet response used to set the status code if the URL is invalid.
+     * @param path      The request path to validate against partner-specific URL rules.
+     * @param loginType The type of login (e.g., "PARTNER") used to determine the validation logic.
+     * @return {@code true} if the request is invalid and a "403 Forbidden" response has been set.
+     *         {@code false} if the request is valid or does not require validation.
+     */
+    private static boolean verifyPartnerURL(@NonNull HttpServletResponse response, String path, String loginType) {
+        if ("PARTNER".equals(loginType) && !path.startsWith("/billing/partner/")) {
+            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Constructs and returns a map of additional headers based on the provided JWT claims, login type, tenant ID, 
+     * and ownership status.
+     *
+     * @param decodedJWT the decoded JWT from which claims are extracted to generate extra headers.
+     * @param loginType the type of login (e.g., "PARTNER") determining the header construction logic.
+     * @param tenantId the tenant identifier to include in the headers if applicable.
+     * @param isOwner a flag indicating if the user is the owner, used to determine header values.
+     * @return a map containing key-value pairs for the extra headers to be added to the request.
+     */
+    private static @NonNull Map<String, String> getExtraHeaders(DecodedJWT decodedJWT, String loginType, String tenantId, Boolean isOwner) {
+        String partnerId = decodedJWT.getClaim("partnerId").asString();
+        Map<String, String> extraHeaders = new HashMap<>();
+        if ("PARTNER".equals(loginType)) {
+            extraHeaders.put("X-Partner-Id", partnerId != null ? partnerId : "");
+        } else {
+            extraHeaders.put("X-Tenant-Id", tenantId);
+            extraHeaders.put("X-Is-Owner", String.valueOf(isOwner));
+        }
+        return extraHeaders;
+    }
+
+    /**
+     * Adds roles and permissions to the provided list of granted authorities.
+     *
+     * @param roles              A list of role names to be added as granted authorities.
+     * @param grantedAuthorities A list of granted authorities to which roles and permissions will be added.
+     * @param permissions        A list of permission names to be added as granted authorities.
+     */
+    private static void addRolesAndPermissions(List<String> roles, List<SimpleGrantedAuthority> grantedAuthorities, List<String> permissions) {
+        // Adiciona as roles
+        if (roles != null) {
+            for (String role : roles) {
+                grantedAuthorities.add(new SimpleGrantedAuthority(role));
+            }
+        }
+
+        // Adiciona as permissões granulares
+        if (permissions != null) {
+            for (String perm : permissions) {
+                grantedAuthorities.add(new SimpleGrantedAuthority(perm));
+            }
+        }
     }
 }
