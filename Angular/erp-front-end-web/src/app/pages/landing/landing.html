@@ -1,0 +1,513 @@
+<!-- Background mesh -->
+<div class="bg-decor" aria-hidden="true">
+  <div class="shape s1"></div>
+  <div class="shape s2"></div>
+</div>
+
+<!-- NAV -->
+<header class="nav" id="nav">
+  <div class="nav-inner">
+    <a class="logo" aria-label="Syax — Início">
+      <span class="logo-mark" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <path d="M4 4 L14 14 M14 4 L4 14" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <span>syax</span>
+    </a>
+    <nav class="nav-links" aria-label="Principal">
+      <a (click)="scrollTo('funcionalidades')">Funcionalidades</a>
+      <a (click)="scrollTo('planos')">Planos</a>
+      <a (click)="scrollTo('parceiros')">Parceiros Contadores</a>
+      <a (click)="scrollTo('depoimentos')">Depoimentos</a>
+    </nav>
+    <div class="nav-cta-row">
+      <button class="btn btn-ghost" style="padding:10px 16px; font-size:13px;" (click)="goToLogin()">Entrar</button>
+      <button class="btn btn-primary" style="padding:10px 16px; font-size:13px;" (click)="goToLogin()">Começar grátis</button>
+    </div>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-grid">
+      <div>
+        <div class="eyebrow">
+          <span class="star">✦</span>
+          <span>Grátis por 15 dias</span>
+          <span class="sep"></span>
+          <span>sem cartão de crédito</span>
+        </div>
+        <h1>
+          <span class="line">Gestão contábil</span>
+          <span class="line grad-text">que trabalha</span>
+          <span class="line">por você.</span>
+        </h1>
+        <p class="lead">
+          Emita NF-e, controle fluxo de caixa, concilie bancos e calcule tributos —
+          tudo num só lugar, com a precisão que escritórios de contabilidade e PMEs
+          brasileiras exigem.
+        </p>
+        <div class="hero-ctas">
+          <button class="btn btn-primary btn-lg btn-pulse" (click)="goToLogin()">
+            Criar conta grátis
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button class="btn btn-ghost btn-lg" (click)="scrollTo('funcionalidades')">
+            Ver demonstração
+            <span style="font-family:'JetBrains Mono', monospace; font-size:12px; opacity:0.7;">→</span>
+          </button>
+        </div>
+        <div class="hero-trust">
+          <span class="item"><span class="check">✓</span> NF-e integrada à SEFAZ</span>
+          <span class="item"><span class="check">✓</span> LGPD compliant</span>
+          <span class="item"><span class="check">✓</span> Suporte 24/7</span>
+        </div>
+      </div>
+
+      <!-- Mockup -->
+      <div class="hero-mock-wrap">
+        <div class="mock-tag t1" aria-hidden="true">
+          <span class="ic">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 1h7l3 3v11H3V1z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M5 7h6M5 10h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </span>
+          <div>
+            <div><b>NF-e #048291</b></div>
+            <div class="mono">emitida em 1.2s</div>
+          </div>
+        </div>
+
+        <div class="mock-tag t2" aria-hidden="true">
+          <span class="ic" style="background: linear-gradient(135deg, #21D789, #15A36A);">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 6l3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          <div>
+            <div><b>Conciliação OK</b></div>
+            <div class="mono">142 / 142 lançamentos</div>
+          </div>
+        </div>
+
+        <div class="hero-mock">
+          <div class="mock-chrome">
+            <div class="mock-dots"><span></span><span></span><span></span></div>
+            <div class="mock-url"><span class="secure">●</span> app.syax.com.br/dashboard</div>
+            <div style="width: 40px;"></div>
+          </div>
+          <div class="mock-body">
+            <aside class="mock-side" aria-hidden="true">
+              <div class="ic act">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="2" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>
+              </div>
+              <div class="ic"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 1h7l3 3v11H3V1z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></div>
+              <div class="ic"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 2v12M11 5H6.5a1.5 1.5 0 0 0 0 3h3a1.5 1.5 0 0 1 0 3H5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+              <div class="ic"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="6" r="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M3 14c0-2.5 2.2-4 5-4s5 1.5 5 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+            </aside>
+            <div class="mock-content">
+              <div class="mock-row1">
+                <div class="mock-h">Visão geral
+                  <span class="sub">ABRIL · 2026</span>
+                </div>
+                <span class="mock-pill">● AO VIVO</span>
+              </div>
+              <div class="mock-kpis">
+                <div class="mock-kpi">
+                  <div class="lbl">Faturamento</div>
+                  <div class="val">R$ 384k</div>
+                  <div class="delta">↑ 18,4%</div>
+                </div>
+                <div class="mock-kpi">
+                  <div class="lbl">A receber</div>
+                  <div class="val">R$ 92k</div>
+                  <div class="delta">↑ 6,2%</div>
+                </div>
+                <div class="mock-kpi">
+                  <div class="lbl">NF-e (mês)</div>
+                  <div class="val">1.247</div>
+                  <div class="delta">↑ 12,1%</div>
+                </div>
+              </div>
+              <div class="mock-chart">
+                <svg viewBox="0 0 320 130" preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="ga" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="#FF7A00" stop-opacity="0.55"/>
+                      <stop offset="100%" stop-color="#FF7A00" stop-opacity="0"/>
+                    </linearGradient>
+                    <linearGradient id="gb" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stop-color="#E63900"/>
+                      <stop offset="50%" stop-color="#FF4B12"/>
+                      <stop offset="100%" stop-color="#FDB60D"/>
+                    </linearGradient>
+                  </defs>
+                  <g stroke="rgba(255,255,255,0.05)" stroke-width="1">
+                    <line x1="0" y1="32" x2="320" y2="32"/>
+                    <line x1="0" y1="64" x2="320" y2="64"/>
+                    <line x1="0" y1="96" x2="320" y2="96"/>
+                  </g>
+                  <path d="M0,90 L24,72 L48,82 L72,60 L96,68 L120,48 L144,56 L168,38 L192,46 L216,28 L240,40 L264,22 L288,30 L320,18 L320,130 L0,130 Z" fill="url(#ga)"/>
+                  <path d="M0,90 L24,72 L48,82 L72,60 L96,68 L120,48 L144,56 L168,38 L192,46 L216,28 L240,40 L264,22 L288,30 L320,18" fill="none" stroke="url(#gb)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+                  <circle cx="320" cy="18" r="4" fill="#FDB60D"/>
+                  <circle cx="320" cy="18" r="8" fill="#FDB60D" opacity="0.25"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Social Proof -->
+<section class="proof" style="padding: 32px 0;">
+  <div class="container">
+    <div class="proof-inner">
+      <div class="proof-text">
+        Mais de 2.400 escritórios de contabilidade<br/>já confiam na Syax.
+      </div>
+      <div class="proof-stats">
+        <div class="proof-stat">
+          <div class="num grad-text">2.400<span class="sm">+</span></div>
+          <div class="lbl">Clientes ativos</div>
+        </div>
+        <div class="proof-stat">
+          <div class="num">98<span class="sm">%</span></div>
+          <div class="lbl">Satisfação</div>
+        </div>
+        <div class="proof-stat">
+          <div class="num">R$ 12<span class="sm">M</span></div>
+          <div class="lbl">Gerenciados / mês</div>
+        </div>
+      </div>
+    </div>
+    <div class="proof-logos">
+      <span class="proof-logo l1">Contábil Aurora</span>
+      <span class="proof-logo l2">Soma Escritório</span>
+      <span class="proof-logo l3">Norte Contadores</span>
+      <span class="proof-logo l4">Vértice Fiscal</span>
+      <span class="proof-logo l5">Saldo Ativo</span>
+      <span class="proof-logo l6">Núcleo Tributos</span>
+    </div>
+  </div>
+</section>
+
+<!-- Features -->
+<section id="funcionalidades">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="section-eyebrow"><span class="dot"></span> FUNCIONALIDADES</div>
+      <h2>Tudo o que sua contabilidade precisa, <span class="grad-text">em um único painel.</span></h2>
+      <p>Seis módulos integrados que substituem planilhas, sistemas legados e tarefas manuais. Você ganha 15 horas por semana — em média.</p>
+    </div>
+
+    <div class="features-grid">
+      <article class="feature g1 reveal">
+        <span class="tag">01</span>
+        <span class="ic">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M5 3h10l4 4v14H5V3z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M15 3v4h4M8 11h8M8 15h8M8 19h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        </span>
+        <h3>Emissão de NF-e</h3>
+        <p>Emita notas fiscais eletrônicas em segundos, integrado direto à SEFAZ. Cancelamento, carta de correção e XML em 1 clique.</p>
+      </article>
+
+      <article class="feature g2 reveal">
+        <span class="tag">02</span>
+        <span class="ic">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 3v18M16 7H10.5a2 2 0 0 0 0 4h3a2 2 0 0 1 0 4H8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        </span>
+        <h3>Contas a pagar e receber</h3>
+        <p>Fluxo de caixa em tempo real com alertas automáticos para vencimentos, juros e descontos. Importação de boletos por OCR.</p>
+      </article>
+
+      <article class="feature g3 reveal">
+        <span class="tag">03</span>
+        <span class="ic">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M3 20V4M3 20h18" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><rect x="6" y="12" width="3" height="6" stroke="currentColor" stroke-width="1.7"/><rect x="11" y="8" width="3" height="10" stroke="currentColor" stroke-width="1.7"/><rect x="16" y="5" width="3" height="13" stroke="currentColor" stroke-width="1.7"/></svg>
+        </span>
+        <h3>Relatórios inteligentes</h3>
+        <p>DRE, Balanço e Fluxo de Caixa gerados em 1 clique. Comparativos por período, centro de custo e regime tributário.</p>
+      </article>
+
+      <article class="feature g4 reveal">
+        <span class="tag">04</span>
+        <span class="ic">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="9" r="3.5" stroke="currentColor" stroke-width="1.7"/><path d="M5 21c0-3.5 3-6 7-6s7 2.5 7 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        </span>
+        <h3>Gestão de clientes</h3>
+        <p>Painel completo para escritórios: organize CNPJs, controle obrigações por cliente e acompanhe entregas em um kanban.</p>
+      </article>
+
+      <article class="feature g5 reveal">
+        <span class="tag">05</span>
+        <span class="ic">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M3 7h18l-1 4H4L3 7z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M5 11v9h14v-9M9 14h6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        </span>
+        <h3>Integração bancária</h3>
+        <p>Conecte sua conta via Open Finance e concilie automaticamente. Suporte aos 12 maiores bancos do Brasil.</p>
+      </article>
+
+      <article class="feature g6 reveal">
+        <span class="tag">06</span>
+        <span class="ic">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="4" y="3" width="16" height="18" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8 8h8M8 12h8M8 16h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        </span>
+        <h3>Controle de tributos</h3>
+        <p>IRPJ, CSLL, PIS, COFINS, ISS e Simples Nacional calculados automaticamente. Guias prontas para pagamento.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- Partner -->
+<section class="partner" id="parceiros">
+  <div class="container">
+    <div class="partner-card reveal">
+      <div>
+        <div class="section-eyebrow" style="margin-bottom: 14px;"><span class="dot"></span> PROGRAMA PARCEIRO</div>
+        <h2>É contador? <span class="grad-text">Indique e ganhe</span> comissão recorrente.</h2>
+        <p>Cada cliente que você indica vira uma receita mensal sua. Sem letras miúdas, sem teto, sem prazo de validade. Repasse automático no dia 5 de cada mês.</p>
+        <ul class="partner-bullets">
+          <li>
+            <span class="check"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            Código de indicação personalizado e link curto
+          </li>
+          <li>
+            <span class="check"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            Painel exclusivo com clientes ativos e comissão acumulada
+          </li>
+          <li>
+            <span class="check"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            Relatório mensal de engajamento dos seus indicados
+          </li>
+          <li>
+            <span class="check"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            Repasse automático via Pix — todo dia 5
+          </li>
+        </ul>
+        <button class="btn btn-primary" (click)="goToLogin()">
+          Seja um parceiro <span style="font-family:'JetBrains Mono', monospace; opacity:0.8;">→</span>
+        </button>
+      </div>
+      <div class="partner-visual" aria-hidden="true">
+        <div style="font-family:'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: var(--muted); margin-bottom: 10px;">PAINEL DO CONTADOR · ABRIL/2026</div>
+        <div class="partner-flow">
+          <div class="flow-row">
+            <span class="av" style="background: linear-gradient(135deg, #E63900, #FF4B12);">MA</span>
+            <span class="name">Marcenaria Andrade <span class="sub">CNPJ 12.345.678/0001-90</span></span>
+            <span class="amount">+ R$ 89</span>
+          </div>
+          <div class="flow-row">
+            <span class="av" style="background: linear-gradient(135deg, #FF4B12, #FF7A00);">PB</span>
+            <span class="name">Padaria Bonjour <span class="sub">CNPJ 23.456.789/0001-01</span></span>
+            <span class="amount">+ R$ 89</span>
+          </div>
+          <div class="flow-row">
+            <span class="av" style="background: linear-gradient(135deg, #FF7A00, #FDB60D);">RC</span>
+            <span class="name">Rocha Consultoria <span class="sub">CNPJ 34.567.890/0001-12</span></span>
+            <span class="amount">+ R$ 149</span>
+          </div>
+          <div class="flow-row">
+            <span class="av" style="background: linear-gradient(135deg, #FDB60D, #FFA552);">SL</span>
+            <span class="name">Studio Lumière <span class="sub">CNPJ 45.678.901/0001-23</span></span>
+            <span class="amount">+ R$ 89</span>
+          </div>
+          <div class="flow-row total-row">
+            <span class="name" style="color: var(--ink);"><b>Total Abril</b><span class="sub">repasse no dia 05/05</span></span>
+            <span class="amount" style="font-size: 14px;">R$ 4.182,00</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Pricing -->
+<section id="planos">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="section-eyebrow"><span class="dot"></span> PLANOS</div>
+      <h2>Comece grátis. <span class="grad-text">Pague só quando crescer.</span></h2>
+      <p>15 dias para testar tudo, sem cartão. Depois, escolha o plano que faz sentido para o seu volume.</p>
+    </div>
+
+    <div class="pricing-grid">
+      <div class="plan reveal">
+        <div class="plan-head">
+          <div class="plan-name">Trial</div>
+        </div>
+        <div class="plan-price">
+          <span class="currency">R$</span>
+          <span class="amount">0</span>
+          <span class="period">/ 15 dias</span>
+        </div>
+        <p class="plan-sub">Acesso completo, sem limites de NF-e durante o trial.</p>
+        <ul class="plan-list">
+          <li><span class="ck"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span> Todos os módulos liberados</li>
+          <li><span class="ck"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span> NF-e ilimitada</li>
+          <li><span class="ck"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span> Suporte por chat</li>
+          <li><span class="ck"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span> Sem cartão de crédito</li>
+        </ul>
+        <button class="btn btn-outline" (click)="goToLogin()">Começar grátis</button>
+      </div>
+
+      <div class="plan feat reveal">
+        <div class="plan-head">
+          <div class="plan-name">Anual</div>
+          <span class="plan-badge">ECONOMIZE 2 MESES</span>
+        </div>
+        <div class="plan-price">
+          <span class="currency">R$</span>
+          <span class="amount">149</span>
+          <span class="period">/ mês</span>
+        </div>
+        <p class="plan-sub">Cobrança anual de R$ 1.788. Equivale a 10 meses pagos.</p>
+        <ul class="plan-list">
+          <li><span class="ck"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span> NF-e ilimitada</li>
+          <li><span class="ck"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span> Integração bancária Open Finance</li>
+          <li><span class="ck"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span> Multi-CNPJ e centros de custo</li>
+          <li><span class="ck"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span> Suporte prioritário 24/7</li>
+          <li><span class="ck"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span> Painel parceiro contador</li>
+        </ul>
+        <button class="btn btn-primary" (click)="goToLogin()">Começar grátis</button>
+      </div>
+
+      <div class="plan reveal">
+        <div class="plan-head">
+          <div class="plan-name">Mensal</div>
+        </div>
+        <div class="plan-price">
+          <span class="currency">R$</span>
+          <span class="amount">179</span>
+          <span class="period">/ mês</span>
+        </div>
+        <p class="plan-sub">Sem fidelidade. Cancele a qualquer momento.</p>
+        <ul class="plan-list">
+          <li><span class="ck"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span> NF-e ilimitada</li>
+          <li><span class="ck"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span> Integração bancária Open Finance</li>
+          <li><span class="ck"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span> Multi-CNPJ e centros de custo</li>
+          <li><span class="ck"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span> Suporte por chat e e-mail</li>
+        </ul>
+        <button class="btn btn-outline" (click)="goToLogin()">Começar grátis</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Testimonials -->
+<section id="depoimentos">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="section-eyebrow"><span class="dot"></span> DEPOIMENTOS</div>
+      <h2>Contadores e empresários falam.</h2>
+      <p>Ouvimos diariamente quem transformou rotina em automação. Aqui vão três histórias.</p>
+    </div>
+
+    <div class="tests">
+      <div class="test reveal">
+        <div class="quote">A emissão de NF-e que levava 5 minutos por nota agora leva 12 segundos. Em três meses, recuperei o equivalente a duas semanas de trabalho.</div>
+        <div class="test-author">
+          <span class="av" style="background: linear-gradient(135deg, #E63900, #FF4B12);">CL</span>
+          <div class="meta"><b>Camila Lopes</b><span>CONTADORA · ESCRITÓRIO LOPES &amp; CIA</span></div>
+        </div>
+      </div>
+
+      <div class="test reveal">
+        <div class="quote">Migramos de planilha para Syax e finalmente sei quanto vou pagar de imposto antes do dia do vencimento. Sem sustos, sem multa.</div>
+        <div class="test-author">
+          <span class="av" style="background: linear-gradient(135deg, #FF4B12, #FF7A00);">RP</span>
+          <div class="meta"><b>Ricardo Prado</b><span>CEO · METAL FORTE INDÚSTRIA</span></div>
+        </div>
+      </div>
+
+      <div class="test reveal">
+        <div class="quote">A integração bancária via Open Finance é o que me prendeu. Concilio 4 contas e 2 cartões em 3 cliques. Antes era um inferno.</div>
+        <div class="test-author">
+          <span class="av" style="background: linear-gradient(135deg, #FF7A00, #FDB60D);">JM</span>
+          <div class="meta"><b>Juliana Martins</b><span>SÓCIA · MARTINS CONTÁBIL</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA Final -->
+<section class="cta-final" id="cadastro">
+  <div class="container">
+    <div class="reveal">
+      <h2>Comece hoje. <span class="grad-text">Sem cartão.</span></h2>
+      <p>15 dias grátis para explorar todos os módulos. Cancele quando quiser, sem perguntas.</p>
+      <button class="btn btn-primary btn-lg btn-pulse" style="font-size: 16px; padding: 18px 32px;" (click)="goToLogin()">
+        Criar minha conta grátis
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="cta-trust">
+        ✓ E-MAIL E SENHA · ✓ ACESSO IMEDIATO · ✓ SEM COMPROMISSO
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <div class="container">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <a class="logo">
+          <span class="logo-mark" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+              <path d="M4 4 L14 14 M14 4 L4 14" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <span>syax</span>
+        </a>
+        <p>O ERP contábil feito para escritórios e PMEs brasileiras. Direto, sem firula, sem planilha.</p>
+      </div>
+      <div class="foot-col">
+        <h5>Produto</h5>
+        <ul>
+          <li><a (click)="scrollTo('funcionalidades')">Funcionalidades</a></li>
+          <li><a (click)="scrollTo('planos')">Planos</a></li>
+          <li><a (click)="scrollTo('funcionalidades')">Demonstração</a></li>
+          <li><a (click)="goToLogin()">Acessar painel</a></li>
+        </ul>
+      </div>
+      <div class="foot-col">
+        <h5>Empresa</h5>
+        <ul>
+          <li><a>Sobre</a></li>
+          <li><a>Carreiras</a></li>
+          <li><a>Imprensa</a></li>
+          <li><a>Contato</a></li>
+        </ul>
+      </div>
+      <div class="foot-col">
+        <h5>Parceiros</h5>
+        <ul>
+          <li><a (click)="scrollTo('parceiros')">Programa Contador</a></li>
+          <li><a>Integradores</a></li>
+          <li><a>API</a></li>
+        </ul>
+      </div>
+      <div class="foot-col">
+        <h5>Legal</h5>
+        <ul>
+          <li><a>Termos de uso</a></li>
+          <li><a>Privacidade</a></li>
+          <li><a>LGPD</a></li>
+          <li><a>Status</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="foot-bottom">
+      <div>© 2026 SYAX TECNOLOGIA · CNPJ 56.789.012/0001-34</div>
+      <div class="foot-seals">
+        <span class="foot-seal"><span class="dot"></span> LGPD</span>
+        <span class="foot-seal"><span class="dot"></span> SSL</span>
+        <span class="foot-seal"><span class="dot"></span> NF-E INTEGRADA</span>
+        <span class="foot-seal"><span class="dot"></span> SEFAZ-OK</span>
+      </div>
+    </div>
+  </div>
+</footer>

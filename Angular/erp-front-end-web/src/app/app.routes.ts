@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { Home } from './pages/home/home';
 import { TenantLogin } from './pages/login/login';
+import { Landing } from './pages/landing/landing';
 import { authGuard } from './util/auth.guard';
 import {WebLayout} from './components/web-layout/web-layout';
 import {GrupoClientes} from './pages/cadastros/grupo-clientes/grupo-clientes';
@@ -19,7 +20,7 @@ import {
 import {Produtos} from './pages/cadastros/produtos/produtos';
 
 export const routes: Routes = [
-    { path: '', redirectTo: 'login', pathMatch: 'full' },
+    { path: '', component: Landing },
     { path: 'login', component: TenantLogin },
     {
         path: 'web',
