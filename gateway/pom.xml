@@ -68,15 +68,11 @@
             <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
         </dependency>
 
-        <!-- Dependências para Rate Limiting com Redis -->
+        <!-- Rate Limiting com Bucket4j (in-memory, token bucket) -->
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-redis</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-webflux</artifactId>
+            <groupId>com.bucket4j</groupId>
+            <artifactId>bucket4j_jdk17-core</artifactId>
+            <version>8.18.0</version>
         </dependency>
 
         <!-- Adicione a dependência do Logstash Logback Encoder -->
