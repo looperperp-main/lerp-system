@@ -75,3 +75,85 @@ Para rodar a aplicação localmente:
 
 O `cadastro-service` atua primariamente como uma API RESTful para os front-ends (`erp-front-end-admin` e `erp-front-end-web`).
 As requisições devem passar pelo API Gateway, que lida com o roteamento e a injeção dos cabeçalhos do Tenant e do Usuário a partir do JWT gerado pelo `auth-service`.
+
+
+Análise completa. Deixa eu te dar um diagnóstico honesto — o projeto tem uma base sólida mas com lacunas que separam um mid-level de um sênior de verdade.
+
+  ---
+O que você já fez bem
+
+- Multi-tenancy via Hibernate filters + header injection no gateway — arquitetura correta
+- Rate limiting com Bucket4j
+- Password policy forte (14+ chars, blacklist, sequências)
+- Audit trail via Kafka
+- GlobalExceptionHandler centralizado
+- Separação de camadas consistente (controller → service → repository → DTO)
+
+  ---
+O que um sênior implementaria — por prioridade
+
+1. Segurança (crítico)
+
+~~Refresh Token Rotation — o maior gap de segurança. Hoje seu refresh token pode ser roubado e reusado infinitamente. Um sênior implementa: ao usar o refresh token, invalida o anterior e emite um novo. Se o token antigo aparecer depois, toda a família de tokens é revogada (rotação + detecção de
+reuso).~~
+
+JWT Secret unificado via env var no gateway — hoje está hardcoded security-key-for-now. Isso é falha de produção garantida.
+
+Validação de tamanho de payload — sem limite, qualquer payload gigante passa pelo gateway. Um sênior adiciona spring.codec.max-in-memory-size e validação de tamanho em endpoints críticos.
+
+Sanitização HTML consistente — só o ClienteMapper sanitiza. O restante dos DTOs está cru.
+
+  ---
+2. Testes (o que mais diferencia um sênior)
+
+Você tem 18 testes Java para 26 controllers. Isso não escala.
+
+O que falta:
+
+- Testes de integração com Testcontainers (PostgreSQL real + Kafka real) — nenhum mock quebra em produção, apenas o banco de verdade pega
+- Testes do SecurityFilter e RateLimitFilter do gateway — a camada mais crítica está sem cobertura
+- Testes de contrato (Spring Cloud Contract ou Pact) — garante que gateway e auth-service falam a mesma língua
+- Cobertura acima de 70% nos caminhos de negócio — hoje o JaCoCo exige 40%, o mínimo aceitável
+
+  ---
+3. Observabilidade (o que distingue sênior de pleno)
+
+Você tem Prometheus + Grafana + ELK, mas não está usando:
+
+- Distributed Tracing com OpenTelemetry — hoje se uma request falha, você não consegue rastrear ela entre gateway → auth-service → cadastro-service. Isso é indispensável em microserviços
+- Structured logging — logs devem ter traceId, spanId, tenantId, userId em JSON. Hoje provavelmente é texto livre
+- Custom metrics de negócio — ex: taxa de login failure, requests por tenant, tokens expirados. Dashboards de infra sem métricas de negócio são inúteis em produção
+
+  ---
+4. Resiliência
+
+O gateway não tem:
+
+- Circuit Breaker (Resilience4j) configurado nos routes — se auth-service cair, o gateway trava junto
+- Timeout por rota — requisição pendurada pode esgotar threads pool
+- Retry com backoff exponencial — falhas transitórias simplesmente falham hoje
+
+  ---
+5. Frontend Angular (menor prioridade, mas visível)
+
+- Route Guards — canActivate: [authGuard] está comentado. Qualquer usuário acessa /admin sem autenticar
+- Global HTTP Error Interceptor — hoje cada componente lida com erro por conta própria, duplicando lógica
+- Refresh token automático no interceptor — quando o 401 com X-Token-Expired: true chega, deve tentar refresh antes de jogar o usuário no login
+
+  ---
+6. Maturidade de Engenharia
+
+- API versionamento — /api/v1/ nos endpoints. Permite evoluir sem quebrar clientes
+- OpenAPI/Swagger — documentação gerada automaticamente via springdoc-openapi. Sênior não documenta à mão
+- Soft delete — deletedAt timestamp ao invés de DELETE físico. Permite auditoria e recovery
+- Nomeação consistente — dominio/ vs domain/, repositorios/ vs repository/. Isso sinaliza projeto inacabado para qualquer revisor
+- Paginação com limite máximo — hoje ?size=999999 é válido, DoS simples
+
+  ---
+O caminho realista
+
+Agora:           ~~Refresh token rotation~~ + JWT secret via env var
+Próximo mês:     Testcontainers + subir cobertura para 70%
+Próximo mês:     OpenTelemetry distributed tracing
+Próximo mês:     Circuit breaker + timeouts no gateway
+Depois:          API versioning + Swagger + soft delete

@@ -14,6 +14,8 @@ ERP-VSD is a multi-tenant ERP system built as a Spring Boot microservices monore
 | `gateway` | 8090 | Spring Cloud Gateway MVC — JWT validation + routing |
 | `auth-service` | 8085 | Auth, users, tenants, roles, permissions, Stripe, Kafka audit |
 | `cadastro-service` | 8086 | Master data CRUD (clients, products, suppliers, etc.) |
+| `partner-service` | 8087 | Partner onboarding, approval, referral codes, trial engagement |
+| `billing-service` | 8088 | Subscriptions, Asaas webhooks, commission payouts |
 | `liquibase-service` | — | Standalone app that runs all Liquibase migrations on startup |
 | `common` | — | Shared library: `GlobalExceptionHandler`, `BusinessException`, `AuditEventDTO` |
 | `Angular/erp-front-end-web` | 4200 | Angular 21 SPA |

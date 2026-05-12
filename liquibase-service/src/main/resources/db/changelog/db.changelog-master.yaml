@@ -17,6 +17,9 @@ databaseChangeLog:
       file: auth/auth-schema-004.yaml
       relativeToChangelogFile: true
   - include:
+      file: auth/auth-schema-005.yaml
+      relativeToChangelogFile: true
+  - include:
       file: audit/audit-schema-001.yaml
       relativeToChangelogFile: true
   - include:
@@ -67,4 +70,23 @@ databaseChangeLog:
       relativeToChangelogFile: true
   - include:
       file: billing/billing-schema-009.yaml
+      relativeToChangelogFile: true
+
+  # 4. Schema de Partner (migrado de billing para bounded context próprio)
+  - include:
+      file: partner/partner-schema-001.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: partner/partner-schema-002.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: partner/partner-schema-003.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: partner/partner-schema-004.yaml
+      relativeToChangelogFile: true
+
+  # 5. Limpeza billing — remove tabelas de parceiro após migração para schema partner
+  - include:
+      file: billing/billing-schema-010.yaml
       relativeToChangelogFile: true

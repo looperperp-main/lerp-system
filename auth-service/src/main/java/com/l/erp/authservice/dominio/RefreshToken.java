@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.Instant;
+import java.util.UUID;
 
 @Getter
 @Setter
@@ -36,5 +37,8 @@ public class RefreshToken {
     @Column(name = "replaced_by_token_id")
     private Long replacedByTokenId;
 
+    @NotNull
+    @Column(name = "family_id", nullable = false)
+    private UUID familyId;
 
 }

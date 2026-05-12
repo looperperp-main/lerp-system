@@ -4,6 +4,7 @@ import com.l.erp.authservice.dominio.RefreshToken;
 import com.l.erp.authservice.dominio.UserAccount;
 import com.l.erp.authservice.repositorios.RefreshTokenRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -22,7 +23,7 @@ public class RefreshTokenService {
         this.refreshTokenRepository = refreshTokenRepository;
     }
 
-    public TokenPair issue(UserAccount user) {
+    public TokenPair issue(UserAccount user, UUID familyId) {
         String rawToken = UUID.randomUUID().toString();
         String tokenHash = hashToHex(rawToken);
 
@@ -30,6 +31,7 @@ public class RefreshTokenService {
         rt.setUser(user);
         rt.setTokenHash(tokenHash);
         rt.setExpiresAt(Instant.now().plus(30, ChronoUnit.DAYS));
+        rt.setFamilyId(familyId != null ? familyId : UUID.randomUUID());
         refreshTokenRepository.save(rt);
 
         return new TokenPair(rawToken, rt);
@@ -39,6 +41,15 @@ public class RefreshTokenService {
         String tokenHash = hashToHex(rawToken);
         return refreshTokenRepository.findByTokenHashAndRevokedAtIsNull(tokenHash)
                 .filter(rt -> rt.getExpiresAt().isAfter(Instant.now()));
+    }
+
+    public Optional<RefreshToken> findByHash(String rawToken) {
+        return refreshTokenRepository.findByTokenHash(hashToHex(rawToken));
+    }
+
+    @Transactional
+    public void revokeFamily(UUID familyId) {
+        refreshTokenRepository.revokeAllActiveByFamilyId(familyId, Instant.now());
     }
 
     public void revoke(RefreshToken token, RefreshToken replacedBy) {

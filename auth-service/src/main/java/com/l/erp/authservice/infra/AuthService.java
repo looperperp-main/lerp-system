@@ -20,6 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
@@ -98,7 +99,7 @@ public class AuthService {
                 Constants.SUCCESS, null, null);
 
         String jwt = tokenService.generatePartnerToken(user);
-        RefreshTokenService.TokenPair tokenPair = refreshTokenService.issue(user);
+        RefreshTokenService.TokenPair tokenPair = refreshTokenService.issue(user, null);
 
         return authMapper.toLoginResponse(user, jwt, tokenPair.rawToken());
     }
@@ -143,7 +144,7 @@ public class AuthService {
 
         String jwt = tokenService.generateToken(user, roles, isOwner, getPermissions(user.getId()));
 
-        RefreshTokenService.TokenPair tokenPair = refreshTokenService.issue(user);
+        RefreshTokenService.TokenPair tokenPair = refreshTokenService.issue(user, null);
 
         return authMapper.toLoginResponse(user, jwt, tokenPair.rawToken());
 
@@ -211,28 +212,56 @@ public class AuthService {
         String jwt = tokenService.generateTenantUserToken(user, permissions, tenant);
 
         // 10. Gerar refresh token
-        RefreshTokenService.TokenPair tokenPair = refreshTokenService.issue(user);
+        RefreshTokenService.TokenPair tokenPair = refreshTokenService.issue(user, null);
 
         logger.info("Login de tenant bem-sucedido - Usuário: {}, Tenant: {}", user.getEmail(), tenant.getName());
 
         return authMapper.toTenantLoginResponse(user, jwt, tokenPair.rawToken(), tenant);
     }
 
-    public RefreshResponse refresh(String refreshTokenRaw){
-        RefreshToken oldRT = refreshTokenService.findValid(refreshTokenRaw)
-                .orElseThrow(() -> new RuntimeException("Refresh Token inválido"));
+    @Transactional
+    public RefreshResponse refresh(String refreshTokenRaw) {
+        RefreshToken existingRT = refreshTokenService.findByHash(refreshTokenRaw)
+                .orElseThrow(() -> new ResponseStatusException(UNAUTHORIZED, "Refresh Token inválido"));
 
-        UserAccount user = oldRT.getUser();
+        if (existingRT.getRevokedAt() != null) {
+            auditService.logAuditEventWithActor(
+                    Constants.TOKEN_REFRESH_REUSE,
+                    existingRT.getUser().getId(), Constants.USER,
+                    existingRT.getUser().getId(), Constants.FAILED,
+                    "Refresh token revogado reutilizado - possível comprometimento de sessão", null);
+            refreshTokenService.revokeFamily(existingRT.getFamilyId());
+            throw new ResponseStatusException(UNAUTHORIZED, "Sessão comprometida. Faça login novamente.");
+        }
 
-        boolean isOwner = ownerRepo.existsByUser_IdAndEnabledTrue(user.getId());
-        List<String> roles = isOwner ? List.of(Roles.APP_OWNER,Roles.TENANT_OWNER) : List.of("ROLE_USER");
+        if (existingRT.getExpiresAt().isBefore(Instant.now())) {
+            refreshTokenService.revoke(existingRT, null);
+            throw new ResponseStatusException(UNAUTHORIZED, "Refresh Token expirado");
+        }
 
-        String newJwt = tokenService.generateToken(user, roles, isOwner, getPermissions(user.getId()));
+        UserAccount user = existingRT.getUser();
+        String newJwt = generateJwtForUser(user);
 
-        RefreshTokenService.TokenPair newRt = refreshTokenService.issue(user);
-        refreshTokenService.revoke(oldRT, newRt.entity());
+        RefreshTokenService.TokenPair newRt = refreshTokenService.issue(user, existingRT.getFamilyId());
+        refreshTokenService.revoke(existingRT, newRt.entity());
+
+        auditService.logAuditEventWithActor(Constants.TOKEN_REFRESH_SUCCESS, user.getId(), Constants.USER,
+                user.getId(), Constants.SUCCESS, null, null);
 
         return new RefreshResponse(newJwt, newRt.rawToken());
+    }
+
+    private String generateJwtForUser(UserAccount user) {
+        if (Constants.PARTNER.equals(user.getUserType())) {
+            return tokenService.generatePartnerToken(user);
+        }
+        if (Constants.TENANT_USER.equals(user.getUserType())) {
+            List<String> permissions = getPermissions(user.getId());
+            return tokenService.generateTenantUserToken(user, permissions, user.getTenant());
+        }
+        boolean isOwner = ownerRepo.existsByUser_IdAndEnabledTrue(user.getId());
+        List<String> roles = isOwner ? List.of(Roles.APP_OWNER, Roles.TENANT_OWNER) : List.of("ROLE_USER");
+        return tokenService.generateToken(user, roles, isOwner, getPermissions(user.getId()));
     }
 
     public void logout(String refreshTokenRaw) {

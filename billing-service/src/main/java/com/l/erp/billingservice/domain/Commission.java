@@ -29,9 +29,8 @@ public class Commission {
     private UUID id;
 
     @NotNull
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "partner_id", nullable = false)
-    private Partner partner;
+    @Column(name = "partner_id", nullable = false)
+    private UUID partnerId;
 
     @NotNull
     @Column(name = "tenant_id", nullable = false)

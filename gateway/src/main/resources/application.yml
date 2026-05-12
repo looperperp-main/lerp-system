@@ -10,6 +10,12 @@ spring:
               uri: lb://auth-service
               predicates:
                 - Path=/auth/**
+            - id: partner-service
+              uri: lb://partner-service
+              predicates:
+                - Path=/partner/**
+              filters:
+                - StripPrefix=1
             - id: billing-service
               uri: lb://billing-service
               predicates:

@@ -91,4 +91,10 @@ public class Constants {
     public static final String PARTNER_LOGIN_SUCCESS = PARTNER_LOGIN + "_" + SUCCESS;
     public static final String PARTNER_LOGIN_FAILED = PARTNER_LOGIN + "_" + FAILED;
 
+    // Refresh Token
+    public static final String TENANT_USER = "TENANT_USER";
+    public static final String TOKEN_REFRESH = "TOKEN_REFRESH";
+    public static final String TOKEN_REFRESH_SUCCESS = TOKEN_REFRESH + "_" + SUCCESS;
+    public static final String TOKEN_REFRESH_REUSE = TOKEN_REFRESH + "_REUSE_DETECTED";
+
 }

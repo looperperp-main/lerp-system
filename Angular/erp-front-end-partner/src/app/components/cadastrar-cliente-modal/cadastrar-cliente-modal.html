@@ -1,0 +1,145 @@
+@if (modalService.isOpen()) {
+  <div class="modal-overlay" (click)="close()">
+    <div class="modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+
+      <!-- Header -->
+      <div class="modal__header">
+        <h2 class="modal__title">Cadastrar novo cliente</h2>
+        <button class="modal__close" (click)="close()" aria-label="Fechar">✕</button>
+      </div>
+
+      <!-- Body -->
+      <div class="modal__body">
+
+        <!-- CNPJ -->
+        <div class="field">
+          <label class="field__label">CNPJ <span class="required">*</span></label>
+          <input
+            class="field__input"
+            type="text"
+            placeholder="00.000.000/0000-00"
+            [value]="cnpjInput()"
+            (input)="onCnpjInput($any($event.target).value)"
+            maxlength="18"
+            autocomplete="off"
+          />
+
+          <!-- Validando spinner -->
+          @if (state() === 'validando') {
+            <div class="cnpj-feedback cnpj-feedback--loading">
+              <span class="spinner"></span>
+              <span>Consultando Receita Federal...</span>
+            </div>
+          }
+
+          <!-- CNPJ ativo -->
+          @if (state() === 'ativa' && consultaResult()) {
+            <div class="cnpj-feedback cnpj-feedback--ok">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+              </svg>
+              <div>
+                <span class="cnpj-feedback__nome">{{ consultaResult()!.razaoSocial }}</span>
+                <span class="cnpj-feedback__status">Situação: Ativa</span>
+              </div>
+            </div>
+          }
+
+          <!-- CNPJ inativo ou erro -->
+          @if (state() === 'inativa' || state() === 'erro') {
+            <div class="cnpj-feedback cnpj-feedback--error">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              <span>{{ erroMsg() }}</span>
+            </div>
+          }
+        </div>
+
+        <!-- Razão social -->
+        <div class="field">
+          <label class="field__label">Razão social <span class="required">*</span></label>
+          <input
+            class="field__input"
+            type="text"
+            placeholder="Razão Social LTDA"
+            [value]="razaoSocial()"
+            (input)="razaoSocial.set($any($event.target).value)"
+          />
+        </div>
+
+        <!-- Nome fantasia -->
+        <div class="field">
+          <label class="field__label">Nome fantasia <span class="optional">(opcional)</span></label>
+          <input
+            class="field__input"
+            type="text"
+            placeholder="Nome Fantasia"
+            [value]="nomeFantasia()"
+            (input)="nomeFantasia.set($any($event.target).value)"
+          />
+        </div>
+
+        <!-- Email + Telefone row -->
+        <div class="field-row">
+          <div class="field">
+            <label class="field__label">E-mail <span class="required">*</span></label>
+            <input
+              class="field__input"
+              type="email"
+              placeholder="contato@empresa.com.br"
+              [value]="email()"
+              (input)="email.set($any($event.target).value)"
+            />
+          </div>
+          <div class="field">
+            <label class="field__label">Telefone <span class="optional">(opcional)</span></label>
+            <input
+              class="field__input"
+              type="text"
+              placeholder="(11) 99999-9999"
+              [value]="telefone()"
+              (input)="telefone.set($any($event.target).value)"
+            />
+          </div>
+        </div>
+
+        <!-- Referral code (locked) -->
+        <div class="field">
+          <label class="field__label">Seu código de indicação</label>
+          <div class="field__locked">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <span>{{ referralCode() || '—' }}</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Footer -->
+      <div class="modal__footer">
+        <button class="btn-cancelar" (click)="close()">Cancelar</button>
+        <button
+          class="btn-enviar"
+          [disabled]="!podeEnviar() || state() === 'enviando'"
+          (click)="enviarConvite()"
+        >
+          @if (state() === 'enviando') {
+            <span class="spinner spinner--sm"></span>
+          }
+          @if (state() === 'sucesso') {
+            Convite enviado!
+          } @else {
+            Enviar convite
+          }
+        </button>
+      </div>
+
+    </div>
+  </div>
+}

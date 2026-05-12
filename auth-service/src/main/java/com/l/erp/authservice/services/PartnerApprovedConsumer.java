@@ -38,9 +38,9 @@ public class PartnerApprovedConsumer {
         this.passwordEncoder = passwordEncoder;
     }
 
-    @KafkaListener(topics = "billing.partner.approved", groupId = "auth-service-group")
+    @KafkaListener(topics = "partner.approved", groupId = "auth-service-group")
     public void consume(String payload) {
-        logger.info("Recebido evento billing.partner.approved");
+        logger.info("Recebido evento partner.approved");
         try {
             Map<String, Object> data = objectMapper.readValue(payload, new TypeReference<>() {});
             String name = (String) data.get("name");
@@ -71,7 +71,7 @@ public class PartnerApprovedConsumer {
 
             emailConsumerService.sendPartnerWelcomeEmail(name, email, referralCode, tempPassword);
         } catch (Exception e) {
-            logger.error("Falha ao processar evento billing.partner.approved. Payload: {}", payload, e);
+            logger.error("Falha ao processar evento partner.approved. Payload: {}", payload, e);
         }
     }
 

@@ -38,6 +38,7 @@
         <module>auth-service</module>
         <module>cadastro-service</module>
         <module>billing-service</module>
+        <module>partner-service</module>
         <module>common</module>
         <module>gateway</module>
         <module>liquibase-service</module>
