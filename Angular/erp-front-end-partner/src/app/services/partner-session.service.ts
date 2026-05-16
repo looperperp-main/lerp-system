@@ -1,4 +1,5 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, PLATFORM_ID, inject, signal } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 
 export interface PartnerInfo {
@@ -10,14 +11,15 @@ export interface PartnerInfo {
 @Injectable({ providedIn: 'root' })
 export class PartnerSessionService {
   private readonly API = 'http://localhost:8090/partner/api/v1/partners';
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   readonly info = signal<PartnerInfo | null>(null);
 
-  constructor(private http: HttpClient) {}
+  constructor(private readonly http: HttpClient) {}
 
   load(): void {
-    if (this.info()) return;
-    const email = localStorage.getItem('username');
+    if (!this.isBrowser || this.info()) return;
+    const email = localStorage.getItem('email');
     if (!email) return;
 
     this.http.get<any>(`${this.API}/me`, { params: { email } }).subscribe({
@@ -31,7 +33,7 @@ export class PartnerSessionService {
       error: () => {
         this.info.set({
           name: localStorage.getItem('username') ?? '',
-          email: localStorage.getItem('username') ?? '',
+          email: email,
           referralCode: 'CTR-00000',
         });
       },

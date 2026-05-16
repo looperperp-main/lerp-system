@@ -37,6 +37,7 @@ export class LoginComponent {
       next: res => {
         localStorage.setItem('partner_token', res.token);
         localStorage.setItem('username', res.username);
+        localStorage.setItem('email', email);
         this.router.navigate(['/dashboard']);
       },
       error: () => {

@@ -32,7 +32,7 @@ public class SecurityFilter extends OncePerRequestFilter {
     private final Logger log = LoggerFactory.getLogger(SecurityFilter.class);
 
     private static final Set<String> PUBLIC_PATHS = Set.of(
-            "/auth/login", "/auth/tenant/login", "/auth/partner/login", "/auth/refresh", "/auth/logout"
+            "/auth/login", "/auth/tenant/login", "/auth/partner/login", "/auth/refresh", "/auth/logout", "/partner/api/v1/partners/cnpj"
     );
 
     private static final Map<String, Set<String>> PUBLIC_METHOD_PATHS = Map.of(
@@ -65,7 +65,7 @@ public class SecurityFilter extends OncePerRequestFilter {
             return;
         }
 
-        if (PUBLIC_PATHS.contains(path)) {
+        if (PUBLIC_PATHS.stream().anyMatch(path::startsWith)) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -199,10 +199,20 @@ public class SecurityFilter extends OncePerRequestFilter {
      * @return {@code true} if the request is invalid and a "403 Forbidden" response has been set.
      *         {@code false} if the request is valid or does not require validation.
      */
+    private static final Set<String> PARTNER_ALLOWED_PREFIXES = Set.of(
+            "/billing/partner/",
+            "/partner/api/v1/partners/me",
+            "/partner/api/v1/partners/cnpj/",
+            "/api/v1/partners/me"
+    );
+
     private static boolean verifyPartnerURL(@NonNull HttpServletResponse response, String path, String loginType) {
-        if ("PARTNER".equals(loginType) && !path.startsWith("/billing/partner/")) {
-            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-            return true;
+        if ("PARTNER".equals(loginType)) {
+            boolean allowed = PARTNER_ALLOWED_PREFIXES.stream().anyMatch(path::startsWith);
+            if (!allowed) {
+                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                return true;
+            }
         }
         return false;
     }

@@ -25,6 +25,7 @@ public class SecurityConfig {
                         .requestMatchers("/auth/**", "/error").permitAll()
                         .requestMatchers("/actuator/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/billing/api/v1/partners").permitAll()
+                        .requestMatchers("/partner/api/v1/partners/cnpj/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class)
