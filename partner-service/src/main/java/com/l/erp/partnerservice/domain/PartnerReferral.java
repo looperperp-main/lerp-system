@@ -9,7 +9,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
@@ -28,21 +27,29 @@ public class PartnerReferral {
     @Column(name = "id", nullable = false)
     private UUID id;
 
-    @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "partner_id", nullable = false)
     private Partner partner;
 
-    @NotNull
-    @Column(name = "tenant_id", nullable = false)
+    @Column(name = "tenant_id")
     private Long tenantId;
 
+    @Size(max = 14)
+    @Column(name = "cnpj", length = 14)
+    private String cnpj;
+
+    @Size(max = 200)
+    @Column(name = "razao_social", length = 200)
+    private String razaoSocial;
+
+    @Size(max = 200)
+    @Column(name = "email_contato", length = 200)
+    private String emailContato;
+
     @Size(max = 30)
-    @NotNull
     @Column(name = "status", nullable = false, length = 30)
     private String status;
 
-    @NotNull
     @Column(name = "invited_at", nullable = false)
     private OffsetDateTime invitedAt;
 

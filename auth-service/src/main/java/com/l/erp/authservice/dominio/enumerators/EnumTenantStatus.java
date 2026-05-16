@@ -6,6 +6,7 @@ public enum EnumTenantStatus implements Serializable {
 
     ATIVO("ATIVO"),
     PENDENTE("PENDENTE"),
+    CONVIDADO("CONVIDADO"),
     SUSPENSO("SUSPENSO"),
     CANCELADO("CANCELADO");
 

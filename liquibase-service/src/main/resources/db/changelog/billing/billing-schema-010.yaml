@@ -1,0 +1,30 @@
+databaseChangeLog:
+  - changeSet:
+      id: "010-migrate-partner-tables-out-of-billing"
+      author: vitor fernandes ferreira
+      comment: "Remove tabelas de parceiro do schema billing após migração para schema partner. FK de commission.partner_id para billing.partner é removida — passa a ser referência lógica."
+      changes:
+        - dropForeignKeyConstraint:
+            baseTableSchemaName: billing
+            baseTableName: commission
+            constraintName: fk_commission_partner
+
+        - dropTable:
+            schemaName: billing
+            tableName: partner_referral
+
+        - dropTable:
+            schemaName: billing
+            tableName: trial_engagement
+
+        - dropTable:
+            schemaName: billing
+            tableName: partner
+
+      rollback:
+        - sql:
+            sql: >
+              -- Rollback manual necessário: recriar tabelas billing.partner, billing.partner_referral,
+              -- billing.trial_engagement e restaurar FK fk_commission_partner.
+              -- Use os changesets billing-schema-002 a 006 como referência.
+              SELECT 1;

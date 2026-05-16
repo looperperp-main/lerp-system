@@ -1,0 +1,48 @@
+databaseChangeLog:
+  - changeSet:
+      id: "partner-005-referral-allow-null-tenant-and-add-invite-fields"
+      author: vitor fernandes ferreira
+      changes:
+        - dropNotNullConstraint:
+            schemaName: partner
+            tableName: partner_referral
+            columnName: tenant_id
+            columnDataType: BIGINT
+
+        - addColumn:
+            schemaName: partner
+            tableName: partner_referral
+            columns:
+              - column:
+                  name: cnpj
+                  type: VARCHAR(14)
+                  remarks: CNPJ do cliente convidado
+
+              - column:
+                  name: razao_social
+                  type: VARCHAR(200)
+                  remarks: Razão social preenchida no momento do convite
+
+              - column:
+                  name: email_contato
+                  type: VARCHAR(200)
+                  remarks: E-mail para onde o convite foi enviado
+
+      rollback:
+        - dropColumn:
+            schemaName: partner
+            tableName: partner_referral
+            columnName: cnpj
+        - dropColumn:
+            schemaName: partner
+            tableName: partner_referral
+            columnName: razao_social
+        - dropColumn:
+            schemaName: partner
+            tableName: partner_referral
+            columnName: email_contato
+        - addNotNullConstraint:
+            schemaName: partner
+            tableName: partner_referral
+            columnName: tenant_id
+            columnDataType: BIGINT

@@ -10,6 +10,7 @@ public class KafkaPartnerProducerService {
 
     private static final Logger logger = LoggerFactory.getLogger(KafkaPartnerProducerService.class);
     private static final String TOPIC_PARTNER_APPROVED = "partner.approved";
+    private static final String TOPIC_INVITE_REQUESTED = "partner.invite.requested";
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
@@ -25,6 +26,18 @@ public class KafkaPartnerProducerService {
                         logger.error("Falha ao publicar PARTNER_APPROVED id={}", event.partnerId(), ex);
                     } else {
                         logger.info("PARTNER_APPROVED publicado - offset={}", result.getRecordMetadata().offset());
+                    }
+                });
+    }
+
+    public void sendInviteRequested(PartnerInviteRequestedEvent event) {
+        logger.info("Publicando evento PARTNER_INVITE_REQUESTED referralId={}", event.partnerReferralId());
+        kafkaTemplate.send(TOPIC_INVITE_REQUESTED, String.valueOf(event.partnerId()), event)
+                .whenComplete((result, ex) -> {
+                    if (ex != null) {
+                        logger.error("Falha ao publicar PARTNER_INVITE_REQUESTED referralId={}", event.partnerReferralId(), ex);
+                    } else {
+                        logger.info("PARTNER_INVITE_REQUESTED publicado - offset={}", result.getRecordMetadata().offset());
                     }
                 });
     }

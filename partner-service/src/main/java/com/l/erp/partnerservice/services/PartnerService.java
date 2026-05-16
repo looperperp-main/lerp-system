@@ -1,11 +1,16 @@
 package com.l.erp.partnerservice.services;
 
+import com.l.erp.partnerservice.api.dto.ConviteRequestDTO;
+import com.l.erp.partnerservice.api.dto.ConviteResponseDTO;
 import com.l.erp.partnerservice.api.dto.PartnerRequestDTO;
 import com.l.erp.partnerservice.api.dto.PartnerReviewDTO;
 import com.l.erp.partnerservice.domain.Partner;
+import com.l.erp.partnerservice.domain.PartnerReferral;
 import com.l.erp.partnerservice.infra.kafka.AuditProducerService;
 import com.l.erp.partnerservice.infra.kafka.KafkaPartnerProducerService;
 import com.l.erp.partnerservice.infra.kafka.PartnerApprovedEvent;
+import com.l.erp.partnerservice.infra.kafka.PartnerInviteRequestedEvent;
+import com.l.erp.partnerservice.repository.PartnerReferralRepository;
 import com.l.erp.partnerservice.repository.PartnerRepository;
 import com.l.erp.partnerservice.util.SecurityUtils;
 import com.l.erp.common.api.dto.AuditEventDTO;
@@ -19,9 +24,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
@@ -34,11 +39,16 @@ public class PartnerService {
     private static final Logger logger = LoggerFactory.getLogger(PartnerService.class);
 
     private final PartnerRepository repository;
+    private final PartnerReferralRepository referralRepository;
     private final KafkaPartnerProducerService kafkaProducer;
     private final AuditProducerService auditProducer;
 
-    public PartnerService(PartnerRepository repository, KafkaPartnerProducerService kafkaProducer, AuditProducerService auditProducer) {
+    public PartnerService(PartnerRepository repository,
+                          PartnerReferralRepository referralRepository,
+                          KafkaPartnerProducerService kafkaProducer,
+                          AuditProducerService auditProducer) {
         this.repository = repository;
+        this.referralRepository = referralRepository;
         this.kafkaProducer = kafkaProducer;
         this.auditProducer = auditProducer;
     }
@@ -219,6 +229,107 @@ public class PartnerService {
         partner.setUpdatedBy(reviewedBy);
 
         return repository.save(partner);
+    }
+
+    @Transactional
+    public PartnerReferral enviarConvite(UUID partnerId, ConviteRequestDTO dto) {
+        logger.info("Enviando convite para CNPJ {} pelo parceiro {}", dto.cnpj(), partnerId);
+
+        Partner partner = repository.findById(partnerId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, Constants.PARCEIRO_NOT_FOUND));
+
+        if (!Constants.STATUS_ATIVO.equals(partner.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT,
+                    "Apenas parceiros ativos podem enviar convites. Status atual: " + partner.getStatus());
+        }
+
+        if (referralRepository.existsByPartner_IdAndCnpjAndStatusIn(
+                partnerId, dto.cnpj(), List.of("CONVIDADO", "ATIVADO"))) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Já existe um convite ativo para o CNPJ: " + dto.cnpj());
+        }
+
+        OffsetDateTime now = OffsetDateTime.now();
+        PartnerReferral referral = new PartnerReferral();
+        referral.setPartner(partner);
+        referral.setCnpj(dto.cnpj());
+        referral.setRazaoSocial(dto.razaoSocial());
+        referral.setEmailContato(dto.emailContato());
+        referral.setStatus("CONVIDADO");
+        referral.setInvitedAt(now);
+        referral.setFollowupAttempts(0);
+        PartnerReferral saved = referralRepository.save(referral);
+
+        kafkaProducer.sendInviteRequested(new PartnerInviteRequestedEvent(
+                saved.getId(),
+                partnerId,
+                partner.getName(),
+                partner.getReferralCode(),
+                null,
+                dto.cnpj(),
+                dto.razaoSocial(),
+                dto.nomeFantasia(),
+                dto.emailContato(),
+                dto.telefone(),
+                dto.planoSugerido(),
+                now
+        ));
+
+        return saved;
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ConviteResponseDTO> listarConvites(UUID partnerId, Pageable pageable) {
+        return referralRepository.findByPartner_Id(partnerId, pageable)
+                .map(r -> new ConviteResponseDTO(
+                        r.getId(),
+                        r.getCnpj(),
+                        r.getRazaoSocial(),
+                        r.getEmailContato(),
+                        r.getStatus(),
+                        r.getFollowupAttempts(),
+                        r.getInvitedAt(),
+                        r.getTokenExpiresAt()
+                ));
+    }
+
+    @Transactional
+    public PartnerReferral reenviarConvite(UUID referralId, UUID partnerId) {
+        logger.info("Reenviando convite referralId={} pelo parceiro {}", referralId, partnerId);
+
+        PartnerReferral referral = referralRepository.findByIdAndPartner_Id(referralId, partnerId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Convite não encontrado"));
+
+        if (!"CONVIDADO".equals(referral.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT,
+                    "Apenas convites CONVIDADO podem ser reenviados. Status atual: " + referral.getStatus());
+        }
+
+        if (referral.getTenantId() == null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Convite ainda sendo processado, aguarde antes de reenviar");
+        }
+
+        OffsetDateTime now = OffsetDateTime.now();
+        referral.setFollowupAttempts(referral.getFollowupAttempts() + 1);
+        referral.setInvitedAt(now);
+        referral.setActivationToken(null);
+        referral.setTokenExpiresAt(null);
+        PartnerReferral saved = referralRepository.save(referral);
+
+        Partner partner = saved.getPartner();
+        kafkaProducer.sendInviteRequested(new PartnerInviteRequestedEvent(
+                saved.getId(),
+                partnerId,
+                partner.getName(),
+                partner.getReferralCode(),
+                saved.getTenantId(),
+                saved.getCnpj(),
+                null, null, null, null, null,
+                now
+        ));
+
+        return saved;
     }
 
     private String generateReferralCode() {

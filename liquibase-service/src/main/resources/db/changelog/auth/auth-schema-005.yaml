@@ -1,0 +1,28 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────────────────────────────
+  # Refresh token rotation: adiciona family_id para rastreamento de
+  # família de tokens e detecção de reutilização (reuse detection)
+  # ──────────────────────────────────────────────────────────────────
+  - changeSet:
+      id: auth-013-refresh-token-family-id
+      author: vitor-fernandes
+      changes:
+        - addColumn:
+            schemaName: auth
+            tableName: refresh_token
+            columns:
+              - column:
+                  name: family_id
+                  type: uuid
+                  defaultValueComputed: gen_random_uuid()
+                  constraints:
+                    nullable: false
+
+        - createIndex:
+            schemaName: auth
+            tableName: refresh_token
+            indexName: idx_refresh_token_family_id
+            columns:
+              - column:
+                  name: family_id

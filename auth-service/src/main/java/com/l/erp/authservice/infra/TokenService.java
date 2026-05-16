@@ -97,6 +97,22 @@ public class TokenService {
                 .sign(Algorithm.HMAC256(secret));
     }
 
+    public String generateInvitationToken(Long tenantId, String cnpj, String referralId) {
+        try {
+            return JWT.create()
+                    .withSubject(String.valueOf(tenantId))
+                    .withIssuer("L-ERP-auth-service")
+                    .withExpiresAt(Instant.now().plus(7, ChronoUnit.DAYS))
+                    .withIssuedAt(Instant.now())
+                    .withClaim("type", "INVITATION")
+                    .withClaim("cnpj", cnpj)
+                    .withClaim("referralId", referralId)
+                    .sign(Algorithm.HMAC256(secret));
+        } catch (JWTCreationException ex) {
+            throw new RuntimeException("Erro ao gerar token de ativação", ex);
+        }
+    }
+
     private Instant generateExpirationDate(){
         return Instant.now().plus(1, ChronoUnit.HOURS);
     }

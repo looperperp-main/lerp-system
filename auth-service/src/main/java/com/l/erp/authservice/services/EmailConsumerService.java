@@ -92,6 +92,47 @@ public class EmailConsumerService {
         }
     }
 
+    public void sendClientInviteEmail(String clientName, String clientEmail,
+                                      String partnerName, String activationToken,
+                                      java.time.OffsetDateTime tokenExpiresAt) {
+        try {
+            MimeMessage mimeMessage = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
+
+            helper.setFrom(FROM_EMAIL, "Equipe ERP");
+            helper.setTo(clientEmail);
+            helper.setSubject(partnerName + " te convidou para o ERP — Ative sua conta");
+
+            String prazo = tokenExpiresAt.toLocalDate().toString();
+            String activationLink = "https://app.erp.com/ativar?token=" + activationToken;
+
+            String htmlBody = String.format(
+                    "<html>" +
+                    "<body style='font-family: Arial, sans-serif; color: #333; line-height: 1.6;'>" +
+                    "  <div style='max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;'>" +
+                    "    <h2 style='color: #0056b3;'>Olá, %s!</h2>" +
+                    "    <p>O escritório <strong>%s</strong> te convidou para gerenciar sua empresa no ERP.</p>" +
+                    "    <p>Clique no botão abaixo para criar sua senha e ativar sua conta:</p>" +
+                    "    <div style='text-align: center; margin: 30px 0;'>" +
+                    "      <a href='%s' style='background: #0056b3; color: #fff; padding: 14px 28px; border-radius: 6px; text-decoration: none; font-size: 16px;'>" +
+                    "        Ativar minha conta" +
+                    "      </a>" +
+                    "    </div>" +
+                    "    <p style='color: #c00; font-size: 13px;'>&#128274; Este link é válido até %s. Após essa data será necessário solicitar um novo convite.</p>" +
+                    "    <hr style='border: none; border-top: 1px solid #eee;'/>" +
+                    "    <p>Atenciosamente,<br/><strong>Equipe ERP</strong></p>" +
+                    "  </div>" +
+                    "</body>" +
+                    "</html>", clientName, partnerName, activationLink, prazo);
+
+            helper.setText(htmlBody, true);
+            mailSender.send(mimeMessage);
+            logger.info("E-mail de convite enviado para: {}", clientEmail);
+        } catch (Exception e) {
+            logger.error("Erro ao enviar e-mail de convite para: {}", clientEmail, e);
+        }
+    }
+
     private void sendWelcomeEmail(String to, String name) {
         try {
             MimeMessage mimeMessage = mailSender.createMimeMessage();

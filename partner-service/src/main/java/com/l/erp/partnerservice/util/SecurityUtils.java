@@ -69,4 +69,8 @@ public final class SecurityUtils {
     public static Optional<UUID> getCurrentUserId() {
         return getClaimFromJwt("sub").map(UUID::fromString);
     }
+
+    public static Optional<UUID> getPartnerId() {
+        return getClaimFromJwt("partnerId").map(UUID::fromString);
+    }
 }

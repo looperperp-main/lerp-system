@@ -1,0 +1,10 @@
+databaseChangeLog:
+  - changeSet:
+      id: "partner-001-create-schema"
+      author: vitor fernandes ferreira
+      changes:
+        - sql:
+            sql: CREATE SCHEMA IF NOT EXISTS partner
+      rollback:
+        - sql:
+            sql: DROP SCHEMA IF EXISTS partner CASCADE

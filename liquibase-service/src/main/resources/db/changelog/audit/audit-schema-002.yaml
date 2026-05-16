@@ -1,0 +1,34 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # Corrige nome da coluna para snake_case
+  # Java já usa @Column(name = "event_date") — apenas alinhando o DB
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: audit-003-rename-eventDate-to-event-date
+      author: vitor-fernandes
+      changes:
+        - renameColumn:
+            schemaName: audit
+            tableName: audit_log
+            oldColumnName: eventDate
+            newColumnName: event_date
+            columnDataType: timestamp
+
+  # ──────────────────────────────────────────
+  # Adiciona created_at ao consumer_error_log
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: audit-004-add-created-at-consumer-error-log
+      author: vitor-fernandes
+      changes:
+        - addColumn:
+            schemaName: audit
+            tableName: consumer_error_log
+            columns:
+              - column:
+                  name: created_at
+                  type: timestamp
+                  defaultValueDate: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
