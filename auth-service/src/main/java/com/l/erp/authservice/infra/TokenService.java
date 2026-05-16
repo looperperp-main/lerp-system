@@ -3,6 +3,8 @@ package com.l.erp.authservice.infra;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.JWTCreationException;
+import com.auth0.jwt.exceptions.JWTVerificationException;
+import com.auth0.jwt.interfaces.DecodedJWT;
 import com.l.erp.authservice.dominio.Tenant;
 import com.l.erp.authservice.dominio.UserAccount;
 import com.l.erp.authservice.infra.config.Roles;
@@ -97,7 +99,7 @@ public class TokenService {
                 .sign(Algorithm.HMAC256(secret));
     }
 
-    public String generateInvitationToken(Long tenantId, String cnpj, String referralId) {
+    public String generateInvitationToken(Long tenantId, String cnpj, String razaoSocial, String referralId, String email) {
         try {
             return JWT.create()
                     .withSubject(String.valueOf(tenantId))
@@ -106,10 +108,25 @@ public class TokenService {
                     .withIssuedAt(Instant.now())
                     .withClaim("type", "INVITATION")
                     .withClaim("cnpj", cnpj)
+                    .withClaim("razaoSocial", razaoSocial)
                     .withClaim("referralId", referralId)
+                    .withClaim("email", email)
                     .sign(Algorithm.HMAC256(secret));
         } catch (JWTCreationException ex) {
             throw new RuntimeException("Erro ao gerar token de ativação", ex);
+        }
+    }
+
+    public DecodedJWT validateInvitationToken(String token) {
+        try {
+            DecodedJWT decoded = JWT.require(Algorithm.HMAC256(secret))
+                    .withIssuer("L-ERP-auth-service")
+                    .withClaim("type", "INVITATION")
+                    .build()
+                    .verify(token);
+            return decoded;
+        } catch (JWTVerificationException e) {
+            throw new RuntimeException("Token de ativação inválido ou expirado", e);
         }
     }
 

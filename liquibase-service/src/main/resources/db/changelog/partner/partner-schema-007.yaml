@@ -1,0 +1,17 @@
+databaseChangeLog:
+  - changeSet:
+      id: "partner-007-activation-token-varchar-512"
+      author: vitor fernandes ferreira
+      changes:
+        - modifyDataType:
+            schemaName: partner
+            tableName: partner_referral
+            columnName: activation_token
+            newDataType: VARCHAR(512)
+
+      rollback:
+        - modifyDataType:
+            schemaName: partner
+            tableName: partner_referral
+            columnName: activation_token
+            newDataType: VARCHAR(255)

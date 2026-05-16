@@ -132,7 +132,8 @@ public class PartnerController {
         ConviteResponseDTO response = new ConviteResponseDTO(
                 saved.getId(), saved.getCnpj(), saved.getRazaoSocial(),
                 saved.getEmailContato(), saved.getStatus(),
-                saved.getFollowupAttempts(), saved.getInvitedAt(), saved.getTokenExpiresAt()
+                saved.getFollowupAttempts(), saved.getInvitedAt(), saved.getTokenExpiresAt(),
+                saved.getPlanoSugerido(), saved.getTrialStartedAt(), saved.getTrialExpiresAt()
         );
         return ResponseEntity.accepted().body(response);
     }
@@ -154,7 +155,8 @@ public class PartnerController {
         ConviteResponseDTO response = new ConviteResponseDTO(
                 saved.getId(), saved.getCnpj(), saved.getRazaoSocial(),
                 saved.getEmailContato(), saved.getStatus(),
-                saved.getFollowupAttempts(), saved.getInvitedAt(), saved.getTokenExpiresAt()
+                saved.getFollowupAttempts(), saved.getInvitedAt(), saved.getTokenExpiresAt(),
+                saved.getPlanoSugerido(), saved.getTrialStartedAt(), saved.getTrialExpiresAt()
         );
         return ResponseEntity.accepted().body(response);
     }

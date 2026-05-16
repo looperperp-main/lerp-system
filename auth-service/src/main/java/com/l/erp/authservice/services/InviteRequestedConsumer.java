@@ -101,11 +101,10 @@ public class InviteRequestedConsumer {
                 }
             }
 
-            String activationToken = tokenService.generateInvitationToken(
-                    tenant.getId(), tenant.getCnpj(), partnerReferralId);
-            OffsetDateTime tokenExpiresAt = OffsetDateTime.now().plus(7, ChronoUnit.DAYS);
-
             String clientEmail = tenant.getEmail() != null ? tenant.getEmail() : emailContato;
+            String activationToken = tokenService.generateInvitationToken(
+                    tenant.getId(), tenant.getCnpj(), tenant.getName(), partnerReferralId, clientEmail);
+            OffsetDateTime tokenExpiresAt = OffsetDateTime.now().plus(7, ChronoUnit.DAYS);
             emailConsumerService.sendClientInviteEmail(
                     tenant.getName(), clientEmail, partnerName, activationToken, tokenExpiresAt);
 

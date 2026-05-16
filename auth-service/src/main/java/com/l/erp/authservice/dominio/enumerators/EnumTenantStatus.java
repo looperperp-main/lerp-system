@@ -5,6 +5,7 @@ import java.io.Serializable;
 public enum EnumTenantStatus implements Serializable {
 
     ATIVO("ATIVO"),
+    TRIAL("TRIAL"),
     PENDENTE("PENDENTE"),
     CONVIDADO("CONVIDADO"),
     SUSPENSO("SUSPENSO"),

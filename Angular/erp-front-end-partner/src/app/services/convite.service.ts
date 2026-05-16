@@ -7,10 +7,13 @@ export interface ConviteDTO {
   cnpj: string;
   razaoSocial: string;
   emailContato: string;
-  status: 'CONVIDADO' | 'ATIVADO' | 'CONVERTIDO' | 'PERDIDO';
+  status: 'CONVIDADO' | 'TRIAL' | 'ATIVADO' | 'CONVERTIDO' | 'PERDIDO';
   followupAttempts: number;
   invitedAt: string;
   tokenExpiresAt: string | null;
+  planoSugerido: string | null;
+  trialStartedAt: string | null;
+  trialExpiresAt: string | null;
 }
 
 export interface SpringPage<T> {
@@ -31,7 +34,20 @@ export class ConviteService {
     return this.http.get<SpringPage<ConviteDTO>>(this.API, { params });
   }
 
+  enviar(payload: ConvitePayload): Observable<ConviteDTO> {
+    return this.http.post<ConviteDTO>(this.API, payload);
+  }
+
   reenviar(referralId: string): Observable<ConviteDTO> {
     return this.http.post<ConviteDTO>(`${this.API}/${referralId}/reenviar`, {});
   }
+}
+
+export interface ConvitePayload {
+  cnpj: string;
+  razaoSocial: string;
+  nomeFantasia?: string;
+  emailContato: string;
+  telefone?: string;
+  planoSugerido: string;
 }

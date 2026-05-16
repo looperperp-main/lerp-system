@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { Home } from './pages/home/home';
 import { TenantLogin } from './pages/login/login';
+import { AtivarConta } from './pages/ativar/ativar';
 import { Landing } from './pages/landing/landing';
 import { ParceiroCadastro } from './pages/parceiro/parceiro-cadastro';
 import { authGuard } from './util/auth.guard';
@@ -23,6 +24,7 @@ import {Produtos} from './pages/cadastros/produtos/produtos';
 export const routes: Routes = [
     { path: '', component: Landing },
     { path: 'login', component: TenantLogin },
+    { path: 'ativar', component: AtivarConta },
     { path: 'cadastrar-parceiro', component: ParceiroCadastro },
     {
         path: 'web',

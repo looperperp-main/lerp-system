@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { CnpjService, CnpjConsulta } from '../../services/cnpj.service';
 import { PartnerSessionService } from '../../services/partner-session.service';
 import { CadastrarClienteModalService } from '../../services/cadastrar-cliente-modal.service';
+import { ConviteService } from '../../services/convite.service';
 
 export type ModalState = 'idle' | 'validando' | 'ativa' | 'inativa' | 'erro' | 'enviando' | 'sucesso';
 
@@ -16,6 +17,7 @@ export type ModalState = 'idle' | 'validando' | 'ativa' | 'inativa' | 'erro' | '
 export class CadastrarClienteModal implements OnInit {
   private readonly cnpjService = inject(CnpjService);
   private readonly session = inject(PartnerSessionService);
+  private readonly conviteService = inject(ConviteService);
   readonly modalService = inject(CadastrarClienteModalService);
 
   cnpjInput = signal('');
@@ -23,6 +25,7 @@ export class CadastrarClienteModal implements OnInit {
   nomeFantasia = signal('');
   email = signal('');
   telefone = signal('');
+  planoSugerido = signal('MENSAL');
 
   state = signal<ModalState>('idle');
   consultaResult = signal<CnpjConsulta | null>(null);
@@ -97,8 +100,28 @@ export class CadastrarClienteModal implements OnInit {
   enviarConvite(): void {
     if (!this.podeEnviar()) return;
     this.state.set('enviando');
-    // TODO: chamar endpoint de convite quando disponível
-    setTimeout(() => this.state.set('sucesso'), 1000);
+    this.conviteService
+      .enviar({
+        cnpj: this.cnpjInput().replace(/\D/g, ''),
+        razaoSocial: this.razaoSocial(),
+        nomeFantasia: this.nomeFantasia() || undefined,
+        emailContato: this.email(),
+        telefone: this.telefone() || undefined,
+        planoSugerido: this.planoSugerido(),
+      })
+      .subscribe({
+        next: () => {
+          this.state.set('sucesso');
+          setTimeout(() => {
+            this.modalService.inviteSent$.next();
+            this.close();
+          }, 800);
+        },
+        error: () => {
+          this.state.set('ativa');
+          this.erroMsg.set('Erro ao enviar convite. Tente novamente.');
+        },
+      });
   }
 
   private resetForm(): void {
@@ -107,6 +130,7 @@ export class CadastrarClienteModal implements OnInit {
     this.nomeFantasia.set('');
     this.email.set('');
     this.telefone.set('');
+    this.planoSugerido.set('MENSAL');
     this.state.set('idle');
     this.consultaResult.set(null);
     this.erroMsg.set('');

@@ -24,6 +24,9 @@ public class EmailConsumerService {
     @Value("${spring.mail.username}")
     private String FROM_EMAIL;
 
+    @Value("${app.client-portal-url}")
+    private String clientPortalUrl;
+
     public EmailConsumerService(JavaMailSender mailSender, ObjectMapper objectMapper) {
         this.mailSender = mailSender;
         this.objectMapper = objectMapper;
@@ -104,7 +107,7 @@ public class EmailConsumerService {
             helper.setSubject(partnerName + " te convidou para o ERP — Ative sua conta");
 
             String prazo = tokenExpiresAt.toLocalDate().toString();
-            String activationLink = "https://app.erp.com/ativar?token=" + activationToken;
+            String activationLink = clientPortalUrl + "/ativar?token=" + activationToken;
 
             String htmlBody = String.format(
                     "<html>" +

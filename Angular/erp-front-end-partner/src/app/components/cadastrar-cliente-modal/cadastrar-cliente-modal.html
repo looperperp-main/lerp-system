@@ -107,6 +107,19 @@
           </div>
         </div>
 
+        <!-- Plano sugerido -->
+        <div class="field">
+          <label class="field__label">Plano sugerido <span class="required">*</span></label>
+          <select
+            class="field__input field__input--select"
+            [value]="planoSugerido()"
+            (change)="planoSugerido.set($any($event.target).value)"
+          >
+            <option value="MENSAL">Mensal</option>
+            <option value="ANUAL">Anual</option>
+          </select>
+        </div>
+
         <!-- Referral code (locked) -->
         <div class="field">
           <label class="field__label">Seu código de indicação</label>

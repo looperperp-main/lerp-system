@@ -1,0 +1,129 @@
+<div class="page-wrapper">
+  <div class="glow-top-right"></div>
+
+  <div class="logo-row">
+    <div class="logo-icon"><span>✕</span></div>
+    <span class="logo-text">syax</span>
+  </div>
+
+  <main class="card">
+    @if (sucesso()) {
+      <div class="sucesso-block">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+          <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        <h1 class="card-title">Conta ativada!</h1>
+        <p class="card-subtitle">Redirecionando para o login...</p>
+      </div>
+    } @else {
+      <div class="badge">ATIVAÇÃO DE CONTA</div>
+      <h1 class="card-title">Crie sua senha</h1>
+      <p class="card-subtitle">Defina suas credenciais de acesso ao sistema</p>
+
+      <form [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+
+        <div class="field-group">
+          <label class="field-label">Empresa</label>
+          <div class="input-wrapper input-wrapper--readonly">
+            <svg class="input-icon" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H4a1 1 0 110-2V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9z" clip-rule="evenodd"/>
+            </svg>
+            <span class="field-input field-input--readonly">{{ razaoSocial() }}</span>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">CNPJ</label>
+          <div class="input-wrapper input-wrapper--readonly">
+            <svg class="input-icon" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm2 10a1 1 0 10-2 0v3a1 1 0 102 0v-3zm2-3a1 1 0 011 1v5a1 1 0 11-2 0v-5a1 1 0 011-1zm4-1a1 1 0 10-2 0v6a1 1 0 102 0V8z" clip-rule="evenodd"/>
+            </svg>
+            <span class="field-input field-input--readonly">{{ cnpj() }}</span>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">E-mail</label>
+          <div class="input-wrapper input-wrapper--readonly">
+            <svg class="input-icon" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
+              <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
+            </svg>
+            <span class="field-input field-input--readonly">{{ email() }}</span>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">Senha</label>
+          <div class="input-wrapper">
+            <svg class="input-icon" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/>
+            </svg>
+            <input
+              [type]="showSenha() ? 'text' : 'password'"
+              formControlName="senha"
+              class="field-input"
+              placeholder="Mínimo 14 caracteres, letras e símbolos"
+              autocomplete="new-password"
+            />
+            <button type="button" class="eye-btn" (click)="showSenha.set(!showSenha())">
+              @if (showSenha()) {
+                <svg viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clip-rule="evenodd"/>
+                  <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z"/>
+                </svg>
+              } @else {
+                <svg viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
+                  <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
+                </svg>
+              }
+            </button>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">Confirmar senha</label>
+          <div class="input-wrapper">
+            <svg class="input-icon" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/>
+            </svg>
+            <input
+              [type]="showConfirmacao() ? 'text' : 'password'"
+              formControlName="confirmacaoSenha"
+              class="field-input"
+              placeholder="Repita a senha"
+              autocomplete="new-password"
+            />
+            <button type="button" class="eye-btn" (click)="showConfirmacao.set(!showConfirmacao())">
+              @if (showConfirmacao()) {
+                <svg viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clip-rule="evenodd"/>
+                  <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z"/>
+                </svg>
+              } @else {
+                <svg viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
+                  <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
+                </svg>
+              }
+            </button>
+          </div>
+        </div>
+
+        @if (erro()) {
+          <p class="error-msg">{{ erro() }}</p>
+        }
+
+        <button type="submit" class="submit-btn" [disabled]="form.invalid || loading()">
+          @if (loading()) { Ativando... } @else { Ativar conta &nbsp;→ }
+        </button>
+      </form>
+    }
+  </main>
+
+  <footer class="page-footer">
+    <p>© 2026 SYAX TECNOLOGIA · SISTEMA DE GESTÃO EMPRESARIAL</p>
+  </footer>
+</div>

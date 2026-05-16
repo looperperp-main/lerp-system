@@ -1,0 +1,25 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────────────────────────────
+  # Trial: adiciona trial_started_at e trial_expires_at na tabela
+  # partner_referral para controle do período de trial (D+15)
+  # ──────────────────────────────────────────────────────────────────
+  - changeSet:
+      id: partner-015-referral-trial-fields
+      author: vitor-fernandes
+      changes:
+        - addColumn:
+            schemaName: partner
+            tableName: partner_referral
+            columns:
+              - column:
+                  name: trial_started_at
+                  type: timestamptz
+                  constraints:
+                    nullable: true
+
+              - column:
+                  name: trial_expires_at
+                  type: timestamptz
+                  constraints:
+                    nullable: true

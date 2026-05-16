@@ -1,4 +1,5 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { CadastrarClienteModalService } from '../../services/cadastrar-cliente-modal.service';
 import { ConviteService, ConviteDTO } from '../../services/convite.service';
@@ -20,13 +21,22 @@ export interface Cliente {
 
 const STATUS_MAP: Record<ConviteDTO['status'], ClienteStatus> = {
   CONVIDADO: 'CONVIDADO',
+  TRIAL: 'TRIAL',
   ATIVADO: 'ATIVO',
   CONVERTIDO: 'ATIVO',
   PERDIDO: 'PERDIDO',
 };
 
+const STATUS_LABEL: Record<ClienteStatus, string> = {
+  CONVIDADO: 'Aguardando ativação',
+  TRIAL: 'Trial',
+  ATIVO: 'Ativo',
+  PERDIDO: 'Perdido',
+};
+
 const ACOES_MAP: Record<ConviteDTO['status'], ClienteAcao[]> = {
   CONVIDADO: ['email'],
+  TRIAL: ['documento', 'mensagem'],
   ATIVADO: ['documento', 'mensagem'],
   CONVERTIDO: ['documento'],
   PERDIDO: ['reengajar'],
@@ -41,6 +51,9 @@ const ACOES_MAP: Record<ConviteDTO['status'], ClienteAcao[]> = {
 export class Clientes implements OnInit {
   readonly cadastrarModal = inject(CadastrarClienteModalService);
   private readonly conviteService = inject(ConviteService);
+  private readonly destroyRef = inject(DestroyRef);
+
+  readonly statusLabel = STATUS_LABEL;
 
   readonly busca = signal('');
   readonly statusFiltro = signal<ClienteStatus | 'TODOS'>('TODOS');
@@ -49,6 +62,8 @@ export class Clientes implements OnInit {
   private readonly todosClientes = signal<Cliente[]>([]);
   readonly carregando = signal(false);
   readonly erro = signal('');
+  readonly notificacao = signal('');
+  private notificacaoTimer: ReturnType<typeof setTimeout> | null = null;
   totalClientes = 0;
 
   readonly clientes = computed(() => {
@@ -70,6 +85,18 @@ export class Clientes implements OnInit {
 
   ngOnInit(): void {
     this.carregar();
+    this.cadastrarModal.inviteSent$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        this.carregar();
+        this.mostrarNotificacao('Convite enviado com sucesso!');
+      });
+  }
+
+  private mostrarNotificacao(msg: string): void {
+    if (this.notificacaoTimer) clearTimeout(this.notificacaoTimer);
+    this.notificacao.set(msg);
+    this.notificacaoTimer = setTimeout(() => this.notificacao.set(''), 4000);
   }
 
   carregar(): void {
@@ -85,6 +112,13 @@ export class Clientes implements OnInit {
         this.erro.set('Erro ao carregar clientes. Tente novamente.');
         this.carregando.set(false);
       },
+    });
+  }
+
+  reenviarConvite(id: string): void {
+    this.conviteService.reenviar(id).subscribe({
+      next: () => this.carregar(),
+      error: () => this.erro.set('Erro ao reenviar convite. Tente novamente.'),
     });
   }
 
@@ -110,12 +144,18 @@ export class Clientes implements OnInit {
       cnpj: this.formatarCnpj(c.cnpj),
       status: STATUS_MAP[c.status],
       engajamento: null,
-      trialExpira: c.status === 'CONVIDADO' && c.tokenExpiresAt
-        ? this.formatarData(c.tokenExpiresAt)
-        : null,
-      plano: null,
+      trialExpira: c.trialExpiresAt
+        ? this.formatarData(c.trialExpiresAt)
+        : (c.status === 'CONVIDADO' && c.tokenExpiresAt ? this.formatarData(c.tokenExpiresAt) : null),
+      plano: this.mapearPlano(c.planoSugerido),
       acoes: ACOES_MAP[c.status],
     };
+  }
+
+  private mapearPlano(plano: string | null): ClientePlano {
+    if (plano === 'ANUAL') return 'Anual';
+    if (plano === 'MENSAL') return 'Mensal';
+    return null;
   }
 
   private formatarCnpj(cnpj: string): string {

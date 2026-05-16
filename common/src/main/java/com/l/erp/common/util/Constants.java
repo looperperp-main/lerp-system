@@ -195,4 +195,10 @@ public class Constants {
     public static final String PARCEIRO_CNPJ_ALREADY_EXISTS = "CNPJ já cadastrado";
     public static final String PARCEIRO_EMAIL_ALREADY_EXISTS = "E-mail já cadastrado";
     public static final String PARCEIRO_INACTIVATE = PARCEIRO + "_INACTIVATE";
+    public static final String PARCEIRO_APPROVE = PARCEIRO + "_APPROVE";
+    public static final String PARCEIRO_REJECT = PARCEIRO + "_REJECT";
+
+    public static final String CONVITE = "CONVITE";
+    public static final String CONVITE_SEND = CONVITE + "_SEND";
+    public static final String CONVITE_RESEND = CONVITE + "_RESEND";
 }

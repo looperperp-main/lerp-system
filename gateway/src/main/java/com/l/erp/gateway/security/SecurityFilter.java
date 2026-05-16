@@ -32,7 +32,7 @@ public class SecurityFilter extends OncePerRequestFilter {
     private final Logger log = LoggerFactory.getLogger(SecurityFilter.class);
 
     private static final Set<String> PUBLIC_PATHS = Set.of(
-            "/auth/login", "/auth/tenant/login", "/auth/partner/login", "/auth/refresh", "/auth/logout", "/partner/api/v1/partners/cnpj"
+            "/auth/login", "/auth/tenant/login", "/auth/partner/login", "/auth/refresh", "/auth/logout", "/auth/ativar", "/partner/api/v1/partners/cnpj"
     );
 
     private static final Map<String, Set<String>> PUBLIC_METHOD_PATHS = Map.of(

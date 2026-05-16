@@ -1,5 +1,15 @@
 <div class="clientes-page">
 
+  @if (notificacao()) {
+    <div class="toast toast--sucesso">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+        <polyline points="22 4 12 14.01 9 11.01"/>
+      </svg>
+      {{ notificacao() }}
+    </div>
+  }
+
   <!-- Filter Bar -->
   <div class="filter-bar">
     <div class="filter-bar__search">
@@ -68,7 +78,7 @@
             <td class="col-status">
               <span class="badge" [class]="'badge--' + c.status.toLowerCase()">
                 <span class="badge__dot"></span>
-                {{ c.status }}
+                {{ statusLabel[c.status] }}
               </span>
             </td>
 
@@ -116,7 +126,10 @@
             <td class="col-acoes">
               <div class="acoes">
                 @for (acao of c.acoes; track acao) {
-                  <button class="acao-btn" [class]="'acao-btn--' + acao" [title]="acao">
+                  <button
+                    class="acao-btn" [class]="'acao-btn--' + acao" [title]="acao"
+                    (click)="acao === 'email' ? reenviarConvite(c.id) : null"
+                  >
                     @switch (acao) {
                       @case ('documento') {
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

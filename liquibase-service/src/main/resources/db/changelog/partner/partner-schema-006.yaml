@@ -1,0 +1,19 @@
+databaseChangeLog:
+  - changeSet:
+      id: "partner-006-add-plano-sugerido-to-referral"
+      author: vitor fernandes ferreira
+      changes:
+        - addColumn:
+            schemaName: partner
+            tableName: partner_referral
+            columns:
+              - column:
+                  name: plano_sugerido
+                  type: VARCHAR(50)
+                  remarks: Plano sugerido pelo contador no momento do convite (MENSAL ou ANUAL)
+
+      rollback:
+        - dropColumn:
+            schemaName: partner
+            tableName: partner_referral
+            columnName: plano_sugerido

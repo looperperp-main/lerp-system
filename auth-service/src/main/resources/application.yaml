@@ -40,6 +40,9 @@ api:
   security:
     jwt.secret: ${JWT_SECRET}
 
+app:
+  client-portal-url: ${CLIENT_PORTAL_URL:http://localhost:4200}
+
 management:
   endpoints:
     web:

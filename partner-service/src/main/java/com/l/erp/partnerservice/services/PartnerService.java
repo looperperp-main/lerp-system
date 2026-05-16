@@ -77,11 +77,15 @@ public class PartnerService {
     @Transactional
     public Partner save(PartnerRequestDTO dto, String createdBy) {
         logger.info("Criando parceiro: {}", dto.email());
+        UUID correlationID = getCorrelationIdFromRequest(logger);
+        UUID userId = SecurityUtils.getCurrentUserId().orElse(null);
 
         if (repository.existsByCnpj(dto.cnpj())) {
+            sendAuditEvent(Constants.PARCEIRO_CREATION, userId, null, Constants.ERROR, "{\"error\": \"CNPJ já cadastrado\"}", correlationID);
             throw new ResponseStatusException(HttpStatus.CONFLICT, Constants.PARCEIRO_CNPJ_ALREADY_EXISTS + ": " + dto.cnpj());
         }
         if (repository.existsByEmail(dto.email())) {
+            sendAuditEvent(Constants.PARCEIRO_CREATION, userId, null, Constants.ERROR, "{\"error\": \"E-mail já cadastrado\"}", correlationID);
             throw new ResponseStatusException(HttpStatus.CONFLICT, Constants.PARCEIRO_EMAIL_ALREADY_EXISTS + ": " + dto.email());
         }
 
@@ -97,7 +101,9 @@ public class PartnerService {
         partner.setCreatedAt(OffsetDateTime.now());
         partner.setCreatedBy(createdBy);
 
-        return repository.save(partner);
+        Partner saved = repository.save(partner);
+        sendAuditEvent(Constants.PARCEIRO_CREATION, userId, saved.getId(), Constants.SUCCESS, null, correlationID);
+        return saved;
     }
 
     @Transactional
@@ -162,6 +168,7 @@ public class PartnerService {
         partner.setUpdatedBy(reviewedBy);
 
         Partner saved = repository.save(partner);
+        sendAuditEvent(Constants.PARCEIRO_APPROVE, userId, saved.getId(), Constants.SUCCESS, null, correlationID);
 
         kafkaProducer.sendPartnerApproved(new PartnerApprovedEvent(
                 saved.getId(),
@@ -210,10 +217,15 @@ public class PartnerService {
     @Transactional
     public Partner reject(UUID id, PartnerReviewDTO dto, String reviewedBy) {
         logger.info("Reprovando parceiro {}", id);
+        UUID correlationID = getCorrelationIdFromRequest(logger);
+        UUID userId = SecurityUtils.getCurrentUserId().orElse(null);
 
         Partner partner = repository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        Constants.PARCEIRO_NOT_FOUND + Constants._ID + id));
+                .orElseThrow(() -> {
+                    sendAuditEvent(Constants.PARCEIRO_REJECT, userId, null, Constants.ERROR, "{\"error\": \"Parceiro não encontrado\"}", correlationID);
+                    return new ResponseStatusException(HttpStatus.NOT_FOUND,
+                            Constants.PARCEIRO_NOT_FOUND + Constants._ID + id);
+                });
 
         if (!Constants.STATUS_PENDENTE.equals(partner.getStatus())) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT,
@@ -228,12 +240,15 @@ public class PartnerService {
         partner.setUpdatedAt(now);
         partner.setUpdatedBy(reviewedBy);
 
-        return repository.save(partner);
+        Partner saved = repository.save(partner);
+        sendAuditEvent(Constants.PARCEIRO_REJECT, userId, saved.getId(), Constants.SUCCESS, null, correlationID);
+        return saved;
     }
 
     @Transactional
     public PartnerReferral enviarConvite(UUID partnerId, ConviteRequestDTO dto) {
         logger.info("Enviando convite para CNPJ {} pelo parceiro {}", dto.cnpj(), partnerId);
+        UUID correlationID = getCorrelationIdFromRequest(logger);
 
         Partner partner = repository.findById(partnerId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, Constants.PARCEIRO_NOT_FOUND));
@@ -245,6 +260,8 @@ public class PartnerService {
 
         if (referralRepository.existsByPartner_IdAndCnpjAndStatusIn(
                 partnerId, dto.cnpj(), List.of("CONVIDADO", "ATIVADO"))) {
+            sendAuditEvent(Constants.CONVITE_SEND, partnerId, null, Constants.ERROR,
+                    "{\"error\": \"Convite ativo já existe\", \"cnpj\": \"" + dto.cnpj() + "\"}", correlationID);
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Já existe um convite ativo para o CNPJ: " + dto.cnpj());
         }
@@ -255,10 +272,13 @@ public class PartnerService {
         referral.setCnpj(dto.cnpj());
         referral.setRazaoSocial(dto.razaoSocial());
         referral.setEmailContato(dto.emailContato());
+        referral.setPlanoSugerido(dto.planoSugerido());
         referral.setStatus("CONVIDADO");
         referral.setInvitedAt(now);
         referral.setFollowupAttempts(0);
         PartnerReferral saved = referralRepository.save(referral);
+        sendAuditEvent(Constants.CONVITE_SEND, partnerId, saved.getId(), Constants.SUCCESS,
+                "{\"cnpj\": \"" + dto.cnpj() + "\", \"plano\": \"" + dto.planoSugerido() + "\"}", correlationID);
 
         kafkaProducer.sendInviteRequested(new PartnerInviteRequestedEvent(
                 saved.getId(),
@@ -289,16 +309,23 @@ public class PartnerService {
                         r.getStatus(),
                         r.getFollowupAttempts(),
                         r.getInvitedAt(),
-                        r.getTokenExpiresAt()
+                        r.getTokenExpiresAt(),
+                        r.getPlanoSugerido(),
+                        r.getTrialStartedAt(),
+                        r.getTrialExpiresAt()
                 ));
     }
 
     @Transactional
     public PartnerReferral reenviarConvite(UUID referralId, UUID partnerId) {
         logger.info("Reenviando convite referralId={} pelo parceiro {}", referralId, partnerId);
+        UUID correlationID = getCorrelationIdFromRequest(logger);
 
         PartnerReferral referral = referralRepository.findByIdAndPartner_Id(referralId, partnerId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Convite não encontrado"));
+                .orElseThrow(() -> {
+                    sendAuditEvent(Constants.CONVITE_RESEND, partnerId, referralId, Constants.ERROR, "{\"error\": \"Convite não encontrado\"}", correlationID);
+                    return new ResponseStatusException(HttpStatus.NOT_FOUND, "Convite não encontrado");
+                });
 
         if (!"CONVIDADO".equals(referral.getStatus())) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT,
@@ -316,6 +343,7 @@ public class PartnerService {
         referral.setActivationToken(null);
         referral.setTokenExpiresAt(null);
         PartnerReferral saved = referralRepository.save(referral);
+        sendAuditEvent(Constants.CONVITE_RESEND, partnerId, saved.getId(), Constants.SUCCESS, null, correlationID);
 
         Partner partner = saved.getPartner();
         kafkaProducer.sendInviteRequested(new PartnerInviteRequestedEvent(

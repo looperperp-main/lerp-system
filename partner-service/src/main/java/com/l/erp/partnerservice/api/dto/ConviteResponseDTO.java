@@ -11,5 +11,8 @@ public record ConviteResponseDTO(
         String status,
         Integer followupAttempts,
         OffsetDateTime invitedAt,
-        OffsetDateTime tokenExpiresAt
+        OffsetDateTime tokenExpiresAt,
+        String planoSugerido,
+        OffsetDateTime trialStartedAt,
+        OffsetDateTime trialExpiresAt
 ) {}

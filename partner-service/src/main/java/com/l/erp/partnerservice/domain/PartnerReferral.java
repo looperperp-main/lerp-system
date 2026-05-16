@@ -53,8 +53,8 @@ public class PartnerReferral {
     @Column(name = "invited_at", nullable = false)
     private OffsetDateTime invitedAt;
 
-    @Size(max = 255)
-    @Column(name = "activation_token")
+    @Size(max = 512)
+    @Column(name = "activation_token", length = 512)
     private String activationToken;
 
     @Column(name = "token_expires_at")
@@ -72,4 +72,14 @@ public class PartnerReferral {
     @ColumnDefault("0")
     @Column(name = "followup_attempts")
     private Integer followupAttempts;
+
+    @Size(max = 50)
+    @Column(name = "plano_sugerido", length = 50)
+    private String planoSugerido;
+
+    @Column(name = "trial_started_at")
+    private OffsetDateTime trialStartedAt;
+
+    @Column(name = "trial_expires_at")
+    private OffsetDateTime trialExpiresAt;
 }

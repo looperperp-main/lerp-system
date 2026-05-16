@@ -1,8 +1,11 @@
 package com.l.erp.authservice.infra;
 
+import com.auth0.jwt.interfaces.DecodedJWT;
+import com.l.erp.authservice.api.dto.AtivarContaRequest;
 import com.l.erp.authservice.api.dto.LoginResponse;
 import com.l.erp.authservice.api.dto.RefreshResponse;
 import com.l.erp.authservice.api.dto.TenantLoginResponse;
+import com.l.erp.authservice.dominio.enumerators.EnumTenantStatus;
 import com.l.erp.authservice.api.mappers.AuthMapper;
 import com.l.erp.authservice.dominio.RefreshToken;
 import com.l.erp.authservice.dominio.Tenant;
@@ -14,16 +17,21 @@ import com.l.erp.authservice.repositorios.TenantRepository;
 import com.l.erp.authservice.repositorios.UserAccountRepository;
 import com.l.erp.authservice.repositorios.UserRoleRepository;
 import com.l.erp.authservice.services.audit.AuditService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.l.erp.authservice.util.Constants;
+import com.l.erp.authservice.util.PasswordValidatorUtil;
+import org.springframework.kafka.core.KafkaTemplate;
 import com.l.erp.common.exception.custom.UserLockedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 
@@ -43,6 +51,9 @@ public class AuthService {
     private final UserRoleRepository userRoleRepository;
     private final RolePermissionRepository rolePermissionRepository;
     private final AuditService auditService;
+    private final PasswordValidatorUtil passwordValidatorUtil;
+    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final ObjectMapper objectMapper;
 
     public AuthService(UserAccountRepository userRepo,
                        OwnerMarkerRepository ownerRepo,
@@ -53,7 +64,10 @@ public class AuthService {
                        AuthMapper authMapper,
                        UserRoleRepository userRoleRepository,
                        RolePermissionRepository rolePermissionRepository,
-                       AuditService auditService) {
+                       AuditService auditService,
+                       PasswordValidatorUtil passwordValidatorUtil,
+                       KafkaTemplate<String, String> kafkaTemplate,
+                       ObjectMapper objectMapper) {
         this.userRepo = userRepo;
         this.ownerRepo = ownerRepo;
         this.tenantRepository = tenantRepository;
@@ -64,6 +78,9 @@ public class AuthService {
         this.userRoleRepository = userRoleRepository;
         this.rolePermissionRepository = rolePermissionRepository;
         this.auditService = auditService;
+        this.passwordValidatorUtil = passwordValidatorUtil;
+        this.kafkaTemplate = kafkaTemplate;
+        this.objectMapper = objectMapper;
     }
 
     public LoginResponse loginPartner(String email, String password) {
@@ -165,7 +182,7 @@ public class AuthService {
                 });
 
         // 2. Verificar se o tenant está ativo
-        if (!Constants.ATIVO.equalsIgnoreCase(tenant.getStatus().getDescription())) {
+        if (!Constants.ATIVO.equalsIgnoreCase(tenant.getStatus().getDescription()) && !Constants.TRIAL.equalsIgnoreCase(tenant.getStatus().getDescription())) {
             logger.warn("Tentativa de login em tenant inativo - CNPJ: {}, Status: {}", cnpj, tenant.getStatus());
             throw new ResponseStatusException(UNAUTHORIZED, Constants.TENANT_NOT_ACTIVE);
         }
@@ -323,6 +340,75 @@ public class AuthService {
             user.setFailedLoginAttempts(0);
             user.setLockedUntil(null);
             userRepo.save(user);
+        }
+    }
+
+    @Transactional
+    public void ativarConta(AtivarContaRequest req) {
+        if (!req.senha().equals(req.confirmacaoSenha())) {
+            throw new ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Senhas não conferem");
+        }
+
+        DecodedJWT decoded;
+        try {
+            decoded = tokenService.validateInvitationToken(req.token());
+        } catch (RuntimeException e) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT, "Token inválido ou expirado");
+        }
+
+        Long tenantId = Long.valueOf(decoded.getSubject());
+        Tenant tenant = tenantRepository.findById(tenantId)
+                .orElseThrow(() -> new ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Empresa não encontrada"));
+
+        if (tenant.getStatus() != EnumTenantStatus.CONVIDADO) {
+            throw new ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT, "Conta já ativada");
+        }
+
+        if (userRepo.findByEmailAndTenantId(tenant.getEmail(), tenantId).isPresent()) {
+            throw new ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT, "Conta já ativada");
+        }
+
+        String emailDecoded = decoded.getClaim("email").asString();
+        String displayName = emailDecoded != null
+                ? emailDecoded.split("@")[0]
+                : tenant.getEmail().split("@")[0];
+
+        passwordValidatorUtil.validatePassword(req.senha(), tenant.getName());
+
+        UserAccount user = new UserAccount();
+        user.setTenant(tenant);
+        user.setEmail(tenant.getEmail());
+        user.setDisplayName(displayName);
+        user.setPasswordHash(passwordEncoder.encode(req.senha()));
+        user.setUserType("TENANT_OWNER");
+        user.setActive(true);
+        user.setFailedLoginAttempts(0);
+        user.setCreatedDate(Instant.now());
+        user.setCreatedBy("self-activation");
+        userRepo.save(user);
+
+        Instant trialStartedAt = Instant.now();
+        Instant trialExpiresAt = trialStartedAt.plus(15, ChronoUnit.DAYS);
+
+        tenant.setStatus(EnumTenantStatus.TRIAL);
+        tenantRepository.save(tenant);
+
+        String referralId = decoded.getClaim("referralId").asString();
+        publishTenantActivated(tenant.getId(), referralId, trialStartedAt, trialExpiresAt);
+
+        logger.info("Conta ativada (TRIAL) para tenant {} ({}), trial expira em {}", tenant.getId(), tenant.getEmail(), trialExpiresAt);
+    }
+
+    private void publishTenantActivated(Long tenantId, String referralId, Instant trialStartedAt, Instant trialExpiresAt) {
+        try {
+            java.util.Map<String, Object> event = new java.util.HashMap<>();
+            event.put("tenantId", tenantId);
+            event.put("referralId", referralId);
+            event.put("trialStartedAt", trialStartedAt.toString());
+            event.put("trialExpiresAt", trialExpiresAt.toString());
+            kafkaTemplate.send("partner.tenant.activated", referralId, objectMapper.writeValueAsString(event));
+        } catch (Exception e) {
+            logger.error("Falha ao publicar partner.tenant.activated para tenant {}", tenantId, e);
         }
     }
 }
