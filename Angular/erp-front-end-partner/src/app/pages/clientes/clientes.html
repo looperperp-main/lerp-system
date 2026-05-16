@@ -155,7 +155,15 @@
           </tr>
         }
 
-        @if (clientes().length === 0) {
+        @if (carregando()) {
+          <tr>
+            <td colspan="6" class="table__empty">Carregando clientes...</td>
+          </tr>
+        } @else if (erro()) {
+          <tr>
+            <td colspan="6" class="table__empty table__empty--erro">{{ erro() }}</td>
+          </tr>
+        } @else if (clientes().length === 0) {
           <tr>
             <td colspan="6" class="table__empty">Nenhum cliente encontrado.</td>
           </tr>

@@ -1,13 +1,14 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CadastrarClienteModalService } from '../../services/cadastrar-cliente-modal.service';
+import { ConviteService, ConviteDTO } from '../../services/convite.service';
 
 export type ClienteStatus = 'ATIVO' | 'TRIAL' | 'CONVIDADO' | 'PERDIDO';
 export type ClientePlano = 'Anual' | 'Mensal' | null;
 export type ClienteAcao = 'documento' | 'atividade' | 'mensagem' | 'email' | 'reengajar';
 
 export interface Cliente {
-  id: number;
+  id: string;
   nome: string;
   cnpj: string;
   status: ClienteStatus;
@@ -17,78 +18,19 @@ export interface Cliente {
   acoes: ClienteAcao[];
 }
 
-const MOCK_CLIENTES: Cliente[] = [
-  {
-    id: 1,
-    nome: 'Padaria Vila Nova',
-    cnpj: '12.345.678/0001-90',
-    status: 'ATIVO',
-    engajamento: 88,
-    trialExpira: null,
-    plano: 'Anual',
-    acoes: ['documento'],
-  },
-  {
-    id: 2,
-    nome: 'Auto Peças Sul',
-    cnpj: '23.456.789/0001-12',
-    status: 'TRIAL',
-    engajamento: 18,
-    trialExpira: '03/05/26',
-    plano: null,
-    acoes: ['atividade', 'mensagem'],
-  },
-  {
-    id: 3,
-    nome: 'Mercado Bom Preço',
-    cnpj: '18.234.567/0001-43',
-    status: 'TRIAL',
-    engajamento: 52,
-    trialExpira: '06/05/26',
-    plano: null,
-    acoes: ['mensagem'],
-  },
-  {
-    id: 4,
-    nome: 'Restaurante Sabor & Cia',
-    cnpj: '45.678.901/0001-22',
-    status: 'CONVIDADO',
-    engajamento: null,
-    trialExpira: null,
-    plano: null,
-    acoes: ['email'],
-  },
-  {
-    id: 5,
-    nome: 'Pet Shop Amigo Fiel',
-    cnpj: '31.987.654/0001-09',
-    status: 'TRIAL',
-    engajamento: 74,
-    trialExpira: '10/05/26',
-    plano: null,
-    acoes: ['mensagem'],
-  },
-  {
-    id: 6,
-    nome: 'Salão Beleza Pura',
-    cnpj: '52.111.222/0001-33',
-    status: 'ATIVO',
-    engajamento: 65,
-    trialExpira: null,
-    plano: 'Mensal',
-    acoes: ['documento'],
-  },
-  {
-    id: 7,
-    nome: 'Loja do Tio Zé',
-    cnpj: '67.333.444/0001-55',
-    status: 'PERDIDO',
-    engajamento: 8,
-    trialExpira: null,
-    plano: null,
-    acoes: ['reengajar'],
-  },
-];
+const STATUS_MAP: Record<ConviteDTO['status'], ClienteStatus> = {
+  CONVIDADO: 'CONVIDADO',
+  ATIVADO: 'ATIVO',
+  CONVERTIDO: 'ATIVO',
+  PERDIDO: 'PERDIDO',
+};
+
+const ACOES_MAP: Record<ConviteDTO['status'], ClienteAcao[]> = {
+  CONVIDADO: ['email'],
+  ATIVADO: ['documento', 'mensagem'],
+  CONVERTIDO: ['documento'],
+  PERDIDO: ['reengajar'],
+};
 
 @Component({
   selector: 'app-clientes',
@@ -96,18 +38,25 @@ const MOCK_CLIENTES: Cliente[] = [
   templateUrl: './clientes.html',
   styleUrl: './clientes.scss',
 })
-export class Clientes {
+export class Clientes implements OnInit {
   readonly cadastrarModal = inject(CadastrarClienteModalService);
+  private readonly conviteService = inject(ConviteService);
+
   readonly busca = signal('');
   readonly statusFiltro = signal<ClienteStatus | 'TODOS'>('TODOS');
   readonly engajamentoFiltro = signal<'TODOS' | 'ALTO' | 'MEDIO' | 'BAIXO'>('TODOS');
+
+  private readonly todosClientes = signal<Cliente[]>([]);
+  readonly carregando = signal(false);
+  readonly erro = signal('');
+  totalClientes = 0;
 
   readonly clientes = computed(() => {
     const busca = this.busca().toLowerCase();
     const status = this.statusFiltro();
     const eng = this.engajamentoFiltro();
 
-    return MOCK_CLIENTES.filter(c => {
+    return this.todosClientes().filter(c => {
       const matchBusca = !busca || c.nome.toLowerCase().includes(busca) || c.cnpj.includes(busca);
       const matchStatus = status === 'TODOS' || c.status === status;
       const matchEng =
@@ -119,7 +68,25 @@ export class Clientes {
     });
   });
 
-  readonly totalClientes = MOCK_CLIENTES.length;
+  ngOnInit(): void {
+    this.carregar();
+  }
+
+  carregar(): void {
+    this.carregando.set(true);
+    this.erro.set('');
+    this.conviteService.listar().subscribe({
+      next: page => {
+        this.todosClientes.set(page.content.map(c => this.mapear(c)));
+        this.totalClientes = page.totalElements;
+        this.carregando.set(false);
+      },
+      error: () => {
+        this.erro.set('Erro ao carregar clientes. Tente novamente.');
+        this.carregando.set(false);
+      },
+    });
+  }
 
   engajamentoCor(v: number | null): 'verde' | 'amarelo' | 'vermelho' {
     if (v === null) return 'vermelho';
@@ -129,6 +96,39 @@ export class Clientes {
   }
 
   trialUrgente(data: string | null): boolean {
-    return data !== null;
+    if (!data) return false;
+    const [d, m, y] = data.split('/').map(Number);
+    const expira = new Date(2000 + y, m - 1, d);
+    const diff = (expira.getTime() - Date.now()) / 86_400_000;
+    return diff <= 7;
+  }
+
+  private mapear(c: ConviteDTO): Cliente {
+    return {
+      id: c.referralId,
+      nome: c.razaoSocial,
+      cnpj: this.formatarCnpj(c.cnpj),
+      status: STATUS_MAP[c.status],
+      engajamento: null,
+      trialExpira: c.status === 'CONVIDADO' && c.tokenExpiresAt
+        ? this.formatarData(c.tokenExpiresAt)
+        : null,
+      plano: null,
+      acoes: ACOES_MAP[c.status],
+    };
+  }
+
+  private formatarCnpj(cnpj: string): string {
+    const d = cnpj.replaceAll(/\D/g, '');
+    if (d.length !== 14) return cnpj;
+    return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`;
+  }
+
+  private formatarData(iso: string): string {
+    const d = new Date(iso);
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yy = String(d.getFullYear()).slice(2);
+    return `${dd}/${mm}/${yy}`;
   }
 }
