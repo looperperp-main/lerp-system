@@ -3,7 +3,6 @@ package com.l.erp.authservice;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.l.erp.authservice.api.controllers.RoleController;
 import com.l.erp.authservice.api.dto.CurrentUser;
-import com.l.erp.authservice.api.dto.PermissionDTO;
 import com.l.erp.authservice.api.dto.RoleDTO;
 import com.l.erp.authservice.api.dto.RolePermissionRequestDTO;
 import com.l.erp.authservice.api.dto.lists.RoleSearchFilterDTO;

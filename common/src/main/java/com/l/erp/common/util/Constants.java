@@ -162,6 +162,7 @@ public class Constants {
     public static final String FORNECEDORES_UPDATE = FORNECEDORES +"_" + UPDATE;
     public static final String FORNECEDORES_NOT_FOUND = "Fornecedor não encontrado!";
     public static final String FORNECEDORES_ALREADY_EXISTS = "Já existe um Fornecedor com este nome";
+    public static final String FORNECEDORES_NOT_FOUND_ID = "Fornecedor não encontrado - id: ";
 
     public static final String TRANSPORTADORA = "TRANSPORTADORA";
     public static final String TRANSPORTADORA_CREATION = TRANSPORTADORA + "_" + INSERT;
@@ -193,19 +194,33 @@ public class Constants {
     public static final String PLAN_NOT_FOUND = "Plano não encontrado!";
     public static final String PLAN_ALREADY_EXISTS = "Já existe um Plano com este nome";
 
+    //STATUS
+
+    public static final String TRIAL = "TRIAL";
+    public static final String CONVIDADO = "CONVIDADO";
+    public static final String FOLLOWUP = "FOLLOWUP";
+    public static final String ATIVADO = "ATIVADO";
+    public static final String CONVERTIDO = "CONVERTIDO";
+    public static final String PERDIDO = "PERDIDO";
+    public static final String IGNORADO = "IGNORADO";
+
     //Parceiros
     public static final String PARCEIRO = "PARCEIRO";
     public static final String PARCEIRO_CREATION = PARCEIRO + "_" + INSERT;
     public static final String PARCEIRO_UPDATE = PARCEIRO +"_" + UPDATE;
     public static final String PARCEIRO_DELETE = PARCEIRO +"_" + DELETE;
     public static final String PARCEIRO_NOT_FOUND = "Parceiro não encontrado!";
+    public static final String PARCEIRO_NOT_FOUND_EM = "{ERROR: Parceiro não encontrado}";
     public static final String PARCEIRO_CNPJ_ALREADY_EXISTS = "CNPJ já cadastrado";
     public static final String PARCEIRO_EMAIL_ALREADY_EXISTS = "E-mail já cadastrado";
     public static final String PARCEIRO_INACTIVATE = PARCEIRO + "_INACTIVATE";
     public static final String PARCEIRO_APPROVE = PARCEIRO + "_APPROVE";
     public static final String PARCEIRO_REJECT = PARCEIRO + "_REJECT";
+    public static final String PARCEIRO_ID_NOT_FOUND = "PartnerId não encontrado no token";
+
 
     public static final String CONVITE = "CONVITE";
     public static final String CONVITE_SEND = CONVITE + "_SEND";
     public static final String CONVITE_RESEND = CONVITE + "_RESEND";
+    public static final String CONVITE_NOT_FOUND = "Convite não encontrado";
 }

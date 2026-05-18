@@ -1,5 +1,6 @@
 package com.l.erp.billingservice.services;
 
+import com.l.erp.common.util.Constants;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 import com.l.erp.billingservice.domain.Subscription;
@@ -45,7 +46,7 @@ public class WebhookProcessorService {
             if ("PAYMENT_RECEIVED".equals(event) || "PAYMENT_CONFIRMED".equals(event)) {
                 processPaymentReceived(payload, webhookLog);
             } else {
-                webhookLog.setStatus("IGNORADO");
+                webhookLog.setStatus(Constants.IGNORADO);
                 webhookLog.setProcessedAt(OffsetDateTime.now());
                 webhookLogRepository.save(webhookLog);
                 log.info("Webhook ignorado event={}", event);
@@ -58,14 +59,13 @@ public class WebhookProcessorService {
         }
     }
 
-    @SuppressWarnings("unchecked")
     private void processPaymentReceived(Map<String, Object> payload, WebhookLog webhookLog) {
         // Extrai asaasSubscriptionId (pode estar em payload.subscription.id ou payload.payment.subscription)
         String asaasSubscriptionId = extractSubscriptionId(payload);
         String asaasPaymentId = extractPaymentId(payload);
 
         if (asaasSubscriptionId == null) {
-            webhookLog.setStatus("IGNORADO");
+            webhookLog.setStatus(Constants.IGNORADO);
             webhookLog.setProcessedAt(OffsetDateTime.now());
             webhookLogRepository.save(webhookLog);
             log.warn("PAYMENT_RECEIVED sem campo subscription — ignorado");
@@ -74,7 +74,7 @@ public class WebhookProcessorService {
 
         Optional<Subscription> opt = subscriptionRepository.findByAsaasSubscriptionId(asaasSubscriptionId);
         if (opt.isEmpty()) {
-            webhookLog.setStatus("IGNORADO");
+            webhookLog.setStatus(Constants.IGNORADO);
             webhookLog.setErrorMessage("Subscription não encontrada: " + asaasSubscriptionId);
             webhookLog.setProcessedAt(OffsetDateTime.now());
             webhookLogRepository.save(webhookLog);

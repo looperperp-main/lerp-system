@@ -119,12 +119,11 @@ public class TokenService {
 
     public DecodedJWT validateInvitationToken(String token) {
         try {
-            DecodedJWT decoded = JWT.require(Algorithm.HMAC256(secret))
+            return JWT.require(Algorithm.HMAC256(secret))
                     .withIssuer("L-ERP-auth-service")
                     .withClaim("type", "INVITATION")
                     .build()
                     .verify(token);
-            return decoded;
         } catch (JWTVerificationException e) {
             throw new RuntimeException("Token de ativação inválido ou expirado", e);
         }

@@ -354,7 +354,8 @@ public class AuthService {
         DecodedJWT decoded;
         try {
             decoded = tokenService.validateInvitationToken(req.token());
-        } catch (RuntimeException e) {
+        } catch (RuntimeException error) {
+            logger.error("Error: ", error);
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT, "Token inválido ou expirado");
         }
 

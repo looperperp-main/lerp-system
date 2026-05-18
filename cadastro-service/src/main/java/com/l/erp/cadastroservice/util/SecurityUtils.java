@@ -1,6 +1,7 @@
 package com.l.erp.cadastroservice.util;
 
 import com.l.erp.cadastroservice.api.dto.CurrentUser;
+import com.l.erp.common.util.Constants;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -8,7 +9,6 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
-import com.l.erp.common.util.Constants;
 
 import java.util.Base64;
 import java.util.Optional;
@@ -32,22 +32,28 @@ public final class SecurityUtils {
                 try {
                     String token = authHeader.substring(7);
                     String[] parts = token.split("\\.");
-                    if (parts.length >= 2) {
-                        // O payload é a segunda parte do JWT
-                        String payloadString = new String(Base64.getUrlDecoder().decode(parts[1]));
-                        JsonNode jsonNode = mapper.readTree(payloadString);
-
-                        logger.debug("Payload JWT recebido: {}", payloadString); // Isso ajudará a descobrir os nomes exatos
-
-                        if (jsonNode.has(claimKey) && !jsonNode.get(claimKey).isNull()) {
-                            return Optional.of(jsonNode.get(claimKey).asText());
-                        }
-                    }
+                    Optional<String> jsonNode = getClaimValue(claimKey, parts);
+                    if (jsonNode.isPresent()) return jsonNode;
                 } catch (Exception e) {
                     logger.error("Erro ao ler o JWT no SecurityUtils", e);
                 }
             } else {
                 logger.warn("Header Authorization vazio ou sem Bearer no cadastro-service.");
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static Optional<String> getClaimValue(String claimKey, String[] parts) {
+        if (parts.length >= 2) {
+            // O payload é a segunda parte do JWT
+            String payloadString = new String(Base64.getUrlDecoder().decode(parts[1]));
+            JsonNode jsonNode = mapper.readTree(payloadString);
+
+            logger.debug("Payload JWT recebido: {}", payloadString); // Isso ajudará a descobrir os nomes exatos
+
+            if (jsonNode.has(claimKey) && !jsonNode.get(claimKey).isNull()) {
+                return Optional.of(jsonNode.get(claimKey).asString());
             }
         }
         return Optional.empty();

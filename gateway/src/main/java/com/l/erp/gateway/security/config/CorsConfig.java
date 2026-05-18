@@ -13,18 +13,6 @@ import java.util.List;
 @Configuration
 public class CorsConfig {
 
-//    @Value("${cors.allowed-origins}")
-//    private String allowedOrigins;
-//
-//    @Value("${cors.allowed-methods}")
-//    private String allowedMethods;
-//
-//    @Value("${cors.allowed-headers}")
-//    private String allowedHeaders;
-//
-//    @Value("${cors.allow-credentials}")
-//    private boolean allowCredentials;
-
     @Value("${cors.allowed-origins:http://localhost:4200,http://localhost:4201,http://localhost:4202,https://gushiest-dorris-obsolescently.ngrok-free.dev}")
     private String allowedOrigins;
 

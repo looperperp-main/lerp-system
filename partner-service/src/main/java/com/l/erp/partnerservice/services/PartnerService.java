@@ -1,5 +1,7 @@
 package com.l.erp.partnerservice.services;
 
+import com.l.erp.common.api.dto.AuditEventDTO;
+import com.l.erp.common.util.Constants;
 import com.l.erp.partnerservice.api.dto.AtividadeItemDTO;
 import com.l.erp.partnerservice.api.dto.ClienteDetalheResponseDTO;
 import com.l.erp.partnerservice.api.dto.ComissaoItemDTO;
@@ -7,26 +9,24 @@ import com.l.erp.partnerservice.api.dto.ConviteRequestDTO;
 import com.l.erp.partnerservice.api.dto.ConviteResponseDTO;
 import com.l.erp.partnerservice.api.dto.DashboardResponseDTO;
 import com.l.erp.partnerservice.api.dto.ExtratoComissoesDTO;
+import com.l.erp.partnerservice.api.dto.FeatureStatDTO;
 import com.l.erp.partnerservice.api.dto.FollowupRequestDTO;
 import com.l.erp.partnerservice.api.dto.PartnerRequestDTO;
 import com.l.erp.partnerservice.api.dto.PartnerReviewDTO;
 import com.l.erp.partnerservice.api.dto.TrialUrgenteDTO;
+import com.l.erp.partnerservice.domain.Partner;
+import com.l.erp.partnerservice.domain.PartnerReferral;
 import com.l.erp.partnerservice.infra.billing.BillingClient;
 import com.l.erp.partnerservice.infra.billing.BillingComissaoItemDTO;
 import com.l.erp.partnerservice.infra.billing.BillingExtratoDTO;
-import com.l.erp.partnerservice.domain.TrialEngagement;
-import com.l.erp.partnerservice.infra.kafka.PartnerEmailNotificationEvent;
-import com.l.erp.partnerservice.domain.Partner;
-import com.l.erp.partnerservice.domain.PartnerReferral;
 import com.l.erp.partnerservice.infra.kafka.AuditProducerService;
 import com.l.erp.partnerservice.infra.kafka.KafkaPartnerProducerService;
 import com.l.erp.partnerservice.infra.kafka.PartnerApprovedEvent;
+import com.l.erp.partnerservice.infra.kafka.PartnerEmailNotificationEvent;
 import com.l.erp.partnerservice.infra.kafka.PartnerInviteRequestedEvent;
 import com.l.erp.partnerservice.repository.PartnerReferralRepository;
 import com.l.erp.partnerservice.repository.PartnerRepository;
 import com.l.erp.partnerservice.util.SecurityUtils;
-import com.l.erp.common.api.dto.AuditEventDTO;
-import com.l.erp.common.util.Constants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -138,7 +138,7 @@ public class PartnerService {
 
         Partner partner = repository.findById(id)
                 .orElseThrow(() -> {
-                    sendAuditEvent(Constants.PARCEIRO_UPDATE, userId, null, Constants.ERROR, "{ERROR: Parceiro não encontrado}", correlationID);
+                    sendAuditEvent(Constants.PARCEIRO_UPDATE, userId, null, Constants.ERROR, Constants.PARCEIRO_NOT_FOUND_EM, correlationID);
                     return new ResponseStatusException(HttpStatus.NOT_FOUND,
                             Constants.PARCEIRO_NOT_FOUND + Constants._ID + id);
                 });
@@ -173,7 +173,7 @@ public class PartnerService {
 
         Partner partner = repository.findById(id)
                 .orElseThrow(() -> {
-                    sendAuditEvent(Constants.PARCEIRO_UPDATE, userId, null, Constants.ERROR, "{ERROR: Parceiro não encontrado}", correlationID);
+                    sendAuditEvent(Constants.PARCEIRO_UPDATE, userId, null, Constants.ERROR, Constants.PARCEIRO_NOT_FOUND_EM, correlationID);
                     return new ResponseStatusException(HttpStatus.NOT_FOUND,
                             Constants.PARCEIRO_NOT_FOUND + Constants._ID + id);
                 });
@@ -273,16 +273,16 @@ public class PartnerService {
     public DashboardResponseDTO getDashboard(UUID partnerId) {
         OffsetDateTime now = OffsetDateTime.now();
 
-        long statsConvidados = referralRepository.countByPartner_IdAndStatus(partnerId, "CONVIDADO");
-        long statsTrial      = referralRepository.countByPartner_IdAndStatus(partnerId, "TRIAL");
-        long statsFollowup   = referralRepository.countByPartner_IdAndStatus(partnerId, "FOLLOWUP");
-        long statsAtivos     = referralRepository.countByPartner_IdAndStatusIn(partnerId, List.of("ATIVADO", "CONVERTIDO"));
-        long statsConvertidos = referralRepository.countByPartner_IdAndStatus(partnerId, "CONVERTIDO");
+        long statsConvidados = referralRepository.countByPartner_IdAndStatus(partnerId, Constants.CONVIDADO);
+        long statsTrial      = referralRepository.countByPartner_IdAndStatus(partnerId, Constants.TRIAL);
+        long statsFollowup   = referralRepository.countByPartner_IdAndStatus(partnerId, Constants.FOLLOWUP);
+        long statsAtivos     = referralRepository.countByPartner_IdAndStatusIn(partnerId, List.of(Constants.ATIVADO, Constants.CONVERTIDO));
+        long statsConvertidos = referralRepository.countByPartner_IdAndStatus(partnerId, Constants.CONVERTIDO);
         long trialsExpirando3Dias = referralRepository.countByPartner_IdAndStatusAndTrialExpiresAtBefore(
-                partnerId, "TRIAL", now.plusDays(3));
+                partnerId, Constants.TRIAL, now.plusDays(3));
 
         List<TrialUrgenteDTO> trialsUrgentes = referralRepository
-                .findTop10ByPartner_IdAndStatusOrderByTrialExpiresAtAsc(partnerId, "TRIAL")
+                .findTop10ByPartner_IdAndStatusOrderByTrialExpiresAtAsc(partnerId, Constants.TRIAL)
                 .stream()
                 .map(r -> new TrialUrgenteDTO(
                         r.getId(),
@@ -327,7 +327,7 @@ public class PartnerService {
                 .findByPartner_Id(partnerId, org.springframework.data.domain.Pageable.unpaged())
                 .stream()
                 .filter(r -> r.getTenantId() != null)
-                .collect(Collectors.toMap(PartnerReferral::getTenantId, r -> r, (a, b) -> a));
+                .collect(Collectors.toMap(PartnerReferral::getTenantId, r -> r, (a, _) -> a));
 
         List<ComissaoItemDTO> enriquecidos = raw.historico().stream()
                 .map((BillingComissaoItemDTO item) -> {
@@ -353,10 +353,10 @@ public class PartnerService {
         List<AtividadeItemDTO> items = new ArrayList<>();
 
         referralRepository.findTop10ByPartner_IdOrderByInvitedAtDesc(partnerId)
-                .forEach(r -> items.add(new AtividadeItemDTO("CONVIDADO", r.getRazaoSocial(), r.getInvitedAt())));
+                .forEach(r -> items.add(new AtividadeItemDTO(Constants.CONVIDADO, r.getRazaoSocial(), r.getInvitedAt())));
 
         referralRepository.findTop10ByPartner_IdAndActivatedAtNotNullOrderByActivatedAtDesc(partnerId)
-                .forEach(r -> items.add(new AtividadeItemDTO("ATIVADO", r.getRazaoSocial(), r.getActivatedAt())));
+                .forEach(r -> items.add(new AtividadeItemDTO(Constants.ATIVADO, r.getRazaoSocial(), r.getActivatedAt())));
 
         return items.stream()
                 .sorted(Comparator.comparing(AtividadeItemDTO::timestamp).reversed())
@@ -367,7 +367,7 @@ public class PartnerService {
     @Transactional(readOnly = true)
     public ClienteDetalheResponseDTO getClienteDetalhe(UUID referralId, UUID partnerId) {
         PartnerReferral referral = referralRepository.findByIdAndPartner_Id(referralId, partnerId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Convite não encontrado"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, Constants.CONVITE_NOT_FOUND));
 
         ConviteResponseDTO conviteDTO = new ConviteResponseDTO(
                 referral.getId(), referral.getCnpj(), referral.getRazaoSocial(),
@@ -398,16 +398,16 @@ public class PartnerService {
                 ? engagementService.getAdoptionGaps(referral.getTenantId())
                 : List.of();
 
-        return new ClienteDetalheResponseDTO(conviteDTO, loginCount, lastLoginAt, daysActive, features, gaps);
+        return new ClienteDetalheResponseDTO(conviteDTO, loginCount, lastLoginAt, daysActive, (List<FeatureStatDTO>) features, (List<String>) gaps);
     }
 
     @Transactional
     public void iniciarFollowup(UUID referralId, UUID partnerId, FollowupRequestDTO dto) {
         PartnerReferral referral = referralRepository.findByIdAndPartner_Id(referralId, partnerId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Convite não encontrado"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, Constants.CONVITE_NOT_FOUND));
 
         if (!"FOLLOWUP".equals(referral.getStatus())) {
-            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT,
                     "Follow-up só pode ser iniciado em clientes com status FOLLOWUP. Status atual: " + referral.getStatus());
         }
 
@@ -426,7 +426,7 @@ public class PartnerService {
         referral.setFollowupAttempts(tentativas);
 
         if (tentativas >= 3) {
-            referral.setStatus("PERDIDO");
+            referral.setStatus(Constants.PERDIDO);
             referralRepository.save(referral);
             kafkaProducer.sendEmailNotification(new PartnerEmailNotificationEvent(
                     PartnerEmailNotificationEvent.PERDIDO,
@@ -457,7 +457,7 @@ public class PartnerService {
         }
 
         if (referralRepository.existsByPartner_IdAndCnpjAndStatusIn(
-                partnerId, dto.cnpj(), List.of("CONVIDADO", "ATIVADO"))) {
+                partnerId, dto.cnpj(), List.of(Constants.CONVIDADO, Constants.ATIVADO))) {
             sendAuditEvent(Constants.CONVITE_SEND, partnerId, null, Constants.ERROR,
                     "{\"error\": \"Convite ativo já existe\", \"cnpj\": \"" + dto.cnpj() + "\"}", correlationID);
             throw new ResponseStatusException(HttpStatus.CONFLICT,
@@ -471,7 +471,7 @@ public class PartnerService {
         referral.setRazaoSocial(dto.razaoSocial());
         referral.setEmailContato(dto.emailContato());
         referral.setPlanoSugerido(dto.planoSugerido());
-        referral.setStatus("CONVIDADO");
+        referral.setStatus(Constants.CONVIDADO);
         referral.setInvitedAt(now);
         referral.setFollowupAttempts(0);
         PartnerReferral saved = referralRepository.save(referral);
@@ -522,12 +522,12 @@ public class PartnerService {
         PartnerReferral referral = referralRepository.findByIdAndPartner_Id(referralId, partnerId)
                 .orElseThrow(() -> {
                     sendAuditEvent(Constants.CONVITE_RESEND, partnerId, referralId, Constants.ERROR, "{\"error\": \"Convite não encontrado\"}", correlationID);
-                    return new ResponseStatusException(HttpStatus.NOT_FOUND, "Convite não encontrado");
+                    return new ResponseStatusException(HttpStatus.NOT_FOUND, Constants.CONVITE_NOT_FOUND);
                 });
 
-        if (!"CONVIDADO".equals(referral.getStatus())) {
+        if (!Constants.CONVIDADO.equals(referral.getStatus())) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT,
-                    "Apenas convites CONVIDADO podem ser reenviados. Status atual: " + referral.getStatus());
+                    "Apenas convites "+Constants.CONVIDADO+" podem ser reenviados. Status atual: " + referral.getStatus());
         }
 
         if (referral.getTenantId() == null) {

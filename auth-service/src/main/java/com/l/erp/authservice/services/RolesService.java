@@ -145,7 +145,7 @@ public class RolesService {
         Permission permission = permissionRepository.findById(permissionId)
                 .orElseThrow(() -> new BusinessException("Permissão não encontrada", HttpStatus.BAD_REQUEST));
 
-        Tenant tenant = tenantRepository.findById(tenantId)
+        tenantRepository.findById(tenantId)
                 .orElseThrow(() -> new BusinessException("Tenant não encontrado", HttpStatus.BAD_REQUEST));
 
         // Verifica se a associação já existe através da chave composta

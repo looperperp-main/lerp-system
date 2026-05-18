@@ -13,7 +13,6 @@ public class ObjectMapperConfig {
     public ObjectMapper objectMapper() {
         ObjectMapper mapper = new ObjectMapper();
         // Example configuration: disable writing dates as timestamps
-        //mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         mapper.registerModule(new JavaTimeModule());
         mapper.disable(MapperFeature.REQUIRE_HANDLERS_FOR_JAVA8_TIMES);
         return mapper;

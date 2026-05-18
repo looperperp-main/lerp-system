@@ -85,17 +85,17 @@ public class ProdutoController {
 
     // Mocks para os links HATEOAS
     @GetMapping("/{id}/precos")
-    public ResponseEntity<?> findPrecos(@PathVariable UUID id) {
+    public ResponseEntity<Void> findPrecos(@PathVariable UUID id) {
         return ResponseEntity.ok().build();
     }
 
     @GetMapping("/{id}/fornecedores")
-    public ResponseEntity<?> findFornecedores(@PathVariable UUID id) {
+    public ResponseEntity<Void> findFornecedores(@PathVariable UUID id) {
         return ResponseEntity.ok().build();
     }
 
     @GetMapping("/{id}/estoque-config")
-    public ResponseEntity<?> findEstoqueConfig(@PathVariable UUID id) {
+    public ResponseEntity<Void> findEstoqueConfig(@PathVariable UUID id) {
         return ResponseEntity.ok().build();
     }
 }

@@ -1,6 +1,9 @@
 package com.l.erp.cadastroservice.repository.filter;
 
 public class TenantContext {
+
+    private TenantContext() {}
+
     private static final ThreadLocal<Long> CURRENT_TENANT = new ThreadLocal<>();
 
     public static void setTenantId(Long tenantId) {

@@ -47,7 +47,7 @@ public class FornecedorService {
     @Transactional(readOnly = true)
     public Fornecedor findById(UUID id) {
         return fornecedorRepository.findById(id)
-                .orElseThrow(() -> new BusinessException("Fornecedor não encontrado - id: " + id, HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(Constants.FORNECEDORES_NOT_FOUND + id, HttpStatus.NOT_FOUND));
     }
 
     @Transactional
@@ -67,7 +67,7 @@ public class FornecedorService {
 
         Fornecedor fornecedor = Fornecedor.builder()
                 .pessoa(pessoa)
-                .ativo(dto.ativo() != null ? dto.ativo() : true)
+                .ativo(dto.ativo())
                 .createdAt(Instant.now())
                 .createdBy(userId)
                 .build();
@@ -89,7 +89,7 @@ public class FornecedorService {
         Fornecedor fornecedor = fornecedorRepository.findById(id)
                 .orElseThrow(() -> {
                     sendAuditEvent(Constants.FORNECEDORES_UPDATE, userId, null, Constants.ERROR, "{ERROR: Fornecedor não encontrado}", correlationID);
-                    return new BusinessException("Fornecedor não encontrado - id: " + id, HttpStatus.NOT_FOUND);
+                    return new BusinessException(Constants.FORNECEDORES_NOT_FOUND + id, HttpStatus.NOT_FOUND);
                 });
 
         if (!fornecedor.getPessoa().getId().equals(dto.pessoaId())) {
@@ -102,7 +102,7 @@ public class FornecedorService {
             fornecedor.setPessoa(novaPessoa);
         }
 
-        fornecedor.setAtivo(dto.ativo() != null ? dto.ativo() : fornecedor.getAtivo());
+        fornecedor.setAtivo(dto.ativo());
         fornecedor.setUpdatedAt(Instant.now());
         fornecedor.setLastUpdatedBy(userId);
 
@@ -120,7 +120,7 @@ public class FornecedorService {
         Fornecedor fornecedor = fornecedorRepository.findById(id)
                 .orElseThrow(() -> {
                     sendAuditEvent(Constants.FORNECEDORES_UPDATE, userId, null, Constants.ERROR, "{ERROR: Fornecedor não encontrado}", correlationID);
-                    return new BusinessException("Fornecedor não encontrado - id: " + id, HttpStatus.NOT_FOUND);
+                    return new BusinessException(Constants.FORNECEDORES_NOT_FOUND + id, HttpStatus.NOT_FOUND);
                 });
 
         fornecedor.setAtivo(!fornecedor.getAtivo());
