@@ -1,0 +1,125 @@
+<div class="panel-overlay" (click)="closed.emit()"></div>
+
+<div class="panel">
+
+  @if (carregando()) {
+    <div class="panel-loading">Carregando...</div>
+  } @else if (detalhe(); as d) {
+
+    <!-- Header -->
+    <div class="panel-header">
+      <div class="panel-header__info">
+        <h2 class="panel-nome">{{ d.referral.razaoSocial }}</h2>
+        <span class="panel-cnpj">{{ formatarCnpj(d.referral.cnpj) }}</span>
+        <div class="panel-status-row">
+          <span class="panel-badge" [class]="'panel-badge--' + d.referral.status.toLowerCase()">
+            {{ d.referral.status }}
+          </span>
+          @if (daysLeft() !== null) {
+            <span class="panel-trial-info">
+              · trial {{ daysLeft()! >= 0 ? 'expira em ' + daysLeft() + ' dias' : 'expirado' }}
+            </span>
+          }
+        </div>
+      </div>
+      <button class="panel-close" (click)="closed.emit()">✕</button>
+    </div>
+
+    <!-- Stats -->
+    <div class="panel-stats">
+      <div class="panel-stat">
+        <span class="panel-stat__value">{{ d.loginCount }}</span>
+        <span class="panel-stat__label">LOGINS</span>
+      </div>
+      <div class="panel-stat">
+        <span class="panel-stat__value">{{ d.daysActive }}</span>
+        <span class="panel-stat__label">DIAS ATIVOS</span>
+      </div>
+      <div class="panel-stat">
+        <span class="panel-stat__value">{{ tempoRelativo(d.lastLoginAt) }}</span>
+        <span class="panel-stat__label">ÚLT. ACESSO</span>
+      </div>
+    </div>
+
+    <!-- Features acessadas -->
+    <div class="panel-section">
+      <h3 class="panel-section__title">FEATURES ACESSADAS</h3>
+      <div class="feature-list">
+        @for (f of d.features; track f.featureKey) {
+          <div class="feature-item">
+            <div class="feature-item__top">
+              <span class="feature-dot" [style.background-color]="barColor(f)"></span>
+              <span class="feature-label">{{ f.label }}</span>
+              <span class="feature-count">{{ f.accessCount }}×</span>
+            </div>
+            <div class="feature-bar-track">
+              <div class="feature-bar-fill"
+                   [style.width]="barWidth(f, d.features) + '%'"
+                   [style.background-color]="barColor(f)">
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- GAPs de adoção -->
+    @if (d.adoptionGaps.length > 0) {
+      <div class="panel-gaps">
+        <div class="panel-gaps__header">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="panel-gaps__icon">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <span class="panel-gaps__title">GAPs de adoção</span>
+        </div>
+        <ul class="panel-gaps__list">
+          @for (gap of d.adoptionGaps; track gap) {
+            <li>{{ gap }} — <em>nunca acessado</em></li>
+          }
+        </ul>
+      </div>
+    }
+
+    <!-- Área de follow-up -->
+    @if (enviado()) {
+      <div class="panel-sent">Mensagem enviada com sucesso.</div>
+    }
+
+    @if (followupAberto()) {
+      <div class="panel-followup-form">
+        <textarea
+          class="panel-textarea"
+          [(ngModel)]="followupMensagem"
+          placeholder="Escreva uma mensagem personalizada para o cliente..."
+          rows="4"
+        ></textarea>
+        <div class="panel-followup-form__actions">
+          <button class="panel-btn-cancel" (click)="followupAberto.set(false)">Cancelar</button>
+          <button class="panel-btn-send" (click)="enviarFollowup()" [disabled]="enviando()">
+            {{ enviando() ? 'Enviando...' : 'Enviar e-mail' }}
+          </button>
+        </div>
+      </div>
+    }
+
+    <!-- Footer -->
+    <div class="panel-footer">
+      <button class="panel-btn-followup" (click)="followupAberto.set(true)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+          <polyline points="22,6 12,13 2,6"/>
+        </svg>
+        Iniciar follow-up
+      </button>
+      <button class="panel-btn-resumo" (click)="copiarResumo()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+        </svg>
+        Resumo
+      </button>
+    </div>
+
+  }
+</div>

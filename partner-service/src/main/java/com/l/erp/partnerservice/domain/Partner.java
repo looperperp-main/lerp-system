@@ -66,6 +66,10 @@ public class Partner {
     @Column(name = "asaas_customer_id", length = 50)
     private String asaasCustomerId;
 
+    @Size(max = 100)
+    @Column(name = "pix_key", length = 100)
+    private String pixKey;
+
     @NotNull
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;

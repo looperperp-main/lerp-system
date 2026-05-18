@@ -25,6 +25,8 @@ public class SecurityConfig {
                         .requestMatchers("/auth/**", "/error").permitAll()
                         .requestMatchers("/actuator/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/billing/api/v1/partners").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/billing/api/v1/plans").permitAll()
+                        .requestMatchers("/billing/api/v1/webhooks/asaas").permitAll()
                         .requestMatchers("/partner/api/v1/partners/cnpj/**").permitAll()
                         .anyRequest().authenticated()
                 )

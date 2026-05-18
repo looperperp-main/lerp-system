@@ -186,6 +186,13 @@ public class Constants {
     public static final String PRODUTO_NOT_FOUND = "Produto não encontrado!";
     public static final String PRODUTO_ALREADY_EXISTS = "Já existe um Produto com este nome";
 
+    public static final String PLAN = "PLAN";
+    public static final String PLAN_CREATION = PLAN + "_" + INSERT;
+    public static final String PLAN_UPDATE = PLAN +"_" + UPDATE;
+    public static final String PLAN_DELETE = PLAN +"_" + DELETE;
+    public static final String PLAN_NOT_FOUND = "Plano não encontrado!";
+    public static final String PLAN_ALREADY_EXISTS = "Já existe um Plano com este nome";
+
     //Parceiros
     public static final String PARCEIRO = "PARCEIRO";
     public static final String PARCEIRO_CREATION = PARCEIRO + "_" + INSERT;

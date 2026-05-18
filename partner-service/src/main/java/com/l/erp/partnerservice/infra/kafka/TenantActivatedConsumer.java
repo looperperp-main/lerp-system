@@ -23,10 +23,14 @@ public class TenantActivatedConsumer {
     private static final Logger logger = LoggerFactory.getLogger(TenantActivatedConsumer.class);
 
     private final PartnerReferralRepository referralRepository;
+    private final KafkaPartnerProducerService kafkaProducer;
     private final ObjectMapper objectMapper;
 
-    public TenantActivatedConsumer(PartnerReferralRepository referralRepository, ObjectMapper objectMapper) {
+    public TenantActivatedConsumer(PartnerReferralRepository referralRepository,
+                                   KafkaPartnerProducerService kafkaProducer,
+                                   ObjectMapper objectMapper) {
         this.referralRepository = referralRepository;
+        this.kafkaProducer = kafkaProducer;
         this.objectMapper = objectMapper;
     }
 
@@ -66,10 +70,28 @@ public class TenantActivatedConsumer {
             }
 
             referralRepository.save(referral);
-            logger.info("PartnerReferral {} atualizado: ATIVADO, trial expira em {}", referralId, trialExpiresAtStr);
+            logger.info("PartnerReferral {} atualizado: TRIAL, trial expira em {}", referralId, trialExpiresAtStr);
+
+            notifyPartner(referral);
 
         } catch (Exception e) {
             logger.error("Falha ao processar partner.tenant.activated. Payload: {}", payload, e);
+        }
+    }
+
+    private void notifyPartner(PartnerReferral referral) {
+        try {
+            var partner = referral.getPartner();
+            kafkaProducer.sendEmailNotification(new PartnerEmailNotificationEvent(
+                    PartnerEmailNotificationEvent.CLIENTE_ATIVOU,
+                    partner.getEmail(),
+                    partner.getName(),
+                    referral.getRazaoSocial(),
+                    referral.getCnpj(),
+                    Map.of()
+            ));
+        } catch (Exception e) {
+            logger.error("Falha ao notificar parceiro sobre ativação do referral {}", referral.getId(), e);
         }
     }
 }

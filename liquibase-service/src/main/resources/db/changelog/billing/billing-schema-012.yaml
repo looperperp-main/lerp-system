@@ -1,0 +1,18 @@
+databaseChangeLog:
+  - changeSet:
+      id: billing-012-plan-audit-columns
+      author: vitor
+      changes:
+        - addColumn:
+            schemaName: billing
+            tableName: plan
+            columns:
+              - column:
+                  name: created_by
+                  type: varchar(100)
+              - column:
+                  name: updated_at
+                  type: timestamptz
+              - column:
+                  name: updated_by
+                  type: varchar(100)

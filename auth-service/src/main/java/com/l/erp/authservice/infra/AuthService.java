@@ -222,6 +222,8 @@ public class AuthService {
         auditService.logAuditEventWithActor(Constants.TENANT_LOGIN_SUCCESS, user.getId(), Constants.USER, user.getId(),
                 Constants.SUCCESS, "Login no tenant: " + tenant.getName(), null);
 
+        publishTrialLoginEvent(tenant.getId());
+
         // 8. Buscar permissões do usuário
         List<String> permissions = getPermissions(user.getId());
 
@@ -397,6 +399,16 @@ public class AuthService {
         publishTenantActivated(tenant.getId(), referralId, trialStartedAt, trialExpiresAt);
 
         logger.info("Conta ativada (TRIAL) para tenant {} ({}), trial expira em {}", tenant.getId(), tenant.getEmail(), trialExpiresAt);
+    }
+
+    private void publishTrialLoginEvent(Long tenantId) {
+        try {
+            java.util.Map<String, Object> event = new java.util.HashMap<>();
+            event.put("tenantId", tenantId);
+            kafkaTemplate.send("trial.login", String.valueOf(tenantId), objectMapper.writeValueAsString(event));
+        } catch (Exception e) {
+            logger.error("Falha ao publicar trial.login para tenant {}", tenantId, e);
+        }
     }
 
     private void publishTenantActivated(Long tenantId, String referralId, Instant trialStartedAt, Instant trialExpiresAt) {

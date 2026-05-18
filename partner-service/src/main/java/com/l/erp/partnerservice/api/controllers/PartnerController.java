@@ -1,8 +1,12 @@
 package com.l.erp.partnerservice.api.controllers;
 
+import com.l.erp.partnerservice.api.dto.ClienteDetalheResponseDTO;
 import com.l.erp.partnerservice.api.dto.CnpjConsultaResponseDTO;
 import com.l.erp.partnerservice.api.dto.ConviteRequestDTO;
 import com.l.erp.partnerservice.api.dto.ConviteResponseDTO;
+import com.l.erp.partnerservice.api.dto.DashboardResponseDTO;
+import com.l.erp.partnerservice.api.dto.ExtratoComissoesDTO;
+import com.l.erp.partnerservice.api.dto.FollowupRequestDTO;
 import com.l.erp.partnerservice.api.dto.PartnerRequestDTO;
 import com.l.erp.partnerservice.api.dto.PartnerResponseDTO;
 import com.l.erp.partnerservice.api.dto.PartnerReviewDTO;
@@ -115,6 +119,14 @@ public class PartnerController {
         return ResponseEntity.ok(cnpjService.consultar(cnpj));
     }
 
+    @GetMapping("/me/dashboard")
+    public ResponseEntity<DashboardResponseDTO> getDashboard() {
+        UUID partnerId = SecurityUtils.getPartnerId()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "PartnerId não encontrado no token"));
+        logger.info("Dashboard solicitado pelo parceiro {}", partnerId);
+        return ResponseEntity.ok(service.getDashboard(partnerId));
+    }
+
     @GetMapping("/me")
     public ResponseEntity<PartnerResponseDTO> findMe(@RequestParam String email) {
         logger.info("Buscando parceiro por email");
@@ -144,6 +156,32 @@ public class PartnerController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "PartnerId não encontrado no token"));
         logger.info("Listando convites do parceiro {}", partnerId);
         return ResponseEntity.ok(service.listarConvites(partnerId, pageable));
+    }
+
+    @GetMapping("/me/convites/{referralId}/detalhe")
+    public ResponseEntity<ClienteDetalheResponseDTO> getClienteDetalhe(@PathVariable UUID referralId) {
+        UUID partnerId = SecurityUtils.getPartnerId()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "PartnerId não encontrado no token"));
+        logger.info("Detalhe do cliente referralId={} solicitado pelo parceiro {}", referralId, partnerId);
+        return ResponseEntity.ok(service.getClienteDetalhe(referralId, partnerId));
+    }
+
+    @PostMapping("/me/convites/{referralId}/followup")
+    public ResponseEntity<Void> iniciarFollowup(@PathVariable UUID referralId,
+                                                @RequestBody @Valid FollowupRequestDTO dto) {
+        UUID partnerId = SecurityUtils.getPartnerId()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "PartnerId não encontrado no token"));
+        logger.info("Follow-up iniciado para referralId={} pelo parceiro {}", referralId, partnerId);
+        service.iniciarFollowup(referralId, partnerId, dto);
+        return ResponseEntity.accepted().build();
+    }
+
+    @GetMapping("/me/comissoes")
+    public ResponseEntity<ExtratoComissoesDTO> getComissoes() {
+        UUID partnerId = SecurityUtils.getPartnerId()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "PartnerId não encontrado no token"));
+        logger.info("Extrato de comissões solicitado pelo parceiro {}", partnerId);
+        return ResponseEntity.ok(service.getComissoes(partnerId));
     }
 
     @PostMapping("/me/convites/{referralId}/reenviar")

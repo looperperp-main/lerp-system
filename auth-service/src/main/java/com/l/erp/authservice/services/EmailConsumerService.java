@@ -35,22 +35,46 @@ public class EmailConsumerService {
     @KafkaListener(topics = EmailNotificationService.EMAIL_TOPIC, groupId = "auth-service-group")
     public void consumeEmailEvent(String payload) {
         logger.debug("Recebido evento de email do Kafka: {}", payload);
-
         try {
-            // Desserializa a string JSON recebida do Kafka
             Map<String, String> data = objectMapper.readValue(payload, new TypeReference<>() {});
-
             String toEmail = data.get("email");
             String name = data.get("name");
             String type = data.get("type");
-
             if ("WELCOME".equals(type)) {
                 sendWelcomeEmail(toEmail, name);
             }
-
         } catch (Exception e) {
-            // Em um cenário real, você poderia jogar para uma DLQ (Dead Letter Queue) do Kafka
             logger.error("Falha ao processar ou enviar o e-mail. Payload: {}", payload, e);
+        }
+    }
+
+    @KafkaListener(topics = "partner.email.notification", groupId = "auth-service-group")
+    public void consumePartnerEmailEvent(String payload) {
+        logger.debug("Recebido partner.email.notification: {}", payload);
+        try {
+            Map<String, Object> data = objectMapper.readValue(payload, new TypeReference<>() {});
+            String type        = (String) data.get("type");
+            String to          = (String) data.get("to");
+            String partnerName = (String) data.get("partnerName");
+            String clientName  = (String) data.get("clientName");
+            String clientCnpj  = (String) data.get("clientCnpj");
+
+            @SuppressWarnings("unchecked")
+            Map<String, Object> extra = data.get("extraData") instanceof Map<?,?>
+                    ? (Map<String, Object>) data.get("extraData") : java.util.Collections.emptyMap();
+
+            switch (type) {
+                case "CLIENTE_ATIVOU"        -> sendClienteAtivouEmail(to, partnerName, clientName, clientCnpj);
+                case "TRIAL_EXPIROU"         -> sendTrialExpirouParceiroEmail(to, partnerName, clientName, clientCnpj);
+                case "TRIAL_EXPIROU_CLIENTE" -> sendTrialExpirouClienteEmail(to, clientName);
+                case "FOLLOWUP_MENSAGEM"     -> sendFollowupMensagemEmail(to, clientName, partnerName, (String) extra.get("message"));
+                case "PERDIDO"               -> sendPerdidoEmail(to, partnerName, clientName, clientCnpj);
+                case "RELATORIO_D10"         -> sendRelatorioD10Email(to, partnerName, clientName, clientCnpj, extra);
+                case "CLIENTE_CONVERTEU"     -> sendClienteConverteuEmail(to, partnerName, clientName, clientCnpj, extra);
+                default -> logger.warn("Tipo de e-mail desconhecido: {}", type);
+            }
+        } catch (Exception e) {
+            logger.error("Falha ao processar partner.email.notification. Payload: {}", payload, e);
         }
     }
 
@@ -133,6 +157,197 @@ public class EmailConsumerService {
             logger.info("E-mail de convite enviado para: {}", clientEmail);
         } catch (Exception e) {
             logger.error("Erro ao enviar e-mail de convite para: {}", clientEmail, e);
+        }
+    }
+
+    private void sendClienteAtivouEmail(String to, String partnerName, String clientName, String clientCnpj) {
+        try {
+            MimeMessage msg = mailSender.createMimeMessage();
+            MimeMessageHelper h = new MimeMessageHelper(msg, true, "UTF-8");
+            h.setFrom(FROM_EMAIL, "Equipe ERP");
+            h.setTo(to);
+            h.setSubject("Cliente " + clientName + " ativou a conta — acompanhe o engajamento");
+            h.setText(String.format("""
+                    <html><body style='font-family:Arial,sans-serif;color:#333;line-height:1.6'>
+                    <div style='max-width:600px;margin:0 auto;padding:20px;border:1px solid #ddd;border-radius:8px'>
+                    <h2 style='color:#0056b3'>Olá, %s!</h2>
+                    <p>Boa notícia! O cliente <strong>%s</strong> (CNPJ: %s) ativou a conta e iniciou o período de trial de 15 dias.</p>
+                    <p>Acesse o portal do parceiro para acompanhar o engajamento e garantir a conversão.</p>
+                    <p>Atenciosamente,<br><strong>Equipe ERP</strong></p>
+                    </div></body></html>
+                    """, partnerName, clientName, clientCnpj), true);
+            mailSender.send(msg);
+        } catch (Exception e) {
+            logger.error("Erro ao enviar CLIENTE_ATIVOU para {}", to, e);
+        }
+    }
+
+    private void sendTrialExpirouParceiroEmail(String to, String partnerName, String clientName, String clientCnpj) {
+        try {
+            MimeMessage msg = mailSender.createMimeMessage();
+            MimeMessageHelper h = new MimeMessageHelper(msg, true, "UTF-8");
+            h.setFrom(FROM_EMAIL, "Equipe ERP");
+            h.setTo(to);
+            h.setSubject("Trial de " + clientName + " expirou — inicie o follow-up");
+            h.setText(String.format("""
+                    <html><body style='font-family:Arial,sans-serif;color:#333;line-height:1.6'>
+                    <div style='max-width:600px;margin:0 auto;padding:20px;border:1px solid #ddd;border-radius:8px'>
+                    <h2 style='color:#0056b3'>Olá, %s!</h2>
+                    <p>O período de trial do cliente <strong>%s</strong> (CNPJ: %s) encerrou.</p>
+                    <p>Este é o momento de entrar em contato e apresentar as vantagens de continuar com o plano. Você tem até <strong>3 tentativas de follow-up</strong> registradas no sistema.</p>
+                    <p>Acesse o portal e inicie o follow-up agora.</p>
+                    <p>Atenciosamente,<br><strong>Equipe ERP</strong></p>
+                    </div></body></html>
+                    """, partnerName, clientName, clientCnpj), true);
+            mailSender.send(msg);
+        } catch (Exception e) {
+            logger.error("Erro ao enviar TRIAL_EXPIROU ao parceiro {}", to, e);
+        }
+    }
+
+    private void sendTrialExpirouClienteEmail(String to, String clientName) {
+        try {
+            MimeMessage msg = mailSender.createMimeMessage();
+            MimeMessageHelper h = new MimeMessageHelper(msg, true, "UTF-8");
+            h.setFrom(FROM_EMAIL, "Equipe ERP");
+            h.setTo(to);
+            h.setSubject("Seu período gratuito terminou — escolha um plano");
+            h.setText(String.format("""
+                    <html><body style='font-family:Arial,sans-serif;color:#333;line-height:1.6'>
+                    <div style='max-width:600px;margin:0 auto;padding:20px;border:1px solid #ddd;border-radius:8px'>
+                    <h2 style='color:#0056b3'>Olá, %s!</h2>
+                    <p>Seu período gratuito de 15 dias chegou ao fim. Esperamos que tenha aproveitado o sistema!</p>
+                    <p>Para continuar acessando o ERP, escolha o plano ideal para sua empresa:</p>
+                    <div style='text-align:center;margin:30px 0'>
+                      <a href='%s/planos' style='background:#f97316;color:#fff;padding:14px 28px;border-radius:6px;text-decoration:none;font-size:16px;font-weight:bold'>
+                        Escolher meu plano
+                      </a>
+                    </div>
+                    <p>Seu contador também pode te ajudar nessa escolha.</p>
+                    <p>Atenciosamente,<br><strong>Equipe ERP</strong></p>
+                    </div></body></html>
+                    """, clientName), true);
+            mailSender.send(msg);
+        } catch (Exception e) {
+            logger.error("Erro ao enviar TRIAL_EXPIROU ao cliente {}", to, e);
+        }
+    }
+
+    private void sendFollowupMensagemEmail(String to, String clientName, String partnerName, String message) {
+        try {
+            MimeMessage msg = mailSender.createMimeMessage();
+            MimeMessageHelper h = new MimeMessageHelper(msg, true, "UTF-8");
+            h.setFrom(FROM_EMAIL, "Equipe ERP");
+            h.setTo(to);
+            h.setSubject("Mensagem do seu contador — " + partnerName);
+            h.setText(String.format("""
+                    <html><body style='font-family:Arial,sans-serif;color:#333;line-height:1.6'>
+                    <div style='max-width:600px;margin:0 auto;padding:20px;border:1px solid #ddd;border-radius:8px'>
+                    <h2 style='color:#0056b3'>Olá, %s!</h2>
+                    <p>Seu contador <strong>%s</strong> enviou uma mensagem:</p>
+                    <blockquote style='border-left:4px solid #0056b3;padding:10px 20px;margin:20px 0;background:#f9f9f9'>%s</blockquote>
+                    <p>Atenciosamente,<br><strong>Equipe ERP</strong></p>
+                    </div></body></html>
+                    """, clientName, partnerName, message), true);
+            mailSender.send(msg);
+        } catch (Exception e) {
+            logger.error("Erro ao enviar FOLLOWUP_MENSAGEM para {}", to, e);
+        }
+    }
+
+    private void sendPerdidoEmail(String to, String partnerName, String clientName, String clientCnpj) {
+        try {
+            MimeMessage msg = mailSender.createMimeMessage();
+            MimeMessageHelper h = new MimeMessageHelper(msg, true, "UTF-8");
+            h.setFrom(FROM_EMAIL, "Equipe ERP");
+            h.setTo(to);
+            h.setSubject(clientName + " marcado como PERDIDO após 3 tentativas");
+            h.setText(String.format("""
+                    <html><body style='font-family:Arial,sans-serif;color:#333;line-height:1.6'>
+                    <div style='max-width:600px;margin:0 auto;padding:20px;border:1px solid #ddd;border-radius:8px'>
+                    <h2 style='color:#c00'>Olá, %s!</h2>
+                    <p>Após 3 tentativas de follow-up sem conversão, o cliente <strong>%s</strong> (CNPJ: %s) foi marcado como <strong>PERDIDO</strong> no sistema.</p>
+                    <p>Acesse o portal para ver o histórico completo.</p>
+                    <p>Atenciosamente,<br><strong>Equipe ERP</strong></p>
+                    </div></body></html>
+                    """, partnerName, clientName, clientCnpj), true);
+            mailSender.send(msg);
+        } catch (Exception e) {
+            logger.error("Erro ao enviar PERDIDO para {}", to, e);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void sendRelatorioD10Email(String to, String partnerName, String clientName,
+                                       String clientCnpj, Map<String, Object> extra) {
+        try {
+            int loginCount = extra.get("loginCount") instanceof Number n ? n.intValue() : 0;
+            java.util.List<String> features = extra.get("features") instanceof java.util.List<?> f
+                    ? (java.util.List<String>) f : java.util.Collections.emptyList();
+            java.util.List<String> gaps = extra.get("gaps") instanceof java.util.List<?> g
+                    ? (java.util.List<String>) g : java.util.Collections.emptyList();
+
+            StringBuilder featuresHtml = new StringBuilder();
+            features.forEach(f -> featuresHtml.append("<li>").append(f).append("</li>"));
+
+            StringBuilder gapsHtml = new StringBuilder();
+            gaps.forEach(g -> gapsHtml.append("<li style='color:#c00'>").append(g).append(" — nunca acessado</li>"));
+
+            MimeMessage msg = mailSender.createMimeMessage();
+            MimeMessageHelper h = new MimeMessageHelper(msg, true, "UTF-8");
+            h.setFrom(FROM_EMAIL, "Equipe ERP");
+            h.setTo(to);
+            h.setSubject("Relatório D+10 — Engajamento de " + clientName);
+            h.setText(String.format("""
+                    <html><body style='font-family:Arial,sans-serif;color:#333;line-height:1.6'>
+                    <div style='max-width:600px;margin:0 auto;padding:20px;border:1px solid #ddd;border-radius:8px'>
+                    <h2 style='color:#0056b3'>Relatório D+10 — %s</h2>
+                    <p>Olá, %s! Aqui está o relatório de engajamento de <strong>%s</strong> (CNPJ: %s) após 10 dias de trial.</p>
+                    <p><strong>Logins realizados:</strong> %d</p>
+                    <h3>Features acessadas:</h3><ul>%s</ul>
+                    <h3 style='color:#c00'>GAPs de adoção:</h3><ul>%s</ul>
+                    <p>Use essas informações para guiar o follow-up e aumentar a chance de conversão.</p>
+                    <p>Atenciosamente,<br><strong>Equipe ERP</strong></p>
+                    </div></body></html>
+                    """, clientName, partnerName, clientName, clientCnpj, loginCount,
+                    featuresHtml.toString(), gapsHtml.toString()), true);
+            mailSender.send(msg);
+        } catch (Exception e) {
+            logger.error("Erro ao enviar RELATORIO_D10 para {}", to, e);
+        }
+    }
+
+    private void sendClienteConverteuEmail(String to, String partnerName, String clientName,
+                                            String clientCnpj, Map<String, Object> extra) {
+        try {
+            String planType = extra.getOrDefault("planType", "").toString();
+            String planValue = extra.getOrDefault("planValue", "").toString();
+            String commission = extra.getOrDefault("commissionPreview", "").toString();
+
+            MimeMessage msg = mailSender.createMimeMessage();
+            MimeMessageHelper h = new MimeMessageHelper(msg, true, "UTF-8");
+            h.setFrom(FROM_EMAIL, "Equipe ERP");
+            h.setTo(to);
+            h.setSubject("🎉 " + clientName + " assinou um plano!");
+            h.setText(String.format("""
+                    <html><body style='font-family:Arial,sans-serif;color:#333;line-height:1.6'>
+                    <div style='max-width:600px;margin:0 auto;padding:20px;border:1px solid #ddd;border-radius:8px'>
+                    <h2 style='color:#16a34a'>Parabéns, %s!</h2>
+                    <p>O cliente <strong>%s</strong> (CNPJ: %s) acabou de assinar o plano <strong>%s</strong>.</p>
+                    <table style='border-collapse:collapse;width:100%%'>
+                      <tr><td style='padding:8px 0;color:#555'><strong>Valor do plano:</strong></td>
+                          <td style='padding:8px 0'>R$ %s/mês</td></tr>
+                      <tr><td style='padding:8px 0;color:#555'><strong>Comissão estimada:</strong></td>
+                          <td style='padding:8px 0;font-size:18px;font-weight:bold;color:#16a34a'>R$ %s</td></tr>
+                    </table>
+                    <p style='font-size:12px;color:#6b7280'>A comissão será processada após a confirmação do pagamento pelo Asaas.</p>
+                    <p>Atenciosamente,<br><strong>Equipe ERP</strong></p>
+                    </div></body></html>
+                    """, partnerName, clientName, clientCnpj, planType, planValue, commission), true);
+            mailSender.send(msg);
+            logger.info("E-mail CLIENTE_CONVERTEU enviado para {}", to);
+        } catch (Exception e) {
+            logger.error("Erro ao enviar CLIENTE_CONVERTEU para {}", to, e);
         }
     }
 

@@ -1,0 +1,19 @@
+databaseChangeLog:
+  - changeSet:
+      id: "partner-009-add-pix-key"
+      author: vitor fernandes ferreira
+      comment: "Adiciona chave PIX ao parceiro para repasse automático de comissões via Asaas"
+      changes:
+        - addColumn:
+            schemaName: partner
+            tableName: partner
+            columns:
+              - column:
+                  name: pix_key
+                  type: VARCHAR(100)
+                  remarks: "Chave PIX do parceiro para repasse de comissões (email, CPF/CNPJ, telefone ou chave aleatória)"
+      rollback:
+        - dropColumn:
+            schemaName: partner
+            tableName: partner
+            columnName: pix_key

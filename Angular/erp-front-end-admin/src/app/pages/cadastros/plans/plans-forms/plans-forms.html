@@ -1,0 +1,95 @@
+<p-dialog
+  [(visible)]="visible"
+  [style]="{ width: '480px' }"
+  [header]="editMode ? 'Editar Plano' : 'Novo Plano'"
+  [modal]="true"
+  [closable]="true"
+  (onHide)="hide()">
+
+  <div class="flex flex-col gap-4 pt-2">
+
+    <div class="flex flex-col gap-1">
+      <label class="text-sm font-medium text-gray-700">Nome <span class="text-red-500">*</span></label>
+      <input
+        pInputText
+        [(ngModel)]="form.name"
+        placeholder="Ex: Plano Mensal Básico"
+        class="w-full"
+        [class.ng-invalid]="submitted && !form.name?.trim()"
+        [class.ng-dirty]="submitted" />
+      <small *ngIf="submitted && !form.name?.trim()" class="text-red-500 text-xs">Nome é obrigatório.</small>
+    </div>
+
+    <div class="flex gap-3">
+      <div class="flex flex-col gap-1 flex-1">
+        <label class="text-sm font-medium text-gray-700">Tipo <span class="text-red-500">*</span></label>
+        <p-select
+          [(ngModel)]="form.planType"
+          [options]="planTypeOptions"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Selecione"
+          styleClass="w-full"
+          (onChange)="onPlanTypeChange()">
+        </p-select>
+        <small *ngIf="submitted && !form.planType" class="text-red-500 text-xs">Tipo é obrigatório.</small>
+      </div>
+
+      <div class="flex flex-col gap-1 flex-1">
+        <label class="text-sm font-medium text-gray-700">Ciclo</label>
+        <input
+          pInputText
+          [value]="form.planType === 'ANUAL' ? 'Anual' : 'Mensal'"
+          class="w-full bg-gray-50 text-gray-500"
+          readonly />
+      </div>
+    </div>
+
+    <div class="flex flex-col gap-1">
+      <label class="text-sm font-medium text-gray-700">Valor (R$) <span class="text-red-500">*</span></label>
+      <p-inputNumber
+        [(ngModel)]="form.value"
+        mode="currency"
+        currency="BRL"
+        locale="pt-BR"
+        placeholder="0,00"
+        styleClass="w-full"
+        [inputStyle]="{ width: '100%' }">
+      </p-inputNumber>
+      <small *ngIf="submitted && !form.value" class="text-red-500 text-xs">Valor é obrigatório.</small>
+    </div>
+
+    <div class="flex flex-col gap-1">
+      <label class="text-sm font-medium text-gray-700">
+        Descrição
+        <span class="text-gray-400 font-normal text-xs ml-1">({{ (form.description || '').length }}/500)</span>
+      </label>
+      <textarea
+        pTextarea
+        [(ngModel)]="form.description"
+        [maxlength]="500"
+        rows="3"
+        placeholder="Descreva o plano brevemente..."
+        class="w-full resize-none">
+      </textarea>
+    </div>
+
+  </div>
+
+  <ng-template pTemplate="footer">
+    <button
+      pButton
+      label="Cancelar"
+      icon="pi pi-times"
+      class="p-button-text text-gray-600"
+      (click)="hide()">
+    </button>
+    <button
+      pButton
+      [label]="editMode ? 'Salvar alterações' : 'Criar Plano'"
+      [icon]="editMode ? 'pi pi-check' : 'pi pi-plus'"
+      class="p-button-success"
+      (click)="onSave()">
+    </button>
+  </ng-template>
+</p-dialog>

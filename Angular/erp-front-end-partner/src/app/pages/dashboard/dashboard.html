@@ -1,238 +1,204 @@
 <div class="dashboard">
 
-  <!-- ── Stat Cards ── -->
-  <div class="stats-grid">
+  @if (carregando()) {
+    <div class="loading-state">Carregando dashboard...</div>
+  } @else if (erro()) {
+    <div class="error-state">{{ erro() }}</div>
+  } @else if (dashboard(); as d) {
 
-    <div class="stat-card">
-      <div class="stat-icon stat-icon--blue">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-          <circle cx="9" cy="7" r="4"/>
-          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-        </svg>
-      </div>
-      <div class="stat-body">
-        <span class="stat-label">Clientes Ativos</span>
-        <span class="stat-value">8</span>
-        <span class="stat-change">+3 este mês</span>
-      </div>
-    </div>
+    <!-- ── Stat Cards ── -->
+    <div class="stats-grid">
 
-    <div class="stat-card">
-      <div class="stat-icon stat-icon--orange">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"/>
-          <polyline points="12 6 12 12 16 14"/>
-        </svg>
-      </div>
-      <div class="stat-body">
-        <span class="stat-label">Em Trial</span>
-        <span class="stat-value">4</span>
-        <span class="stat-change">+2 esta semana</span>
-      </div>
-    </div>
-
-    <div class="stat-card">
-      <div class="stat-icon stat-icon--red">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-        </svg>
-      </div>
-      <div class="stat-body">
-        <span class="stat-label">Comissão do Mês</span>
-        <span class="stat-value stat-value--md">R$ 3.140,00</span>
-        <span class="stat-change">+18% vs Março</span>
-      </div>
-    </div>
-
-    <div class="stat-card">
-      <div class="stat-icon stat-icon--green">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-          <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
-          <line x1="3" y1="10" x2="21" y2="10"/>
-        </svg>
-      </div>
-      <div class="stat-body">
-        <span class="stat-label">Próximo Repasse</span>
-        <span class="stat-value stat-value--md">em 12 dias</span>
-        <span class="stat-change">05 / mai · via Pix</span>
-      </div>
-    </div>
-
-  </div>
-
-  <!-- ── Alert Banner ── -->
-  <div class="alert-banner">
-    <div class="alert-banner__left">
-      <svg class="alert-banner__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-        <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-      </svg>
-      <span><strong class="alert-highlight">2 clientes</strong> com trial expirando nos próximos 3 dias</span>
-    </div>
-    <a class="alert-link">Ver clientes →</a>
-  </div>
-
-  <!-- ── Mid Row: Activity + Funnel ── -->
-  <div class="content-row">
-
-    <!-- Atividade recente -->
-    <div class="section-card">
-      <div class="section-header">
-        <h2 class="section-title">Atividade recente</h2>
-        <span class="section-tag">ÚLTIMOS 30 DIAS</span>
-      </div>
-      <div class="activity-list">
-
-        <div class="activity-item">
-          <div class="activity-icon activity-icon--green">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <polyline points="20 6 9 17 4 12"/>
-            </svg>
-          </div>
-          <div class="activity-text">
-            <p class="activity-desc"><strong>Padaria Vila Nova</strong> converteu para o plano Anual</p>
-            <span class="activity-time">há 2 dias</span>
-          </div>
+      <div class="stat-card">
+        <div class="stat-icon stat-icon--blue">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
         </div>
-
-        <div class="activity-item">
-          <div class="activity-icon activity-icon--blue">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-              <circle cx="12" cy="7" r="4"/>
-            </svg>
-          </div>
-          <div class="activity-text">
-            <p class="activity-desc"><strong>Mercado Bom Preço</strong> ativou a conta e iniciou o trial</p>
-            <span class="activity-time">há 4 dias</span>
-          </div>
+        <div class="stat-body">
+          <span class="stat-label">Clientes Ativos</span>
+          <span class="stat-value">{{ d.statsAtivos }}</span>
+          <span class="stat-change">{{ d.statsConvertidos }} convertidos</span>
         </div>
-
-        <div class="activity-item">
-          <div class="activity-icon activity-icon--orange">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <circle cx="12" cy="12" r="10"/>
-              <polyline points="12 6 12 12 16 14"/>
-            </svg>
-          </div>
-          <div class="activity-text">
-            <p class="activity-desc"><strong>Auto Peças Sul</strong> trial expira em 2 dias — engajamento baixo</p>
-            <span class="activity-time">há 5 dias</span>
-          </div>
-        </div>
-
-        <div class="activity-item">
-          <div class="activity-icon activity-icon--gray">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <line x1="12" y1="1" x2="12" y2="23"/>
-              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-            </svg>
-          </div>
-          <div class="activity-text">
-            <p class="activity-desc">Repasse de <strong>R$ 2.660,00</strong> processado para sua conta</p>
-            <span class="activity-time">há 12 dias</span>
-          </div>
-        </div>
-
-        <div class="activity-item">
-          <div class="activity-icon activity-icon--gray">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-              <polyline points="22,6 12,13 2,6"/>
-            </svg>
-          </div>
-          <div class="activity-text">
-            <p class="activity-desc">Convite enviado para <strong>Restaurante Sabor &amp; Cia</strong></p>
-            <span class="activity-time">há 18 dias</span>
-          </div>
-        </div>
-
       </div>
+
+      <div class="stat-card">
+        <div class="stat-icon stat-icon--orange">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+        </div>
+        <div class="stat-body">
+          <span class="stat-label">Em Trial</span>
+          <span class="stat-value">{{ d.statsTrial }}</span>
+          <span class="stat-change">{{ d.statsFollowup }} em follow-up</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon stat-icon--red">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+          </svg>
+        </div>
+        <div class="stat-body">
+          <span class="stat-label">Comissão do Mês</span>
+          <span class="stat-value stat-value--md">{{ formatarMoeda(d.comissaoMesAtual) }}</span>
+          <span class="stat-change">Total pago: {{ formatarMoeda(d.totalComissoesPagas) }}</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon stat-icon--green">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+            <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+            <line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+        </div>
+        <div class="stat-body">
+          <span class="stat-label">Próximo Repasse</span>
+          <span class="stat-value stat-value--md">dia 2 do mês</span>
+          <span class="stat-change">{{ d.statsConvertidos }} clientes convertidos</span>
+        </div>
+      </div>
+
     </div>
 
-    <!-- Funil de conversão -->
-    <div class="section-card">
-      <div class="section-header">
-        <h2 class="section-title">Funil de conversão</h2>
-        <span class="section-tag">90 DIAS</span>
+    <!-- ── Alert Banner ── -->
+    @if (d.trialsExpirando3Dias > 0) {
+      <div class="alert-banner">
+        <div class="alert-banner__left">
+          <svg class="alert-banner__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          <span>
+            <strong class="alert-highlight">{{ d.trialsExpirando3Dias }}
+              {{ d.trialsExpirando3Dias === 1 ? 'cliente' : 'clientes' }}</strong>
+            com trial expirando nos próximos 3 dias
+          </span>
+        </div>
+        <a class="alert-link">Ver clientes →</a>
       </div>
+    }
 
-      <div class="funnel-list">
-        @for (step of funnelSteps; track step.label) {
-          <div class="funnel-step">
-            <div class="funnel-step__header">
-              <span class="funnel-step__label">{{ step.label }}</span>
-              <span class="funnel-step__value">{{ step.value }}</span>
-            </div>
-            <div class="funnel-bar-track">
-              <div class="funnel-bar-fill"
-                   [style.width]="step.pct + '%'"
-                   [style.background-color]="step.color">
+    <!-- ── Mid Row: Activity + Funnel ── -->
+    <div class="content-row">
+
+      <!-- Atividade recente -->
+      <div class="section-card">
+        <div class="section-header">
+          <h2 class="section-title">Atividade recente</h2>
+          <span class="section-tag">ÚLTIMOS 30 DIAS</span>
+        </div>
+        <div class="activity-list">
+          @for (item of d.atividadeRecente; track item.timestamp) {
+            <div class="activity-item">
+              <div class="activity-icon" [class]="'activity-icon--' + atividadeIcon(item.tipo)">
+                @if (item.tipo === 'ATIVADO') {
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                  </svg>
+                } @else {
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                    <polyline points="22,6 12,13 2,6"/>
+                  </svg>
+                }
+              </div>
+              <div class="activity-text">
+                <p class="activity-desc">
+                  <strong>{{ item.razaoSocial }}</strong> {{ atividadeDesc(item) }}
+                </p>
+                <span class="activity-time">{{ tempoRelativo(item.timestamp) }}</span>
               </div>
             </div>
-          </div>
-        }
-      </div>
-
-      <div class="funnel-rate">
-        <div>
-          <span class="funnel-rate__label">Taxa de conversão</span>
-          <div class="funnel-rate__value">53%</div>
+          }
+          @empty {
+            <p class="activity-empty">Nenhuma atividade nos últimos 30 dias.</p>
+          }
         </div>
-        <span class="funnel-rate__detail">8 de 15<br>convidados convertidos</span>
       </div>
-    </div>
 
-  </div>
-
-  <!-- ── Trials Urgentes ── -->
-  <div class="section-card">
-    <div class="section-header">
-      <h2 class="section-title">Trials urgentes</h2>
-      <a class="section-link">Ver todos →</a>
-    </div>
-
-    <table class="trials-table">
-      <thead>
-        <tr>
-          <th class="trials-th">CLIENTE</th>
-          <th class="trials-th">TRIAL EXPIRA</th>
-          <th class="trials-th">ENGAJAMENTO</th>
-          <th class="trials-th"></th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (trial of urgentTrials; track trial.cnpj) {
-          <tr class="trials-row">
-            <td class="trials-td">
-              <div class="trials-client-name">{{ trial.name }}</div>
-              <div class="trials-client-cnpj">{{ trial.cnpj }}</div>
-            </td>
-            <td class="trials-td">
-              <span class="trials-days">em {{ trial.daysLeft }} dias</span>
-            </td>
-            <td class="trials-td">
-              <div class="engagement-wrapper">
-                <div class="engagement-bar-track">
-                  <div class="engagement-bar-fill"
-                       [style.width]="trial.engagement + '%'"
-                       [style.background-color]="engagementColor(trial.engagement)">
-                  </div>
+      <!-- Funil de conversão (mockado) -->
+      <div class="section-card">
+        <div class="section-header">
+          <h2 class="section-title">Funil de conversão</h2>
+          <span class="section-tag">90 DIAS</span>
+        </div>
+        <div class="funnel-list">
+          @for (step of funnelSteps; track step.label) {
+            <div class="funnel-step">
+              <div class="funnel-step__header">
+                <span class="funnel-step__label">{{ step.label }}</span>
+                <span class="funnel-step__value">{{ step.value }}</span>
+              </div>
+              <div class="funnel-bar-track">
+                <div class="funnel-bar-fill"
+                     [style.width]="step.pct + '%'"
+                     [style.background-color]="step.color">
                 </div>
-                <span class="engagement-pct" [style.color]="engagementColor(trial.engagement)">
-                  {{ trial.engagement }}%
-                </span>
               </div>
-            </td>
-            <td class="trials-td trials-td--action">
-              <a class="followup-link">Follow-up →</a>
-            </td>
-          </tr>
-        }
-      </tbody>
-    </table>
-  </div>
+            </div>
+          }
+        </div>
+        <div class="funnel-rate">
+          <div>
+            <span class="funnel-rate__label">Taxa de conversão</span>
+            <div class="funnel-rate__value">53%</div>
+          </div>
+          <span class="funnel-rate__detail">8 de 15<br>convidados convertidos</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── Trials Urgentes ── -->
+    @if (d.trialsUrgentes.length > 0) {
+      <div class="section-card">
+        <div class="section-header">
+          <h2 class="section-title">Trials urgentes</h2>
+          <a class="section-link">Ver todos →</a>
+        </div>
+        <table class="trials-table">
+          <thead>
+            <tr>
+              <th class="trials-th">CLIENTE</th>
+              <th class="trials-th">TRIAL EXPIRA</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (trial of d.trialsUrgentes; track trial.referralId) {
+              <tr class="trials-row">
+                <td class="trials-td">
+                  <div class="trials-client-name">{{ trial.razaoSocial }}</div>
+                  <div class="trials-client-cnpj">{{ formatarCnpj(trial.cnpj) }}</div>
+                </td>
+                <td class="trials-td">
+                  <span class="trials-days" [class.trials-days--urgent]="trial.daysLeft <= 3">
+                    {{ trial.daysLeft >= 0 ? 'em ' + trial.daysLeft + ' dias' : 'expirado' }}
+                  </span>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+  }
+
+  <!-- ── Painel de detalhe / Follow-up ── -->
+  @if (panelOpen() && selectedReferralId()) {
+    <app-cliente-detail-panel
+      [referralId]="selectedReferralId()!"
+      (closed)="fecharPainel()"
+    />
+  }
 
 </div>

@@ -32,11 +32,14 @@ public class SecurityFilter extends OncePerRequestFilter {
     private final Logger log = LoggerFactory.getLogger(SecurityFilter.class);
 
     private static final Set<String> PUBLIC_PATHS = Set.of(
-            "/auth/login", "/auth/tenant/login", "/auth/partner/login", "/auth/refresh", "/auth/logout", "/auth/ativar", "/partner/api/v1/partners/cnpj"
+            "/auth/login", "/auth/tenant/login", "/auth/partner/login", "/auth/refresh", "/auth/logout", "/auth/ativar",
+            "/partner/api/v1/partners/cnpj", "/billing/api/v1/webhooks/asaas"
     );
 
+    // Method-specific exact-match public paths (avoids startsWith subpath leakage)
     private static final Map<String, Set<String>> PUBLIC_METHOD_PATHS = Map.of(
-            "POST", Set.of("/billing/api/v1/partners")
+            "POST", Set.of("/billing/api/v1/partners"),
+            "GET", Set.of("/billing/api/v1/plans")
     );
 
     /**
@@ -235,6 +238,7 @@ public class SecurityFilter extends OncePerRequestFilter {
         } else {
             extraHeaders.put("X-Tenant-Id", tenantId);
             extraHeaders.put("X-Is-Owner", String.valueOf(isOwner));
+            extraHeaders.put("X-User-Id", decodedJWT.getSubject());
         }
         return extraHeaders;
     }
