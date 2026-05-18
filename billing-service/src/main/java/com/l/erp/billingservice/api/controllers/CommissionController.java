@@ -5,6 +5,7 @@ import com.l.erp.billingservice.api.dto.ExtratoComissoesDTO;
 import com.l.erp.billingservice.services.CommissionService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -20,6 +21,14 @@ public class CommissionController {
 
     public CommissionController(CommissionService commissionService) {
         this.commissionService = commissionService;
+    }
+
+    // Trigger manual do cron de repasse — apenas para testes/dev
+    //TODO: Remover ao ir pra PROD
+    @PostMapping("/admin/trigger-repasse")
+    public ResponseEntity<String> triggerRepasse() {
+        commissionService.processarRepasses();
+        return ResponseEntity.ok("Repasse processado manualmente.");
     }
 
     // Endpoint interno — chamado pelo partner-service via HTTP direto (porta 8088)
