@@ -2,7 +2,7 @@ package com.l.erp.authservice.api.mappers;
 
 import com.l.erp.authservice.api.dto.PermissionDTO;
 import com.l.erp.authservice.dominio.Permission;
-import com.l.erp.authservice.util.HtmlSanitizerUtil;
+import com.l.erp.common.util.HtmlSanitizerUtil;
 import org.mapstruct.Mapper;
 
 import java.util.List;

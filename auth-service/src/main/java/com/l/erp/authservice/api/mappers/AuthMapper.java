@@ -5,7 +5,7 @@ import com.l.erp.authservice.api.dto.TenantDTO;
 import com.l.erp.authservice.api.dto.TenantLoginResponse;
 import com.l.erp.authservice.dominio.Tenant;
 import com.l.erp.authservice.dominio.UserAccount;
-import com.l.erp.authservice.util.HtmlSanitizerUtil;
+import com.l.erp.common.util.HtmlSanitizerUtil;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 

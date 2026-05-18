@@ -9,6 +9,7 @@ import com.l.erp.authservice.repositorios.TenantRepository;
 import com.l.erp.authservice.services.audit.AuditService;
 import com.l.erp.authservice.util.Constants;
 import com.l.erp.authservice.util.SecurityUtils;
+import com.l.erp.common.util.HtmlSanitizerUtil;
 import com.l.erp.common.exception.custom.BusinessException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,7 +63,7 @@ public class TenantService {
         Tenant tenantSaved = tenantRepository.save(tenant);
         UUID correlationId = getCorrelationIdFromRequest(logger);
         auditService.logAuditEvent(Constants.TENANT_CREATION, Constants.TENANT, null, Constants.SUCCESS, null,correlationId);
-        return authMapper.toTenantDTO(tenantSaved);
+        return sanitizeDto(authMapper.toTenantDTO(tenantSaved));
 
     }
 
@@ -118,7 +119,8 @@ public class TenantService {
 
                 auditService.logAuditEvent(Constants.TENANT_UPDATE, Constants.TENANT, null, Constants.SUCCESS, null,correlationId);
                 return authMapper.toTenantDTO(saved);
-            }catch (DataIntegrityViolationException e){
+            }catch (DataIntegrityViolationException error){
+                logger.error("error:{}", String.valueOf(error));
                 auditService.logAuditEvent(Constants.TENANT_UPDATE, Constants.TENANT, null, Constants.ERROR, null,correlationId);
                 throw new BusinessException(ENTITY_NAME + " : Registro em duplicidade",BAD_REQUEST);
             }
@@ -126,6 +128,32 @@ public class TenantService {
             auditService.logAuditEvent(Constants.TENANT_UPDATE, Constants.TENANT, null, Constants.ERROR, null,correlationId);
             throw new BusinessException(ENTITY_NAME + " : Não é possível atualizar um Tenant Cancelado",BAD_REQUEST);
         }
+    }
+
+    private TenantDTO sanitizeDto(TenantDTO dto) {
+        return new TenantDTO(
+            dto.id(),
+            HtmlSanitizerUtil.sanitizePlainText(dto.name()),
+            dto.cnpj(),
+            dto.status(),
+            HtmlSanitizerUtil.sanitizePlainText(dto.slug()),
+            HtmlSanitizerUtil.sanitizePlainText(dto.nomeFantasia()),
+            HtmlSanitizerUtil.sanitizePlainText(dto.inscricaoEstadual()),
+            HtmlSanitizerUtil.sanitizePlainText(dto.email()),
+            HtmlSanitizerUtil.sanitizePlainText(dto.telefone()),
+            HtmlSanitizerUtil.sanitizePlainText(dto.logradouro()),
+            HtmlSanitizerUtil.sanitizePlainText(dto.numero()),
+            HtmlSanitizerUtil.sanitizePlainText(dto.complemento()),
+            HtmlSanitizerUtil.sanitizePlainText(dto.bairro()),
+            HtmlSanitizerUtil.sanitizePlainText(dto.cidade()),
+            HtmlSanitizerUtil.sanitizePlainText(dto.uf()),
+            HtmlSanitizerUtil.sanitizePlainText(dto.cep()),
+            HtmlSanitizerUtil.sanitizePlainText(dto.ibgeCodigo()),
+            dto.creationDate(),
+            HtmlSanitizerUtil.sanitizePlainText(dto.createdBy()),
+            dto.updateDate(),
+            HtmlSanitizerUtil.sanitizePlainText(dto.lastUpdatedBy())
+        );
     }
 
     public void updateTenantStatusById(Long tenantId, String status) {

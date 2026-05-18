@@ -1,5 +1,6 @@
 package com.l.erp.authservice.api.dto;
 
+import com.l.erp.common.validation.NoHtml;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -7,6 +8,7 @@ import jakarta.validation.constraints.Size;
 import java.time.Instant;
 
 public record TenantDTO(Long id,
+                        @NoHtml
                         @NotBlank
                         @Size(max = 120)
                         String name,
@@ -16,19 +18,19 @@ public record TenantDTO(Long id,
                         @NotBlank
                         @Pattern(regexp = "ATIVO|PENDENTE|SUSPENSO|CANCELADO")
                         String status,
-                        String slug,
-                        String nomeFantasia,
-                        String inscricaoEstadual,
-                        String email,
-                        String telefone,
-                        String logradouro,
-                        String numero,
-                        String complemento,
-                        String bairro,
-                        String cidade,
-                        String uf,
-                        String cep,
-                        String ibgeCodigo,
+                        @NoHtml String slug,
+                        @NoHtml String nomeFantasia,
+                        @NoHtml String inscricaoEstadual,
+                        @NoHtml String email,
+                        @NoHtml String telefone,
+                        @NoHtml String logradouro,
+                        @NoHtml String numero,
+                        @NoHtml String complemento,
+                        @NoHtml String bairro,
+                        @NoHtml String cidade,
+                        @NoHtml String uf,
+                        @NoHtml String cep,
+                        @NoHtml String ibgeCodigo,
                         Instant creationDate,
                         String createdBy,
                         Instant updateDate,
