@@ -2,6 +2,7 @@ package com.l.erp.authservice.services;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.l.erp.common.util.Constants;
 import jakarta.mail.internet.MimeMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,7 +23,7 @@ public class EmailConsumerService {
 
     // Coloque aqui o e-mail configurado no seu application.yml (spring.mail.username)
     @Value("${spring.mail.username}")
-    private String FROM_EMAIL;
+    private String fromEmail;
 
     @Value("${app.client-portal-url}")
     private String clientPortalUrl;
@@ -42,6 +43,10 @@ public class EmailConsumerService {
             String type = data.get("type");
             if ("WELCOME".equals(type)) {
                 sendWelcomeEmail(toEmail, name);
+            } else if ("BOAS_VINDAS_TRIAL".equals(type)) {
+                String tenantName = data.get("tenantName");
+                String trialExpiresAt = data.get("trialExpiresAt");
+                sendBoasVindasTrialEmail(toEmail, name, tenantName, trialExpiresAt);
             }
         } catch (Exception e) {
             logger.error("Falha ao processar ou enviar o e-mail. Payload: {}", payload, e);
@@ -81,9 +86,9 @@ public class EmailConsumerService {
     public void sendPartnerWelcomeEmail(String name, String email, String referralCode, String tempPassword) {
         try {
             MimeMessage mimeMessage = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, Constants.UTF8);
 
-            helper.setFrom(FROM_EMAIL, "Equipe ERP");
+            helper.setFrom(fromEmail, Constants.EQ_ERP);
             helper.setTo(email);
             helper.setSubject("Bem-vindo como Parceiro! Suas credenciais de acesso");
 
@@ -124,9 +129,9 @@ public class EmailConsumerService {
                                       java.time.OffsetDateTime tokenExpiresAt) {
         try {
             MimeMessage mimeMessage = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, Constants.UTF8);
 
-            helper.setFrom(FROM_EMAIL, "Equipe ERP");
+            helper.setFrom(fromEmail, Constants.EQ_ERP);
             helper.setTo(clientEmail);
             helper.setSubject(partnerName + " te convidou para o ERP — Ative sua conta");
 
@@ -163,8 +168,8 @@ public class EmailConsumerService {
     private void sendClienteAtivouEmail(String to, String partnerName, String clientName, String clientCnpj) {
         try {
             MimeMessage msg = mailSender.createMimeMessage();
-            MimeMessageHelper h = new MimeMessageHelper(msg, true, "UTF-8");
-            h.setFrom(FROM_EMAIL, "Equipe ERP");
+            MimeMessageHelper h = new MimeMessageHelper(msg, true, Constants.UTF8);
+            h.setFrom(fromEmail, Constants.EQ_ERP);
             h.setTo(to);
             h.setSubject("Cliente " + clientName + " ativou a conta — acompanhe o engajamento");
             h.setText(String.format("""
@@ -185,8 +190,8 @@ public class EmailConsumerService {
     private void sendTrialExpirouParceiroEmail(String to, String partnerName, String clientName, String clientCnpj) {
         try {
             MimeMessage msg = mailSender.createMimeMessage();
-            MimeMessageHelper h = new MimeMessageHelper(msg, true, "UTF-8");
-            h.setFrom(FROM_EMAIL, "Equipe ERP");
+            MimeMessageHelper h = new MimeMessageHelper(msg, true, Constants.UTF8);
+            h.setFrom(fromEmail, Constants.EQ_ERP);
             h.setTo(to);
             h.setSubject("Trial de " + clientName + " expirou — inicie o follow-up");
             h.setText(String.format("""
@@ -208,8 +213,8 @@ public class EmailConsumerService {
     private void sendTrialExpirouClienteEmail(String to, String clientName) {
         try {
             MimeMessage msg = mailSender.createMimeMessage();
-            MimeMessageHelper h = new MimeMessageHelper(msg, true, "UTF-8");
-            h.setFrom(FROM_EMAIL, "Equipe ERP");
+            MimeMessageHelper h = new MimeMessageHelper(msg, true, Constants.UTF8);
+            h.setFrom(fromEmail, Constants.EQ_ERP);
             h.setTo(to);
             h.setSubject("Seu período gratuito terminou — escolha um plano");
             h.setText(String.format("""
@@ -236,8 +241,8 @@ public class EmailConsumerService {
     private void sendFollowupMensagemEmail(String to, String clientName, String partnerName, String message) {
         try {
             MimeMessage msg = mailSender.createMimeMessage();
-            MimeMessageHelper h = new MimeMessageHelper(msg, true, "UTF-8");
-            h.setFrom(FROM_EMAIL, "Equipe ERP");
+            MimeMessageHelper h = new MimeMessageHelper(msg, true, Constants.UTF8);
+            h.setFrom(fromEmail, Constants.EQ_ERP);
             h.setTo(to);
             h.setSubject("Mensagem do seu contador — " + partnerName);
             h.setText(String.format("""
@@ -258,8 +263,8 @@ public class EmailConsumerService {
     private void sendPerdidoEmail(String to, String partnerName, String clientName, String clientCnpj) {
         try {
             MimeMessage msg = mailSender.createMimeMessage();
-            MimeMessageHelper h = new MimeMessageHelper(msg, true, "UTF-8");
-            h.setFrom(FROM_EMAIL, "Equipe ERP");
+            MimeMessageHelper h = new MimeMessageHelper(msg, true, Constants.UTF8);
+            h.setFrom(fromEmail, Constants.EQ_ERP);
             h.setTo(to);
             h.setSubject(clientName + " marcado como PERDIDO após 3 tentativas");
             h.setText(String.format("""
@@ -294,8 +299,8 @@ public class EmailConsumerService {
             gaps.forEach(g -> gapsHtml.append("<li style='color:#c00'>").append(g).append(" — nunca acessado</li>"));
 
             MimeMessage msg = mailSender.createMimeMessage();
-            MimeMessageHelper h = new MimeMessageHelper(msg, true, "UTF-8");
-            h.setFrom(FROM_EMAIL, "Equipe ERP");
+            MimeMessageHelper h = new MimeMessageHelper(msg, true, Constants.UTF8);
+            h.setFrom(fromEmail, Constants.EQ_ERP);
             h.setTo(to);
             h.setSubject("Relatório D+10 — Engajamento de " + clientName);
             h.setText(String.format("""
@@ -325,8 +330,8 @@ public class EmailConsumerService {
             String commission = extra.getOrDefault("commissionPreview", "").toString();
 
             MimeMessage msg = mailSender.createMimeMessage();
-            MimeMessageHelper h = new MimeMessageHelper(msg, true, "UTF-8");
-            h.setFrom(FROM_EMAIL, "Equipe ERP");
+            MimeMessageHelper h = new MimeMessageHelper(msg, true, Constants.UTF8);
+            h.setFrom(fromEmail, Constants.EQ_ERP);
             h.setTo(to);
             h.setSubject("🎉 " + clientName + " assinou um plano!");
             h.setText(String.format("""
@@ -351,14 +356,69 @@ public class EmailConsumerService {
         }
     }
 
+    private void sendBoasVindasTrialEmail(String to, String name, String tenantName, String trialExpiresAt) {
+        try {
+            String expiry = trialExpiresAt != null
+                    ? java.time.Instant.parse(trialExpiresAt)
+                            .atZone(java.time.ZoneId.of("America/Sao_Paulo"))
+                            .toLocalDate().toString()
+                    : "15 dias";
+
+            MimeMessage msg = mailSender.createMimeMessage();
+            MimeMessageHelper h = new MimeMessageHelper(msg, true, Constants.UTF8);
+            h.setFrom(fromEmail, "Equipe Syax");
+            h.setTo(to);
+            h.setSubject("Bem-vindo ao Syax! Seu trial de 15 dias começou");
+            h.setText(String.format("""
+                    <html><body style='font-family:Arial,sans-serif;color:#333;line-height:1.6;margin:0;padding:0'>
+                    <div style='max-width:600px;margin:0 auto;padding:32px 20px'>
+                      <h2 style='color:#0056b3;margin-bottom:4px'>Olá, %s!</h2>
+                      <p style='color:#555;margin-top:0'>Conta da empresa <strong>%s</strong> criada com sucesso.</p>
+                      <div style='background:#f0f7ff;border-left:4px solid #0056b3;padding:14px 18px;border-radius:0 6px 6px 0;margin:24px 0'>
+                        <strong style='color:#0056b3'>Trial gratuito ativo até %s</strong><br/>
+                        <span style='font-size:13px;color:#555'>Sem cartão de crédito. Cancele a qualquer momento.</span>
+                      </div>
+                      <h3 style='color:#0056b3'>Primeiros passos</h3>
+                      <ol style='padding-left:20px;color:#444'>
+                        <li style='margin-bottom:8px'>Acesse o sistema com seu e-mail e CNPJ da empresa</li>
+                        <li style='margin-bottom:8px'>Cadastre seus primeiros <strong>clientes e fornecedores</strong></li>
+                        <li style='margin-bottom:8px'>Adicione seus <strong>produtos</strong> e configure o estoque</li>
+                        <li style='margin-bottom:8px'>Emita sua primeira <strong>NF-e</strong></li>
+                        <li style='margin-bottom:8px'>Convide sua equipe com <strong>controle de permissões</strong></li>
+                      </ol>
+                      <h3 style='color:#0056b3'>O que está incluso no trial</h3>
+                      <ul style='padding-left:20px;color:#444'>
+                        <li style='margin-bottom:6px'>Clientes, fornecedores e contatos</li>
+                        <li style='margin-bottom:6px'>Produtos, categorias e controle de estoque</li>
+                        <li style='margin-bottom:6px'>Emissão de NF-e</li>
+                        <li style='margin-bottom:6px'>Multi-usuário com controle de acesso</li>
+                        <li style='margin-bottom:6px'>Suporte por e-mail durante todo o período</li>
+                      </ul>
+                      <div style='text-align:center;margin:32px 0'>
+                        <a href='%s' style='background:#0056b3;color:#fff;padding:14px 32px;border-radius:6px;text-decoration:none;font-size:16px;font-weight:bold'>
+                          Acessar o sistema
+                        </a>
+                      </div>
+                      <hr style='border:none;border-top:1px solid #eee;margin:24px 0'/>
+                      <p style='font-size:13px;color:#888'>Precisa de ajuda? Responda este e-mail ou acesse nossa central de suporte.<br/>
+                      Atenciosamente,<br/><strong>Equipe Syax</strong></p>
+                    </div></body></html>
+                    """, name, tenantName, expiry, clientPortalUrl), true);
+            mailSender.send(msg);
+            logger.info("E-mail BOAS_VINDAS_TRIAL enviado para {}", to);
+        } catch (Exception e) {
+            logger.error("Erro ao enviar BOAS_VINDAS_TRIAL para {}", to, e);
+        }
+    }
+
     private void sendWelcomeEmail(String to, String name) {
         try {
             MimeMessage mimeMessage = mailSender.createMimeMessage();
             // O 'true' indica que é um e-mail multipart/html (suporta anexos e HTML)
-            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, Constants.UTF8);
 
             // Formata o remetente para "Nome Amigável <seu.email@dominio.com>"
-            helper.setFrom(FROM_EMAIL, "Equipe ERP");
+            helper.setFrom(fromEmail, Constants.EQ_ERP);
             helper.setTo(to);
             helper.setSubject("Bem-vindo ao nosso ERP!");
 

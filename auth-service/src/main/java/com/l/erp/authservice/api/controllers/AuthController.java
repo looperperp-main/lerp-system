@@ -3,6 +3,7 @@ package com.l.erp.authservice.api.controllers;
 import com.l.erp.authservice.api.dto.*;
 import com.l.erp.authservice.infra.AuthService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -49,6 +50,11 @@ public class AuthController {
                 request.email(),
                 request.password()
         ));
+    }
+
+    @PostMapping("/criar-conta")
+    public ResponseEntity<TenantLoginResponse> criarContaGratis(@RequestBody @Valid CriarContaGratisRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(authService.criarContaGratis(request));
     }
 
     @PostMapping("/ativar")

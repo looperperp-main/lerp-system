@@ -2,6 +2,7 @@ package com.l.erp.authservice.infra;
 
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.l.erp.authservice.api.dto.AtivarContaRequest;
+import com.l.erp.authservice.api.dto.CriarContaGratisRequest;
 import com.l.erp.authservice.api.dto.LoginResponse;
 import com.l.erp.authservice.api.dto.RefreshResponse;
 import com.l.erp.authservice.api.dto.TenantLoginResponse;
@@ -409,6 +410,77 @@ public class AuthService {
             kafkaTemplate.send("trial.login", String.valueOf(tenantId), objectMapper.writeValueAsString(event));
         } catch (Exception e) {
             logger.error("Falha ao publicar trial.login para tenant {}", tenantId, e);
+        }
+    }
+
+    @Transactional
+    public TenantLoginResponse criarContaGratis(CriarContaGratisRequest req) {
+        String cnpjDigits = req.cnpj().replaceAll("\\D", "");
+
+        if (tenantRepository.findByCnpj(cnpjDigits).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "CNPJ já cadastrado");
+        }
+        if (userRepo.findByEmail(req.email()).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "E-mail já utilizado");
+        }
+
+        passwordValidatorUtil.validatePassword(req.senha(), req.razaoSocial());
+
+        Instant now = Instant.now();
+        Instant trialExpiresAt = now.plus(15, ChronoUnit.DAYS);
+
+        Tenant tenant = new Tenant();
+        tenant.setName(req.razaoSocial());
+        tenant.setCnpj(cnpjDigits);
+        tenant.setNomeFantasia(req.nomeFantasia());
+        tenant.setEmail(req.email());
+        tenant.setTelefone(req.telefone());
+        tenant.setStatus(EnumTenantStatus.TRIAL);
+        tenant.setCreationDate(now);
+        tenant.setCreatedBy("self-registration");
+        tenant.setTrialStartedAt(now);
+        tenant.setTrialExpiresAt(trialExpiresAt);
+        tenant = tenantRepository.save(tenant);
+
+        String displayName = req.email().split("@")[0];
+        UserAccount user = new UserAccount();
+        user.setTenant(tenant);
+        user.setEmail(req.email());
+        user.setDisplayName(displayName);
+        user.setPasswordHash(passwordEncoder.encode(req.senha()));
+        user.setUserType(Constants.TENANT_USER);
+        user.setActive(true);
+        user.setFailedLoginAttempts(0);
+        user.setCreatedDate(now);
+        user.setCreatedBy("self-registration");
+        userRepo.save(user);
+
+        publishBoasVindasTrial(req.email(), displayName, tenant.getName(), trialExpiresAt);
+
+        auditService.logAuditEventWithActor("CRIAR_CONTA_GRATIS", user.getId(), Constants.USER,
+                user.getId(), Constants.SUCCESS, "Auto-cadastro para " + tenant.getName(), null);
+
+        logger.info("Conta grátis criada (TRIAL) para tenant {} ({}), trial expira em {}",
+                tenant.getId(), req.email(), trialExpiresAt);
+
+        List<String> permissions = getPermissions(user.getId());
+        String jwt = tokenService.generateTenantUserToken(user, permissions, tenant);
+        RefreshTokenService.TokenPair tokenPair = refreshTokenService.issue(user, null);
+
+        return authMapper.toTenantLoginResponse(user, jwt, tokenPair.rawToken(), tenant);
+    }
+
+    private void publishBoasVindasTrial(String email, String name, String tenantName, Instant trialExpiresAt) {
+        try {
+            java.util.Map<String, Object> event = new java.util.HashMap<>();
+            event.put("email", email);
+            event.put("name", name);
+            event.put("tenantName", tenantName);
+            event.put("trialExpiresAt", trialExpiresAt.toString());
+            event.put("type", "BOAS_VINDAS_TRIAL");
+            kafkaTemplate.send("user-welcome-email-topic", email, objectMapper.writeValueAsString(event));
+        } catch (Exception e) {
+            logger.error("Falha ao publicar e-mail de boas-vindas trial para {}", email, e);
         }
     }
 

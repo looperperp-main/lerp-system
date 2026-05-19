@@ -32,7 +32,8 @@ public class SecurityFilter extends OncePerRequestFilter {
     private final Logger log = LoggerFactory.getLogger(SecurityFilter.class);
 
     private static final Set<String> PUBLIC_PATHS = Set.of(
-            "/auth/login", "/auth/tenant/login", "/auth/partner/login", "/auth/refresh", "/auth/logout", "/auth/ativar",
+            "/auth/login", "/auth/tenant/login", "/auth/partner/login", "/auth/refresh", "/auth/logout",
+            "/auth/ativar", "/auth/criar-conta",
             "/partner/api/v1/partners/cnpj", "/billing/api/v1/webhooks/asaas"
     );
 

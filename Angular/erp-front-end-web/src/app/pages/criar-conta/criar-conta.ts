@@ -1,6 +1,8 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
 import { CnpjService, CnpjConsulta } from '../../services/cnpj.service';
+import { CriarContaService } from './criar-conta.service';
 
 type CnpjState = 'idle' | 'validando' | 'ativa' | 'inativa' | 'erro';
 
@@ -13,6 +15,7 @@ type CnpjState = 'idle' | 'validando' | 'ativa' | 'inativa' | 'erro';
 })
 export class CriarConta {
   private readonly cnpjService = inject(CnpjService);
+  private readonly criarContaService = inject(CriarContaService);
   private readonly router = inject(Router);
 
   cnpjInput = signal('');
@@ -26,6 +29,9 @@ export class CriarConta {
   cnpjState = signal<CnpjState>('idle');
   consultaResult = signal<CnpjConsulta | null>(null);
   erroMsg = signal('');
+
+  loading = signal(false);
+  erroEnvio = signal('');
 
   readonly senhasDiferentes = computed(
     () => this.confirmSenha().length > 0 && this.senha() !== this.confirmSenha(),
@@ -82,6 +88,35 @@ export class CriarConta {
             ? 'CNPJ não encontrado na Receita Federal.'
             : 'Erro ao consultar Receita Federal. Tente novamente.',
         );
+      },
+    });
+  }
+
+  onSubmit(): void {
+    if (!this.podeEnviar() || this.loading()) return;
+
+    this.loading.set(true);
+    this.erroEnvio.set('');
+
+    const result = this.consultaResult();
+    this.criarContaService.criarConta({
+      cnpj: this.cnpjInput(),
+      razaoSocial: this.razaoSocial(),
+      nomeFantasia: result?.nomeFantasia ?? null,
+      email: this.email().trim(),
+      senha: this.senha(),
+      telefone: result?.telefone ?? null,
+    }).subscribe({
+      next: () => this.router.navigate(['/web']),
+      error: (err: HttpErrorResponse) => {
+        this.loading.set(false);
+        if (err.status === 409) {
+          this.erroEnvio.set(err.error?.message ?? 'CNPJ ou e-mail já cadastrado.');
+        } else if (err.status === 400 && err.error?.message) {
+          this.erroEnvio.set(err.error.message);
+        } else {
+          this.erroEnvio.set('Erro ao criar conta. Tente novamente.');
+        }
       },
     });
   }

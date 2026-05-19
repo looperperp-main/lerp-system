@@ -253,11 +253,27 @@
 
         </div>
 
-        <button class="btn btn-primary btn-full" [disabled]="!podeEnviar()">
-          Criar conta grátis
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-            <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
+        @if (erroEnvio()) {
+          <div class="cnpj-feedback cnpj-feedback--error" style="margin-bottom:12px">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#FF5C5C" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <span>{{ erroEnvio() }}</span>
+          </div>
+        }
+
+        <button class="btn btn-primary btn-full" [disabled]="!podeEnviar() || loading()" (click)="onSubmit()">
+          @if (loading()) {
+            <span class="spinner spinner-xs" aria-hidden="true"></span>
+            Criando conta...
+          } @else {
+            Criar conta grátis
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+              <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          }
         </button>
 
         <p class="form-legal">

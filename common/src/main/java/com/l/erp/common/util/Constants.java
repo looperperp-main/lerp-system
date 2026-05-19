@@ -23,6 +23,9 @@ public class Constants {
     public static final String BLOCKED = "BLOCKED";
     public static final String UNBLOCKED = "UNBLOCKED";
 
+    public static final String UTF8 = "UTF-8";
+    public static final String EQ_ERP = "Equipe Syax";
+
     public static final String SUCCESS = "SUCCESS";
     public static final String ERROR   = "ERROR";
     public static final String FAILED  = "FAILED";

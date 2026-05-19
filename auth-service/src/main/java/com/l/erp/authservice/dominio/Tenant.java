@@ -107,4 +107,10 @@ public class Tenant {
     @Column(name = "ibge_codigo", length = 10)
     private String ibgeCodigo;
 
+    @Column(name = "trial_started_at")
+    private Instant trialStartedAt;
+
+    @Column(name = "trial_expires_at")
+    private Instant trialExpiresAt;
+
 }

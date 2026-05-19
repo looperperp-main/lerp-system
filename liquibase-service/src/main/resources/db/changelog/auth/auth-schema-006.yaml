@@ -1,0 +1,16 @@
+databaseChangeLog:
+
+  - changeSet:
+      id: auth-014-tenant-trial-dates
+      author: vitor-fernandes
+      changes:
+        - addColumn:
+            schemaName: auth
+            tableName: tenant
+            columns:
+              - column:
+                  name: trial_started_at
+                  type: timestamptz
+              - column:
+                  name: trial_expires_at
+                  type: timestamptz
