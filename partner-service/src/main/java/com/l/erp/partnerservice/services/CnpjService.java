@@ -22,16 +22,16 @@ public class CnpjService {
     private final RestClient restClient = RestClient.create();
 
     public CnpjConsultaResponseDTO consultar(String cnpj) {
-        String digits = cnpj.replaceAll("\\D", "");
-        if (digits.length() != 14) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "CNPJ deve conter 14 dígitos");
+        String normalized = cnpj.replaceAll("[.\\-/]", "").toUpperCase();
+        if (normalized.length() != 14) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "CNPJ deve conter 14 caracteres");
         }
 
-        logger.info("Consultando CNPJ {} na OpenCNPJ", digits);
+        logger.info("Consultando CNPJ {} na OpenCNPJ", normalized);
 
         try {
             OpenCnpjRawResponse raw = restClient.get()
-                    .uri(OPEN_CNPJ_URL + digits)
+                    .uri(OPEN_CNPJ_URL + normalized)
                     .retrieve()
                     .body(OpenCnpjRawResponse.class);
 
@@ -49,7 +49,7 @@ public class CnpjService {
             String nomeFantasia = raw.estabelecimento() != null ? raw.estabelecimento().nomeFantasia() : null;
 
             return new CnpjConsultaResponseDTO(
-                    digits,
+                    normalized,
                     raw.razaoSocial(),
                     nomeFantasia,
                     situacao,
