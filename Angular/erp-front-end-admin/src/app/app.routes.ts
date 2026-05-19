@@ -11,6 +11,7 @@ import {RolePermissions} from './pages/admin/security/role-permissions/role-perm
 import {UserRolesComponent} from './pages/admin/security/user-roles/user-roles';
 import {Parceiros} from './pages/cadastros/parceiros/parceiros';
 import {Plans} from './pages/cadastros/plans/plans';
+import {FilaInterna} from './pages/admin/fila-interna/fila-interna';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'login-admin', pathMatch: 'full' },
@@ -33,7 +34,8 @@ export const routes: Routes = [
       { path: 'security/user-roles', component: UserRolesComponent },
       { path: 'parceiros/contadores', component: Parceiros },
       { path: 'cadastros/plans', component: Plans },
-      { path: 'audit', component: Audit}
+      { path: 'audit', component: Audit},
+      { path: 'fila-interna', component: FilaInterna }
     ]
   }
 ];

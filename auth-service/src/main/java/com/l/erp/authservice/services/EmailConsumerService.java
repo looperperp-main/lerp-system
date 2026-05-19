@@ -76,6 +76,7 @@ public class EmailConsumerService {
                 case "PERDIDO"               -> sendPerdidoEmail(to, partnerName, clientName, clientCnpj);
                 case "RELATORIO_D10"         -> sendRelatorioD10Email(to, partnerName, clientName, clientCnpj, extra);
                 case "CLIENTE_CONVERTEU"     -> sendClienteConverteuEmail(to, partnerName, clientName, clientCnpj, extra);
+                case "TICKET_INTERNO_SYAX"   -> sendTicketInternoSyaxEmail(to, clientName, clientCnpj, extra);
                 default -> logger.warn("Tipo de e-mail desconhecido: {}", type);
             }
         } catch (Exception e) {
@@ -353,6 +354,61 @@ public class EmailConsumerService {
             logger.info("E-mail CLIENTE_CONVERTEU enviado para {}", to);
         } catch (Exception e) {
             logger.error("Erro ao enviar CLIENTE_CONVERTEU para {}", to, e);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void sendTicketInternoSyaxEmail(String to, String clientName, String clientCnpj, Map<String, Object> extra) {
+        try {
+            String ticketId   = (String) extra.getOrDefault("ticketId", "?");
+            String ticketTipo = (String) extra.getOrDefault("ticketTipo", "?");
+            String adminUrl   = (String) extra.getOrDefault("adminUrl", "");
+            int loginCount    = extra.get("loginCount") instanceof Number n ? n.intValue() : 0;
+
+            java.util.List<String> features = extra.get("features") instanceof java.util.List<?> f
+                    ? (java.util.List<String>) f : java.util.Collections.emptyList();
+            java.util.List<String> gaps = extra.get("gaps") instanceof java.util.List<?> g
+                    ? (java.util.List<String>) g : java.util.Collections.emptyList();
+
+            String tipoLabel = "RELATORIO_D10".equals(ticketTipo) ? "Relatório D+10" : "Trial Expirado";
+
+            StringBuilder featHtml = new StringBuilder();
+            features.forEach(f -> featHtml.append("<li>").append(f).append("</li>"));
+
+            StringBuilder gapsHtml = new StringBuilder();
+            gaps.forEach(g -> gapsHtml.append("<li style='color:#c00'>").append(g).append(" — nunca acessado</li>"));
+
+            MimeMessage msg = mailSender.createMimeMessage();
+            MimeMessageHelper h = new MimeMessageHelper(msg, true, "UTF-8");
+            h.setFrom(fromEmail, "Syax — Fila Interna");
+            h.setTo(to);
+            h.setSubject("[Fila Interna] " + tipoLabel + " — " + clientName);
+            h.setText(String.format("""
+                    <html><body style='font-family:Arial,sans-serif;color:#333;line-height:1.6'>
+                    <div style='max-width:600px;margin:0 auto;padding:24px;border:1px solid #ddd;border-radius:8px'>
+                    <h2 style='color:#0056b3'>%s — Ticket #%s</h2>
+                    <table style='border-collapse:collapse;width:100%%'>
+                      <tr><td style='padding:6px 0;color:#555'><strong>Empresa:</strong></td><td>%s</td></tr>
+                      <tr><td style='padding:6px 0;color:#555'><strong>CNPJ:</strong></td><td>%s</td></tr>
+                      <tr><td style='padding:6px 0;color:#555'><strong>Logins:</strong></td><td>%d</td></tr>
+                    </table>
+                    %s
+                    %s
+                    <div style='text-align:center;margin:24px 0'>
+                      <a href='%s' style='background:#0056b3;color:#fff;padding:12px 28px;border-radius:6px;text-decoration:none;font-size:15px'>
+                        Abrir Fila Interna
+                      </a>
+                    </div>
+                    </div></body></html>
+                    """,
+                    tipoLabel, ticketId, clientName, clientCnpj, loginCount,
+                    features.isEmpty() ? "" : "<h3>Features acessadas:</h3><ul>" + featHtml + "</ul>",
+                    gaps.isEmpty() ? "" : "<h3 style='color:#c00'>GAPs de adoção:</h3><ul>" + gapsHtml + "</ul>",
+                    adminUrl), true);
+            mailSender.send(msg);
+            logger.info("TICKET_INTERNO_SYAX enviado para {} — ticket #{}", to, ticketId);
+        } catch (Exception e) {
+            logger.error("Erro ao enviar TICKET_INTERNO_SYAX para {}", to, e);
         }
     }
 

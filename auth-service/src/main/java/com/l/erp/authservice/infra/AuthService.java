@@ -55,6 +55,7 @@ public class AuthService {
     private final PasswordValidatorUtil passwordValidatorUtil;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
+    private final com.l.erp.authservice.services.TrialEngagementService trialEngagementService;
 
     public AuthService(UserAccountRepository userRepo,
                        OwnerMarkerRepository ownerRepo,
@@ -68,7 +69,8 @@ public class AuthService {
                        AuditService auditService,
                        PasswordValidatorUtil passwordValidatorUtil,
                        KafkaTemplate<String, String> kafkaTemplate,
-                       ObjectMapper objectMapper) {
+                       ObjectMapper objectMapper,
+                       com.l.erp.authservice.services.TrialEngagementService trialEngagementService) {
         this.userRepo = userRepo;
         this.ownerRepo = ownerRepo;
         this.tenantRepository = tenantRepository;
@@ -82,6 +84,7 @@ public class AuthService {
         this.passwordValidatorUtil = passwordValidatorUtil;
         this.kafkaTemplate = kafkaTemplate;
         this.objectMapper = objectMapper;
+        this.trialEngagementService = trialEngagementService;
     }
 
     public LoginResponse loginPartner(String email, String password) {
@@ -223,6 +226,9 @@ public class AuthService {
         auditService.logAuditEventWithActor(Constants.TENANT_LOGIN_SUCCESS, user.getId(), Constants.USER, user.getId(),
                 Constants.SUCCESS, "Login no tenant: " + tenant.getName(), null);
 
+        if (EnumTenantStatus.TRIAL.equals(tenant.getStatus())) {
+            trialEngagementService.trackLogin(tenant.getId());
+        }
         publishTrialLoginEvent(tenant.getId());
 
         // 8. Buscar permissões do usuário

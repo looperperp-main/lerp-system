@@ -4,6 +4,10 @@ import { NavigationEnd, Router } from '@angular/router';
 import { filter } from 'rxjs/operators';
 
 const ROUTE_FEATURE_MAP: Record<string, string> = {
+  '/web/clientes':                'clientes',
+  '/web/produtos':                'produtos',
+  '/web/fornecedores':            'fornecedores',
+  '/web/estoque':                 'estoque',
   '/web/nfe':                     'nfe',
   '/web/financeiro':              'contas_pagar_receber',
   '/web/relatorios':              'relatorios',

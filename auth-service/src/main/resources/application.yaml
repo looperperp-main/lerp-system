@@ -42,6 +42,8 @@ api:
 
 app:
   client-portal-url: ${CLIENT_PORTAL_URL:http://localhost:4200}
+  syax-internal-email: ${SYAX_INTERNAL_EMAIL:admin@syax.com.br}
+  syax-admin-url: ${SYAX_ADMIN_URL:http://localhost:4300}
 
 management:
   endpoints:

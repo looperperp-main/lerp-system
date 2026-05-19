@@ -1,0 +1,110 @@
+databaseChangeLog:
+
+  - changeSet:
+      id: auth-015-trial-engagement
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: auth
+            tableName: trial_engagement
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: feature
+                  type: varchar(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: access_count
+                  type: int
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: first_accessed_at
+                  type: timestamptz
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_accessed_at
+                  type: timestamptz
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            schemaName: auth
+            tableName: trial_engagement
+            columnNames: tenant_id, feature
+            constraintName: uq_trial_engagement_tenant_feature
+
+  - changeSet:
+      id: auth-016-syax-queue
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: auth
+            tableName: syax_queue
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tipo
+                  type: varchar(30)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: varchar(20)
+                  defaultValue: PENDENTE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: tenant_name
+                  type: varchar(200)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: tenant_cnpj
+                  type: varchar(14)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: tenant_email
+                  type: varchar(200)
+              - column:
+                  name: payload
+                  type: jsonb
+              - column:
+                  name: created_at
+                  type: timestamptz
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamptz
+              - column:
+                  name: resolved_by
+                  type: varchar(100)
+              - column:
+                  name: resolution_notes
+                  type: text

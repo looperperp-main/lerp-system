@@ -45,6 +45,7 @@ export class AdminLayout {
         { label: 'Indicações', icon: 'pi pi-megaphone', routerLink: '/admin/parceiros/indicacoes' }
       ] },
     { label: 'Auditoria', icon: 'pi pi-eye', routerLink: '/admin/audit' },
+    { label: 'Fila Interna', icon: 'pi pi-inbox', routerLink: '/admin/fila-interna' },
     { label: 'Subscrições', icon: 'pi pi-barcode', path: '/admin/subscriptions',items: [
         { label: 'Planos', icon: 'pi pi-book', routerLink: '/admin/cadastros/plans' },
         { label: 'Assinaturas', icon: 'pi pi-wallet', routerLink: '/admin/cadastros/subscription' },

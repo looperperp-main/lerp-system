@@ -1,0 +1,185 @@
+<div class="card">
+  <p-toast></p-toast>
+
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Fila Interna</h1>
+      <p class="page-subtitle">Relatórios D+10 e trials expirados — gestão comercial Syax</p>
+    </div>
+  </div>
+
+  <div class="content-card">
+    <div class="content-toolbar">
+      <h3 class="content-toolbar-title">Filtrar por status</h3>
+      <div class="content-toolbar-actions">
+        <p-dropdown
+          [options]="statusOpcoes"
+          [(ngModel)]="filtroStatus"
+          optionLabel="label"
+          optionValue="value"
+          (onChange)="onFiltroChange()"
+          styleClass="text-sm">
+        </p-dropdown>
+        <button
+          pButton pRipple
+          label="Atualizar"
+          icon="pi pi-refresh"
+          class="p-button-outlined p-button-sm rounded-lg"
+          (click)="load()">
+        </button>
+      </div>
+    </div>
+
+    <div class="table-container">
+      <p-table
+        [value]="tickets()"
+        [loading]="loading()"
+        [lazy]="true"
+        (onLazyLoad)="onLazyLoad($event)"
+        [totalRecords]="totalRecords()"
+        [paginator]="true"
+        [rows]="20"
+        [showCurrentPageReport]="true"
+        currentPageReportTemplate="Mostrando {first} até {last} de {totalRecords} registros"
+        [tableStyle]="{ 'min-width': '60rem' }"
+        styleClass="p-datatable-sm text-sm">
+
+        <ng-template pTemplate="header">
+          <tr>
+            <th class="text-xs uppercase text-gray-400 font-semibold border-b border-gray-100 pb-3">Tipo</th>
+            <th class="text-xs uppercase text-gray-400 font-semibold border-b border-gray-100 pb-3">Status</th>
+            <th class="text-xs uppercase text-gray-400 font-semibold border-b border-gray-100 pb-3">Empresa</th>
+            <th class="text-xs uppercase text-gray-400 font-semibold border-b border-gray-100 pb-3">CNPJ</th>
+            <th class="text-xs uppercase text-gray-400 font-semibold border-b border-gray-100 pb-3">E-mail</th>
+            <th class="text-xs uppercase text-gray-400 font-semibold border-b border-gray-100 pb-3">Criado em</th>
+            <th class="text-xs uppercase text-gray-400 font-semibold border-b border-gray-100 pb-3">Ações</th>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="body" let-t>
+          <tr class="hover:bg-gray-50 border-b border-gray-50 transition-colors">
+            <td class="py-3">
+              <span [class]="'px-2 py-1 rounded text-xs font-medium ' + tipoClass(t.tipo)">
+                {{ tipoLabel(t.tipo) }}
+              </span>
+            </td>
+            <td class="py-3">
+              <span [class]="'px-2 py-1 rounded text-xs font-medium ' + statusClass(t.status)">
+                {{ t.status }}
+              </span>
+            </td>
+            <td class="py-3 font-medium text-gray-900">{{ t.tenantName }}</td>
+            <td class="py-3 text-gray-500 text-xs font-mono">{{ t.tenantCnpj }}</td>
+            <td class="py-3 text-gray-500 text-xs">{{ t.tenantEmail }}</td>
+            <td class="py-3 text-gray-400 text-xs">{{ t.createdAt | date:'dd/MM/yy HH:mm':'America/Sao_Paulo':'pt-BR' }}</td>
+            <td class="py-3">
+              <div class="flex gap-2">
+                <button
+                  pButton pRipple
+                  icon="pi pi-eye"
+                  class="p-button-rounded p-button-text p-button-info p-button-sm w-8 h-8"
+                  pTooltip="Ver payload"
+                  tooltipPosition="top"
+                  (click)="openDetail(t)">
+                </button>
+                <button
+                  pButton pRipple
+                  [icon]="t.status === 'RESOLVIDO' ? 'pi pi-check-circle' : 'pi pi-pencil'"
+                  [class]="'p-button-rounded p-button-text p-button-sm w-8 h-8 ' + (t.status === 'RESOLVIDO' ? 'p-button-success' : 'p-button-warning')"
+                  pTooltip="Atualizar status"
+                  tooltipPosition="top"
+                  [disabled]="t.status === 'RESOLVIDO'"
+                  (click)="openResolve(t)">
+                </button>
+              </div>
+            </td>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td colspan="7" class="text-center py-8 text-gray-400">
+              <i class="pi pi-inbox text-3xl block mb-2"></i>
+              Nenhum ticket encontrado.
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </div>
+  </div>
+
+  <!-- Detail Dialog -->
+  <p-dialog
+    [(visible)]="detailVisible"
+    header="Detalhes do Ticket"
+    [modal]="true"
+    [style]="{ width: '600px' }"
+    *ngIf="selectedTicket">
+    <div class="space-y-3 pt-2 text-sm text-gray-700">
+      <div class="grid grid-cols-2 gap-3">
+        <div><span class="text-gray-400 text-xs">Empresa</span><p class="font-medium">{{ selectedTicket.tenantName }}</p></div>
+        <div><span class="text-gray-400 text-xs">CNPJ</span><p class="font-mono">{{ selectedTicket.tenantCnpj }}</p></div>
+        <div><span class="text-gray-400 text-xs">E-mail</span><p>{{ selectedTicket.tenantEmail }}</p></div>
+        <div><span class="text-gray-400 text-xs">Tipo</span><p>{{ tipoLabel(selectedTicket.tipo) }}</p></div>
+      </div>
+      <hr class="border-gray-100"/>
+      <div *ngIf="selectedTicket.payload">
+        <p class="text-gray-400 text-xs mb-2">Payload</p>
+        <div *ngIf="parsedPayload(selectedTicket.payload) as p" class="space-y-2">
+          <p *ngIf="p['loginCount'] !== undefined"><strong>Logins:</strong> {{ p['loginCount'] }}</p>
+          <div *ngIf="p['features']">
+            <strong>Features acessadas:</strong>
+            <ul class="list-disc ml-4 mt-1">
+              <li *ngFor="let f of asArray(p['features'])">{{ f }}</li>
+            </ul>
+          </div>
+          <div *ngIf="p['gaps']">
+            <strong class="text-red-600">GAPs (nunca acessado):</strong>
+            <ul class="list-disc ml-4 mt-1 text-red-600">
+              <li *ngFor="let g of asArray(p['gaps'])">{{ g }}</li>
+            </ul>
+          </div>
+          <p *ngIf="p['trialExpiresAt']"><strong>Trial expira:</strong> {{ p['trialExpiresAt'] | date:'dd/MM/yyyy':'America/Sao_Paulo':'pt-BR' }}</p>
+        </div>
+      </div>
+      <div *ngIf="selectedTicket.resolutionNotes">
+        <p class="text-gray-400 text-xs">Notas</p>
+        <p class="bg-gray-50 p-2 rounded text-xs">{{ selectedTicket.resolutionNotes }}</p>
+      </div>
+    </div>
+  </p-dialog>
+
+  <!-- Resolve Dialog -->
+  <p-dialog
+    [(visible)]="resolveVisible"
+    header="Atualizar Status"
+    [modal]="true"
+    [style]="{ width: '480px' }"
+    *ngIf="selectedTicket">
+    <div class="space-y-4 pt-2">
+      <div>
+        <label class="text-xs text-gray-500 block mb-1">Status</label>
+        <p-dropdown
+          [options]="resolveStatusOpcoes"
+          [(ngModel)]="resolveStatus"
+          optionLabel="label"
+          optionValue="value"
+          styleClass="w-full text-sm">
+        </p-dropdown>
+      </div>
+      <div>
+        <label class="text-xs text-gray-500 block mb-1">Notas</label>
+        <textarea
+          [(ngModel)]="resolveNotes"
+          rows="3"
+          class="w-full border border-gray-200 rounded-lg p-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-200"
+          placeholder="Descreva a ação tomada...">
+        </textarea>
+      </div>
+    </div>
+    <ng-template pTemplate="footer">
+      <button pButton pRipple label="Cancelar" icon="pi pi-times" class="p-button-text text-gray-600" (click)="resolveVisible = false"></button>
+      <button pButton pRipple label="Salvar" icon="pi pi-check" class="p-button-success p-button-sm" [disabled]="resolveLoading" (click)="confirmarResolve()"></button>
+    </ng-template>
+  </p-dialog>
+</div>
