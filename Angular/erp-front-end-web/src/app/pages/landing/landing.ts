@@ -28,6 +28,10 @@ export class Landing implements AfterViewInit, OnDestroy {
     this.router.navigate(['/login']);
   }
 
+  goToCriarConta() {
+    this.router.navigate(['/criar-conta']);
+  }
+
   goToPartnerSignup() {
     this.router.navigate(['/cadastrar-parceiro']);
   }

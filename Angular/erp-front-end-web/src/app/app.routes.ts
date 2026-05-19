@@ -4,6 +4,7 @@ import { TenantLogin } from './pages/login/login';
 import { AtivarConta } from './pages/ativar/ativar';
 import { Landing } from './pages/landing/landing';
 import { ParceiroCadastro } from './pages/parceiro/parceiro-cadastro';
+import { CriarConta } from './pages/criar-conta/criar-conta';
 import { authGuard } from './util/auth.guard';
 import {WebLayout} from './components/web-layout/web-layout';
 import {GrupoClientes} from './pages/cadastros/grupo-clientes/grupo-clientes';
@@ -26,6 +27,7 @@ export const routes: Routes = [
     { path: 'login', component: TenantLogin },
     { path: 'ativar', component: AtivarConta },
     { path: 'cadastrar-parceiro', component: ParceiroCadastro },
+    { path: 'criar-conta', component: CriarConta },
     {
         path: 'web',
         component: WebLayout,

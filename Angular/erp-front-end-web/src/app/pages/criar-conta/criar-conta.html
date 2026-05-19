@@ -1,0 +1,284 @@
+<!-- Background mesh -->
+<div class="bg-decor" aria-hidden="true"></div>
+
+<!-- NAV -->
+<header class="nav">
+  <div class="nav-inner">
+    <button class="logo" (click)="goToLanding()" aria-label="Syax — Voltar ao início">
+      <span class="logo-mark" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <path d="M4 4 L14 14 M14 4 L4 14" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <span>syax</span>
+    </button>
+    <div class="nav-actions">
+      <span class="nav-hint">Já tem conta?</span>
+      <button class="btn btn-ghost btn-sm" (click)="goToLogin()">Entrar</button>
+    </div>
+  </div>
+</header>
+
+<!-- MAIN -->
+<main class="page-wrap">
+  <div class="container">
+    <div class="form-layout">
+
+      <!-- Left: pitch -->
+      <aside class="pitch">
+        <div class="eyebrow"><span class="dot"></span> TRIAL GRATUITO — 15 DIAS</div>
+        <h1>
+          Seu ERP pronto<br/>
+          <span class="grad-text">em minutos,</span><br/>
+          sem cartão.
+        </h1>
+        <p class="lead">
+          Comece a usar o Syax hoje mesmo. Gerencie clientes, produtos e estoque
+          durante 15 dias sem nenhum compromisso.
+        </p>
+        <ul class="pitch-list">
+          <li>
+            <span class="check">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <path d="M2 6l3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+            Ativação imediata, sem aprovação manual
+          </li>
+          <li>
+            <span class="check">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <path d="M2 6l3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+            Clientes, produtos, fornecedores e NF-e
+          </li>
+          <li>
+            <span class="check">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <path d="M2 6l3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+            Multi-usuário com controle de permissões
+          </li>
+          <li>
+            <span class="check">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <path d="M2 6l3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+            Suporte por e-mail incluso no período trial
+          </li>
+        </ul>
+
+        <div class="trust-badges">
+          <span class="badge"><span class="dot ok"></span> 15 dias grátis, sem cartão</span>
+          <span class="badge"><span class="dot ok"></span> Cancele a qualquer momento</span>
+          <span class="badge"><span class="dot ok"></span> Dados protegidos (LGPD)</span>
+        </div>
+      </aside>
+
+      <!-- Right: form -->
+      <section class="form-card">
+        <div class="form-header">
+          <h2>Criar conta grátis</h2>
+          <p>Preencha o CNPJ da sua empresa para começar.</p>
+        </div>
+
+        <div class="fields">
+
+          <!-- CNPJ -->
+          <div class="field">
+            <label>CNPJ da empresa <span class="req">*</span></label>
+            <div class="input-wrap"
+                 [class.is-error]="cnpjState() === 'erro' || cnpjState() === 'inativa'"
+                 [class.is-ok]="cnpjState() === 'ativa'">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                <polyline points="9 22 9 12 15 12 15 22"/>
+              </svg>
+              <input
+                type="text"
+                placeholder="00.000.000/0000-00"
+                maxlength="18"
+                autocomplete="off"
+                [value]="cnpjInput()"
+                (input)="onCnpjInput($any($event.target).value)"
+              />
+              @if (cnpjState() === 'validando') {
+                <span class="spinner" aria-hidden="true"></span>
+              }
+              @if (cnpjState() === 'ativa') {
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#21D789" stroke-width="2.5">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                  <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+              }
+            </div>
+
+            @if (cnpjState() === 'validando') {
+              <div class="cnpj-feedback cnpj-feedback--loading">
+                <span class="spinner spinner-xs" aria-hidden="true"></span>
+                <span>Consultando Receita Federal...</span>
+              </div>
+            }
+            @if (cnpjState() === 'ativa' && consultaResult()) {
+              <div class="cnpj-feedback cnpj-feedback--ok">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#21D789" stroke-width="2.5">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                  <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+                <span>{{ consultaResult()!.razaoSocial }} — Situação: Ativa</span>
+              </div>
+            }
+            @if (cnpjState() === 'inativa' || cnpjState() === 'erro') {
+              <div class="cnpj-feedback cnpj-feedback--error">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#FF5C5C" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="12" y1="8" x2="12" y2="12"/>
+                  <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <span>{{ erroMsg() }}</span>
+              </div>
+            }
+          </div>
+
+          <!-- Razão social -->
+          <div class="field">
+            <label>Razão social <span class="req">*</span></label>
+            <div class="input-wrap" [class.is-filled]="cnpjState() === 'ativa'">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+                <rect x="3" y="4" width="18" height="16" rx="2"/>
+                <path d="M7 8h10M7 12h6"/>
+              </svg>
+              <input
+                type="text"
+                placeholder="Preenchido ao validar o CNPJ"
+                [value]="razaoSocial()"
+                (input)="razaoSocial.set($any($event.target).value)"
+                [disabled]="cnpjState() !== 'ativa'"
+              />
+            </div>
+          </div>
+
+          <!-- E-mail -->
+          <div class="field">
+            <label>E-mail <span class="req">*</span></label>
+            <div class="input-wrap">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+                <rect x="2" y="4" width="20" height="16" rx="2"/>
+                <path d="M2 8l10 6 10-6"/>
+              </svg>
+              <input
+                type="email"
+                placeholder="contato@suaempresa.com.br"
+                maxlength="200"
+                autocomplete="email"
+                [value]="email()"
+                (input)="email.set($any($event.target).value)"
+              />
+            </div>
+          </div>
+
+          <!-- Senha + Confirmar -->
+          <div class="grid-2">
+            <div class="field">
+              <label>Senha <span class="req">*</span></label>
+              <div class="input-wrap">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                <input
+                  [type]="showSenha() ? 'text' : 'password'"
+                  placeholder="Mínimo 14 caracteres, letras e símbolos"
+                  [attr.autocomplete]="showSenha() ? 'off' : 'new-password'"
+                  [value]="senha()"
+                  (input)="senha.set($any($event.target).value)"
+                />
+                <button type="button" class="btn-eye" (click)="showSenha.set(!showSenha())"
+                        [attr.aria-label]="showSenha() ? 'Ocultar senha' : 'Mostrar senha'">
+                  @if (showSenha()) {
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                      <line x1="1" y1="1" x2="23" y2="23"/>
+                    </svg>
+                  } @else {
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                      <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                  }
+                </button>
+              </div>
+              @if (senha().length > 0 && senha().length < 14) {
+                <span class="field-err">Mínimo 14 caracteres</span>
+              }
+            </div>
+
+            <div class="field">
+              <label>Confirmar senha <span class="req">*</span></label>
+              <div class="input-wrap" [class.is-error]="senhasDiferentes()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                <input
+                  [type]="showConfirmSenha() ? 'text' : 'password'"
+                  placeholder="Repita a senha"
+                  [attr.autocomplete]="showConfirmSenha() ? 'off' : 'new-password'"
+                  [value]="confirmSenha()"
+                  (input)="confirmSenha.set($any($event.target).value)"
+                />
+                <button type="button" class="btn-eye" (click)="showConfirmSenha.set(!showConfirmSenha())"
+                        aria-label="Mostrar/ocultar confirmação">
+                  @if (showConfirmSenha()) {
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                      <line x1="1" y1="1" x2="23" y2="23"/>
+                    </svg>
+                  } @else {
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                      <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                  }
+                </button>
+              </div>
+              @if (senhasDiferentes()) {
+                <span class="field-err">As senhas não coincidem</span>
+              }
+            </div>
+          </div>
+
+        </div>
+
+        <button class="btn btn-primary btn-full" [disabled]="!podeEnviar()">
+          Criar conta grátis
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+
+        <p class="form-legal">
+          Ao criar sua conta, você concorda com nossa
+          <a href="#">Política de Privacidade</a> e os
+          <a href="#">Termos de Uso</a>.
+          Seus dados são tratados conforme a LGPD.
+        </p>
+      </section>
+
+    </div>
+  </div>
+</main>
+
+<!-- Footer minimal -->
+<footer class="foot-min">
+  <div class="container">
+    <span>© 2026 SYAX TECNOLOGIA</span>
+    <span class="foot-seals">
+      <span><span class="dot ok"></span> LGPD</span>
+      <span><span class="dot ok"></span> SSL</span>
+    </span>
+  </div>
+</footer>
