@@ -27,7 +27,7 @@ public class AsaasClient {
     }
 
     public String createCustomer(String cnpj, String email, String name) {
-        log.info("Criando customer Asaas para cnpj={}", cnpj);
+        log.debug("Criando customer Asaas para cnpj={}", cnpj);
         Map<?, ?> response = restClient.post()
                 .uri("/customers")
                 .body(Map.of(

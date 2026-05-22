@@ -63,10 +63,14 @@ public class RateLimitFilter implements Filter {
     }
 
     private String resolveKey(HttpServletRequest request) {
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
+        // Usa apenas o IP real da conexão TCP — X-Forwarded-For é controlado pelo cliente
+        // e pode ser falsificado para burlar o rate limit.
+        /*
+        * String xForwardedFor = request.getHeader("X-Forwarded-For");
         if (xForwardedFor != null && !xForwardedFor.isBlank()) {
             return xForwardedFor.split(",")[0].trim();
         }
+        * */
         return request.getRemoteAddr();
     }
 }
