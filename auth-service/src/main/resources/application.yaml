@@ -26,6 +26,10 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+  data:
+    web:
+      pageable:
+        max-page-size: 100
 
   kafka:
     bootstrap-servers: ${KAFKA_BROKERS}

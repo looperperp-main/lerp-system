@@ -12,6 +12,7 @@ import java.util.List;
 public interface UserMapper {
 
     @Mapping(target = "tenantId", source = "tenant.id")
+    @Mapping(target = "passwordHash", ignore = true)
     UserAccountDTO toUserAccountDTO(UserAccount user);
 
     @Mapping(target = "tenant.id", source = "tenantId")
