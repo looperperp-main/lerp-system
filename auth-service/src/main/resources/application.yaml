@@ -55,7 +55,8 @@ management:
       show-details: always
   prometheus:
     metrics:
-      enabled: true
+      export:
+        enabled: true
   metrics:
     tags:
       application: ${spring.application.name}

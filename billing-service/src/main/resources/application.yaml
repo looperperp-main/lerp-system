@@ -42,7 +42,10 @@ management:
   endpoint:
     health:
       show-details: always
-  otlp:
+  prometheus:
     metrics:
       export:
-        enabled: false
+        enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
