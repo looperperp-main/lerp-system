@@ -6,6 +6,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.UUID;
 
@@ -16,6 +17,7 @@ import java.util.UUID;
 public class TabelaPrecoGrupoClienteId implements Serializable {
 
 
+    @Serial
     private static final long serialVersionUID = -8838882010198245366L;
     @Column(name = "tabela_preco_id", nullable = false)
     private UUID tabelaPrecoId;
