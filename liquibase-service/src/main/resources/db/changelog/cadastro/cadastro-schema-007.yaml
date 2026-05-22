@@ -1,0 +1,32 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # Índices FK faltando na tabela cliente
+  # Sem esses índices, joins com condicao_pagamento,
+  # grupo_cliente e vendedor causam full table scan.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-027-idx-cliente-fks
+      author: vitor-fernandes
+      changes:
+        - createIndex:
+            schemaName: cadastros
+            tableName: cliente
+            indexName: idx_cliente_condicao_pagamento_id
+            columns:
+              - column:
+                  name: condicao_pagamento_id
+        - createIndex:
+            schemaName: cadastros
+            tableName: cliente
+            indexName: idx_cliente_grupo_cliente_id
+            columns:
+              - column:
+                  name: grupo_cliente_id
+        - createIndex:
+            schemaName: cadastros
+            tableName: cliente
+            indexName: idx_cliente_vendedor_id
+            columns:
+              - column:
+                  name: vendedor_id

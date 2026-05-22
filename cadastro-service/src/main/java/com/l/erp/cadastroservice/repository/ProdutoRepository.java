@@ -12,6 +12,7 @@ import java.util.UUID;
 
 @Repository
 public interface ProdutoRepository extends JpaRepository<Produto, UUID> {
+    @EntityGraph(attributePaths = {"produtoPrecos", "produtoFornecedors", "produtoEstoqueConfigs"})
     Page<Produto> findAllByTenantId(Long tenantId, Pageable pageable);
 
     @EntityGraph(attributePaths = {"produtoPrecos", "produtoFornecedors", "produtoEstoqueConfigs"})
