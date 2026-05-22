@@ -49,8 +49,8 @@ public class PlanController {
 
     @PostMapping
     public ResponseEntity<PlanResponse> criar(
-            @RequestHeader(value = "X-User-Id", required = false) String userId,
-            @RequestHeader(value = "X-Tenant-Id", required = false) String tenantId,
+            @RequestHeader("X-User-Id") String userId,
+            @RequestHeader("X-Tenant-Id") String tenantId,
             @RequestBody @Valid PlanRequest req) {
         PlanResponse response = assembler.toModel(planService.createPlan(req, userId, tenantId));
         return ResponseEntity.created(response.getRequiredLink(IanaLinkRelations.SELF).toUri()).body(response);
@@ -59,8 +59,8 @@ public class PlanController {
     @PutMapping("/{id}")
     public ResponseEntity<PlanResponse> atualizar(
             @PathVariable UUID id,
-            @RequestHeader(value = "X-User-Id", required = false) String userId,
-            @RequestHeader(value = "X-Tenant-Id", required = false) String tenantId,
+            @RequestHeader("X-User-Id") String userId,
+            @RequestHeader("X-Tenant-Id") String tenantId,
             @RequestBody @Valid PlanRequest req) {
         return ResponseEntity.ok(assembler.toModel(planService.updatePlan(id, req, userId, tenantId)));
     }
@@ -68,8 +68,8 @@ public class PlanController {
     @PatchMapping("/{id}/status")
     public ResponseEntity<PlanResponse> toggleStatus(
             @PathVariable UUID id,
-            @RequestHeader(value = "X-User-Id", required = false) String userId,
-            @RequestHeader(value = "X-Tenant-Id", required = false) String tenantId) {
+            @RequestHeader("X-User-Id") String userId,
+            @RequestHeader("X-Tenant-Id") String tenantId) {
         return ResponseEntity.ok(assembler.toModel(planService.toggleActive(id, userId, tenantId)));
     }
 }

@@ -140,7 +140,7 @@ public class PartnerController {
     public ResponseEntity<ConviteResponseDTO> enviarConvite(@RequestBody @Valid ConviteRequestDTO dto) {
         UUID partnerId = SecurityUtils.getPartnerId()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, Constants.PARCEIRO_ID_NOT_FOUND));
-        logger.info("Parceiro {} enviando convite para CNPJ {}", partnerId, dto.cnpj());
+        logger.debug("Parceiro {} enviando convite", partnerId);
         PartnerReferral saved = service.enviarConvite(partnerId, dto);
         ConviteResponseDTO response = new ConviteResponseDTO(
                 saved.getId(), saved.getCnpj(), saved.getRazaoSocial(),

@@ -27,7 +27,7 @@ public class CnpjService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "CNPJ deve conter 14 caracteres");
         }
 
-        logger.info("Consultando CNPJ {} na OpenCNPJ", normalized);
+        logger.debug("Consultando CNPJ na OpenCNPJ");
 
         try {
             OpenCnpjRawResponse raw = restClient.get()
