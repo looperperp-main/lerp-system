@@ -45,7 +45,7 @@ logging:
 api:
   security:
     jwt:
-      secret: security-key-for-now
+      secret: ${JWT_SECRET}
 
 management:
   endpoints:

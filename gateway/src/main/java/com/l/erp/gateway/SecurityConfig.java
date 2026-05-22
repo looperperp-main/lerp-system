@@ -23,7 +23,7 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/**", "/error").permitAll()
-                        .requestMatchers("/actuator/**").permitAll()
+                        .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                         .requestMatchers(HttpMethod.POST, "/billing/api/v1/partners").permitAll()
                         .requestMatchers(HttpMethod.GET, "/billing/api/v1/plans").permitAll()
                         .requestMatchers("/billing/api/v1/webhooks/asaas").permitAll()
