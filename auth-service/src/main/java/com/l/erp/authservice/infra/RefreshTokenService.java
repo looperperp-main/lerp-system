@@ -3,6 +3,9 @@ package com.l.erp.authservice.infra;
 import com.l.erp.authservice.dominio.RefreshToken;
 import com.l.erp.authservice.dominio.UserAccount;
 import com.l.erp.authservice.repositorios.RefreshTokenRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,6 +19,8 @@ import java.util.UUID;
 
 @Service
 public class RefreshTokenService {
+
+    private static final Logger log = LoggerFactory.getLogger(RefreshTokenService.class);
 
     private final RefreshTokenRepository refreshTokenRepository;
 
@@ -68,6 +73,14 @@ public class RefreshTokenService {
         } catch (Exception e) {
             throw new RuntimeException("Erro ao gerar hash do refresh token", e);
         }
+    }
+
+    // Roda toda segunda às 3h — remove tokens expirados e revogados
+    @Scheduled(cron = "0 0 3 * * MON")
+    @Transactional
+    public void purgeExpiredAndRevoked() {
+        int deleted = refreshTokenRepository.deleteExpiredAndRevoked(Instant.now());
+        log.info("Purge refresh tokens: {} registros removidos", deleted);
     }
 
     public record TokenPair(String rawToken, RefreshToken entity) {}

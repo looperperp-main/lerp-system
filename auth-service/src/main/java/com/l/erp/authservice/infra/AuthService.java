@@ -34,6 +34,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
@@ -420,14 +421,16 @@ public class AuthService {
     }
 
     @Transactional
-    public TenantLoginResponse criarContaGratis(CriarContaGratisRequest req) {
+    public Optional<TenantLoginResponse> criarContaGratis(CriarContaGratisRequest req) {
         String cnpjDigits = req.cnpj().replaceAll("\\D", "");
 
         if (tenantRepository.findByCnpj(cnpjDigits).isPresent()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "CNPJ já cadastrado");
+            publishJaExisteConta(req.email());
+            return Optional.empty();
         }
         if (userRepo.findByEmail(req.email()).isPresent()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "E-mail já utilizado");
+            publishJaExisteConta(req.email());
+            return Optional.empty();
         }
 
         passwordValidatorUtil.validatePassword(req.senha(), req.razaoSocial());
@@ -473,7 +476,18 @@ public class AuthService {
         String jwt = tokenService.generateTenantUserToken(user, permissions, tenant);
         RefreshTokenService.TokenPair tokenPair = refreshTokenService.issue(user, null);
 
-        return authMapper.toTenantLoginResponse(user, jwt, tokenPair.rawToken(), tenant);
+        return Optional.of(authMapper.toTenantLoginResponse(user, jwt, tokenPair.rawToken(), tenant));
+    }
+
+    private void publishJaExisteConta(String email) {
+        try {
+            java.util.Map<String, Object> event = new java.util.HashMap<>();
+            event.put("email", email);
+            event.put("type", "JA_EXISTE_CONTA");
+            kafkaTemplate.send("user-welcome-email-topic", email, objectMapper.writeValueAsString(event));
+        } catch (Exception e) {
+            logger.error("Falha ao publicar e-mail JA_EXISTE_CONTA para {}", email, e);
+        }
     }
 
     private void publishBoasVindasTrial(String email, String name, String tenantName, Instant trialExpiresAt) {

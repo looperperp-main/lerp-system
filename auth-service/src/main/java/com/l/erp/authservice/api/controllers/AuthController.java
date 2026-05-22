@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/auth")
@@ -53,8 +54,13 @@ public class AuthController {
     }
 
     @PostMapping("/criar-conta")
-    public ResponseEntity<TenantLoginResponse> criarContaGratis(@RequestBody @Valid CriarContaGratisRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(authService.criarContaGratis(request));
+    public ResponseEntity<?> criarContaGratis(@RequestBody @Valid CriarContaGratisRequest request) {
+        Optional<TenantLoginResponse> result = authService.criarContaGratis(request);
+        if (result.isEmpty()) {
+            return ResponseEntity.ok(Map.of("message",
+                    "Se os dados forem válidos, você receberá um e-mail em breve."));
+        }
+        return ResponseEntity.status(HttpStatus.CREATED).body(result.get());
     }
 
     @PostMapping("/ativar")

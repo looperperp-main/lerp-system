@@ -47,6 +47,8 @@ public class EmailConsumerService {
                 String tenantName = data.get("tenantName");
                 String trialExpiresAt = data.get("trialExpiresAt");
                 sendBoasVindasTrialEmail(toEmail, name, tenantName, trialExpiresAt);
+            } else if ("JA_EXISTE_CONTA".equals(type)) {
+                sendJaExisteContaEmail(toEmail);
             }
         } catch (Exception e) {
             logger.error("Falha ao processar ou enviar o e-mail. Payload: {}", payload, e);
@@ -500,6 +502,38 @@ public class EmailConsumerService {
 
         } catch (Exception e) {
             logger.error("Erro ao tentar enviar o e-mail HTML de boas-vindas para: {}", to, e);
+        }
+    }
+
+    private void sendJaExisteContaEmail(String to) {
+        try {
+            MimeMessage mimeMessage = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, Constants.UTF8);
+            helper.setFrom(fromEmail, Constants.EQ_ERP);
+            helper.setTo(to);
+            helper.setSubject("Tentativa de cadastro detectada");
+            String loginUrl = clientPortalUrl + "/login";
+            String htmlBody = String.format("""
+                    <html><body style='font-family: Arial, sans-serif; color: #333; line-height: 1.6;'>
+                      <div style='max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;'>
+                        <h2 style='color: #0056b3;'>Tentativa de cadastro</h2>
+                        <p>Identificamos uma tentativa de cadastro com este e-mail em nossa plataforma.</p>
+                        <p>Você já possui uma conta. Para acessar, clique no botão abaixo:</p>
+                        <p style='text-align: center; margin: 30px 0;'>
+                          <a href='%s' style='background:#0056b3;color:#fff;padding:12px 24px;border-radius:4px;text-decoration:none;font-weight:bold;'>
+                            Fazer login
+                          </a>
+                        </p>
+                        <p>Se não foi você quem tentou se cadastrar, ignore este e-mail.</p>
+                        <p>Atenciosamente,<br/><strong>Equipe Syax</strong></p>
+                      </div>
+                    </body></html>
+                    """, loginUrl);
+            helper.setText(htmlBody, true);
+            mailSender.send(mimeMessage);
+            logger.info("E-mail JA_EXISTE_CONTA enviado para {}", to);
+        } catch (Exception e) {
+            logger.error("Erro ao enviar JA_EXISTE_CONTA para {}", to, e);
         }
     }
 }
