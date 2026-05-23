@@ -63,8 +63,7 @@ public class SecurityFilter extends OncePerRequestFilter {
 
         String path = request.getRequestURI();
 
-        // Libera os endpoints do Actuator para métricas do Prometheus
-        if (path.startsWith("/actuator")) {
+        if ("/actuator/health".equals(path) || "/actuator/info".equals(path)) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -233,13 +232,15 @@ public class SecurityFilter extends OncePerRequestFilter {
      */
     private static @NonNull Map<String, String> getExtraHeaders(DecodedJWT decodedJWT, String loginType, String tenantId, Boolean isOwner) {
         String partnerId = decodedJWT.getClaim("partnerId").asString();
+        String userEmail = decodedJWT.getClaim("userEmail").asString();
         Map<String, String> extraHeaders = new HashMap<>();
+        extraHeaders.put("X-User-Id", decodedJWT.getSubject());
+        extraHeaders.put("X-User-Email", userEmail != null ? userEmail : "");
         if ("PARTNER".equals(loginType)) {
             extraHeaders.put("X-Partner-Id", partnerId != null ? partnerId : "");
         } else {
             extraHeaders.put("X-Tenant-Id", tenantId);
             extraHeaders.put("X-Is-Owner", String.valueOf(isOwner));
-            extraHeaders.put("X-User-Id", decodedJWT.getSubject());
         }
         return extraHeaders;
     }

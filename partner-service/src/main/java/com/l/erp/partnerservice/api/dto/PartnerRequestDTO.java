@@ -1,5 +1,6 @@
 package com.l.erp.partnerservice.api.dto;
 
+import com.l.erp.common.validation.NoHtml;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -8,9 +9,11 @@ import jakarta.validation.constraints.Size;
 public record PartnerRequestDTO(
 
         @NotBlank
+        @NoHtml
         @Size(max = 200)
         String name,
 
+        @NoHtml
         @Size(max = 20)
         String crc,
 

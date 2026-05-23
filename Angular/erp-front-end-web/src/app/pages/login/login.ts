@@ -35,7 +35,8 @@ export class TenantLogin implements OnInit{
       ]),
       password: new FormControl('', [
         Validators.required,
-        Validators.minLength(6)
+        Validators.minLength(8),
+        Validators.pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/)
       ]),
       rememberMe: new FormControl(false)
     });
@@ -44,12 +45,10 @@ export class TenantLogin implements OnInit{
   ngOnInit(): void {
     const savedEmail = localStorage.getItem('rememberedEmail');
     const savedCnpj = localStorage.getItem('rememberedCnpj');
-    const savedPW = localStorage.getItem('rememberedPW');
     if (savedEmail) {
       this.loginForm.patchValue({
         cnpj: savedCnpj,
         email: savedEmail,
-        password: savedPW,
         rememberMe: true
       });
     }
@@ -64,12 +63,11 @@ export class TenantLogin implements OnInit{
           if (this.loginForm.value.rememberMe) {
             localStorage.setItem('rememberedEmail', this.loginForm.value.email);
             localStorage.setItem('rememberedCnpj', this.loginForm.value.cnpj);
-            localStorage.setItem('rememberedPW', this.loginForm.value.password);
           } else {
             localStorage.removeItem('rememberedEmail');
             localStorage.removeItem('rememberedCnpj');
-            localStorage.removeItem('rememberedPW');
           }
+          localStorage.removeItem('rememberedPW');
           this.messageService.add({ severity: 'success', summary: response.tenantName, detail:
               `Bem-vindo(a), ${response.username}!`,sticky: true
             });

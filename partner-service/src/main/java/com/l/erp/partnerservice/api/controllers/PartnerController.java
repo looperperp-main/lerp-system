@@ -129,11 +129,11 @@ public class PartnerController {
     }
 
     @GetMapping("/me")
-    public ResponseEntity<PartnerResponseDTO> findMe(@RequestParam String email) {
-        logger.info("Buscando parceiro por email");
-        Partner partner = service.findByEmail(email)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Parceiro não encontrado"));
-        return ResponseEntity.ok(assembler.toModel(partner));
+    public ResponseEntity<PartnerResponseDTO> findMe() {
+        UUID partnerId = SecurityUtils.getPartnerId()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, Constants.PARCEIRO_ID_NOT_FOUND));
+        logger.info("Buscando dados do parceiro autenticado {}", partnerId);
+        return ResponseEntity.ok(assembler.toModel(service.findById(partnerId)));
     }
 
     @PostMapping("/me/convites")

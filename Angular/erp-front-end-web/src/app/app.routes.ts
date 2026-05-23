@@ -46,8 +46,8 @@ export const routes: Routes = [
           { path: 'cadastros/tabela-preco', component: TabelaPrecos  },
           { path: 'cadastros/tabela-preco-grupo', component: GrupoClienteTabelaPrecoComponent  },
           { path: 'cadastros/produtos', component: Produtos  },
-        ]
-        //canActivate: [authGuard]
+        ],
+        canActivate: [authGuard]
     },
     { path: '**', redirectTo: 'login' }
 ];
