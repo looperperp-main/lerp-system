@@ -146,3 +146,17 @@ TeamCity is configured via `compose.yaml` (server `:8111` + agent). The agent Do
 ### Angular Frontend
 
 Angular 21, standalone components (no NgModules). Pages in `src/app/pages/` (`login`, `cadastros`, `home`). Shared components in `src/app/components/` (`primary-button`, `primary-input`, `table`, `web-layout`, `default-login-layout`). Prettier is configured in `package.json` (100 char width, single quotes).
+
+**Never use `[innerHTML]` with data that originates from user input or API responses.** Use Angular's template binding (`{{ }}`) instead, which escapes by default. If rich text rendering is truly required, sanitize explicitly with `DomSanitizer.sanitize(SecurityContext.HTML, value)` before binding.
+
+## Workflow Directives
+
+After every set of code changes, propose a short commit message in the format:
+
+```
+<type>: <short description>
+
+- bullet summarizing each changed file/area
+```
+
+Types: `fix` (bug/security), `feat` (new feature), `refactor`, `chore` (config/tooling), `docs`.

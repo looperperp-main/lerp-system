@@ -24,6 +24,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/**", "/error").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                        .requestMatchers("/actuator/prometheus", "/actuator/metrics/**").hasAuthority("ROLE_APP_OWNER")
                         .requestMatchers(HttpMethod.POST, "/billing/api/v1/partners").permitAll()
                         .requestMatchers(HttpMethod.GET, "/billing/api/v1/plans").permitAll()
                         .requestMatchers("/billing/api/v1/webhooks/asaas").permitAll()
