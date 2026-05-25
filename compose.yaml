@@ -6,9 +6,9 @@ services:
     image: 'postgres:17-alpine'
     container_name: erp-postgres
     environment:
-      - 'POSTGRES_DB=loop-erp'
-      - 'POSTGRES_PASSWORD=eRmUstrI'
-      - 'POSTGRES_USER=admin-user'
+      - 'POSTGRES_DB=${POSTGRES_DB:-loop-erp}'
+      - 'POSTGRES_PASSWORD=${POSTGRES_PASSWORD}'
+      - 'POSTGRES_USER=${POSTGRES_USER:-admin-user}'
     ports:
       - '5432:5432'
     volumes:

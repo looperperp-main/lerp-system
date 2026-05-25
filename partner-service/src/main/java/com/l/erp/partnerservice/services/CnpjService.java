@@ -6,6 +6,7 @@ import com.l.erp.partnerservice.api.dto.CnpjConsultaResponseDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
@@ -19,7 +20,14 @@ public class CnpjService {
     private static final Logger logger = LoggerFactory.getLogger(CnpjService.class);
     private static final String OPEN_CNPJ_URL = "https://publica.cnpj.ws/cnpj/";
 
-    private final RestClient restClient = RestClient.create();
+    private final RestClient restClient = buildRestClient();
+
+    private static RestClient buildRestClient() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(5_000);
+        factory.setReadTimeout(10_000);
+        return RestClient.builder().requestFactory(factory).build();
+    }
 
     public CnpjConsultaResponseDTO consultar(String cnpj) {
         String normalized = cnpj.replaceAll("[.\\-/]", "").toUpperCase();

@@ -64,6 +64,7 @@ public class SyaxQueueService {
         return saved;
     }
 
+    @Transactional(readOnly = true)
     public Page<SyaxQueue> listar(String status, Pageable pageable) {
         if (status != null && !status.isBlank()) {
             return repository.findByStatus(status, pageable);

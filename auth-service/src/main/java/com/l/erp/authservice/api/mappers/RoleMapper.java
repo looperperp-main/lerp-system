@@ -8,7 +8,7 @@ import org.mapstruct.Mapping;
 
 import java.util.List;
 
-@Mapper(componentModel = "spring",uses = HtmlSanitizerUtil.class)
+@Mapper(componentModel = "spring")
 public interface RoleMapper {
 
     @Mapping(target = "tenantId", source = "tenant.id")

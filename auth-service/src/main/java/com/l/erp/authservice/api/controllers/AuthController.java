@@ -27,7 +27,7 @@ public class AuthController {
      * Usado no módulo admin para gerenciamento do sistema
      */
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok(authService.login(request.email(), request.password()));
     }
 
@@ -36,7 +36,7 @@ public class AuthController {
      * Apenas email + senha — não requer CNPJ
      */
     @PostMapping("/partner/login")
-    public ResponseEntity<LoginResponse> loginPartner(@RequestBody LoginRequest request) {
+    public ResponseEntity<LoginResponse> loginPartner(@Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok(authService.loginPartner(request.email(), request.password()));
     }
 

@@ -107,7 +107,7 @@ class AuthControllerTest {
         when(ownerMarkerRepository.existsByUser_IdAndEnabledTrue(any())).thenReturn(false);
         when(userRoleRepository.findAllByUserId(any())).thenReturn(List.of());
         when(tokenService.generateToken(any(), any(), anyBoolean(), any())).thenReturn("jwt-token");
-        when(refreshTokenService.issue(any())).thenReturn(new RefreshTokenService.TokenPair("refresh-token", refreshEntity));
+        when(refreshTokenService.issue(any(),any())).thenReturn(new RefreshTokenService.TokenPair("refresh-token", refreshEntity));
         when(authMapper.toLoginResponse(any(), any(), any())).thenReturn(response);
 
         mockMvc.perform(post("/auth/login")
@@ -210,7 +210,7 @@ class AuthControllerTest {
         when(passwordEncoder.matches(any(), any())).thenReturn(true);
         when(userRoleRepository.findAllByUserId(any())).thenReturn(List.of());
         when(tokenService.generateTenantUserToken(any(), any(), any())).thenReturn("tenant-jwt");
-        when(refreshTokenService.issue(any())).thenReturn(new RefreshTokenService.TokenPair("refresh-token", refreshEntity));
+        when(refreshTokenService.issue(any(),any())).thenReturn(new RefreshTokenService.TokenPair("refresh-token", refreshEntity));
         when(authMapper.toTenantLoginResponse(any(), any(), any(), any())).thenReturn(response);
 
         mockMvc.perform(post("/auth/tenant/login")
@@ -289,7 +289,7 @@ class AuthControllerTest {
         when(ownerMarkerRepository.existsByUser_IdAndEnabledTrue(any())).thenReturn(false);
         when(userRoleRepository.findAllByUserId(any())).thenReturn(List.of());
         when(tokenService.generateToken(any(), any(), anyBoolean(), any())).thenReturn("new-jwt-token");
-        when(refreshTokenService.issue(any())).thenReturn(new RefreshTokenService.TokenPair("new-refresh-token", newRtEntity));
+        when(refreshTokenService.issue(any(),any())).thenReturn(new RefreshTokenService.TokenPair("new-refresh-token", newRtEntity));
 
         mockMvc.perform(post("/auth/refresh")
                         .contentType(MediaType.APPLICATION_JSON)

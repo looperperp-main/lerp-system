@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
@@ -62,15 +63,27 @@ public class RateLimitFilter implements Filter {
                 .build();
     }
 
+    // IPs de redes privadas RFC 1918 e loopback — considerados proxies confiáveis (nginx, OCI LB)
+    // Recomendação: verificar X-Forwarded-For somente quando a conexão vier de um proxy interno.
+    private static final Set<String> PRIVATE_PREFIXES = Set.of(
+            "10.", "127.", "192.168.",
+            "172.16.", "172.17.", "172.18.", "172.19.", "172.20.",
+            "172.21.", "172.22.", "172.23.", "172.24.", "172.25.",
+            "172.26.", "172.27.", "172.28.", "172.29.", "172.30.", "172.31."
+    );
+
     private String resolveKey(HttpServletRequest request) {
-        // Usa apenas o IP real da conexão TCP — X-Forwarded-For é controlado pelo cliente
-        // e pode ser falsificado para burlar o rate limit.
-        /*
-        * String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isBlank()) {
-            return xForwardedFor.split(",")[0].trim();
+        String remoteAddr = request.getRemoteAddr();
+        if (isTrustedProxy(remoteAddr)) {
+            String forwarded = request.getHeader("X-Forwarded-For");
+            if (forwarded != null && !forwarded.isBlank()) {
+                return forwarded.split(",")[0].trim();
+            }
         }
-        * */
-        return request.getRemoteAddr();
+        return remoteAddr;
+    }
+
+    private boolean isTrustedProxy(String addr) {
+        return PRIVATE_PREFIXES.stream().anyMatch(addr::startsWith);
     }
 }

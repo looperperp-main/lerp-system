@@ -11,7 +11,7 @@ import org.mapstruct.Mapping;
 
 import java.util.List;
 
-@Mapper(componentModel = "spring",uses = HtmlSanitizerUtil.class)
+@Mapper(componentModel = "spring", imports = HtmlSanitizerUtil.class)
 public interface AuthMapper {
     @Mapping(target = "username", source = "user.displayName")
     @Mapping(target = "token", source = "token")

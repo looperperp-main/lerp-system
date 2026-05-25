@@ -1,0 +1,59 @@
+package com.l.erp.billingservice.infra.filter;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+import java.util.Set;
+
+/**
+ * Garante que apenas requests originados do gateway (com X-User-Id injetado)
+ * acessem endpoints protegidos. Substitui a confiança implícita no
+ * anyRequest().permitAll() da SecurityConfig.
+ */
+@Component
+public class InternalRequestFilter extends OncePerRequestFilter {
+
+    // Paths que o gateway roteia sem autenticação (ver SecurityConfig do gateway)
+    private static final Set<String> PUBLIC_EXACT = Set.of(
+            "/api/v1/webhooks/asaas",
+            "/api/v1/plans",
+            "/actuator/health",
+            "/actuator/info"
+    );
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain chain) throws ServletException, IOException {
+        String path = request.getRequestURI();
+        String method = request.getMethod();
+
+        if (isPublic(path, method)) {
+            chain.doFilter(request, response);
+            return;
+        }
+
+        if (request.getHeader("X-User-Id") == null) {
+            response.setStatus(HttpStatus.UNAUTHORIZED.value());
+            response.setContentType("application/json");
+            response.getWriter().write("{\"status\":401,\"error\":\"Unauthorized\"}");
+            return;
+        }
+
+        chain.doFilter(request, response);
+    }
+
+    private boolean isPublic(String path, String method) {
+        if (PUBLIC_EXACT.contains(path)) return true;
+        // POST /api/v1/partners — registro de parceiro via billing (público no gateway)
+        if (HttpMethod.POST.matches(method) && "/api/v1/partners".equals(path)) return true;
+        return false;
+    }
+}

@@ -5,13 +5,16 @@ import com.l.erp.authservice.api.dto.UpdateSyaxQueueStatusRequest;
 import com.l.erp.authservice.dominio.SyaxQueue;
 import com.l.erp.authservice.services.SyaxQueueService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Pattern;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+@Validated
 @RestController
 @RequestMapping("/auth/api/v1/syax-queue")
 public class SyaxQueueController {
@@ -25,7 +28,7 @@ public class SyaxQueueController {
     @GetMapping
     @PreAuthorize("hasRole('APP_OWNER')")
     public ResponseEntity<Page<SyaxQueueDTO>> listar(
-            @RequestParam(required = false) String status,
+            @RequestParam(required = false) @Pattern(regexp = "^[A-Z_]{1,30}$", message = "Status inválido") String status,
             @PageableDefault(size = 20, sort = "createdAt") Pageable pageable) {
         return ResponseEntity.ok(service.listar(status, pageable).map(this::toDTO));
     }

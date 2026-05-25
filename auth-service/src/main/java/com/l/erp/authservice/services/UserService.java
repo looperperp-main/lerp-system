@@ -22,6 +22,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
@@ -72,11 +73,13 @@ public class UserService {
      * @param pageable pageable com as configs da página
      * @return page com os dados do user
      */
+    @Transactional(readOnly = true)
     public Page<UserAccountPageDTO> searchAccounts(UserSearchFilterDTO filter, Pageable pageable) {
         logger.debug("REST request to get all Users");
         return userAccountRepository.findProjectedWithFilters(filter, pageable);
     }
 
+    @Transactional(readOnly = true)
     public Page<UserAccountPageDTO> getAllAccountsActive(Pageable pageable) {
         logger.debug("REST request to get all Users using a Pageable");
         return userAccountRepository.findAllActiveProjectedBy(pageable);
