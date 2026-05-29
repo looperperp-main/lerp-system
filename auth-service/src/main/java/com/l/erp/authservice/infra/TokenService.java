@@ -9,6 +9,7 @@ import com.l.erp.authservice.dominio.Tenant;
 import com.l.erp.authservice.dominio.UserAccount;
 import com.l.erp.authservice.infra.config.Roles;
 import com.l.erp.authservice.util.Constants;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -19,8 +20,16 @@ import java.util.List;
 @Service
 public class TokenService {
 
-    @Value( "${api.security.jwt.secret}")
+    @Value("${api.security.jwt.secret}")
     private String secret;
+
+    @PostConstruct
+    void validateSecret() {
+        if (secret == null || secret.length() < 32) {
+            throw new IllegalStateException(
+                "JWT_SECRET deve ter no mínimo 32 caracteres. Verifique a variável de ambiente.");
+        }
+    }
     public String generateToken(UserAccount user, List<String> roles, boolean isOwner, List<String> permissions){
         try{
             return createJWT(user,

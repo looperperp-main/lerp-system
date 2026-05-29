@@ -1,0 +1,8 @@
+node_modules/
+Angular/node_modules/
+Angular/erp-front-end-web/node_modules/
+dist/
+target/
+.mvn/
+htmlReport/
+.junie/

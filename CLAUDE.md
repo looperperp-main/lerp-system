@@ -84,7 +84,7 @@ Every authenticated request carries tenant context. The gateway's `SecurityFilte
 
 ### JWT Secret
 
-Configured via environment variable `JWT_SECRET` in `auth-service`. The gateway currently hardcodes `security-key-for-now` in `application.yml` (dev only — must be the same value as `auth-service` in production).
+Configurado via variável de ambiente `JWT_SECRET` em ambos `auth-service` e `gateway`. O `TokenService` do auth-service valida no startup que o secret tem no mínimo 32 caracteres.
 
 ### Package Structure Convention
 

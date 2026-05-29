@@ -36,10 +36,6 @@ spring:
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       auto-offset-reset: earliest
 
-billing:
-  service:
-    url: ${BILLING_SERVICE_URL:http://localhost:8088}
-
 logging:
   level:
     root: ${LOG_LEVEL:INFO}
