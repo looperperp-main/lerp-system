@@ -12,7 +12,7 @@ accordingly, and delete the patch script.
 changeProject(DslContext.projectId) {
     params {
         add {
-            param("env.QODANA_TOKEN", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJwcm9qZWN0IjoiNDBXeW8iLCJvcmdhbml6YXRpb24iOiI1Wnh4RCIsInRva2VuIjoiWU9RT2EifQ.DbdWg2Qk0MjC-HdE6RbzygkYluJwMnitUsdbLMwW0T4")
+            password("env.QODANA_TOKEN", "credentialsJSON:bdb32f76-7bf4-4827-8cc3-845ee195d6b0")
         }
     }
 }
