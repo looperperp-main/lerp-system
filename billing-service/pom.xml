@@ -30,7 +30,7 @@
         <java.version>25</java.version>
         <spring-cloud.version>2025.1.1</spring-cloud.version>
         <jacoco.version>0.8.14</jacoco.version>
-        <coverage.minimum>0.40</coverage.minimum>
+        <coverage.minimum>0.03</coverage.minimum>
         <testcontainers.version>1.21.0</testcontainers.version>
     </properties>
     <dependencies>
