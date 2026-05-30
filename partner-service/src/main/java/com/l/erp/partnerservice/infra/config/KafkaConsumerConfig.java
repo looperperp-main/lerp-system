@@ -25,15 +25,30 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Classe de configuração do Spring para consumidores do Apache Kafka.
+ * Define a conexão com o Kafka, as estratégias de resiliência (tratamento de erros e retentativas)
+ * e o mecanismo para chamadas síncronas (Request/Reply) utilizando tópicos.
+ */
 @Configuration
 @EnableKafka
 public class KafkaConsumerConfig {
 
+    /**
+     * Nome do tópico Kafka utilizado para receber as respostas (replies) relacionadas às consultas de extrato.
+     */
     public static final String EXTRATO_REPLY_TOPIC = "partner.extrato.reply";
 
     @Value("${spring.kafka.bootstrap-servers:localhost:9092}")
     private String bootstrapServers;
 
+    /**
+     * Configura a fábrica de consumidores do Kafka.
+     * Define o endereço do servidor, o grupo de consumidores padrão, a estratégia de leitura
+     * de offsets e os desserializadores de chaves e valores.
+     *
+     * @return a fábrica de consumidores configurada.
+     */
     @Bean
     public ConsumerFactory<String, String> consumerFactory() {
         Map<String, Object> props = new HashMap<>();
@@ -44,6 +59,15 @@ public class KafkaConsumerConfig {
         return new DefaultKafkaConsumerFactory<>(props, deser, deser);
     }
 
+    /**
+     * Configura o tratador de erros padrão para os listeners do Kafka.
+     * Implementa um mecanismo de Dead Letter Topic (DLT) para mensagens com falha e
+     * uma estratégia de retentativas (BackOff) com "Jitter" para evitar sobrecarga.
+     * Exceções de processamento de JSON ({@link JsonProcessingException}) não são retentadas.
+     *
+     * @param kafkaTemplate o template usado para enviar mensagens falhas ao DLT.
+     * @return o tratador de erros configurado.
+     */
     @Bean
     public DefaultErrorHandler kafkaErrorHandler(KafkaTemplate<Object, Object> kafkaTemplate) {
         var recoverer = new DeadLetterPublishingRecoverer(kafkaTemplate,
@@ -53,6 +77,13 @@ public class KafkaConsumerConfig {
         return handler;
     }
 
+    /**
+     * Implementa uma estratégia de retentativas com recuo exponencial e "Jitter" (variação aleatória).
+     * Realiza no máximo 3 tentativas, variando aleatoriamente o tempo de espera com um teto de 1s, 2s e 4s.
+     * Isso ajuda a evitar o efeito "Thundering Herd" ao processar falhas.
+     *
+     * @return a estratégia de BackOff configurada.
+     */
     private static BackOff jitteredBackOff() {
         return () -> new BackOffExecution() {
             private int attempt = 0;
@@ -65,6 +96,13 @@ public class KafkaConsumerConfig {
         };
     }
 
+    /**
+     * Configura a fábrica de containers para os listeners ({@code @KafkaListener}).
+     * Associa a fábrica de consumidores e o tratador de erros customizado a todos os listeners criados.
+     *
+     * @param kafkaErrorHandler o tratador de erros padrão configurado.
+     * @return a fábrica de containers para os listeners do Kafka.
+     */
     @Bean
     public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory(
             DefaultErrorHandler kafkaErrorHandler) {
@@ -74,6 +112,14 @@ public class KafkaConsumerConfig {
         return factory;
     }
 
+    /**
+     * Configura um template para enviar requisições e aguardar respostas no Kafka (padrão Request/Reply).
+     * Cria um produtor interno dedicado para evitar conflitos de serialização com outros beans
+     * e configura um listener container específico para escutar o tópico de respostas.
+     *
+     * @param containerFactory a fábrica de containers para criar o listener de respostas.
+     * @return o template de Request/Reply configurado.
+     */
     @Bean
     public ReplyingKafkaTemplate<String, String, String> replyingKafkaTemplate(
             ConcurrentKafkaListenerContainerFactory<String, String> containerFactory) {

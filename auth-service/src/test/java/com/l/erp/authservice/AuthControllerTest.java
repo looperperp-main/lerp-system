@@ -23,12 +23,15 @@ import com.l.erp.authservice.repositorios.TenantRepository;
 import com.l.erp.authservice.repositorios.UserAccountRepository;
 import com.l.erp.authservice.repositorios.UserRoleRepository;
 import com.l.erp.authservice.services.audit.AuditService;
+import com.l.erp.authservice.services.TrialEngagementService;
+import com.l.erp.authservice.util.PasswordValidatorUtil;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -88,6 +91,15 @@ class AuthControllerTest {
 
     @MockitoBean
     private AuditService auditService;
+
+    @MockitoBean
+    private PasswordValidatorUtil passwordValidatorUtil;
+
+    @MockitoBean
+    private KafkaTemplate<String, String> kafkaTemplate;
+
+    @MockitoBean
+    private TrialEngagementService trialEngagementService;
 
     @Test
     void shouldLoginSuccess() throws Exception {
@@ -279,13 +291,14 @@ class AuthControllerTest {
 
         RefreshToken rt = new RefreshToken();
         rt.setUser(user);
+        rt.setExpiresAt(Instant.now().plusSeconds(3600));
 
         RefreshToken newRtEntity = new RefreshToken();
         newRtEntity.setUser(user);
 
         RefreshRequest request = new RefreshRequest("valid-refresh-token");
 
-        when(refreshTokenService.findValid("valid-refresh-token")).thenReturn(Optional.of(rt));
+        when(refreshTokenService.findByHash("valid-refresh-token")).thenReturn(Optional.of(rt));
         when(ownerMarkerRepository.existsByUser_IdAndEnabledTrue(any())).thenReturn(false);
         when(userRoleRepository.findAllByUserId(any())).thenReturn(List.of());
         when(tokenService.generateToken(any(), any(), anyBoolean(), any())).thenReturn("new-jwt-token");
@@ -303,13 +316,13 @@ class AuthControllerTest {
     void shouldRefreshFailInvalidToken() throws Exception {
         RefreshRequest request = new RefreshRequest("invalid-token");
 
-        when(refreshTokenService.findValid("invalid-token")).thenReturn(Optional.empty());
+        when(refreshTokenService.findByHash("invalid-token")).thenReturn(Optional.empty());
 
         mockMvc.perform(post("/auth/refresh")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andDo(print())
-                .andExpect(status().isInternalServerError());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test

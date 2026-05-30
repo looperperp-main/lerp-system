@@ -9,28 +9,6 @@ import jetbrains.buildServer.configs.kotlin.failureConditions.failOnMetricChange
 import jetbrains.buildServer.configs.kotlin.projectFeatures.dockerRegistry
 import jetbrains.buildServer.configs.kotlin.triggers.vcs
 
-/*
-The settings script is an entry point for defining a TeamCity
-project hierarchy. The script should contain a single call to the
-project() function with a Project instance or an init function as
-an argument.
-
-VcsRoots, BuildTypes, Templates, and subprojects can be
-registered inside the project using the vcsRoot(), buildType(),
-template(), and subProject() methods respectively.
-
-To debug settings scripts in command-line, run the
-
-    mvnDebug org.jetbrains.teamcity:teamcity-configs-maven-plugin:generate
-
-command and attach your debugger to the port 8000.
-
-To debug in IntelliJ Idea, open the 'Maven Projects' tool window (View
--> Tool Windows -> Maven Projects), find the generate task node
-(Plugins -> teamcity-configs -> teamcity-configs:generate), the
-'Debug' option is available in the context menu for the task.
-*/
-
 version = "2025.11"
 
 project {
@@ -62,16 +40,37 @@ object Build : BuildType({
     }
 
     steps {
+        // Step 1: Compilar + unit tests + ITs com Testcontainers + JaCoCo check (unit + IT combinados)
         maven {
-            name = "Compilar e Testar Auth Service"
-            id = "Maven2"
+            name = "Build, Testes e Cobertura"
+            id = "Maven_Build_Test"
             goals = "clean verify"
-            runnerArgs = "-pl auth-service -am -Dmaven.test.failure.ignore=true -X"
+            runnerArgs = "-pl auth-service,cadastro-service,partner-service,billing-service -am"
             param("teamcity.coverage.jacoco.classpath", """
                 auth-service/target/classes
+                cadastro-service/target/classes
+                partner-service/target/classes
+                billing-service/target/classes
                 common/target/classes
             """.trimIndent())
         }
+
+        // Step 2: Análise estática Qodana (OWASP, SQL Injection, serialização, cobertura)
+        dockerCommand {
+            name = "Qodana — Análise Estática"
+            id = "Qodana_Analysis"
+            commandType = other {
+                subCommand = "run"
+                commandArgs = "--rm " +
+                        "-v %teamcity.build.checkoutDir%:/data/project " +
+                        "-v %teamcity.build.checkoutDir%/.qodana/results:/data/results " +
+                        "-e QODANA_TOKEN=%env.QODANA_TOKEN% " +
+                        "jetbrains/qodana-jvm:2025.3 " +
+                        "--fail-threshold 0"
+            }
+        }
+
+        // Step 4: Build da imagem Docker do auth-service
         dockerCommand {
             name = "Construir Imagem Docker"
             id = "Construir_Imagem_Docker"
@@ -84,6 +83,8 @@ object Build : BuildType({
                 commandArgs = "--pull"
             }
         }
+
+        // Step 5: Publicar imagem no Docker Hub
         script {
             name = "Publicar Imagem"
             id = "Publicar_Imagem"
@@ -101,6 +102,9 @@ object Build : BuildType({
             triggerRules = """
                 -:.
                 +:/auth-service/**
+                +:/cadastro-service/**
+                +:/partner-service/**
+                +:/billing-service/**
                 +:/common/**
                 +:/pom.xml
             """.trimIndent()
@@ -111,6 +115,7 @@ object Build : BuildType({
     }
 
     failureConditions {
+        // Cobertura de classes não pode cair mais de 5% em relação ao último build
         failOnMetricChange {
             metric = BuildFailureOnMetric.MetricType.COVERAGE_CLASS_PERCENTAGE
             threshold = 5
