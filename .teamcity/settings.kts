@@ -46,8 +46,7 @@ object Build : BuildType({
             id = "Maven_Build_Test"
             goals = "clean verify"
             runnerArgs = "-pl auth-service,cadastro-service,partner-service,billing-service -am"
-            dockerImage = "eclipse-temurin:25-jdk"
-            dockerRunParameters = "-v /var/run/docker.sock:/var/run/docker.sock -v /opt/buildagent:/opt/buildagent"
+
             param("teamcity.coverage.jacoco.classpath", """
                 auth-service/target/classes
                 cadastro-service/target/classes

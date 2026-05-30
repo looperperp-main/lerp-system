@@ -203,8 +203,7 @@ services:
       - DOCKER_IN_DOCKER=start
     volumes:
       - teamcity_agent_conf:/data/teamcity_agent/conf
-      # Muito importante: Isso permite que o Agente do TeamCity rode comandos Docker (como o seu docker build)
-      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker-host.sock
     depends_on:
       - teamcity-server
     networks:
