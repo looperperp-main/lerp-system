@@ -56,10 +56,11 @@ object Build : BuildType({
             """.trimIndent())
         }
 
-        // Step 2: Análise estática Qodana (OWASP, SQL Injection, serialização, cobertura)
+        // Step 2: Análise estática Qodana — requer licença Ultimate para rodar no CI
         dockerCommand {
             name = "Qodana — Análise Estática"
             id = "Qodana_Analysis"
+            enabled = false
             commandType = other {
                 subCommand = "run"
                 commandArgs = "--rm " +
