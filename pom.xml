@@ -34,6 +34,13 @@
         <jacoco.version>0.8.14</jacoco.version>
         <coverage.minimum>0.40</coverage.minimum>
         <testcontainers.version>1.21.0</testcontainers.version>
+        <!-- SonarQube -->
+        <sonar.projectKey>erp-vsd</sonar.projectKey>
+        <sonar.projectName>ERP VSD</sonar.projectName>
+        <sonar.host.url>http://sonarqube:9000</sonar.host.url>
+        <sonar.java.source>25</sonar.java.source>
+        <sonar.exclusions>**/dto/**,**/dominio/**,**/domain/**,**/mappers/**,**/infra/config/**,**/*Application.java</sonar.exclusions>
+        <sonar.coverage.jacoco.xmlReportPaths>${project.basedir}/target/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
     </properties>
     <modules>
         <module>auth-service</module>
@@ -131,6 +138,11 @@
                     <version>${jacoco.version}</version>
                 </plugin>
                 <plugin>
+                    <groupId>org.sonarsource.scanner.maven</groupId>
+                    <artifactId>sonar-maven-plugin</artifactId>
+                    <version>5.1.0.4751</version>
+                </plugin>
+                <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-failsafe-plugin</artifactId>
                     <version>3.5.2</version>
@@ -156,6 +168,12 @@
                         <goals>
                             <goal>report-aggregate</goal>
                         </goals>
+                        <configuration>
+                            <formats>
+                                <format>HTML</format>
+                                <format>XML</format>
+                            </formats>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
