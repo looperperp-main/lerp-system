@@ -3,9 +3,11 @@ target/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
-.mvn/
-mvnw
-mvnw.cmd
+
+# mvnw dos submódulos (apenas a raiz é usada no monorepo)
+*/mvnw
+*/mvnw.cmd
+*/.mvn/
 
 ### STS ###
 .apt_generated
