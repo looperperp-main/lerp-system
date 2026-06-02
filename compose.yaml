@@ -237,7 +237,7 @@ services:
     environment:
       - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
       - TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal
-      - DOCKER_HOST=unix:///var/run/docker.sock
+      - DOCKER_HOST=tcp://host.docker.internal:2375
     networks:
       - loop-erp-network
 
