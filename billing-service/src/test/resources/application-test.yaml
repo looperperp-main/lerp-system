@@ -1,0 +1,26 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+  datasource:
+    url: will-be-overridden-by-testcontainers
+    username: test
+    password: test
+  kafka:
+    bootstrap-servers: will-be-overridden-by-testcontainers
+    consumer:
+      auto-offset-reset: earliest
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:test-schema-init.sql
+
+eureka:
+  client:
+    enabled: false
+
+asaas:
+  api-key: test-key
+  base-url: http://localhost:9999
+  webhook-token: test-token

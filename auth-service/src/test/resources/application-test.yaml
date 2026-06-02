@@ -1,0 +1,31 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+  datasource:
+    url: will-be-overridden-by-testcontainers
+    username: test
+    password: test
+  kafka:
+    bootstrap-servers: will-be-overridden-by-testcontainers
+    consumer:
+      auto-offset-reset: earliest
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:test-schema-init.sql
+  mail:
+    host: localhost
+    port: 1025
+    username: test
+    password: test
+    properties:
+      mail.smtp.auth: false
+      mail.smtp.starttls.enable: false
+
+eureka:
+  client:
+    enabled: false
+
+jwt.secret: test-secret-32chars-minimum-xxxxxxxxxxx

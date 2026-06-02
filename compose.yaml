@@ -222,6 +222,15 @@ services:
     networks:
       - loop-erp-network
 
+  dind:
+    image: docker:27-dind
+    container_name: erp-dind
+    privileged: true
+    environment:
+      - DOCKER_TLS_CERTDIR=
+    networks:
+      - loop-erp-network
+
   jenkins:
     build:
       context: .
@@ -235,42 +244,13 @@ services:
       - "50000:50000"
     volumes:
       - jenkins_home:/var/jenkins_home
-      - /var/run/docker.sock:/var/run/docker.sock
       - maven_cache:/root/.m2
     environment:
       - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
-      - TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal
-      - DOCKER_HOST=tcp://host.docker.internal:2375
-    networks:
-      - loop-erp-network
-
-  teamcity-server:
-    image: jetbrains/teamcity-server:latest
-    container_name: teamcity-server
-    ports:
-      - "8111:8111"
-    volumes:
-      - teamcity_server_data:/data/teamcity_server/datadir
-      - teamcity_server_logs:/opt/teamcity/logs
-    networks:
-      - loop-erp-network
-
-  teamcity-agent:
-    build:
-      context: .
-      dockerfile: teamcity-agent.Dockerfile
-    image: teamcity-agent-jdk25
-    container_name: teamcity-agent
-    privileged: true # Necessário para o container conseguir rodar os binários do Docker
-    user: root # Garante permissão total para acessar o docker.sock
-    environment:
-      - SERVER_URL=http://teamcity-server:8111
-      - DOCKER_IN_DOCKER=start
-    volumes:
-      - teamcity_agent_conf:/data/teamcity_agent/conf
-      - /var/run/docker.sock:/var/run/docker.sock
+      - DOCKER_HOST=tcp://dind:2375
+      - TESTCONTAINERS_HOST_OVERRIDE=dind
     depends_on:
-      - teamcity-server
+      - dind
     networks:
       - loop-erp-network
 
@@ -280,9 +260,6 @@ volumes:
   kafka_data:
   prometheus_data:
   grafana_data:
-  teamcity_server_data:
-  teamcity_server_logs:
-  teamcity_agent_conf:
   sonarqube_data:
   sonarqube_extensions:
   sonarqube_logs:
