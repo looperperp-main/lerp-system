@@ -11,6 +11,7 @@ public class Constants {
 
     public static final BigDecimal DEFAULT_COMMISSION_RATE = new BigDecimal("10.00");
 
+
     public static final String STATUS_PENDENTE  = "PENDENTE";
     public static final String STATUS_ATIVO     = "ATIVO";
     public static final String STATUS_REPROVADO = "REPROVADO";
@@ -58,6 +59,7 @@ public class Constants {
     public static final String PERMISSION_CREATION = PERMISSION + "_" + INSERT;
     public static final String PERMISSION_UPDATE = PERMISSION + "_" + UPDATE;
     public static final String PERMISSION_DELETE = PERMISSION + "_" + DELETE;
+    public static final String PERMISSION_NOT_FOUND = "Permissão não encontrada";
 
     public static final String ROLE_CREATION = ROLE + "_" + INSERT;
     public static final String ROLE_UPDATE = ROLE + "_" + UPDATE;
@@ -226,4 +228,16 @@ public class Constants {
     public static final String CONVITE_SEND = CONVITE + "_SEND";
     public static final String CONVITE_RESEND = CONVITE + "_RESEND";
     public static final String CONVITE_NOT_FOUND = "Convite não encontrado";
+
+    // Partner
+    public static final String PARTNER = "PARTNER";
+    public static final String PARTNER_LOGIN = "PARTNER_LOGIN";
+    public static final String PARTNER_LOGIN_SUCCESS = PARTNER_LOGIN + "_" + SUCCESS;
+    public static final String PARTNER_LOGIN_FAILED = PARTNER_LOGIN + "_" + FAILED;
+
+    // Refresh Token
+    public static final String TENANT_USER = "TENANT_USER";
+    public static final String TOKEN_REFRESH = "TOKEN_REFRESH";
+    public static final String TOKEN_REFRESH_SUCCESS = TOKEN_REFRESH + "_" + SUCCESS;
+    public static final String TOKEN_REFRESH_REUSE = TOKEN_REFRESH + "_REUSE_DETECTED";
 }

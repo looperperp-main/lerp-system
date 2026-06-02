@@ -6,7 +6,7 @@ import com.l.erp.authservice.api.mappers.PermissionMapper;
 import com.l.erp.authservice.dominio.Permission;
 import com.l.erp.authservice.repositorios.PermissionRepository;
 import com.l.erp.authservice.services.audit.AuditService;
-import com.l.erp.authservice.util.Constants;
+import com.l.erp.common.util.Constants;
 import com.l.erp.authservice.util.SecurityUtils;
 import com.l.erp.common.exception.custom.BusinessException;
 import org.slf4j.Logger;
@@ -45,7 +45,7 @@ public class PermissionService {
 
     public PermissionDTO getPermissionById(UUID id) {
         Permission permission = permissionRepository.findById(id)
-                .orElseThrow(() -> new BusinessException("Permissão não encontrada", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(Constants.PERMISSION_NOT_FOUND, HttpStatus.NOT_FOUND));
         return permissionMapper.toPermissionDTO(permission);
     }
 
@@ -85,7 +85,7 @@ public class PermissionService {
         logger.debug("Atualizando Permissão ID: {}", id);
 
         Permission permission = permissionRepository.findById(id)
-                .orElseThrow(() -> new BusinessException("Permissão não encontrada", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(Constants.PERMISSION_NOT_FOUND, HttpStatus.NOT_FOUND));
 
         // Se estiver alterando o código, verifica se o novo código já existe
         if (!permission.getCode().equalsIgnoreCase(dto.code()) &&
@@ -118,7 +118,7 @@ public class PermissionService {
         logger.debug("Deletando Permissão ID: {}", id);
 
         Permission permission = permissionRepository.findById(id)
-                .orElseThrow(() -> new BusinessException("Permissão não encontrada", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(Constants.PERMISSION_NOT_FOUND, HttpStatus.NOT_FOUND));
         UUID correlationId = SecurityUtils.getCorrelationIdFromRequest(logger);
         auditService.logAuditEvent(Constants.PERMISSION_DELETE,
                 Constants.PERMISSION,

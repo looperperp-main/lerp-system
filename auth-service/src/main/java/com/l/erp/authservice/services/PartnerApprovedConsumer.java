@@ -4,7 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.l.erp.authservice.dominio.UserAccount;
 import com.l.erp.authservice.repositorios.UserAccountRepository;
-import com.l.erp.authservice.util.Constants;
+import com.l.erp.common.util.Constants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;

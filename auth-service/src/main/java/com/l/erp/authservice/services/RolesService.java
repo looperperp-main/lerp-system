@@ -16,7 +16,7 @@ import com.l.erp.authservice.repositorios.RoleRepository;
 import com.l.erp.authservice.repositorios.TenantRepository;
 import com.l.erp.authservice.repositorios.UserRoleRepository;
 import com.l.erp.authservice.services.audit.AuditService;
-import com.l.erp.authservice.util.Constants;
+import com.l.erp.common.util.Constants;
 import com.l.erp.authservice.util.SecurityUtils;
 import com.l.erp.common.exception.custom.BusinessException;
 import org.slf4j.Logger;

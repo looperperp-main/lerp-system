@@ -16,7 +16,7 @@ import com.l.erp.authservice.repositorios.UserAccountRepository;
 import com.l.erp.authservice.services.EmailNotificationService;
 import com.l.erp.authservice.services.UserService;
 import com.l.erp.authservice.services.audit.AuditService;
-import com.l.erp.authservice.util.Constants;
+import com.l.erp.common.util.Constants;
 import com.l.erp.authservice.util.PasswordValidatorUtil;
 import com.l.erp.authservice.util.SecurityUtils;
 import org.junit.jupiter.api.Test;

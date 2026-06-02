@@ -8,7 +8,7 @@ import com.auth0.jwt.interfaces.DecodedJWT;
 import com.l.erp.authservice.dominio.Tenant;
 import com.l.erp.authservice.dominio.UserAccount;
 import com.l.erp.authservice.infra.config.Roles;
-import com.l.erp.authservice.util.Constants;
+import com.l.erp.common.util.Constants;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;

@@ -7,7 +7,7 @@ import com.l.erp.authservice.dominio.Tenant;
 import com.l.erp.authservice.dominio.enumerators.EnumTenantStatus;
 import com.l.erp.authservice.repositorios.TenantRepository;
 import com.l.erp.authservice.services.audit.AuditService;
-import com.l.erp.authservice.util.Constants;
+import com.l.erp.common.util.Constants;
 import com.l.erp.authservice.util.SecurityUtils;
 import com.l.erp.common.util.HtmlSanitizerUtil;
 import com.l.erp.common.exception.custom.BusinessException;
