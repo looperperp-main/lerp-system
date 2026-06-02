@@ -53,6 +53,14 @@ class AuthControllerIT extends AbstractIntegrationTest {
         userAccountRepository.deleteAll();
         tenantRepository.deleteAll();
 
+        Tenant tenant = new Tenant();
+        tenant.setName("IT Tenant");
+        tenant.setCnpj("12345678000190");
+        tenant.setStatus(EnumTenantStatus.ATIVO);
+        tenant.setCreationDate(Instant.now());
+        tenant.setCreatedBy("test");
+        tenant = tenantRepository.save(tenant);
+
         UserAccount user = new UserAccount();
         user.setEmail(TEST_EMAIL);
         user.setPasswordHash(passwordEncoder.encode(TEST_PASSWORD));
@@ -62,6 +70,7 @@ class AuthControllerIT extends AbstractIntegrationTest {
         user.setFailedLoginAttempts(0);
         user.setCreatedDate(Instant.now());
         user.setCreatedBy("test");
+        user.setTenant(tenant);
         userAccountRepository.save(user);
     }
 
