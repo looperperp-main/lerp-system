@@ -9,9 +9,8 @@ pipeline {
     environment {
         DOCKER_HUB_CREDS                      = credentials('docker-hub-creds')
         SONAR_TOKEN                           = credentials('sonarqube-token')
-        DOCKER_HOST                           = 'unix:///var/run/docker.sock'
-        TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE = '/var/run/docker.sock'
-        TESTCONTAINERS_HOST_OVERRIDE          = 'host.docker.internal'
+        DOCKER_HOST                           = 'tcp://dind:2375'
+        TESTCONTAINERS_HOST_OVERRIDE          = 'dind'
         DOCKER_REGISTRY                       = 'vitorff1234'
         IMAGE_TAG                             = "${env.BUILD_NUMBER}"
         SONAR_HOST_URL                        = 'http://erp-sonarqube:9000'
