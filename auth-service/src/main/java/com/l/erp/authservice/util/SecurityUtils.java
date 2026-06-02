@@ -19,10 +19,14 @@ public final class SecurityUtils {
 
     public static Optional<UUID> getCurrentUserId() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || auth.getPrincipal() == null) {
+        if (auth == null) {
             return Optional.empty();
         }
-        return Optional.of(UUID.fromString(auth.getPrincipal().toString()));
+        Object principal = auth.getPrincipal();
+        if (principal == null) {
+            return Optional.empty();
+        }
+        return Optional.of(UUID.fromString(principal.toString()));
     }
 
     public static Optional<String> getCurrentUserEmail() {
@@ -56,7 +60,7 @@ public final class SecurityUtils {
             if (headerCorId != null && !headerCorId.isBlank()) {
                 try {
                     return UUID.fromString(headerCorId);
-                } catch (IllegalArgumentException e) {
+                } catch (IllegalArgumentException _) {
                     logger.warn("Formato de Correlation ID inválido recebido no header: {}", headerCorId);
                 }
             }

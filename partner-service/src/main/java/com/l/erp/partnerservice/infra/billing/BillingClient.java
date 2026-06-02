@@ -31,15 +31,16 @@ public class BillingClient {
     public BillingExtratoDTO getExtrato(UUID partnerId) {
         log.info("Consultando extrato de comissões via Kafka para partnerId={}", partnerId);
         try {
-            var record = new ProducerRecord<String, String>(REQUEST_TOPIC, partnerId.toString(), partnerId.toString());
-            record.headers().add(KafkaHeaders.REPLY_TOPIC,
+            var producerRecord = new ProducerRecord<String, String>(REQUEST_TOPIC, partnerId.toString(), partnerId.toString());
+            producerRecord.headers().add(KafkaHeaders.REPLY_TOPIC,
                     KafkaConsumerConfig.EXTRATO_REPLY_TOPIC.getBytes(StandardCharsets.UTF_8));
 
-            var future = replyingKafkaTemplate.sendAndReceive(record);
+            var future = replyingKafkaTemplate.sendAndReceive(producerRecord);
             var response = future.get(10, TimeUnit.SECONDS);
             return objectMapper.readValue(response.value(), BillingExtratoDTO.class);
         } catch (Exception e) {
             log.error("Falha ao consultar extrato via Kafka para partnerId={}", partnerId, e);
+            Thread.currentThread().interrupt();
             return null;
         }
     }

@@ -7,7 +7,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.time.Instant;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -71,6 +73,8 @@ class PessoaServiceIT extends AbstractIntegrationTest {
         p.setDocumento(documento);
         p.setTenantId(tenantId);
         p.setAtivo(true);
+        p.setCreatedAt(Instant.now());
+        p.setCreatedBy(UUID.randomUUID());
         return p;
     }
 }
