@@ -59,4 +59,4 @@ eureka:
 
 cep:
   service:
-    url: ${CEP_SERVICE_URL}
+    url: ${CEP_SERVICE_URL:https://viacep.com.br/ws/}

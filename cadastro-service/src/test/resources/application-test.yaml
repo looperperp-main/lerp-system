@@ -19,3 +19,7 @@ spring:
 eureka:
   client:
     enabled: false
+
+cep:
+  service:
+    url: http://localhost/stub-cep/
