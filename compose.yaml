@@ -179,6 +179,68 @@ services:
     networks:
       - loop-erp-network
 
+  sonarqube-db-init:
+    image: postgres:17-alpine
+    container_name: sonarqube-db-init
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    command: >
+      sh -c "psql -h postgres -U $${POSTGRES_USER:-admin-user} -c \"SELECT 1\" -d sonarqube 2>/dev/null || psql -h postgres -U $${POSTGRES_USER:-admin-user} -c 'CREATE DATABASE sonarqube;'"
+    networks:
+      - loop-erp-network
+    restart: "no"
+
+  sonarqube:
+    image: sonarqube:community
+    container_name: erp-sonarqube
+    depends_on:
+      postgres:
+        condition: service_healthy
+      sonarqube-db-init:
+        condition: service_completed_successfully
+    environment:
+      SONAR_JDBC_URL: jdbc:postgresql://postgres:5432/sonarqube
+      SONAR_JDBC_USERNAME: ${POSTGRES_USER:-admin-user}
+      SONAR_JDBC_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "9000:9000"
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_extensions:/opt/sonarqube/extensions
+      - sonarqube_logs:/opt/sonarqube/logs
+    deploy:
+      resources:
+        limits:
+          memory: 1536m
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    networks:
+      - loop-erp-network
+
+  jenkins:
+    image: jenkins/jenkins:lts-jdk21
+    container_name: erp-jenkins
+    privileged: true
+    user: root
+    ports:
+      - "8082:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - maven_cache:/root/.m2
+    environment:
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
+      - TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    networks:
+      - loop-erp-network
+
   teamcity-server:
     image: jetbrains/teamcity-server:latest
     container_name: teamcity-server
@@ -218,6 +280,11 @@ volumes:
   teamcity_server_data:
   teamcity_server_logs:
   teamcity_agent_conf:
+  sonarqube_data:
+  sonarqube_extensions:
+  sonarqube_logs:
+  jenkins_home:
+  maven_cache:
 
 networks:
   loop-erp-network:
