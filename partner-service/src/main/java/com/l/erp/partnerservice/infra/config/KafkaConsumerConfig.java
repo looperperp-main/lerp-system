@@ -18,6 +18,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.kafka.requestreply.ReplyingKafkaTemplate;
+import org.springframework.kafka.support.serializer.JsonSerializer;
 import org.springframework.util.backoff.BackOff;
 import org.springframework.util.backoff.BackOffExecution;
 
@@ -60,6 +61,20 @@ public class KafkaConsumerConfig {
     }
 
     /**
+     * Template Kafka para envio de eventos com valor serializado como JSON.
+     * Declarado explicitamente porque a auto-configuração do Spring Boot é suprimida
+     * quando replyingKafkaTemplate (subclasse de KafkaTemplate) já existe como bean.
+     */
+    @Bean
+    public KafkaTemplate<String, Object> kafkaTemplate() {
+        Map<String, Object> props = new HashMap<>();
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+        return new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(props));
+    }
+
+    /**
      * Configura o tratador de erros padrão para os listeners do Kafka.
      * Implementa um mecanismo de Dead Letter Topic (DLT) para mensagens com falha e
      * uma estratégia de retentativas (BackOff) com "Jitter" para evitar sobrecarga.
@@ -69,7 +84,7 @@ public class KafkaConsumerConfig {
      * @return o tratador de erros configurado.
      */
     @Bean
-    public DefaultErrorHandler kafkaErrorHandler(KafkaTemplate<Object, Object> kafkaTemplate) {
+    public DefaultErrorHandler kafkaErrorHandler(KafkaTemplate<String, Object> kafkaTemplate) {
         var recoverer = new DeadLetterPublishingRecoverer(kafkaTemplate,
                 (r, e) -> new TopicPartition(r.topic() + ".DLT", -1));
         var handler = new DefaultErrorHandler(recoverer, jitteredBackOff());
