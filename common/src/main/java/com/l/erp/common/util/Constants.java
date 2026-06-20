@@ -46,6 +46,7 @@ public class Constants {
     public static final String TENANT_CREATION = TENANT + "_" + INSERT;
     public static final String TENANT_UPDATE = TENANT + "_" + UPDATE;
     public static final String TENANT_CANCEL= "TENANT" + "_" + CANCEL;
+    public static final String TENANT_SUBSCRIPTION_ACTIVATED = TENANT + "_SUBSCRIPTION_ACTIVATED";
 
     public static final String USER_CREATION = USER + "_" + INSERT;
     public static final String USER_UPDATE = USER + "_" + UPDATE;

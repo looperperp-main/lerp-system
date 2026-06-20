@@ -1,0 +1,16 @@
+databaseChangeLog:
+
+  - changeSet:
+      id: auth-017-tenant-subscription-fields
+      author: vitor-fernandes
+      changes:
+        - addColumn:
+            schemaName: auth
+            tableName: tenant
+            columns:
+              - column:
+                  name: plan_type
+                  type: varchar(30)
+              - column:
+                  name: asaas_subscription_id
+                  type: varchar(50)

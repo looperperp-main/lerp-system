@@ -113,4 +113,12 @@ public class Tenant {
     @Column(name = "trial_expires_at")
     private Instant trialExpiresAt;
 
+    @Size(max = 30)
+    @Column(name = "plan_type", length = 30)
+    private String planType;
+
+    @Size(max = 50)
+    @Column(name = "asaas_subscription_id", length = 50)
+    private String asaasSubscriptionId;
+
 }

@@ -156,6 +156,46 @@ public class TenantService {
         );
     }
 
+    /**
+     * Ativa a assinatura de um tenant a partir do evento {@code billing.subscription.activated}.
+     * Executado fora de contexto HTTP/segurança (consumer Kafka) — não usa SecurityUtils.
+     * Idempotente: republicações do evento (renovações) não geram efeito nem auditoria duplicada
+     * quando o tenant já está ATIVO com o mesmo plano.
+     *
+     * @param tenantId tenant a ativar
+     * @param planType tipo de plano contratado (pode ser nulo)
+     * @param asaasSubscriptionId id da assinatura no Asaas (pode ser nulo)
+     */
+    @org.springframework.transaction.annotation.Transactional
+    public void activateSubscription(Long tenantId, String planType, String asaasSubscriptionId) {
+        Tenant tenant = tenantRepository.findById(tenantId)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, ENTITY_NAME + " : " + Constants.TENANT_NOT_FOUND));
+
+        boolean jaAtivoNoMesmoPlano = EnumTenantStatus.ATIVO.equals(tenant.getStatus())
+                && Objects.equals(tenant.getPlanType(), planType)
+                && Objects.equals(tenant.getAsaasSubscriptionId(), asaasSubscriptionId);
+        if (jaAtivoNoMesmoPlano) {
+            logger.info("Tenant {} já ATIVO no plano {} — evento de ativação ignorado (renovação)", tenantId, planType);
+            return;
+        }
+
+        tenant.setStatus(EnumTenantStatus.ATIVO);
+        tenant.setPlanType(planType);
+        tenant.setAsaasSubscriptionId(asaasSubscriptionId);
+        tenant.setUpdateDate(Instant.now());
+        tenant.setLastUpdatedBy(Constants.SYSTEM);
+        tenantRepository.save(tenant);
+
+        auditService.logAuditEventWithActor(
+                Constants.TENANT_SUBSCRIPTION_ACTIVATED, null, Constants.TENANT, null,
+                Constants.SUCCESS,
+                "{\"tenantId\":" + tenantId + ",\"planType\":\"" + (planType != null ? planType : "") + "\"}",
+                UUID.randomUUID());
+
+        logger.info("Tenant {} ativado via assinatura — planType={} asaasSubscriptionId={}",
+                tenantId, planType, asaasSubscriptionId);
+    }
+
     public void updateTenantStatusById(Long tenantId, String status) {
         logger.debug("REST request to update the status of the given tenant : {}", tenantId);
         Tenant tenant = tenantRepository.findById(tenantId)
