@@ -38,6 +38,7 @@ export interface Contato {
   email?: string;
   telefone?: string;
   ativo: boolean;
+  principal: boolean;
 }
 
 export interface Page<T> {

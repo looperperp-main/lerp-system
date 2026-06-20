@@ -1,23 +1,86 @@
-<main>
+<main class="login-shell">
   <p-toast></p-toast>
-  <section class="main-section">
-    <img ngSrc="svg/desktop-login-image.svg" fill style="object-fit: cover" alt="Background Login" />
-  </section>
-  <section class="form-section">
-    <!-- Logotipo da empresa centralizado acima do formulário -->
-    <img ngSrc="svg/syax-icon.svg" height="80" width="180" alt="Syax Logo" />
+  <div class="bg-glow"></div>
 
-    <div class="form-content">
-      <h2 *ngIf="title">{{ title }}</h2>
-      <ng-content></ng-content>
+  <!-- Coluna esquerda: hero de marketing (decorativa) -->
+  <section class="hero">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" stroke="#fff" stroke-width="3" stroke-linecap="round">
+          <line x1="5" y1="5" x2="19" y2="19"></line>
+          <line x1="19" y1="5" x2="5" y2="19"></line>
+        </svg>
+      </span>
+      <span class="brand-name">syax</span>
+    </div>
 
-      <div class="btn-container">
-        <button
-          class="btn-primary"
-          (click)="submit()" type="button"
-          [disabled]="disablePrimaryBtn"
-        >{{ primaryBtnText }}</button>
+    <div class="badges">
+      <span class="badge"><i class="dot"></i> SYAX ERP · v26.04</span>
+      <span class="badge">PT-BR · BR</span>
+    </div>
+
+    <h1 class="hero-title">
+      Gerencie<br />
+      <span class="grad">o que importa</span><br />
+      no seu negócio.
+    </h1>
+
+    <p class="hero-sub">
+      Um ERP feito para quem decide. Estoque, vendas e financeiro em um painel
+      único — rápido, claro e sem planilha nenhuma te atrasando.
+    </p>
+
+    <div class="feature-cards">
+      <div class="feat">
+        <span class="feat-idx">01 / OPERAÇÃO</span>
+        <strong>Estoque em tempo real</strong>
+        <p>Saiba o que vende, o que parou e o que precisa reabastecer agora.</p>
+      </div>
+      <div class="feat">
+        <span class="feat-idx">02 / VENDAS</span>
+        <strong>Pipeline completo</strong>
+        <p>Do orçamento à nota, com automações que reduzem o retrabalho.</p>
+      </div>
+      <div class="feat">
+        <span class="feat-idx">03 / DADOS</span>
+        <strong>Relatórios ao vivo</strong>
+        <p>Métricas que se atualizam sozinhas. Nada de exportar CSV.</p>
       </div>
     </div>
   </section>
+
+  <!-- Coluna direita: card de autenticação -->
+  <section class="auth">
+    <div class="auth-card">
+      <div class="auth-top">
+        <span class="auth-tag">/ AUTENTICAÇÃO · 01</span>
+        <span class="auth-secure"><i class="dot green"></i> SEGURO</span>
+      </div>
+
+      <h2 class="auth-title">
+        {{ title }}<span *ngIf="titleAccent" class="grad"> {{ titleAccent }}</span>
+      </h2>
+      <p *ngIf="subtitle" class="auth-subtitle">{{ subtitle }}</p>
+
+      <div class="form-content">
+        <ng-content></ng-content>
+
+        <div class="btn-container">
+          <button
+            class="btn-primary"
+            (click)="submit()"
+            type="button"
+            [disabled]="disablePrimaryBtn"
+          >
+            {{ primaryBtnText }} <span class="arrow">→</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="login-footer">
+    <span>© 2026 SYAX TECNOLOGIA · BUILD 26.04.01</span>
+    <span class="status"><i class="dot green"></i> TODOS SISTEMAS OPERACIONAIS · SA-EAST-1 · 48MS</span>
+  </footer>
 </main>

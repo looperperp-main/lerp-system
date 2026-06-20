@@ -8,7 +8,7 @@ import { ButtonDirective } from 'primeng/button';
 import { Ripple } from 'primeng/ripple';
 import { Tooltip } from 'primeng/tooltip';
 import { Dialog } from 'primeng/dialog';
-import { DropdownModule } from 'primeng/dropdown';
+import { Select } from 'primeng/select';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FilaInternaItem, UpdateStatusRequest } from './fila-interna.model';
 import { FilaInternaService } from './fila-interna.service';
@@ -18,7 +18,7 @@ interface StatusOpcao { label: string; value: string }
 @Component({
   selector: 'app-fila-interna',
   standalone: true,
-  imports: [CommonModule, FormsModule, Toast, TableModule, ButtonDirective, Ripple, Tooltip, Dialog, DropdownModule],
+  imports: [CommonModule, FormsModule, Toast, TableModule, ButtonDirective, Ripple, Tooltip, Dialog, Select],
   providers: [MessageService],
   templateUrl: './fila-interna.html',
 })
@@ -135,5 +135,9 @@ export class FilaInterna implements OnInit {
 
   asArray(value: unknown): string[] {
     return Array.isArray(value) ? (value as string[]) : [];
+  }
+
+  asDate(value: unknown): string | number | Date | null {
+    return typeof value === 'string' || typeof value === 'number' || value instanceof Date ? value : null;
   }
 }

@@ -3,8 +3,8 @@
 
 **Status:** Pronto para implementação  
 **Versão:** 1.0.0  
-**Serviço:** `syax-billing` (porta 8082)  
-**Base package:** `com.syax.billing`
+**Serviço:** `billing-service` (porta 8088 — ver mapeamento 1.1)  
+**Base package:** `com.l.erp.billingservice`
 
 ---
 
@@ -14,6 +14,8 @@ Este documento especifica o motor de pagamentos que cobre dois fluxos financeiro
 
 1. **Tenant → Syax**: assinatura recorrente via Asaas (boleto + PIX automático)
 2. **Syax → Parceiro**: repasse de comissões via PIX ou TED
+
+> **Documento complementar:** `Loop_ERP_-_Doc_Inicial_-_Riscos_Juridicos.docx` (v1, Jan/2026) cobre LGPD, NF-e/NFS-e, SLA, DPA e riscos comerciais/operacionais. As decisões jurídicas registradas lá impactam diretamente as seções de segurança, retenção de dados e compliance deste spec.
 
 > **Valor dos planos é gerenciado via CRUD admin** — a entidade `billing.plan` armazena nome, descrição e `monthly_value`. O `SubscriptionService` lê o valor atual do plano no momento da conversão. Não há preço hardcoded no código.
 
@@ -34,45 +36,57 @@ Requisitos não-funcionais obrigatórios:
 
 ---
 
-## ⚠️ Decisão em Aberto — Estorno de Comissão em Churn de Plano Anual
+## 1.1 Mapeamento para o repositório ERP-VSD
 
-> **Este cenário só se aplica quando o modelo ANUAL de comissão for implementado (roadmap).  
-> Com o modelo RECORRENTE atual, não há problema: o parceiro só recebe pelos meses que o tenant permaneceu ativo.**
+| Spec (genérico) | Repositório real |
+|---|---|
+| `syax-billing`, porta 8082 | módulo `billing-service`, porta **8088** |
+| package `com.syax.billing` | `com.l.erp.billingservice` |
+| Pacotes por feature (`webhook/`, `commission/`...) | Convenção do projeto: `api/controllers`, `api/dto`, `api/mappers`, `domain`, `repository`, `services`, `infra/config`, `util` |
+| Migrations `db/changelog/v1/` no próprio serviço | Migrations centralizadas no módulo `liquibase-service`, em `db/changelog/billing/`, incluídas no `db.changelog-master.yaml` |
+| Redis disponível | **Redis ainda não existe** no `compose.yaml` nem no `pom.xml` do billing-service — adicionar serviço Redis ao compose e `spring-boot-starter-data-redis` + `commons-pool2` ao pom antes da Fase 1 |
 
-**Contexto:** Com o modelo ANUAL (futuro), o parceiro recebe 100% da comissão do contrato anual logo na conversão. Se o tenant cancela antes do fim do contrato:
+> (1) Todos os nomes de classe e a lógica da spec valem — apenas o package e a localização seguem a convenção do repo.  
+> (2) O gateway já roteia para o billing-service na porta 8088.  
+> (3) A entidade JPA continua com `@Table(schema = "billing")`.
+
+---
+
+## ✅ Decisão Fechada — Estorno de Comissão em Churn de Plano Anual
+
+> **Este cenário só se aplica quando o modelo ANUAL de comissão for implementado (roadmap).**  
+> **Com o modelo RECORRENTE atual não existe problema: o parceiro só recebe pelos meses que o tenant permaneceu ativo.**
+
+**Decisão dos sócios:** Opção C — Sem automação, regra contratual.
+
+**Descrição:** Nenhum código de estorno é implementado no sistema. Se um tenant com plano anual cancelar antes do fim do contrato, a questão da devolução de comissão ao parceiro é tratada exclusivamente via contrato entre a Syax e o parceiro. Não há lógica de clawback automático.
+
+**Comportamento atual do `SubscriptionInactivatedHandler` (já correto):**
+
+O handler existente já implementa o comportamento da Opção C por omissão:
+
+```java
+// SubscriptionInactivatedHandler.java — comportamento ATUAL, sem alteração necessária
+// Ao receber SUBSCRIPTION_INACTIVATED:
+// 1. Seta subscription.status = CANCELADO
+// 2. Cancela comissões com status PENDENTE (ainda não pagas)
+// 3. NÃO reverte comissões com status PAGO — correto pela Opção C
+// 4. NÃO gera commission com valor negativo
+```
+
+**Contexto do exemplo para referência contratual:**
 
 | Exemplo | Valor |
 |---|---|
 | Plano anual | R$ 9.900 |
 | Comissão ANUAL (10%) paga na conversão | R$ 990,00 |
 | Tenant cancela no mês 3 (de 12) | — |
-| Comissão "proporcional ao tempo" | R$ 247,50 (3/12 × R$ 990) |
-| **Diferença a definir** | **R$ 742,50** |
+| Comissão "proporcional ao tempo" (referência) | R$ 247,50 (3/12 × R$ 990) |
+| **Tratamento** | **Via contrato com o parceiro** |
 
-**Opções para decisão:**
+**Impacto no código:** Zero. O `SubscriptionInactivatedHandler` não precisa de alteração. Não há novas migrations. Não há novos campos.
 
-- **A) Sem estorno** — comissão é pelo ato de converter o cliente, não pela retenção. Parceiro assume o risco do churn. Mais simples de implementar, mais atrativo para o parceiro.
-- **B) Estorno proporcional automático** — ao receber `SUBSCRIPTION_INACTIVATED`, o sistema cria uma `commission` com `amount` negativo, deduzida no próximo ciclo D+1 do parceiro.
-- **C) Sem automação, regra contratual** — nenhum código de estorno; o contrato com o parceiro define se há devolução ou não. Tratado manualmente caso a caso.
-
-**Impacto técnico da opção B:**
-```java
-// SubscriptionInactivatedHandler.java — adição futura
-if (sub.getBillingCycle() == YEARLY && partner.getCommissionModel() == ANUAL) {
-int monthsElapsed = calculateMonthsElapsed(sub.getActivatedAt());
-int monthsRemaining = 12 - monthsElapsed;
-BigDecimal clawback = commission.getAmount()
-        .multiply(BigDecimal.valueOf(monthsRemaining))
-        .divide(BigDecimal.valueOf(12), 2, HALF_UP)
-        .negate(); // valor negativo
-    commissionRepo.save(buildClawbackEntry(commission, clawback));
-        }
-```
-
-**Decisão necessária antes de implementar o modelo ANUAL de comissão.**
-
----
-
+**Nota para o contrato com parceiros:** O contrato de parceria deve prever explicitamente que a comissão do modelo ANUAL é pelo ato de conversão, não pela retenção. Cabe ao parceiro assumir o risco de churn no plano anual. A Syax pode negociar estorno manual caso a caso conforme relacionamento com o parceiro.
 
 ---
 
@@ -86,7 +100,7 @@ BigDecimal clawback = commission.getAmount()
 ### ADR-002: Redis Lua scripts para idempotência
 **Decisão:** Usar scripts Lua executados atomicamente no Redis como primeira barreira de idempotência.  
 **Motivo:** `GET + SET` em dois comandos tem race condition; Lua é atômico por design no Redis.  
-**Consequência:** 5 scripts Lua na pasta `src/main/resources/lua/`. Ver seção 4.
+**Consequência:** 5 scripts Lua na pasta `src/main/resources/lua/`. Ver seção 6.
 
 ### ADR-003: Distributed lock via Redis para cron jobs
 **Decisão:** Cada cron job tenta adquirir um lock Redis antes de executar. Se falhar (outra instância está rodando), loga e encerra silenciosamente.  
@@ -108,9 +122,10 @@ BigDecimal clawback = commission.getAmount()
 **Motivo:** Falha na comissão não deve reverter ativação do tenant — são preocupações separadas.  
 **Consequência:** `CommissionEngine` tem seu próprio `@Transactional`. Se falhar, está logado; pode ser reprocessado manualmente via `billing.webhook_log`.
 
-### ADR-007: Grace period de 5 dias para inadimplência
-**Decisão:** `PAYMENT_OVERDUE` não suspende imediatamente — grava `grace_period_expires_at = now() + 5 dias`. Um cron diário (`GracePeriodJob`) suspende quem expirou.  
-**Motivo:** Boleto pode ser pago um dia antes do vencimento mas processado no dia seguinte. Suspensão imediata geraria falsos positivos.
+### ADR-007: Dunning em 2 etapas com timestamps absolutos
+**Decisão:** `PAYMENT_OVERDUE` não suspende imediatamente — grava `suspend_at = now() + 5d` e `cancel_at = now() + 7d`. O `DunningJob` (roda 4× ao dia: 00h/06h/12h/18h UTC) executa lembretes, suspensões e cancelamentos comparando esses timestamps com `now()`.  
+**Motivo:** Boleto pode ser pago um dia antes do vencimento mas processado no dia seguinte. Suspensão imediata geraria falsos positivos. Timestamps absolutos eliminam dependência do Asaas para controlar transições de estado — o relógio é da Syax.  
+**Consequência:** `GracePeriodJob` NÃO deve ser implementado. Usar exclusivamente `DunningJob` (seção 27.7.4). O `DunningJob` usa write-through no cache Redis (put, não evict) ao suspender e cancelar.
 
 ---
 
@@ -134,14 +149,16 @@ Após o controller retornar `200 OK`, o `WebhookProcessor` assume em thread pool
 2. **Roteamento** — `WebhookHandlerFactory` entrega o payload ao handler correto pelo tipo de evento.
 3. **Finalização** — Redis Lua `markDone/markError` + atualiza `webhook_log.status`.
 
-Os quatro handlers implementam `WebhookEventHandler`:
+Os handlers implementam `WebhookEventHandler`:
 
 | Handler | Evento | Ação principal |
 |---|---|---|
-| `PaymentReceivedHandler` | `PAYMENT_RECEIVED` | Ativa tenant + invalida cache Redis + dispara comissão (async, tx separada) |
-| `PaymentOverdueHandler` | `PAYMENT_OVERDUE` | Grava `grace_period_expires_at = now() + 3d` + notifica |
-| `SubscriptionInactivatedHandler` | `SUBSCRIPTION_INACTIVATED` | Cancela tenant + cancela comissões PENDENTE |
+| `PaymentReceivedHandler` | `PAYMENT_RECEIVED` · `PAYMENT_CONFIRMED` | Ativa tenant + write-through no cache Redis + dispara comissão (async, tx separada) |
+| `PaymentOverdueHandler` | `PAYMENT_OVERDUE` | Grava `suspend_at = now() + 5d` e `cancel_at = now() + 7d` (27.7) + notifica |
+| `SubscriptionInactivatedHandler` | `SUBSCRIPTION_INACTIVATED` | Apenas metadado `asaas_inactivated_at` — DunningJob controla transições (27.7.5) |
 | `PaymentDeletedHandler` | `PAYMENT_DELETED` | Cancela comissão vinculada ao pagamento deletado |
+| `TransferCompletedHandler` | `TRANSFER_COMPLETED` | Comissão `EM_TRANSFERENCIA → PAGO` + `confirmed_at` |
+| `TransferFailedHandler` | `TRANSFER_FAILED` | Reverte comissão para `PENDENTE` + alerta admin |
 
 ### 3.3 Camada de integração — Asaas Client
 
@@ -182,10 +199,12 @@ Todos adquirem distributed lock antes de executar (sem lock, encerram silenciosa
 
 | Job | Horário | Ação |
 |---|---|---|
-| `TrialAlertJob` | 08:00 diário | D+10: envia relatório de engajamento ao parceiro |
-| `TrialExpiryJob` | 08:30 diário | D+15: dispara alerta urgente, sem mudar status |
-| `GracePeriodSuspensionJob` | 06:00 diário | Suspende tenants com `grace_period_expires_at <= now()` |
-| `CommissionPayoutJob` | 02:00 D+1/mês | Agrega comissões PENDENTE por parceiro e envia via Asaas Transfers (PIX) |
+| `DunningJob` | 00/06/12/18h UTC | Lembretes, suspensões (`suspend_at`) e cancelamentos (`cancel_at`) — ver 27.7.4 |
+| `CommissionPayoutJob` | 02:00 D+1/mês | Agrega comissões PENDENTE por parceiro (`effectiveAmount`), notifica admin e envia via Asaas Transfers (PIX/TED) |
+| `ReconciliationJob` | 02:30 diário | Cruza pagamentos RECEIVED do Asaas com o banco (seção 19) |
+| `WebhookRecoveryJob` | a cada 10 min | Reprocessa webhooks presos em `RECEBIDO` (28.5) |
+
+> Os crons de trial D+10/D+15 rodam no auth service e no partner service — ver seção 12. O billing service não os implementa.
 
 ### 3.7 Fluxo completo de um pagamento em produção
 
@@ -208,7 +227,9 @@ Todos adquirem distributed lock antes de executar (sem lock, encerram silenciosa
     → Redis cache hit (TTL 5min) → "ATIVO" → JWT emitido
 6.  D+1 do mês: CommissionPayoutJob
     → Asaas POST /v3/transfers (PIX ou TED ao parceiro)
-    → commission.status = PAGO  +  payout_asaas_id gravado
+    → commission.status = EM_TRANSFERENCIA  +  payout_asaas_id gravado
+7.  Webhook TRANSFER_COMPLETED
+    → commission.status = PAGO  +  confirmed_at
 ```
 
 **Princípio central:** nenhuma dessas etapas compartilha transação entre si. Ativação, comissão e payout são transações independentes — falha em qualquer uma não afeta as outras.
@@ -273,21 +294,23 @@ access_token: {ASAAS_API_KEY}
   "value":            450.00,
   "pixAddressKey":    "contador@escritorio.com.br",
   "pixAddressKeyType":"EMAIL",
-  "description":      "Comissão Syax — Referência 2025-01 — Parceiro 42"
+  "description":      "Comissão Syax — Referência 2025-01 — Parceiro 42",
+  "externalReference":"payout-42-2025-01"
 }
 
 Response: { "id": "tra_xxxxxxxx", "status": "PENDING" }
 ```
 
-O `id` retornado é gravado em `billing.commission.payout_asaas_id` (coluna `UNIQUE`) — serve como idempotência e trilha de auditoria. `pixAddressKeyType` aceita: `CPF`, `CNPJ`, `EMAIL`, `PHONE`, `EVP`.
+O `id` retornado é gravado em `billing.commission.payout_asaas_id` (coluna `UNIQUE`) — serve como idempotência e trilha de auditoria. `pixAddressKeyType` aceita: `CPF`, `CNPJ`, `EMAIL`, `PHONE`, `EVP`. O campo `externalReference` segue o padrão `payout-{partnerId}-{period}` — permite o check-then-act após timeout (seção 28.4).
 
 ### 4.2 Asaas → Billing Service (webhooks de entrada)
 
-O Asaas chama `POST /webhook/asaas` para os quatro eventos tratados:
+O Asaas chama `POST /webhook/asaas` para os eventos tratados:
 
 | Evento | Quando ocorre | Ação |
 |---|---|---|
 | `PAYMENT_RECEIVED` | Tenant pagou | Ativa tenant + gera comissão |
+| `PAYMENT_CONFIRMED` | Cartão de crédito confirmado (liquidação futura) | Mesmo tratamento de `PAYMENT_RECEIVED` |
 | `PAYMENT_OVERDUE` | Boleto venceu | Inicia grace period de 5 dias |
 | `SUBSCRIPTION_INACTIVATED` | Assinatura cancelada | Cancela tenant |
 | `PAYMENT_DELETED` | Cobrança deletada | Cancela comissão associada |
@@ -398,75 +421,6 @@ public FollowupResponse recordFollowup(Long tenantId, Long partnerId) {
 ```
 
 
-### 6.9 Handler: TRANSFER_COMPLETED
-
-```java
-// TransferCompletedHandler.java
-@Component
-@Slf4j
-public class TransferCompletedHandler implements WebhookEventHandler {
-
-    @Override
-    public String getEventType() { return "TRANSFER_COMPLETED"; }
-
-    @Override
-    @Transactional
-    public void handle(AsaasWebhookPayload payload) {
-        String transferId = payload.getTransfer().getId();
-
-        commissionRepo.findByPayoutAsaasId(transferId).ifPresentOrElse(commission -> {
-            commission.setStatus(CommissionStatus.PAGO);
-            commission.setConfirmedAt(Instant.now());
-            commissionRepo.save(commission);
-            log.info("Comissão confirmada via TRANSFER_COMPLETED — transferId={} partnerId={}",
-                transferId, commission.getPartnerId());
-        }, () -> log.warn("TRANSFER_COMPLETED sem comissão correspondente — transferId={}", transferId));
-    }
-}
-```
-
-### 6.10 Handler: TRANSFER_FAILED
-
-```java
-// TransferFailedHandler.java
-@Component
-@Slf4j
-public class TransferFailedHandler implements WebhookEventHandler {
-
-    @Override
-    public String getEventType() { return "TRANSFER_FAILED"; }
-
-    @Override
-    @Transactional
-    public void handle(AsaasWebhookPayload payload) {
-        String transferId = payload.getTransfer().getId();
-        String failReason = payload.getTransfer().getFailReason(); // ex: "INVALID_PIX_KEY"
-
-        commissionRepo.findByPayoutAsaasId(transferId).ifPresent(commission -> {
-            // Reverter para PENDENTE — próximo ciclo D+1 vai reprocessar
-            commission.setStatus(CommissionStatus.PENDENTE);
-            commission.setPayoutAsaasId(null);       // limpar para permitir nova tentativa
-            commission.setApprovedAt(null);
-            commission.setApprovedBy(null);
-            commission.setTransferFailedReason(failReason);
-            commissionRepo.save(commission);
-
-            // Notificar admin imediatamente
-            notificationService.sendTransferFailedAlert(
-                commission.getPartnerId(), commission.getId(), failReason);
-
-            log.error("Transfer falhou — comissão revertida para PENDENTE — " +
-                "transferId={} partnerId={} reason={}",
-                transferId, commission.getPartnerId(), failReason);
-        });
-    }
-}
-```
-
-> **Comportamento esperado:** a comissão voltará ao pool `PENDENTE` e será reprocessada
-> automaticamente no próximo ciclo D+1. O admin é notificado para investigar a causa
-> (chave PIX inválida, banco indisponível, saldo insuficiente na conta Asaas).
-
 > **Sem automação de D+15+48h.** O sistema não cria follow-ups automaticamente — é o contador quem aciona. O cron `TrialExpiryJob` (D+15) só dispara o alerta; o registro da tentativa é sempre explícito via este endpoint.
 
 
@@ -474,7 +428,13 @@ public class TransferFailedHandler implements WebhookEventHandler {
 
 ## 5. Segurança do Webhook
 
-### 3.1 Validação do token Asaas
+> ⚠ **Comportamento crítico da fila Asaas (ver 28.7):** o Asaas usa fila sequencial — respostas
+> não-2xx repetidas PAUSAM a fila inteira (nenhum webhook de nenhum evento chega até reativação
+> manual no painel). Por isso o controller SEMPRE retorna 200 após validar o token, mesmo que
+> o processamento async venha a falhar. 401 apenas para token inválido. Monitoramento: alertar
+> se nenhum webhook chegar em 6h úteis.
+
+### 5.1 Validação do token Asaas
 
 Asaas envia o header `asaas-access-token` em todo webhook. O valor é o token configurado no painel Asaas → Integrações → Webhooks.
 
@@ -498,7 +458,7 @@ public class WebhookSecurityService {
 
 > ⚠️ Usar `MessageDigest.isEqual()` (constant-time comparison) para evitar timing attack.
 
-### 3.2 IP Allowlist (opcional, recomendado em produção)
+### 5.2 IP Allowlist (opcional, recomendado em produção)
 
 Adicionar filtro Servlet que verifica `X-Forwarded-For` ou `REMOTE_ADDR`:
 
@@ -514,11 +474,11 @@ billing:
 
 Implementar `WebhookIpFilter implements Filter` — verificar se o IP do request está em algum CIDR. Usar biblioteca `commons-net` (`SubnetUtils`).
 
-### 3.3 Rate limiting
+### 5.3 Rate limiting
 
 Adicionar `@RateLimiter(name = "asaas-webhook")` (Resilience4j) no método do controller — máximo 100 req/s (Asaas garante máximo de 5 webhooks simultâneos em condições normais).
 
-### 3.4 Configuração Spring Security
+### 5.4 Configuração Spring Security
 
 ```java
 // WebhookSecurityConfig.java
@@ -543,7 +503,7 @@ public class WebhookSecurityConfig {
 
 ## 6. Redis — Chaves, TTLs e Lua Scripts
 
-### 4.1 Convenção de chaves
+### 6.1 Convenção de chaves
 
 | Chave | Formato | TTL | Uso |
 |---|---|---|---|
@@ -552,7 +512,7 @@ public class WebhookSecurityConfig {
 | Cache status tenant | `syax:billing:tenant:status:{tenantId}` | 300s (5min) | Cache para Auth Service |
 | Guard comissão anual | `syax:billing:commission:annual:{partnerId}:{tenantId}:{year}` | 31536000s (1 ano) | Evita dupla comissão anual |
 
-### 4.2 Configuração Redis
+### 6.2 Configuração Redis
 
 ```java
 // RedisConfig.java
@@ -610,7 +570,7 @@ public class RedisConfig {
 }
 ```
 
-### 4.3 Script 1 — webhookIdempotencyAcquire.lua
+### 6.3 Script 1 — webhookIdempotencyAcquire.lua
 
 ```lua
 -- Tenta marcar webhook como "em processamento" de forma atômica.
@@ -627,7 +587,7 @@ else
 end
 ```
 
-### 4.4 Script 2 — webhookComplete.lua
+### 6.4 Script 2 — webhookComplete.lua
 
 ```lua
 -- Atualiza status final do webhook (DONE ou ERROR).
@@ -645,7 +605,7 @@ end
 return 0
 ```
 
-### 4.5 Script 3 — acquireDistributedLock.lua
+### 6.5 Script 3 — acquireDistributedLock.lua
 
 ```lua
 -- Adquire lock distribuído para cron jobs.
@@ -657,7 +617,7 @@ local result = redis.call('SET', KEYS[1], ARGV[1], 'NX', 'EX', tonumber(ARGV[2])
 return result ~= false and 1 or 0
 ```
 
-### 4.6 Script 4 — releaseDistributedLock.lua
+### 6.6 Script 4 — releaseDistributedLock.lua
 
 ```lua
 -- Libera lock apenas se a instância atual é a dona.
@@ -675,7 +635,7 @@ else
 end
 ```
 
-### 4.7 Script 5 — annualCommissionGuard.lua
+### 6.7 Script 5 — annualCommissionGuard.lua
 
 ```lua
 -- Garante que comissão anual seja gerada no máximo uma vez por ano por (parceiro, tenant).
@@ -686,7 +646,7 @@ local result = redis.call('SET', KEYS[1], '1', 'NX', 'EX', tonumber(ARGV[1]))
 return result ~= false and 1 or 0
 ```
 
-### 4.8 WebhookIdempotencyService.java
+### 6.8 WebhookIdempotencyService.java
 
 ```java
 @Service
@@ -715,6 +675,11 @@ public class WebhookIdempotencyService {
         markFinal(eventType, asaasPaymentId, "ERROR");
     }
 
+    /** Erro transitório: apaga a chave para a retentativa do Asaas reprocessar. */
+    public void release(String eventType, String asaasPaymentId) {
+        redis.delete(buildKey(eventType, asaasPaymentId));
+    }
+
     private void markFinal(String eventType, String asaasPaymentId, String status) {
         String key = buildKey(eventType, asaasPaymentId);
         redis.execute(completeScript,
@@ -732,7 +697,7 @@ public class WebhookIdempotencyService {
 
 ## 7. Fluxo A — Criação de Assinatura (Trial → Ativo)
 
-### 5.1 Endpoint
+### 7.1 Endpoint
 
 ```
 POST /api/billing/v1/subscriptions
@@ -740,12 +705,13 @@ Authorization: Bearer {jwt}   ← JWT do tenant autenticado
 Content-Type: application/json
 
 {
+  "planId": 1,
   "planType": "MONTHLY" | "ANNUAL",
   "billingType": "BOLETO" | "PIX" | "CREDIT_CARD"
 }
 ```
 
-### 5.2 Lógica (SubscriptionService.java)
+### 7.2 Lógica (SubscriptionService.java)
 
 ```java
 @Service
@@ -772,8 +738,10 @@ public class SubscriptionService {
         // 2. Criar ou recuperar customer Asaas
         String asaasCustomerId = getOrCreateAsaasCustomer(tenantId, sub);
 
-        // 3. Calcular valor conforme plano
-        BigDecimal value = calculateValue(req.getPlanType(), sub.getPlanValue());
+        // 3. Carregar plano e calcular valor — necessário para B2C onde sub não tem plano ainda
+        Plan plan = planRepo.findById(req.getPlanId())
+            .orElseThrow(() -> new NotFoundException("Plano não encontrado: " + req.getPlanId()));
+        BigDecimal value = calculateValue(req.getPlanType(), plan.getMonthlyValue());
 
         // 4. Criar subscription no Asaas
         AsaasSubscriptionResponse asaasSub = asaasSubscriptionClient.create(
@@ -790,6 +758,7 @@ public class SubscriptionService {
         // 5. Persistir IDs Asaas na subscription (aguarda webhook PAYMENT_RECEIVED para ativar)
         sub.setAsaasCustomerId(asaasCustomerId);
         sub.setAsaasSubscriptionId(asaasSub.getId());
+        sub.setPlanId(plan.getId());
         sub.setPlanType(req.getPlanType());
         sub.setValue(value);
         sub.setBillingCycle(req.getPlanType() == PlanType.ANNUAL ? BillingCycle.YEARLY : BillingCycle.MONTHLY);
@@ -821,6 +790,10 @@ public class SubscriptionService {
         return customer.getId();
     }
 
+    /**
+     * Calcula o valor da assinatura a partir do valor mensal do plano carregado.
+     * Recebe monthlyValue do plano (nunca de sub.getPlanValue() — subscription B2C pode não ter plano ainda).
+     */
     private BigDecimal calculateValue(PlanType planType, BigDecimal monthlyValue) {
         if (planType == PlanType.ANNUAL) {
             return monthlyValue.multiply(BigDecimal.valueOf(10)); // 2 meses grátis
@@ -830,7 +803,7 @@ public class SubscriptionService {
 }
 ```
 
-### 5.3 Asaas API — Criação de Customer
+### 7.3 Asaas API — Criação de Customer
 
 ```
 POST https://api.asaas.com/v3/customers
@@ -852,7 +825,7 @@ access_token: {ASAAS_API_KEY}
 Response: { "id": "cus_xxxxxxxx", ... }
 ```
 
-### 5.4 Asaas API — Criação de Subscription
+### 7.4 Asaas API — Criação de Subscription
 
 ```
 POST https://api.asaas.com/v3/subscriptions
@@ -877,7 +850,7 @@ Response: { "id": "sub_xxxxxxxx", "status": "ACTIVE", ... }
 
 ## 8. Fluxo B — Processamento de Webhooks
 
-### 6.1 Controller
+### 8.1 Controller
 
 ```java
 // WebhookController.java
@@ -900,6 +873,10 @@ public class WebhookController {
         securityService.validateToken(token);
 
         // 2. Logar recebimento (status RECEBIDO) — fire and not forget a persistência
+        // ATENÇÃO: logReceived DEVE tolerar duplicata de asaas_event_id (UNIQUE 005-12).
+        // Usar INSERT ... ON CONFLICT (asaas_event_id) DO NOTHING, ou capturar
+        // DataIntegrityViolationException e seguir silenciosamente.
+        // Nunca deixar exceção de persistência vazar daqui — veja callout abaixo.
         logService.logReceived(payload, request.getRemoteAddr());
 
         // 3. Processar assincronamente
@@ -911,7 +888,9 @@ public class WebhookController {
 }
 ```
 
-### 6.2 Processor assíncrono
+> **CRÍTICO — tolerância a duplicatas no logReceived:** a migration 005-12 (seção 28.5) cria um índice UNIQUE em `webhook_log.asaas_event_id`. Na retentativa do Asaas, o INSERT viola esse UNIQUE. `logService.logReceived` DEVE tratar esse conflito como duplicata benigna — `INSERT ... ON CONFLICT (asaas_event_id) DO NOTHING` via query nativa, ou capturar `DataIntegrityViolationException` e continuar normalmente. Se a exceção vazar do controller, a resposta deixa de ser 2xx, e a seção 28.7 explica que isso **pausa a fila inteira do Asaas**. Regra: o webhook sempre responde 200 após token válido, independente do que acontecer no log.
+
+### 8.2 Processor assíncrono
 
 ```java
 // WebhookProcessor.java
@@ -926,13 +905,27 @@ public class WebhookProcessor {
     @Async("webhookExecutor")
     public void processAsync(AsaasWebhookPayload payload) {
         String eventType = payload.getEvent();
-        String paymentId = payload.getPayment() != null
-            ? payload.getPayment().getId()
-            : payload.getSubscription().getId();
+        // Chave de idempotência: event.id do Asaas (único POR ENTREGA de webhook).
+        // Fallback em cascata para paymentId, transferId ou subscriptionId se id ausente.
+        // Nota: TRANSFER_COMPLETED/TRANSFER_FAILED têm payload.transfer não nulo;
+        // payment e subscription são null nesses eventos.
+        String eventId;
+        if (payload.getId() != null) {
+            eventId = payload.getId();
+        } else if (payload.getPayment() != null) {
+            eventId = payload.getPayment().getId();
+        } else if (payload.getTransfer() != null) {
+            eventId = payload.getTransfer().getId();
+        } else if (payload.getSubscription() != null) {
+            eventId = payload.getSubscription().getId();
+        } else {
+            eventId = UUID.randomUUID().toString(); // último recurso — nunca deve chegar aqui
+            log.warn("Payload sem id identificável — gerado UUID temporário event={}", eventType);
+        }
 
         // 1. Verificar idempotência via Redis Lua
-        if (!idempotencyService.tryAcquire(eventType, paymentId)) {
-            log.info("Webhook duplicado ignorado — event={} id={}", eventType, paymentId);
+        if (!idempotencyService.tryAcquire(eventType, eventId)) {
+            log.info("Webhook duplicado ignorado — event={} id={}", eventType, eventId);
             logService.logIgnored(payload);
             return;
         }
@@ -943,22 +936,34 @@ public class WebhookProcessor {
             handler.handle(payload);
 
             // 3. Marcar como processado (Redis + log)
-            idempotencyService.markDone(eventType, paymentId);
+            idempotencyService.markDone(eventType, eventId);
             logService.logProcessed(payload);
 
+        } catch (TransientException e) {
+            // Erro TRANSITÓRIO (DB indisponível, timeout, deadlock):
+            // LIBERA a chave de idempotência para a retentativa do Asaas reprocessar.
+            log.warn("Erro transitório webhook event={} id={} — chave liberada para retry",
+                eventType, eventId, e);
+            idempotencyService.release(eventType, eventId);
+            logService.logError(payload, "TRANSIENT: " + e.getMessage());
+            // Asaas vai retentar (até 5×) e o evento será reprocessado
+
         } catch (Exception e) {
-            log.error("Erro ao processar webhook event={} id={}", eventType, paymentId, e);
-            idempotencyService.markError(eventType, paymentId);
+            // Erro PERMANENTE (payload inválido, regra de negócio violada):
+            // mantém a chave para NÃO reprocessar lixo. Admin investiga.
+            log.error("Erro permanente webhook event={} id={}", eventType, eventId, e);
+            idempotencyService.markError(eventType, eventId);
             logService.logError(payload, e.getMessage());
-            // Notificar admin para investigação — Asaas não vai retentar após 5× falhas
-            notificationService.sendWebhookErrorAlert(eventType, paymentId, e.getMessage());
-            // Não relança — nosso Redis guard evita duplicata em retentativas
+            notificationService.sendWebhookErrorAlert(eventType, eventId, e.getMessage());
         }
     }
 }
 ```
 
-### 6.3 Handler: PAYMENT_RECEIVED
+### 8.3 Handler: PAYMENT_RECEIVED
+
+> Registrado na `WebhookHandlerFactory` também para `PAYMENT_CONFIRMED` — cartão de crédito
+> confirma antes de liquidar; o tratamento é idêntico.
 
 ```java
 // PaymentReceivedHandler.java
@@ -970,34 +975,75 @@ public class PaymentReceivedHandler implements WebhookEventHandler {
     public String getEventType() { return "PAYMENT_RECEIVED"; }
 
     @Override
-    @Transactional
     public void handle(AsaasWebhookPayload payload) {
         String asaasSubId = payload.getPayment().getSubscription();
         String asaasPaymentId = payload.getPayment().getId();
         BigDecimal value = payload.getPayment().getValue();
 
+        // IMPORTANTE: buscar nextDueDate no Asaas ANTES de abrir a transação.
+        // Chamada HTTP dentro de @Transactional segura conexão do pool durante round-trip
+        // de rede (podendo levar segundos). Se a consulta falhar, lançar TransientException
+        // para a retentativa do Asaas reprocessar — não deixar a transação abrir em vão.
+        LocalDate nextDueDate;
+        try {
+            nextDueDate = asaasSubscriptionClient.get(asaasSubId).getNextDueDate();
+        } catch (Exception e) {
+            throw new TransientException("Falha ao consultar nextDueDate no Asaas para " + asaasSubId, e);
+        }
+
+        // Self-invocation não passa pelo proxy do Spring — @Transactional em método
+        // chamado via `this` NÃO abre transação. Usar TransactionTemplate injetado.
+        transactionTemplate.executeWithoutResult(tx ->
+            handleTransactional(asaasSubId, asaasPaymentId, value, nextDueDate));
+    }
+
+    void handleTransactional(String asaasSubId, String asaasPaymentId,
+                              BigDecimal value, LocalDate nextDueDate) {
+
         // 1. Buscar subscription pelo ID Asaas
         Subscription sub = subscriptionRepo.findByAsaasSubscriptionId(asaasSubId)
             .orElseThrow(() -> new NotFoundException("Subscription Asaas não encontrada: " + asaasSubId));
 
-        // 2. Ativar tenant
+        // 1b. Validação de valor (28.8) — divergência não bloqueia, mas alerta
+        if (value.compareTo(sub.getValue()) != 0) {
+            log.warn("Valor divergente — esperado={} recebido={} tenant={}",
+                sub.getValue(), value, sub.getTenantId());
+            adminNotificationService.notifyValueMismatch(sub.getTenantId(), sub.getValue(), value);
+        }
+
+        // 2. Guard de máquina de estados — eventos fora de ordem
+        if (sub.getStatus() == SubscriptionStatus.CANCELADO) {
+            // Pagamento após cancelamento — admin decide (ver 27.7.6)
+            adminNotificationService.notifyPaymentAfterCancellation(
+                sub.getTenantId(), value, asaasPaymentId);
+            return;
+        }
+
+        // 3. Ativar tenant + zerar dunning
         sub.setStatus(SubscriptionStatus.ATIVO);
-        sub.setNextDueDate(payload.getPayment().getDueDate().plusDays(
-            sub.getBillingCycle() == BillingCycle.YEARLY ? 365 : 30));
-        sub.setGracePeriodExpiresAt(null); // limpar grace period anterior se houver
+        // nextDueDate já obtido do Asaas ANTES da transação — NUNCA calcular com plusDays(30/365).
+        // Meses têm 28-31 dias e anos bissextos quebram a conta. O Asaas é a fonte.
+        sub.setNextDueDate(nextDueDate);
+        sub.setSuspendAt(null);
+        sub.setCancelAt(null);
+        sub.setReminderSentAt(null);
+        sub.setGracePeriodExpiresAt(null);
         subscriptionRepo.save(sub);
         log.info("Tenant {} ativado via PAYMENT_RECEIVED asaasPaymentId={}", sub.getTenantId(), asaasPaymentId);
 
-        // 3. Invalidar cache de status no Redis
-        tenantStatusCacheService.evict(sub.getTenantId());
+        // 4. WRITE-THROUGH no cache — nunca evict.
+        // O handler conhece o novo valor; evict forçaria round-trip ao banco
+        // (com read replica + lag = cache populado com valor velho).
+        tenantStatusCacheService.put(sub.getTenantId(),
+            TenantStatusResponse.of(sub.getTenantId(), SubscriptionStatus.ATIVO));
 
-        // 4. Disparar geração de comissão de forma assíncrona (transação separada)
+        // 5. Disparar geração de comissão de forma assíncrona (transação separada)
         commissionEngine.generateAsync(sub.getTenantId(), sub.getId(), asaasPaymentId, value);
     }
 }
 ```
 
-### 6.4 Handler: PAYMENT_OVERDUE
+### 8.4 Handler: PAYMENT_OVERDUE
 
 ```java
 // PaymentOverdueHandler.java
@@ -1018,19 +1064,31 @@ public class PaymentOverdueHandler implements WebhookEventHandler {
         Subscription sub = subscriptionRepo.findByAsaasSubscriptionId(asaasSubId)
             .orElseThrow(() -> new NotFoundException("Subscription Asaas não encontrada: " + asaasSubId));
 
-        // Gravar prazo do grace period (cron diário vai suspender quando expirar)
-        sub.setGracePeriodExpiresAt(Instant.now().plus(gracePeriodDays, ChronoUnit.DAYS));
+        // Guard de estado (28.6): dunning só inicia a partir de ATIVO
+        if (sub.getStatus() != SubscriptionStatus.ATIVO) {
+            log.info("PAYMENT_OVERDUE ignorado — tenant {} em estado {}",
+                sub.getTenantId(), sub.getStatus());
+            return;
+        }
+
+        // Timestamps ABSOLUTOS de dunning (ver 27.7) — o relógio é nosso, não do Asaas
+        Instant now = Instant.now();
+        sub.setSuspendAt(now.plus(dunningProps.getGracePeriodDays(), ChronoUnit.DAYS));
+        sub.setCancelAt(now.plus(dunningProps.getCancelAfterDays(), ChronoUnit.DAYS));
+        sub.setGracePeriodExpiresAt(sub.getSuspendAt()); // compatibilidade
+        sub.setReminderSentAt(null);
         subscriptionRepo.save(sub);
 
-        // Notificar tenant por e-mail
-        notificationService.sendOverdueAlert(sub.getTenantId(), sub.getGracePeriodExpiresAt());
+        // Email 1 — aviso imediato
+        notificationService.sendOverdueAlert(sub.getTenantId(), sub.getSuspendAt());
 
-        log.warn("Tenant {} inadimplente — grace period até {}", sub.getTenantId(), sub.getGracePeriodExpiresAt());
+        log.warn("Dunning iniciado — tenant {} suspendAt={} cancelAt={}",
+            sub.getTenantId(), sub.getSuspendAt(), sub.getCancelAt());
     }
 }
 ```
 
-### 6.5 Handler: SUBSCRIPTION_INACTIVATED
+### 8.5 Handler: SUBSCRIPTION_INACTIVATED
 
 ```java
 // SubscriptionInactivatedHandler.java
@@ -1048,20 +1106,26 @@ public class SubscriptionInactivatedHandler implements WebhookEventHandler {
         Subscription sub = subscriptionRepo.findByAsaasSubscriptionId(asaasSubId)
             .orElseThrow(() -> new NotFoundException("Subscription Asaas não encontrada: " + asaasSubId));
 
-        sub.setStatus(SubscriptionStatus.CANCELADO);
-        sub.setCancelledAt(Instant.now());
+        // Guard de mudança de plano (27.6): cancelamento da assinatura antiga
+        // durante o swap NÃO pode cancelar o tenant
+        if (sub.isPendingPlanChange()) {
+            log.info("SUBSCRIPTION_INACTIVATED ignorado — mudança de plano em andamento. tenantId={}",
+                sub.getTenantId());
+            return;
+        }
+
+        // METADADO APENAS (27.7.5) — o DunningJob controla as transições via cancel_at.
+        // Este evento NÃO cancela o tenant. O relógio é da Syax, não do Asaas.
+        sub.setAsaasInactivatedAt(Instant.now());
         subscriptionRepo.save(sub);
 
-        tenantStatusCacheService.evict(sub.getTenantId());
-        notificationService.sendCancellationNotice(sub.getTenantId());
-
-        // Cancelar comissões PENDENTE deste tenant (se houver comissões futuras planejadas)
-        commissionRepo.cancelPendingByTenantId(sub.getTenantId());
+        log.info("Asaas inativou assinatura — DunningJob controla o cancelamento. tenantId={} status={}",
+            sub.getTenantId(), sub.getStatus());
     }
 }
 ```
 
-### 6.6 Handler: PAYMENT_DELETED
+### 8.6 Handler: PAYMENT_DELETED
 
 ```java
 // PaymentDeletedHandler.java — cancela cobrança avulsa associada
@@ -1087,12 +1151,13 @@ public class PaymentDeletedHandler implements WebhookEventHandler {
 }
 ```
 
-### 6.7 DTO — AsaasWebhookPayload.java
+### 8.7 DTO — AsaasWebhookPayload.java
 
 ```java
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class AsaasWebhookPayload {
+    private String id;       // event id do Asaas — chave de idempotência preferida
     private String event;
     private AsaasPaymentData payment;
     private AsaasSubscriptionData subscription;
@@ -1122,7 +1187,7 @@ public class AsaasSubscriptionData {
 }
 ```
 
-### 6.8 Thread pool para async
+### 8.8 Thread pool para async
 
 ```java
 // AsyncConfig.java
@@ -1155,11 +1220,80 @@ public class AsyncConfig {
 }
 ```
 
+### 8.9 Handler: TRANSFER_COMPLETED
+
+```java
+// TransferCompletedHandler.java
+@Component
+@Slf4j
+public class TransferCompletedHandler implements WebhookEventHandler {
+
+    @Override
+    public String getEventType() { return "TRANSFER_COMPLETED"; }
+
+    @Override
+    @Transactional
+    public void handle(AsaasWebhookPayload payload) {
+        String transferId = payload.getTransfer().getId();
+
+        commissionRepo.findByPayoutAsaasId(transferId).ifPresentOrElse(commission -> {
+            commission.setStatus(CommissionStatus.PAGO);
+            commission.setConfirmedAt(Instant.now());
+            commissionRepo.save(commission);
+            log.info("Comissão confirmada via TRANSFER_COMPLETED — transferId={} partnerId={}",
+                transferId, commission.getPartnerId());
+        }, () -> log.warn("TRANSFER_COMPLETED sem comissão correspondente — transferId={}", transferId));
+    }
+}
+```
+
+### 8.10 Handler: TRANSFER_FAILED
+
+```java
+// TransferFailedHandler.java
+@Component
+@Slf4j
+public class TransferFailedHandler implements WebhookEventHandler {
+
+    @Override
+    public String getEventType() { return "TRANSFER_FAILED"; }
+
+    @Override
+    @Transactional
+    public void handle(AsaasWebhookPayload payload) {
+        String transferId = payload.getTransfer().getId();
+        String failReason = payload.getTransfer().getFailReason(); // ex: "INVALID_PIX_KEY"
+
+        commissionRepo.findByPayoutAsaasId(transferId).ifPresent(commission -> {
+            // Reverter para PENDENTE — próximo ciclo D+1 vai reprocessar
+            commission.setStatus(CommissionStatus.PENDENTE);
+            commission.setPayoutAsaasId(null);       // limpar para permitir nova tentativa
+            commission.setApprovedAt(null);
+            commission.setApprovedBy(null);
+            commission.setTransferFailedReason(failReason);
+            commissionRepo.save(commission);
+
+            // Notificar admin imediatamente
+            notificationService.sendTransferFailedAlert(
+                commission.getPartnerId(), commission.getId(), failReason);
+
+            log.error("Transfer falhou — comissão revertida para PENDENTE — " +
+                "transferId={} partnerId={} reason={}",
+                transferId, commission.getPartnerId(), failReason);
+        });
+    }
+}
+```
+
+> **Comportamento esperado:** a comissão voltará ao pool `PENDENTE` e será reprocessada
+> automaticamente no próximo ciclo D+1. O admin é notificado para investigar a causa
+> (chave PIX inválida, banco indisponível, saldo insuficiente na conta Asaas).
+
 ---
 
 ## 9. Fluxo C — Engine de Comissões
 
-### 7.1 CommissionEngine.java (orquestrador)
+### 9.1 CommissionEngine.java (orquestrador)
 
 ```java
 // CommissionEngine.java
@@ -1206,13 +1340,13 @@ public class CommissionEngine {
 }
 ```
 
-### 7.2 Strategy: RECORRENTE (único modelo ativo)
+### 9.2 Strategy: RECORRENTE — escopo
 
 > **Modelo ANUAL removido do escopo atual.** Apenas o modelo RECORRENTE está implementado.
 > A interface `CommissionStrategy` e a `CommissionStrategyFactory` permanecem no código
 > para que o modelo ANUAL seja adicionado no futuro sem alterar o `CommissionEngine`.
 
-### 7.2 Strategy: RECORRENTE (implementação)
+### 9.3 Strategy: RECORRENTE (implementação)
 
 ```java
 // RecurrentCommissionStrategy.java
@@ -1266,7 +1400,7 @@ public class RecurrentCommissionStrategy implements CommissionStrategy {
 
 ## 10. Fluxo D — Repasse de Comissões (Cron D+1)
 
-### 8.1 CommissionPayoutJob.java
+### 10.1 CommissionPayoutJob.java
 
 ```java
 // CommissionPayoutJob.java
@@ -1277,11 +1411,11 @@ public class CommissionPayoutJob {
     private final DistributedLockService lockService;
     private final CommissionPayoutService payoutService;
 
-    // D+1: calcula pendências e notifica admin — NÃO envia transferências
+    // D+1: notifica admin e envia os repasses automaticamente (usando effectiveAmount)
     @Scheduled(cron = "${billing.cron.commission-payout}")
     public void run() {
         YearMonth period = YearMonth.now().minusMonths(1);
-        String lockKey = "syax:billing:lock:commission-notify:" + period;
+        String lockKey = "syax:billing:lock:commission-payout:" + period;
         String lockOwner = UUID.randomUUID().toString();
         if (!lockService.acquire(lockKey, lockOwner, 1800)) return;
         try {
@@ -1291,6 +1425,7 @@ public class CommissionPayoutJob {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
             notificationService.sendAdminPayoutPendingAlert(period, summary.size(), total);
             log.info("Admin notificado: {} parceiros · R${} pendentes para {}", summary.size(), total, period);
+            payoutService.processPayouts(period);   // envia transfers — EM_TRANSFERENCIA até TRANSFER_COMPLETED
         } finally {
             lockService.release(lockKey, lockOwner);
         }
@@ -1298,7 +1433,7 @@ public class CommissionPayoutJob {
 }
 ```
 
-### 8.2 CommissionPayoutService.java
+### 10.2 CommissionPayoutService.java
 
 ```java
 // CommissionPayoutService.java
@@ -1310,7 +1445,11 @@ public class CommissionPayoutService {
     private final PartnerRepository partnerRepo;
     private final AsaasTransferClient transferClient;
 
-    @Transactional
+    // Sem @Transactional aqui: cada parceiro é processado em transação própria e curta.
+    // O transfer HTTP acontece FORA da transação — abrir transação durante chamada HTTP
+    // segura conexão do pool por tempo indeterminado e aumenta risco de deadlock.
+    // A atualização das comissões (EM_TRANSFERENCIA + payout_asaas_id) é feita em
+    // transação curta, executada imediatamente APÓS o transfer ser confirmado.
     public void processPayouts(YearMonth period) {
         // 1. Buscar comissões PENDENTE do período agrupadas por parceiro
         Map<Long, List<Commission>> byPartner = commissionRepo
@@ -1340,9 +1479,9 @@ public class CommissionPayoutService {
             return;
         }
 
-        // 2. Somar comissões do parceiro neste período
+        // 2. Somar effectiveAmount das comissões do parceiro neste período
         BigDecimal total = commissions.stream()
-            .map(Commission::getAmount)
+            .map(this::effectiveAmount)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         // Sem valor mínimo de repasse — qualquer valor > 0 é transferido
@@ -1351,33 +1490,87 @@ public class CommissionPayoutService {
             return;
         }
 
-        String description = String.format("Comissão Syax — Referência %s — Parceiro %d", period, partnerId);
+        // 3. Enviar transfer via check-then-act (seção 28.4) — NUNCA retry cego em money-out
+        TransferResult result = sendTransfer(partner, commissions, period);
 
-        // 3. Criar transferência PIX via Asaas
-        AsaasTransferResponse transfer = transferClient.createPixTransfer(
-            AsaasPixTransferRequest.builder()
-                .value(total)
-                .pixAddressKey(partner.getPixKey())
-                .pixAddressKeyType(partner.getPixKeyType())
-                .description(description)
-                .build()
-        );
+        if (!result.isSent()) {
+            log.error("Transfer não criado para parceiro={} período={} — será reprocessado no próximo ciclo",
+                partnerId, period);
+            return;
+        }
 
-        // 4. Marcar como EM_TRANSFERENCIA — PAGO só após TRANSFER_COMPLETED webhook
-        commissions.forEach(commission -> {
-            commission.setStatus(CommissionStatus.EM_TRANSFERENCIA);
-            commission.setPayoutAsaasId(transfer.getId());
-            commission.setApprovedAt(Instant.now());
-        });
-        commissionRepo.saveAll(commissions);
+        // 4. Marcar como EM_TRANSFERENCIA em transação curta — PAGO só após TRANSFER_COMPLETED webhook
+        markAsInTransfer(commissions, result.getTransferId());
 
         log.info("Transfer criado (PENDING) — parceiro={} total={} transferId={}",
-            partnerId, total, transfer.getId());
+            partnerId, total, result.getTransferId());
+    }
+
+    /**
+     * Envia transfer PIX/TED agregado por parceiro (um PIX por parceiro por período).
+     * Usa check-then-act após timeout para evitar double-payment (seção 28.4).
+     * externalReference = "payout-{partnerId}-{period}" — idempotency key de lote.
+     */
+    public TransferResult sendTransfer(Partner partner, List<Commission> commissions, YearMonth period) {
+        // Chave de idempotência de lote: um transfer por parceiro por período
+        String externalRef = "payout-" + partner.getId() + "-" + period;
+
+        BigDecimal total = commissions.stream()
+            .map(this::effectiveAmount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        String description = String.format("Comissão Syax — Referência %s — Parceiro %d", period, partner.getId());
+
+        try {
+            AsaasTransferResponse resp = transferClient.createPixTransfer(
+                AsaasPixTransferRequest.builder()
+                    .value(total)
+                    .pixAddressKey(partner.getPixKey())
+                    .pixAddressKeyType(partner.getPixKeyType())
+                    .description(description)
+                    .externalReference(externalRef) // ← idempotency key de lote
+                    .build()
+            );
+            return TransferResult.sent(resp.getId());
+
+        } catch (FeignException.GatewayTimeout | RetryableException e) {
+            // TIMEOUT: NÃO retentar às cegas — o Asaas pode ter processado.
+            // Consultar por externalReference antes de desistir.
+            // NUNCA usar @Retry em POST /transfers — risco de pagar o parceiro em dobro.
+            Optional<AsaasTransferData> existing =
+                transferClient.findByExternalReference(externalRef)
+                    .getData().stream().findFirst();
+
+            if (existing.isPresent()) {
+                log.warn("Transfer já existia após timeout — parceiro={} period={} transferId={}",
+                    partner.getId(), period, existing.get().getId());
+                return TransferResult.sent(existing.get().getId());
+            }
+            // Não existe — seguro marcar para retry no próximo ciclo D+1
+            return TransferResult.failed("timeout — não criada no Asaas");
+        }
+    }
+
+    // Self-invocation não passa pelo proxy do Spring — @Transactional aqui não abriria
+    // transação quando chamado via `this`. Usar TransactionTemplate injetado.
+    private void markAsInTransfer(List<Commission> commissions, String transferId) {
+        transactionTemplate.executeWithoutResult(tx -> {
+            commissions.forEach(commission -> {
+                commission.setStatus(CommissionStatus.EM_TRANSFERENCIA);
+                commission.setPayoutAsaasId(transferId);
+                commission.setApprovedAt(Instant.now());
+            });
+            commissionRepo.saveAll(commissions);
+        });
+    }
+
+    private BigDecimal effectiveAmount(Commission c) {
+        return c.getAdjustedAmount() != null ? c.getAdjustedAmount() : c.getAmount();
     }
 }
 ```
 
-### 8.3 Asaas API — Transferência PIX (preferencial) ou TED (fallback)
+### 10.3 Asaas API — Transferência PIX (preferencial) ou TED (fallback)
 
 **PIX** — quando o parceiro tem `pix_key` preenchido:
 ```
@@ -1388,7 +1581,8 @@ access_token: {ASAAS_API_KEY}
   "value": 150.00,
   "pixAddressKey": "parceiro@email.com",
   "pixAddressKeyType": "EMAIL",
-  "description": "Comissão Syax — Referência 2025-01 — Parceiro 42"
+  "description": "Comissão Syax — Referência 2025-01 — Parceiro 42",
+  "externalReference": "payout-42-2025-01"
 }
 ```
 `pixAddressKeyType` aceita: `CPF`, `CNPJ`, `EMAIL`, `PHONE`, `EVP`.
@@ -1409,7 +1603,8 @@ access_token: {ASAAS_API_KEY}
     "accountDigit": "{partner.account_digit}",
     "bankAccountType": "CONTA_CORRENTE"
   },
-  "description": "Comissão Syax — Referência 2025-01 — Parceiro 42"
+  "description": "Comissão Syax — Referência 2025-01 — Parceiro 42",
+  "externalReference": "payout-42-2025-01"
 }
 ```
 
@@ -1429,7 +1624,7 @@ private AsaasTransferResponse sendPayout(Partner partner, BigDecimal total, Stri
 
 ## 11. Integração com Auth Service
 
-### 9.1 Endpoint para Auth Service consultar
+### 11.1 Endpoint para Auth Service consultar
 
 ```
 GET /internal/billing/status/{tenantId}
@@ -1460,7 +1655,7 @@ public class TenantStatusController {
 }
 ```
 
-### 9.2 TenantStatusService com cache Redis
+### 11.2 TenantStatusService com cache Redis
 
 ```java
 // TenantStatusService.java
@@ -1537,7 +1732,7 @@ public class TenantStatusCacheService {
 }
 ```
 
-### 9.3 Regra no Auth Service
+### 11.3 Regra no Auth Service
 
 ```java
 // No Auth Service — antes de gerar JWT:
@@ -1645,45 +1840,32 @@ public void processarD15() {
 > D+15 encontra os mesmos referrals a cada execução até o status mudar.
 > `transicionarParaFollowup` deve ser idempotente.
 
-### 12.2 GracePeriodSuspensionJob (diário) — billing service
+### 12.3 DunningJob — billing service
 
-### 10.3 GracePeriodSuspensionJob (diário)
+> **`GracePeriodSuspensionJob` foi SUBSTITUÍDO pelo `DunningJob`** — código completo na seção 27.7.4.
+> Roda 4× ao dia (00h, 06h, 12h, 18h UTC), compara `now()` com `suspend_at` / `cancel_at`
+> e executa lembretes, suspensões e cancelamentos. Usa write-through no cache (put, não evict).
+> NÃO implementar o GracePeriodSuspensionJob antigo.
 
-```java
-@Component
-public class GracePeriodSuspensionJob {
+### 12.4 WebhookRecoveryJob — billing service
 
-    @Scheduled(cron = "0 0 6 * * *") // Diário às 06:00
-    public void run() {
-        String lockKey = "syax:billing:lock:grace-period:" + LocalDate.now();
-        if (!lockService.acquire(lockKey, UUID.randomUUID().toString(), 900)) return;
-
-        try {
-            // Buscar tenants com grace period expirado e ainda ATIVO
-            List<Subscription> toSuspend = subscriptionRepo.findGracePeriodExpired(Instant.now());
-            toSuspend.forEach(sub -> {
-                sub.setStatus(SubscriptionStatus.SUSPENSO);
-                sub.setSuspendedAt(Instant.now());
-                subscriptionRepo.save(sub);
-                tenantStatusCacheService.evict(sub.getTenantId());
-                notificationService.sendSuspensionNotice(sub.getTenantId());
-                log.warn("Tenant {} suspenso por inadimplência", sub.getTenantId());
-            });
-        } finally {
-            lockService.release(/* ... */);
-        }
-    }
-}
-```
+> Código completo na seção 28.5. A cada 10 minutos, reprocessa webhooks presos em
+> `RECEBIDO` há mais de 10 min (pod morreu entre o HTTP 200 e o processamento async).
+> A idempotência Redis protege contra dupla execução. Requer migration 005-12
+> (UNIQUE em `webhook_log.asaas_event_id`).
 
 ---
 
 ## 13. Tratamento de Erros & Resiliência
 
-### 11.1 Circuit Breaker (Resilience4j)
+### 13.1 Circuit Breaker (Resilience4j)
+
+> **Atenção Spring Boot 4:** anotações `@CircuitBreaker` e `@Retry` do Resilience4j NÃO funcionam diretamente em interfaces Feign. A anotação precisa estar em um método concreto de um `@Service` que envolva a chamada ao client Feign, ou usar a integração `spring-cloud-starter-circuitbreaker-resilience4j` (que o billing-service já tem no pom). O código da interface abaixo é **ilustrativo do contrato** — as anotações servem de documentação; o comportamento real vem da configuração YAML + wrapper service.
 
 ```java
-// AsaasClient.java — toda chamada usa circuit breaker + retry
+// AsaasClient.java
+// REGRA: @Retry apenas em operações onde duplicata é detectável/corrigível.
+// POST /transfers (money-out) NUNCA tem @Retry — ver seção 28.4 (check-then-act).
 @FeignClient(name = "asaas", url = "${billing.asaas.base-url}",
     configuration = AsaasClientConfig.class)
 public interface AsaasClient {
@@ -1698,14 +1880,20 @@ public interface AsaasClient {
     @PostMapping("/subscriptions")
     AsaasSubscriptionResponse createSubscription(@RequestBody AsaasSubscriptionRequest req);
 
-    @CircuitBreaker(name = "asaas-api", fallbackMethod = "createTransferFallback")
-    @Retry(name = "asaas-api")
+    // ⚠ MONEY-OUT: SEM @Retry. Timeout → consultar por externalReference antes de reenviar.
+    // Retry cego aqui = risco de pagar o parceiro em dobro. Fluxo completo na seção 28.4.
+    @CircuitBreaker(name = "asaas-api")
     @PostMapping("/transfers")
     AsaasTransferResponse createPixTransfer(@RequestBody AsaasPixTransferRequest req);
+
+    // Consulta por externalReference — usada no check-then-act após timeout
+    @GetMapping("/transfers")
+    AsaasListResponse<AsaasTransferData> listTransfersByExternalReference(
+        @RequestParam("externalReference") String externalReference);
 }
 ```
 
-### 11.2 Configuração Resilience4j
+### 13.2 Configuração Resilience4j
 
 ```yaml
 resilience4j:
@@ -1731,7 +1919,7 @@ resilience4j:
           - com.syax.billing.exception.AsaasValidationException
 ```
 
-### 11.3 Dead letter — webhook_log
+### 13.3 Dead letter — webhook_log
 
 Webhooks com `status = 'ERRO'` na tabela `billing.webhook_log` são o DLQ. Monitoramento deve alertar quando a contagem de erros cresce. Reprocessamento manual:
 
@@ -1750,7 +1938,7 @@ POST /api/admin/billing/v1/webhooks/{webhookLogId}/retry
 Authorization: Bearer {admin-jwt}
 ```
 
-### 11.4 DistributedLockService.java
+### 13.4 DistributedLockService.java
 
 ```java
 @Service
@@ -1780,7 +1968,7 @@ public class DistributedLockService {
 
 ## 14. Estrutura de Classes (Spring Boot)
 
-### 12.1 Estrutura de pacotes
+### 14.1 Estrutura de pacotes
 
 ```
 com.syax.billing/
@@ -1800,7 +1988,9 @@ com.syax.billing/
 │       ├── PaymentReceivedHandler.java
 │       ├── PaymentOverdueHandler.java
 │       ├── SubscriptionInactivatedHandler.java
-│       └── PaymentDeletedHandler.java
+│       ├── PaymentDeletedHandler.java
+│       ├── TransferCompletedHandler.java
+│       └── TransferFailedHandler.java
 ├── subscription/
 │   ├── SubscriptionService.java
 │   ├── SubscriptionController.java
@@ -1820,9 +2010,9 @@ com.syax.billing/
 │   └── TenantStatusCacheService.java
 ├── cron/
 │   ├── DistributedLockService.java
-│   ├── TrialAlertJob.java
-│   ├── TrialExpiryJob.java
-│   └── GracePeriodSuspensionJob.java
+│   ├── DunningJob.java
+│   ├── WebhookRecoveryJob.java
+│   └── ReconciliationJob.java
 ├── asaas/
 │   ├── client/
 │   │   ├── AsaasClient.java (Feign interface)
@@ -1860,7 +2050,7 @@ com.syax.billing/
     └── NotFoundException.java
 ```
 
-### 12.2 Interfaces e enums
+### 14.2 Interfaces e enums
 
 ```java
 // WebhookEventHandler.java
@@ -1902,7 +2092,7 @@ public enum PartnerStatus { PENDENTE, ATIVO, SUSPENSO, INATIVO }
 public enum PixKeyType { CPF, CNPJ, EMAIL, PHONE, EVP }
 ```
 
-### 12.3 CommissionRepository — queries específicas
+### 14.3 CommissionRepository — queries específicas
 
 ```java
 // CommissionRepository.java
@@ -1927,7 +2117,7 @@ public interface CommissionRepository extends JpaRepository<Commission, Long> {
 }
 ```
 
-### 12.4 SubscriptionRepository — queries específicas
+### 14.4 SubscriptionRepository — queries específicas
 
 ```java
 public interface SubscriptionRepository extends JpaRepository<Subscription, Long> {
@@ -1944,10 +2134,19 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
            "AND s.trialExpiresAt <= :now")
     List<Subscription> findExpiredTrials(Instant now);
 
-    @Query("SELECT s FROM Subscription s WHERE s.status = 'ATIVO' " +
-           "AND s.gracePeriodExpiresAt IS NOT NULL " +
-           "AND s.gracePeriodExpiresAt <= :now")
-    List<Subscription> findGracePeriodExpired(Instant now);
+    // Queries usadas pelo DunningJob (substitui o antigo findGracePeriodExpired — fluxo redesenhado em 27.7)
+
+    // Email 2: lembrete — suspend_at atingido em breve, lembrete ainda não enviado
+    List<Subscription> findByStatusAndSuspendAtBeforeAndReminderSentAtIsNull(
+        SubscriptionStatus status, Instant threshold);
+
+    // Suspensão: suspend_at <= now e ainda ATIVO
+    List<Subscription> findByStatusAndSuspendAtBefore(
+        SubscriptionStatus status, Instant now);
+
+    // Cancelamento: cancel_at <= now e ainda SUSPENSO
+    List<Subscription> findByStatusAndCancelAtBefore(
+        SubscriptionStatus status, Instant now);
 }
 ```
 
@@ -1973,15 +2172,16 @@ spring:
     properties:
       hibernate:
         default_schema: billing
-  redis:
-    host: ${REDIS_HOST:localhost}
-    port: ${REDIS_PORT:6379}
-    password: ${REDIS_PASSWORD:}
-    timeout: 3000ms
-    lettuce:
-      pool:
-        max-active: 10
-        max-idle: 5
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 10
+          max-idle: 5
   task:
     scheduling:
       thread-name-prefix: "cron-"
@@ -2209,6 +2409,45 @@ databaseChangeLog:
             columnName: paid_at
 
   - changeSet:
+      id: 005-02b-commission-model-fields
+      author: billing-engine
+      comment: Campos usados pelas strategies de comissão — necessários antes do índice 005-05 (reference_year)
+      changes:
+        - addColumn:
+            tableName: commission
+            schemaName: billing
+            columns:
+              - column:
+                  name: commission_model
+                  type: VARCHAR(20)
+                  defaultValue: RECORRENTE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: base_value
+                  type: NUMERIC(10,2)
+                  constraints:
+                    nullable: true
+              - column:
+                  name: reference_year
+                  type: INT
+                  constraints:
+                    nullable: true
+      rollback:
+        - dropColumn:
+            tableName: commission
+            schemaName: billing
+            columnName: commission_model
+        - dropColumn:
+            tableName: commission
+            schemaName: billing
+            columnName: base_value
+        - dropColumn:
+            tableName: commission
+            schemaName: billing
+            columnName: reference_year
+
+  - changeSet:
       id: 005-03-subscription-grace-period
       author: billing-engine
       comment: Adiciona controle de grace period e timestamps de status na subscription
@@ -2348,13 +2587,24 @@ Adicionar ao `db/db.changelog-master.yaml`:
 
 ---
 
+> **Migrations adicionais definidas em seções posteriores** (implementar todas):
+> - `005-09-lgpd-partner-fields` (seção 27.2) — campos LGPD em billing.partner
+> - `005-10-subscription-plan-change-flag` (seção 27.6) — pending_plan_change
+> - `005-11-dunning-absolute-timestamps` (seção 27.7.1) — suspend_at, cancel_at, reminder_sent_at, asaas_inactivated_at
+> - `005-12-webhook-log-event-id-unique` (seção 28.5) — asaas_event_id UNIQUE
+
+---
+
 ## 17. Dependências Maven (adicionar ao pom.xml)
+
+> **Atenção Spring Boot 4:** o projeto usa Spring Boot 4.x. O artefato `resilience4j-spring-boot3` é para Boot 3 e pode não ser compatível. Verificar se existe `resilience4j-spring-boot4`; caso contrário, usar `spring-cloud-starter-circuitbreaker-resilience4j` (que o billing-service já deve ter no pom como dependência do Spring Cloud 2025.x). Confirmar compatibilidade antes de adicionar `resilience4j-spring-boot3` ao pom.
 
 ```xml
 <!-- Resilience4j -->
 <dependency>
     <groupId>io.github.resilience4j</groupId>
     <artifactId>resilience4j-spring-boot3</artifactId>
+    <!-- ATENÇÃO: verificar artefato compatível com Spring Boot 4 — veja callout acima -->
 </dependency>
 <dependency>
     <groupId>io.github.resilience4j</groupId>
@@ -2389,10 +2639,12 @@ Adicionar ao `db/db.changelog-master.yaml`:
 
 ## 18. Admin — Gestão de Comissões e Repasses
 
-> **Mudança arquitetural:** O cron D+1 apenas notifica o admin. As transferências PIX/TED
-> só saem quando um admin com `ROLE_BILLING_ADMIN` aciona o endpoint de processamento.
+> **Modelo híbrido:** o cron D+1 notifica o admin **e** envia os repasses automaticamente,
+> usando `effectiveAmount = COALESCE(adjusted_amount, amount)`. Os endpoints admin servem para
+> ajustar/cancelar comissões **antes** do D+1, conferir o preview e reprocessar repasses
+> manualmente (parceiros pulados, `TRANSFER_FAILED`).
 
-### 17.1 Modelo de roles (claims no JWT do auth service)
+### 18.1 Modelo de roles (claims no JWT do auth service)
 
 | Role | Permissões |
 |---|---|
@@ -2416,7 +2668,7 @@ public class BillingAdminSecurityConfig {
 }
 ```
 
-### 17.2 Endpoints
+### 18.2 Endpoints
 
 #### GET /api/billing/v1/admin/commissions
 
@@ -2456,7 +2708,8 @@ public CommissionAdjustResponse adjust(Long id, BigDecimal newAmount, String rea
 
 #### POST /api/billing/v1/admin/payouts/process — ROLE_BILLING_ADMIN
 
-**Aciona o repasse real.** Body: `{ "period": "2025-01", "partnerIds": null }` (`null` = todos).
+**Aciona/reprocessa o repasse manualmente** — fora do ciclo automático D+1 (ex.: parceiros pulados,
+comissões revertidas por `TRANSFER_FAILED`). Body: `{ "period": "2025-01", "partnerIds": null }` (`null` = todos).
 
 Usa `effectiveAmount = COALESCE(adjusted_amount, amount)` para calcular cada repasse.
 Parceiros sem PIX nem TED são pulados com status `PULADO` no response.
@@ -2467,14 +2720,25 @@ private BigDecimal effectiveAmount(Commission c) {
 }
 ```
 
-Response: `{ period, processed, skipped, totalPaid, results: [{partnerId, status, amount, transferId, method}] }`.
+**Processamento assíncrono** (`PayoutAdminService.startJobAsync`): a requisição retorna `202 Accepted`
+com `jobId`; o job roda em background sob o mesmo distributed lock do cron (execução concorrente é
+rejeitada) e o estado fica em `syax:billing:payout:job:{jobId}` no Redis (TTL 24h).
+
+```
+Response 202: { "jobId": "...", "period": "2025-01" }
+
+GET /api/billing/v1/admin/payouts/{jobId}/status
+Response 200: { jobId, status: PROCESSANDO | CONCLUIDO | ERRO, period, processed, skipped,
+                totalPaid, results: [{partnerId, status, amount, transferId, method}] }
+Response 404: jobId inexistente ou expirado
+```
 
 #### PATCH /api/billing/v1/admin/commissions/{id}/cancel — ROLE_BILLING_ADMIN
 
 Cancela comissão `PENDENTE`. Body: `{ "reason": "..." }`.
 Grava `cancelled_by`, `cancellation_reason`. Não reverte comissões já pagas.
 
-### 17.3 Campos novos — billing.commission (migration 005-06)
+### 18.3 Campos novos — billing.commission (migration 005-06)
 
 ```yaml
 - changeSet:
@@ -2500,7 +2764,7 @@ Grava `cancelled_by`, `cancellation_reason`. Não reverte comissões já pagas.
 > `confirmed_at` — preenchido pelo `TransferCompletedHandler` ao receber o webhook do Asaas.  
 > `transfer_failed_reason` — preenchido pelo `TransferFailedHandler` com o motivo da falha (ex: `INVALID_PIX_KEY`, `INSUFFICIENT_BALANCE`).
 
-### 17.4 Classes novas
+### 18.4 Classes novas
 
 ```
 com.syax.billing/
@@ -2518,7 +2782,7 @@ com.syax.billing/
         └── CommissionSummary.java
 ```
 
-### 17.5 Queries novas em CommissionRepository
+### 18.5 Queries novas em CommissionRepository
 
 ```java
 // Resumo por parceiro (usado pelo cron e pelo preview)
@@ -2567,10 +2831,9 @@ public class ReconciliationJob {
     @Transactional
     public int reconcile(LocalDate date) {
         // 1. Buscar pagamentos RECEIVED no Asaas para o período (paginado)
-        List<AsaasPaymentData> payments = asaasPaymentClient
-            .listReceived(date, date.plusDays(1));
+        List<AsaasPaymentData> payments = asaasPaymentClient.listReceived(date);
 
-        int fixed = 0;
+        AtomicInteger fixed = new AtomicInteger();
         for (AsaasPaymentData payment : payments) {
             if (payment.getSubscription() == null) continue;
 
@@ -2582,10 +2845,10 @@ public class ReconciliationJob {
                         sub.getTenantId(), payment.getId());
                     // Reutiliza handler existente — toda a lógica (ativação + comissão) já está lá
                     paymentReceivedHandler.handle(buildSyntheticPayload(payment));
+                    fixed.incrementAndGet();   // conta apenas divergências corrigidas
                 });
-            fixed++;
         }
-        return fixed;
+        return fixed.get();
     }
 
     private AsaasWebhookPayload buildSyntheticPayload(AsaasPaymentData payment) {
@@ -2600,9 +2863,12 @@ public class ReconciliationJob {
 ### 19.2 Asaas API — listar pagamentos por período
 
 ```
-GET /v3/payments?status=RECEIVED&dateCreated[gte]=2025-01-31&dateCreated[lt]=2025-02-01&limit=100
+GET /v3/payments?status=RECEIVED&paymentDate[ge]=2025-01-31&paymentDate[le]=2025-01-31&limit=100
 access_token: {ASAAS_API_KEY}
 ```
+
+> Filtrar por **`paymentDate`**, não `dateCreated` — um boleto criado dias antes e pago ontem
+> seria perdido pelo filtro de data de criação.
 
 Paginar com `offset` enquanto `hasMore = true`. Adicionar `AsaasPaymentClient.listReceived()`
 como novo método no cliente Feign existente.
@@ -2726,6 +2992,157 @@ if (sub.getCancellationReason() == null) {
 
 ---
 
+## 21. Ordem de Implementação
+
+Seguir esta ordem para garantir que cada fase é testável antes de avançar.
+
+> ⚠ **LER ANTES DE COMEÇAR — seções que alteram código desta ordem:**
+> - **27.6** Mudança de plano (PlanChangeService + flag pending_plan_change)
+> - **27.7** Dunning redesenhado (DunningJob substitui GracePeriodSuspensionJob; PaymentOverdueHandler usa suspend_at/cancel_at)
+> - **28** Hardening (TransientException, event.id como chave, check-then-act em transfers, WebhookRecoveryJob, guards de estado, validação de valor)
+    > Os códigos das seções 27-28 são a versão FINAL — onde houver divergência com seções anteriores, 27-28 prevalecem.
+
+### Fase 1 — Infraestrutura (sem lógica de negócio)
+1. Criar os 5 scripts Lua em `src/main/resources/lua/`
+2. Implementar `RedisConfig.java` (carregar scripts, configurar templates)
+3. Implementar `DistributedLockService.java`
+4. Implementar `WebhookIdempotencyService.java`
+5. Implementar `TenantStatusCacheService.java`
+6. Testar scripts Lua com `redis-cli EVAL` antes de prosseguir
+
+### Fase 2 — Webhook endpoint (core do sistema)
+7. Implementar `AsaasWebhookPayload.java` e demais DTOs Asaas
+8. Implementar `WebhookSecurityService.java`
+9. Implementar `WebhookLogService.java` (persistência em `billing.webhook_log`)
+10. Implementar `WebhookController.java` (retorna 200 imediatamente)
+11. Implementar `WebhookProcessor.java` (async dispatcher)
+12. Implementar `WebhookHandlerFactory.java`
+13. Implementar `PaymentReceivedHandler.java` ← prioridade máxima
+14. Implementar `PaymentOverdueHandler.java`
+15. Implementar `SubscriptionInactivatedHandler.java`
+16. Implementar `PaymentDeletedHandler.java`
+
+### Fase 3 — Asaas client e criação de assinatura
+17. Implementar `AsaasClient.java` (Feign + Resilience4j)
+18. Implementar `AsaasCustomerClient.java`, `AsaasSubscriptionClient.java`, `AsaasPaymentClient.java`
+19. Implementar `SubscriptionService.java`
+20. Implementar `SubscriptionController.java`
+21. Testar fluxo completo no sandbox Asaas
+
+### Fase 4 — Engine de comissões
+22. Implementar `CommissionStrategy.java` (interface) e `CommissionStrategyFactory.java`
+23. Implementar `RecurrentCommissionStrategy.java`
+24. Implementar `CommissionEngine.java`
+25. Conectar `PaymentReceivedHandler` ao `CommissionEngine`
+26. Rodar `005-billing-payment-engine-additions.yaml` (migration)
+
+### Fase 5 — Status API e integração Auth
+27. Implementar `TenantStatusService.java`
+28. Implementar `TenantStatusController.java`
+29. Testar integração com Auth Service (mock billing status → verificar que JWT é bloqueado)
+
+### Fase 6 — Payout de comissões
+30. Implementar `AsaasTransferClient.java`
+31. Implementar `CommissionPayoutService.java`
+32. Implementar `CommissionPayoutJob.java` com distributed lock
+33. Implementar `TransferCompletedHandler.java` e `TransferFailedHandler.java` (8.9/8.10)
+34. Testar com contas sandbox Asaas
+
+### Fase 7 — Cron jobs de dunning e recuperação
+35. Implementar `DunningJob.java` (27.7.4 — substitui o antigo GracePeriodSuspensionJob)
+36. Implementar `WebhookRecoveryJob.java` (28.5)
+37. Implementar `ReconciliationJob.java` (seção 19)
+
+> Os crons de trial D+10/D+15 já estão implementados no auth service e no partner service (seção 12) — nada a fazer no billing.
+
+---
+
+## 22. Testes Requeridos
+
+### 22.1 Testes unitarios
+
+| Classe | Cenario |
+|---|---|
+| `WebhookIdempotencyService` | `tryAcquire` retorna 1 na 1a vez, 0 na 2a |
+| `WebhookIdempotencyService` | `markDone`/`markError` atualiza Redis |
+| `DistributedLockService` | Acquire + release; acquire falha se ja existe |
+| `RecurrentCommissionStrategy` | Prorateio correto para plano anual (div 12) |
+| `RecurrentCommissionStrategy` | Idempotencia via `DataIntegrityViolationException` |
+| `CommissionPayoutService` | Parceiro sem PIX nem TED e pulado sem quebrar os outros |
+| `CommissionPayoutService` | `effectiveAmount` usa `adjustedAmount` se preenchido |
+| `WebhookSecurityService` | Token invalido lanca `WebhookAuthException` |
+| `TenantStatusCacheService` | Cache hit retorna valor; `evict` remove |
+| `SubscriptionService` | Plano anual: value = monthlyValue x 10 |
+| `SubscriptionService` | B2C: cria `Subscription` nova se nao existe (`orElseGet`) |
+| `SubscriptionService` | Parceiro: usa `Subscription` existente |
+| `SubscriptionService.requestCancellation` | ATIVO -> CANCELAMENTO_SOLICITADO + Asaas chamado |
+| `SubscriptionService.requestCancellation` | Tenant em TRIAL -> 422 |
+| `SubscriptionService.requestCancellation` | Ja CANCELADO -> 409 |
+| `CommissionAdminService.adjust` | Ajuste valido grava `adjustedAmount` + auditoria |
+| `CommissionAdminService.adjust` | Comissao nao-PENDENTE -> 422 |
+| `CommissionAdminService.adjust` | Valor negativo -> 422 |
+| `CommissionAdminService.cancel` | PENDENTE -> CANCELADO com motivo |
+| `PartnerReferralAdminService.linkRetroactively` | Cria vinculo CONVERTIDO para tenant ATIVO |
+| `PartnerReferralAdminService.linkRetroactively` | Tenant ja tem parceiro -> 409 |
+| `PartnerReferralAdminService.linkRetroactively` | Tenant nao-ATIVO -> 422 |
+| `PayoutAdminService.startJobAsync` | Job criado no Redis com status PROCESSANDO |
+| `PayoutAdminService.startJobAsync` | Job atualizado para CONCLUIDO ao terminar |
+| `PayoutAdminService.startJobAsync` | Job atualizado para ERRO em excecao |
+| `CommissionPayoutJob` | D+1 notifica admin e envia transfers usando `effectiveAmount` |
+| `CommissionPayoutJob` | Sem comissoes PENDENTE -> nao notifica nem transfere |
+| `ReconciliationJob` | Tenant TRIAL com pagamento RECEIVED -> aciona handler |
+| `ReconciliationJob` | Sem divergencias -> nenhuma acao |
+| `TransferCompletedHandler` | `commission.status = PAGO` + `confirmed_at` preenchido |
+| `TransferCompletedHandler` | `transferId` desconhecido -> loga e ignora silenciosamente |
+| `TransferFailedHandler` | `commission.status = PENDENTE` + `payout_asaas_id = null` |
+| `TransferFailedHandler` | `transfer_failed_reason` gravado + notificacao disparada |
+
+### 22.2 Testes de integracao (TestContainers: PostgreSQL + Redis)
+
+| Cenario | Verificacao |
+|---|---|
+| `PAYMENT_RECEIVED` -> ativar tenant | `subscription.status = ATIVO` + cache atualizado via write-through (put) |
+| `PAYMENT_RECEIVED` duplicado | Processado 1x; 2a chamada descartada via Redis |
+| `PAYMENT_RECEIVED` com parceiro RECORRENTE | `commission.status = PENDENTE` + valor correto |
+| `PAYMENT_OVERDUE` | `suspend_at = now+5d` e `cancel_at = now+7d` gravados |
+| `SUBSCRIPTION_INACTIVATED` | Apenas grava `asaas_inactivated_at` — status nao muda (27.7.5) |
+| `SUBSCRIPTION_INACTIVATED` pos-cancelamento via endpoint | `cancellationReason` preservado |
+| `TRANSFER_COMPLETED` | `commission.status = PAGO` + `confirmed_at` preenchido |
+| `TRANSFER_FAILED` | `commission.status = PENDENTE` + `payout_asaas_id = null` + notificacao |
+| `TRANSFER_FAILED` + proximo D+1 | Comissao incluida novamente no proximo payout |
+| `DunningJob` — lembrete | Email enviado quando `suspend_at - 2d <= now` e `reminder_sent_at IS NULL` |
+| `DunningJob` — suspensao | Tenant SUSPENSO + cache write-through (put) quando `suspend_at <= now` |
+| `DunningJob` — cancelamento | Tenant CANCELADO + comissoes PENDENTE canceladas quando `cancel_at <= now` |
+| `POST /admin/payouts/process` | Retorna 202 + `jobId`; nao bloqueia request |
+| `GET /admin/payouts/{jobId}/status` | Evolui PROCESSANDO -> CONCLUIDO |
+| `GET /admin/payouts/{jobId}/status` | `jobId` inexistente -> 404 |
+| `POST /admin/payouts/process` concorrente | Apenas 1 instancia executa (lock Redis) |
+| `PATCH /admin/commissions/{id}/adjust` | `effectiveAmount` usado no proximo payout |
+| `PATCH /admin/commissions/{id}/adjust` | Comissao PAGO -> 422 |
+| `PATCH /admin/commissions/{id}/cancel` | Status CANCELADO + motivo gravado |
+| `POST /admin/referrals/link` | Proximo `PAYMENT_RECEIVED` gera comissao para parceiro |
+| `POST /subscriptions` (B2C) | Cria `billing.subscription` + Asaas customer + sub |
+| `POST /subscriptions/cancel` | `CANCELAMENTO_SOLICITADO` + Asaas chamado |
+| `ReconciliationJob` | Tenant TRIAL com pagamento no Asaas -> ativado + comissao |
+| `ReconciliationJob` idempotente | Mesmo `asaas_payment_id` processado 2x -> 2a ignorada |
+| `GET /internal/billing/status` | CANCELAMENTO_SOLICITADO -> permite login (200) |
+| `GET /internal/billing/status` | SUSPENSO -> retorna 402 |
+
+### 22.3 Contract tests (WireMock -- Asaas sandbox)
+
+| Cenario |
+|---|
+| `POST /v3/customers` -> 200 com ID |
+| `POST /v3/subscriptions` -> 200 com boleto + PIX |
+| `POST /v3/transfers` PIX -> 200 com `tra_xxx` PENDING |
+| `POST /v3/transfers` chave PIX invalida -> 400 -> `AsaasValidationException` |
+| `DELETE /v3/subscriptions/{id}` -> `{ "deleted": true }` |
+| `GET /v3/payments?status=RECEIVED` -> paginado, `hasMore=true` 1a pagina, `false` na 2a |
+| Asaas timeout -> retry 3x -> circuit breaker abre |
+| Circuit breaker aberto -> fallback executado sem exception |
+
+---
+
 ## 23. DTOs e métodos em falta (compilação)
 
 ### 23.1 AsaasTransferData.java
@@ -2741,6 +3158,7 @@ public class AsaasTransferData {
     private String failReason;      // INVALID_PIX_KEY | INSUFFICIENT_BALANCE | BANK_UNAVAILABLE
     private String pixAddressKey;
     private String pixAddressKeyType;
+    private String externalReference; // ← idempotency key de lote: "payout-{partnerId}-{period}"
 }
 ```
 
@@ -2787,8 +3205,8 @@ Optional<Commission> findByPayoutAsaasId(String payoutAsaasId);
 @GetMapping("/payments")
 AsaasListResponse<AsaasPaymentData> listPayments(
     @RequestParam("status") String status,
-    @RequestParam("dateCreated[gte]") String from,
-    @RequestParam("dateCreated[lt]") String to,
+    @RequestParam("paymentDate[ge]") String from,
+    @RequestParam("paymentDate[le]") String to,
     @RequestParam(value = "limit", defaultValue = "100") int limit,
     @RequestParam(value = "offset", defaultValue = "0") int offset
 );
@@ -2800,7 +3218,7 @@ AsaasListResponse<AsaasPaymentData> listPayments(
 private List<AsaasPaymentData> listReceived(LocalDate date) {
     List<AsaasPaymentData> all = new ArrayList<>();
     String from = date.toString();
-    String to   = date.plusDays(1).toString();
+    String to   = date.toString();   // paymentDate[ge/le] é inclusivo — mesma data cobre o dia
     int offset  = 0;
 
     AsaasListResponse<AsaasPaymentData> page;
@@ -2953,147 +3371,6 @@ encontra o vínculo criado retroativamente e gera a comissão normalmente.
 
 ---
 
-## 21. Ordem de Implementação
-
-Seguir esta ordem para garantir que cada fase é testável antes de avançar:
-
-### Fase 1 — Infraestrutura (sem lógica de negócio)
-1. Criar os 5 scripts Lua em `src/main/resources/lua/`
-2. Implementar `RedisConfig.java` (carregar scripts, configurar templates)
-3. Implementar `DistributedLockService.java`
-4. Implementar `WebhookIdempotencyService.java`
-5. Implementar `TenantStatusCacheService.java`
-6. Testar scripts Lua com `redis-cli EVAL` antes de prosseguir
-
-### Fase 2 — Webhook endpoint (core do sistema)
-7. Implementar `AsaasWebhookPayload.java` e demais DTOs Asaas
-8. Implementar `WebhookSecurityService.java`
-9. Implementar `WebhookLogService.java` (persistência em `billing.webhook_log`)
-10. Implementar `WebhookController.java` (retorna 200 imediatamente)
-11. Implementar `WebhookProcessor.java` (async dispatcher)
-12. Implementar `WebhookHandlerFactory.java`
-13. Implementar `PaymentReceivedHandler.java` ← prioridade máxima
-14. Implementar `PaymentOverdueHandler.java`
-15. Implementar `SubscriptionInactivatedHandler.java`
-16. Implementar `PaymentDeletedHandler.java`
-
-### Fase 3 — Asaas client e criação de assinatura
-17. Implementar `AsaasClient.java` (Feign + Resilience4j)
-18. Implementar `AsaasCustomerClient.java`, `AsaasSubscriptionClient.java`, `AsaasPaymentClient.java`
-19. Implementar `SubscriptionService.java`
-20. Implementar `SubscriptionController.java`
-21. Testar fluxo completo no sandbox Asaas
-
-### Fase 4 — Engine de comissões
-22. Implementar `CommissionStrategy.java` (interface) e `CommissionStrategyFactory.java`
-24. Implementar `RecurrentCommissionStrategy.java`
-25. Implementar `CommissionEngine.java`
-26. Conectar `PaymentReceivedHandler` ao `CommissionEngine`
-27. Rodar `005-billing-payment-engine-additions.yaml` (migration)
-
-### Fase 5 — Status API e integração Auth
-28. Implementar `TenantStatusService.java`
-29. Implementar `TenantStatusController.java`
-30. Testar integração com Auth Service (mock billing status → verificar que JWT é bloqueado)
-
-### Fase 6 — Payout de comissões
-31. Implementar `AsaasTransferClient.java`
-32. Implementar `CommissionPayoutService.java`
-33. Implementar `CommissionPayoutJob.java` com distributed lock
-34. Testar com contas sandbox Asaas
-
-### Fase 7 — Cron jobs de trial
-35. Implementar `TrialAlertJob.java`
-36. Implementar `TrialExpiryJob.java`
-37. Implementar `GracePeriodSuspensionJob.java`
-
----
-
-## 22. Testes Requeridos
-
-### 22.1 Testes unitarios
-
-| Classe | Cenario |
-|---|---|
-| `WebhookIdempotencyService` | `tryAcquire` retorna 1 na 1a vez, 0 na 2a |
-| `WebhookIdempotencyService` | `markDone`/`markError` atualiza Redis |
-| `DistributedLockService` | Acquire + release; acquire falha se ja existe |
-| `RecurrentCommissionStrategy` | Prorateio correto para plano anual (div 12) |
-| `RecurrentCommissionStrategy` | Idempotencia via `DataIntegrityViolationException` |
-| `CommissionPayoutService` | Parceiro sem PIX nem TED e pulado sem quebrar os outros |
-| `CommissionPayoutService` | `effectiveAmount` usa `adjustedAmount` se preenchido |
-| `WebhookSecurityService` | Token invalido lanca `WebhookAuthException` |
-| `TenantStatusCacheService` | Cache hit retorna valor; `evict` remove |
-| `SubscriptionService` | Plano anual: value = monthlyValue x 10 |
-| `SubscriptionService` | B2C: cria `Subscription` nova se nao existe (`orElseGet`) |
-| `SubscriptionService` | Parceiro: usa `Subscription` existente |
-| `SubscriptionService.requestCancellation` | ATIVO -> CANCELAMENTO_SOLICITADO + Asaas chamado |
-| `SubscriptionService.requestCancellation` | Tenant em TRIAL -> 422 |
-| `SubscriptionService.requestCancellation` | Ja CANCELADO -> 409 |
-| `CommissionAdminService.adjust` | Ajuste valido grava `adjustedAmount` + auditoria |
-| `CommissionAdminService.adjust` | Comissao nao-PENDENTE -> 422 |
-| `CommissionAdminService.adjust` | Valor negativo -> 422 |
-| `CommissionAdminService.cancel` | PENDENTE -> CANCELADO com motivo |
-| `PartnerReferralAdminService.linkRetroactively` | Cria vinculo CONVERTIDO para tenant ATIVO |
-| `PartnerReferralAdminService.linkRetroactively` | Tenant ja tem parceiro -> 409 |
-| `PartnerReferralAdminService.linkRetroactively` | Tenant nao-ATIVO -> 422 |
-| `PayoutAdminService.startJobAsync` | Job criado no Redis com status PROCESSANDO |
-| `PayoutAdminService.startJobAsync` | Job atualizado para CONCLUIDO ao terminar |
-| `PayoutAdminService.startJobAsync` | Job atualizado para ERRO em excecao |
-| `CommissionPayoutJob` | Nao envia transfers -- apenas notifica admin |
-| `CommissionPayoutJob` | Sem comissoes PENDENTE -> nao notifica |
-| `ReconciliationJob` | Tenant TRIAL com pagamento RECEIVED -> aciona handler |
-| `ReconciliationJob` | Sem divergencias -> nenhuma acao |
-| `TransferCompletedHandler` | `commission.status = PAGO` + `confirmed_at` preenchido |
-| `TransferCompletedHandler` | `transferId` desconhecido -> loga e ignora silenciosamente |
-| `TransferFailedHandler` | `commission.status = PENDENTE` + `payout_asaas_id = null` |
-| `TransferFailedHandler` | `transfer_failed_reason` gravado + notificacao disparada |
-
-### 22.2 Testes de integracao (TestContainers: PostgreSQL + Redis)
-
-| Cenario | Verificacao |
-|---|---|
-| `PAYMENT_RECEIVED` -> ativar tenant | `subscription.status = ATIVO` + cache invalidado |
-| `PAYMENT_RECEIVED` duplicado | Processado 1x; 2a chamada descartada via Redis |
-| `PAYMENT_RECEIVED` com parceiro RECORRENTE | `commission.status = PENDENTE` + valor correto |
-| `PAYMENT_OVERDUE` | `grace_period_expires_at = now + 5d` |
-| `SUBSCRIPTION_INACTIVATED` | Tenant CANCELADO + comissoes PENDENTE canceladas |
-| `SUBSCRIPTION_INACTIVATED` pos-cancelamento via endpoint | `cancellationReason` preservado |
-| `TRANSFER_COMPLETED` | `commission.status = PAGO` + `confirmed_at` preenchido |
-| `TRANSFER_FAILED` | `commission.status = PENDENTE` + `payout_asaas_id = null` + notificacao |
-| `TRANSFER_FAILED` + proximo D+1 | Comissao incluida novamente no proximo payout |
-| `GracePeriodSuspensionJob` | Tenant suspenso apos grace period expirado |
-| `POST /admin/payouts/process` | Retorna 202 + `jobId`; nao bloqueia request |
-| `GET /admin/payouts/{jobId}/status` | Evolui PROCESSANDO -> CONCLUIDO |
-| `GET /admin/payouts/{jobId}/status` | `jobId` inexistente -> 404 |
-| `POST /admin/payouts/process` concorrente | Apenas 1 instancia executa (lock Redis) |
-| `PATCH /admin/commissions/{id}/adjust` | `effectiveAmount` usado no proximo payout |
-| `PATCH /admin/commissions/{id}/adjust` | Comissao PAGO -> 422 |
-| `PATCH /admin/commissions/{id}/cancel` | Status CANCELADO + motivo gravado |
-| `POST /admin/referrals/link` | Proximo `PAYMENT_RECEIVED` gera comissao para parceiro |
-| `POST /subscriptions` (B2C) | Cria `billing.subscription` + Asaas customer + sub |
-| `POST /subscriptions/cancel` | `CANCELAMENTO_SOLICITADO` + Asaas chamado |
-| `ReconciliationJob` | Tenant TRIAL com pagamento no Asaas -> ativado + comissao |
-| `ReconciliationJob` idempotente | Mesmo `asaas_payment_id` processado 2x -> 2a ignorada |
-| `GET /internal/billing/status` | CANCELAMENTO_SOLICITADO -> permite login (200) |
-| `GET /internal/billing/status` | SUSPENSO -> retorna 402 |
-
-### 22.3 Contract tests (WireMock -- Asaas sandbox)
-
-| Cenario |
-|---|
-| `POST /v3/customers` -> 200 com ID |
-| `POST /v3/subscriptions` -> 200 com boleto + PIX |
-| `POST /v3/transfers` PIX -> 200 com `tra_xxx` PENDING |
-| `POST /v3/transfers` chave PIX invalida -> 400 -> `AsaasValidationException` |
-| `DELETE /v3/subscriptions/{id}` -> `{ "deleted": true }` |
-| `GET /v3/payments?status=RECEIVED` -> paginado, `hasMore=true` 1a pagina, `false` na 2a |
-| Asaas timeout -> retry 3x -> circuit breaker abre |
-| Circuit breaker aberto -> fallback executado sem exception |
-
-
----
-
 ## 25. Variáveis de Ambiente Necessárias
 
 ```bash
@@ -3130,3 +3407,811 @@ INTERNAL_SERVICE_TOKEN=  # UUID aleatório, compartilhado entre auth e billing
 - **Lua scripts** devem estar em `src/main/resources/lua/` — carregar via `ClassPathResource`
 - Todos os cron jobs devem ser **idempotentes** — re-executar o mesmo cron no mesmo dia deve ser seguro
 - O **filtro de idempotência Redis** é a barreira RÁPIDA; o **UNIQUE constraint do banco** é a barreira DEFINITIVA — ambos são necessários
+
+
+---
+
+## 27. Gaps, Prontidão para Produção e Score
+
+### 27.1 Score — prontidão para produção (atualizado)
+
+> Distinct do score de "completude interna do spec" (95%). Este score mede se o **sistema está pronto para operar em produção real**.
+
+| Categoria | Score | Status | Observação |
+|---|---|---|---|
+| Lógica de pagamento e comissão | 95% | ✓ | Fluxos, webhooks, payout, commission engine |
+| Resiliência e idempotência | 95% | ✓ | TransientException + release; WebhookRecoveryJob; check-then-act em transfers; 3 camadas de recuperação (seção 28) |
+| Completude de fluxos | 95% | ✓ | Mudança de plano (27.6) e dunning completo (27.7) spec'd |
+| Segurança | 90% | ✓ | Asaas usa API key (HMAC-SHA256 não suportado — verificado); token blacklist é do auth service, fora de escopo |
+| Operacional | 88% | ✓ | Crons em UTC; alerta de fila Asaas pausada; métricas Prometheus a definir em produção |
+| Legal / Compliance | 75% | ⚠ | LGPD spec'd pós-MVP (27.2); NFS-e fechado (Asaas emite); contrato parceiro pendente validação jurídica |
+| **Prontidão para produção** | **91%** | | |
+
+> Os 9% restantes: métricas de observabilidade (definem-se com o sistema rodando), contrato do parceiro (jurídico, não código) e ajustes finos do sandbox Asaas. Nenhum item bloqueia o início da implementação em 10-Jun.
+
+---
+
+### 27.2 LGPD — status e requisitos técnicos (PARCIAL)
+
+**Base jurídica:** Doc de Riscos Jurídicos v1, Seção 2.1. Papéis definidos:
+- **Controlador**: o cliente (empresa que usa o ERP) — decide quais dados coletar
+- **Operador**: Syax — apenas processa sob as ordens do cliente
+
+**O que já está coberto:**
+- Isolamento de dados por `tenant_id` / schema separation = Privacy by Design (argumento jurídico de conformidade desde a concepção)
+- Audit log no `financeiro.audit_log` com retenção de 5 anos (atende guarda fiscal)
+- Sem FK cruzada entre schemas = tenants não conseguem ver dados uns dos outros
+
+**O que ainda falta implementar — decisões tomadas, implementação pós-MVP:**
+
+**1. Exclusão de dados (botão no painel admin)**
+
+- Não deleta o tenant — **anonimiza** todos os PII em cascata por todos os schemas
+- Mantém registros financeiros intactos (commission, subscription.value) — prazo legal 5 anos + ano corrente
+- Campos afetados no billing schema: `partner.nome`, `partner.email`, `partner.telefone`, `partner.pix_key`, `partner.bank_*` → substituídos por `"[REMOVIDO]"`
+- Registra no `audit_log` com timestamp e operador
+- Bloqueia novas assinaturas para o `tenant_id`
+- **Pré-requisito:** toda a implementação do sistema estar no ar — é feature de fase final, não MVP
+
+```
+DELETE /api/billing/v1/admin/tenants/{tenantId}/personal-data
+ROLE_BILLING_ADMIN
+
+Response 200: { tenantId, anonymizedAt, fieldsAffected: [...] }
+```
+
+```
+Migration: 005-09-lgpd-partner-fields
+Campos novos em billing.partner:
+  lgpd_consent_at              TIMESTAMPTZ NULL
+  lgpd_deletion_requested_at   TIMESTAMPTZ NULL
+  lgpd_deleted_at              TIMESTAMPTZ NULL
+```
+
+**2. Exportação de dados (menu para o próprio tenant)**
+
+- Tenant acessa menu de exportação no SPA e baixa todos os dados que lhe pertencem
+- Atende direito de portabilidade da LGPD (Art. 18, V)
+- Escopo do billing service: subscription history, commission history (se parceiro), invoice list
+- Formato: JSON ou CSV, gerado assincronamente, link de download por e-mail
+- **Pré-requisito:** igual ao acima — feature de fase final
+
+```
+POST /api/billing/v1/tenants/{tenantId}/export
+ROLE_TENANT (próprio tenant autenticado)
+
+Response 202: { jobId, estimatedReady: "..." }
+→ quando pronto: e-mail com link de download (TTL 24h)
+```
+
+**3. Incidente de segurança (Art. 48 LGPD)**
+
+- Prazo: 48-72h para notificar ANPD e titulares afetados
+- Implementação: plano de resposta a incidentes global do ERP — não é endpoint do billing service
+- Doc de riscos jurídicos seção 2.1 detalha o processo
+
+**DPA (Data Processing Agreement):** documento jurídico separado, formaliza Syax como Operador. Doc de riscos mapeia o conteúdo (Seção 2.9). Não é código.
+
+---
+
+### 27.3 NF-e / NFS-e — status (FECHADO para o billing service)
+
+**Base jurídica:** Doc de Riscos Jurídicos v1, Seção 2.3.
+
+**Decisão:** O Asaas emite NFS-e automaticamente para cada cobrança liquidada — configuração feita uma vez no painel Asaas. O billing service não precisa implementar nada além do que já faz.
+
+**Dois contextos separados — não confundir:**
+
+| Contexto | Emissor | Quem paga | Quem recebe a nota |
+|---|---|---|---|
+| Assinatura SaaS Syax | **Asaas** (automático) | Tenant | Tenant ← nota da Syax |
+| Módulo fiscal do ERP | **Emissor próprio Syax** (microserviço interno) | Clientes do tenant | Clientes do tenant ← nota do tenant |
+
+**Responsabilidade solidária (Lei 8.137/90):** já atendido pelo modelo imutável do `commission` e pelo `audit_log` — sem edição de XMLs autorizados nem exclusão sem rastro.
+
+**Impacto no billing service:** zero. Nenhum campo novo, nenhuma migration, nenhuma integração. `PAYMENT_RECEIVED` chega → tenant ativado → Asaas já emitiu a nota.
+
+**O emissor próprio** é um microserviço separado consumido pelo módulo fiscal do ERP — fora do escopo deste spec.
+
+---
+
+### 27.4 Outros gaps mapeados (ordem de prioridade)
+
+| Gap | Impacto | Próximo passo |
+|---|---|---|
+| Write-through Redis (vs eviction) | IMPORTANTE | Implementar certo na primeira vez (início 10-Jun). `PaymentReceivedHandler`: usar `put(tenantId, ATIVO, TTL)` em vez de `evict()`. Handler já conhece o novo valor — não há motivo para descartar e forçar round-trip ao banco. |
+| Mudança de plano MONTHLY ↔ ANNUAL | **FAZER** | Ver seção 27.6 — recálculo de valor, substituição da assinatura Asaas e pró-rata definidos. |
+| Dunning detalhado | MELHORIA | Definir quantas retentativas o Asaas faz antes de `SUBSCRIPTION_INACTIVATED` e qual e-mail o tenant recebe em cada etapa |
+| HMAC webhook Asaas | IMPORTANTE | Verificar docs Asaas: se suportado, adicionar validação de assinatura no `WebhookSecurityService` |
+| Token blacklist (logout forçado) | IMPORTANTE | **Auth service — não tem relação com billing.** Doc jurídico seção 6.11: JWT stateless com TTL 1h deixa ex-funcionário de tenant ativo após demissão. Implementar Redis blacklist no auth service. O billing service não é afetado. |
+| Commission async DLQ | MELHORIA | `generateAsync()` falha silenciosa = comissão perdida. Adicionar retry + `consumer_error_log` |
+| Payout escalation | MELHORIA | Após N `TRANSFER_FAILED` consecutivos para mesmo parceiro, marcar `BLOQUEADO` e notificar admin em vez de apenas reverter para `PENDENTE` |
+| Observabilidade | MELHORIA | Definir métricas Prometheus: webhook failure rate, payout success rate, commission pending total, MRR |
+
+---
+
+### 27.5 Decisões de timezone confirmadas
+
+| Job | Horário | Timezone | Observação |
+|---|---|---|---|
+| `TrialScheduler` D+10 | 08:00 | UTC | 05:00 BRT |
+| `TrialScheduler` D+15 | 08:05 | UTC | 05:05 BRT |
+| `CommissionPayoutJob` | 02:00 | UTC | 23:00 BRT (dia anterior) |
+| `ReconciliationJob` | 02:30 | UTC | 23:30 BRT |
+| `DunningJob` | 00/06/12/18h | UTC | 21h/03h/09h/15h BRT |
+
+> Grace period (5 dias) e todos os cálculos de `D+N` são em **dias corridos** (não dias úteis). Feriados brasileiros não afetam a contagem.
+
+---
+
+### 27.6 Mudança de plano — MONTHLY ↔ ANNUAL (FAZER)
+
+Este fluxo **vai ser implementado** — não é melhoria futura. Requer recálculo de valor, substituição da assinatura no Asaas e tratamento de pró-rata.
+
+#### Endpoint
+
+```
+PATCH /api/billing/v1/subscriptions/{tenantId}/plan
+ROLE_TENANT (próprio tenant) ou ROLE_BILLING_ADMIN
+
+Body: { "newBillingCycle": "ANNUAL" | "MONTHLY" }
+
+Response 200: { tenantId, oldCycle, newCycle, oldValue, newValue, asaasNewSubscriptionId, effectiveAt }
+Response 422: tenant não está ATIVO
+Response 422: mesmo cycle que o atual
+```
+
+#### Recálculo de valor
+
+```java
+BigDecimal newValue = switch (newBillingCycle) {
+    case ANNUAL   -> plan.getMonthlyValue().multiply(BigDecimal.TEN); // 10 meses
+    case MONTHLY  -> plan.getMonthlyValue();
+};
+subscription.setValue(newValue);
+subscription.setBillingCycle(newBillingCycle);
+```
+
+#### Fluxo no Asaas
+
+O Asaas não suporta alteração de ciclo em assinatura existente — é necessário cancelar e recriar:
+
+```
+1. DELETE /v3/subscriptions/{asaasSubscriptionId}   ← cancela atual
+2. POST  /v3/subscriptions                          ← cria nova com novo cycle e value
+3. subscription.asaasSubscriptionId = novo id
+4. subscription.nextDueDate = data da próxima cobrança
+```
+
+#### Pró-rata
+
+| Direção | Comportamento |
+|---|---|
+| MONTHLY → ANNUAL | Tenant paga o anual completo na próxima cobrança. Dias restantes do mês atual: **sem crédito** — política definida em contrato (simplifica implementação e alinha com no-refund policy) |
+| ANNUAL → MONTHLY | Assinatura anual cancelada. Meses não utilizados: **sem reembolso** — mesma política. Tenant começa a ser cobrado mensalmente a partir do próximo ciclo |
+
+> **Decisão de no-refund:** alinhada com a política do plano anual já definida no contrato SaaS. Simplifica o fluxo e evita lógica de pró-rata complexa no Asaas.
+
+#### Impacto na comissão do parceiro
+
+- Modelo RECORRENTE (atual): comissão calculada sobre `subscription.value / 12` se anual, ou `subscription.value` se mensal — já implementado no `RecurrentCommissionStrategy`
+- Na mudança de plano, o próximo `PAYMENT_RECEIVED` usará o novo `subscription.value` automaticamente — **sem código adicional no commission engine**
+
+#### Eventos gerados
+
+```
+1. SUBSCRIPTION_INACTIVATED (Asaas cancela assinatura antiga) → handler existente executa
+   ⚠ Cuidado: o handler atual marca tenant como CANCELADO ao receber SUBSCRIPTION_INACTIVATED
+   Solução: adicionar flag `pendingPlanChange = true` em billing.subscription antes de cancelar
+   O handler verifica essa flag e, se true, apenas aguarda — não cancela o tenant
+
+2. PAYMENT_RECEIVED (Asaas confirma primeiro pagamento da nova assinatura) → handler existente ativa tenant
+```
+
+#### Flag de controle
+
+```sql
+-- Migration: 005-10-subscription-plan-change-flag
+ALTER TABLE billing.subscription
+  ADD COLUMN pending_plan_change BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN plan_change_requested_at TIMESTAMPTZ NULL;
+```
+
+```java
+// PlanChangeService.java
+@Transactional
+public PlanChangeResponse changePlan(Long tenantId, BillingCycle newCycle) {
+    Subscription sub = subscriptionRepo.findByTenantId(tenantId).orElseThrow();
+    
+    if (sub.getStatus() != SubscriptionStatus.ATIVO)
+        throw new BusinessException("Mudança de plano só permitida para tenant ATIVO");
+    if (sub.getBillingCycle() == newCycle)
+        throw new BusinessException("Tenant já está no ciclo solicitado");
+
+    BigDecimal newValue = newCycle == BillingCycle.ANNUAL
+        ? planRepo.findById(sub.getPlanId()).get().getMonthlyValue().multiply(BigDecimal.TEN)
+        : planRepo.findById(sub.getPlanId()).get().getMonthlyValue();
+
+    // 1. Flag para proteger o handler de SUBSCRIPTION_INACTIVATED
+    sub.setPendingPlanChange(true);
+    sub.setPlanChangeRequestedAt(Instant.now());
+    subscriptionRepo.save(sub);
+
+    // 2. Cancela assinatura antiga no Asaas
+    asaasSubscriptionClient.cancel(sub.getAsaasSubscriptionId());
+
+    // 3. Cria nova assinatura no Asaas
+    AsaasSubscriptionResponse newSub = asaasSubscriptionClient.create(
+        buildRequest(sub.getAsaasCustomerId(), newCycle, newValue)
+    );
+
+    // 4. Atualiza subscription local
+    sub.setBillingCycle(newCycle);
+    sub.setValue(newValue);
+    sub.setAsaasSubscriptionId(newSub.getId());
+    sub.setNextDueDate(newSub.getNextDueDate());
+    sub.setPendingPlanChange(false);
+    subscriptionRepo.save(sub);
+
+    // 5. Invalida cache
+    tenantStatusCache.put(tenantId, sub.getStatus());
+
+    return PlanChangeResponse.from(sub);
+}
+```
+
+#### Atualização necessária no SubscriptionInactivatedHandler
+
+```java
+// SubscriptionInactivatedHandler.java — adicionar verificação no início
+if (subscription.isPendingPlanChange()) {
+    log.info("SUBSCRIPTION_INACTIVATED ignorado — mudança de plano em andamento. tenantId={}", tenantId);
+    webhookIdempotency.markDone(eventId);
+    return; // não cancela o tenant
+}
+// ... lógica existente de cancelamento
+```
+
+
+
+
+
+---
+
+### 27.7 Dunning — fluxo de inadimplência redesenhado
+
+> **Princípio central:** o relógio é da Syax, não do Asaas. Timestamps absolutos gravados no momento do `PAYMENT_OVERDUE`. Webhooks do Asaas são insumo — nunca comandam transições de estado diretamente.
+
+---
+
+#### 27.7.1 Campos novos em billing.subscription
+
+```yaml
+# Migration: 005-11-dunning-absolute-timestamps
+- addColumn:
+    tableName: subscription
+    schemaName: billing
+    columns:
+      - column:
+          name: suspend_at
+          type: TIMESTAMPTZ
+          constraints:
+            nullable: true
+      - column:
+          name: cancel_at
+          type: TIMESTAMPTZ
+          constraints:
+            nullable: true
+      - column:
+          name: reminder_sent_at
+          type: TIMESTAMPTZ
+          constraints:
+            nullable: true
+      - column:
+          name: asaas_inactivated_at
+          type: TIMESTAMPTZ
+          constraints:
+            nullable: true
+```
+
+> **`grace_period_expires_at` existente → substituído por `suspend_at`.** Manter o campo antigo por compatibilidade mas usar `suspend_at` em toda lógica nova.
+
+---
+
+#### 27.7.2 Configuração — prazos não hardcoded
+
+```yaml
+# application.yml
+billing:
+  dunning:
+    grace-period-days: 5        # PAYMENT_OVERDUE → suspend_at
+    cancel-after-days: 7        # PAYMENT_OVERDUE → cancel_at
+    reminder-before-days: 2     # envia email 2 quando suspend_at - 2d <= now
+```
+
+---
+
+#### 27.7.3 PaymentOverdueHandler — seta timestamps absolutos
+
+```java
+@Override
+public void handle(AsaasWebhookPayload payload) {
+    Subscription sub = subscriptionRepo.findByAsaasSubscriptionId(payload.getSubscription().getId())
+        .orElseThrow(() -> new NotFoundException("Subscription não encontrada"));
+
+    Instant now = Instant.now();
+
+    sub.setSuspendAt(now.plus(dunningProps.getGracePeriodDays(), ChronoUnit.DAYS));
+    sub.setCancelAt(now.plus(dunningProps.getCancelAfterDays(), ChronoUnit.DAYS));
+    sub.setGracePeriodExpiresAt(sub.getSuspendAt()); // compatibilidade
+    sub.setReminderSentAt(null); // reset caso fosse reativado antes
+
+    subscriptionRepo.save(sub);
+
+    // Email 1 — aviso imediato
+    emailService.sendPaymentOverdueNotice(sub.getTenantId(), sub.getSuspendAt());
+
+    log.info("Dunning iniciado tenantId={} suspendAt={} cancelAt={}",
+        sub.getTenantId(), sub.getSuspendAt(), sub.getCancelAt());
+}
+```
+
+---
+
+#### 27.7.4 DunningJob — job único, roda 4× por dia
+
+Substitui o `GracePeriodSuspensionJob`. Um único job que verifica o que cada subscription precisa.
+
+```java
+@Component
+public class DunningJob {
+
+    // 00:00, 06:00, 12:00, 18:00 UTC
+    @Scheduled(cron = "0 0 0,6,12,18 * * *")
+    public void run() {
+        if (!distributedLock.acquire("dunning-job")) return;
+        try {
+            processReminders();
+            processSuspensions();
+            processCancellations();
+        } finally {
+            distributedLock.release("dunning-job");
+        }
+    }
+
+    // Email 2 — lembrete 2 dias antes de suspender
+    private void processReminders() {
+        Instant threshold = Instant.now().plus(dunningProps.getReminderBeforeDays(), DAYS);
+        List<Subscription> subs = subscriptionRepo
+            .findByStatusAndSuspendAtBeforeAndReminderSentAtIsNull(ATIVO, threshold);
+
+        subs.forEach(sub -> {
+            emailService.sendSuspensionReminderNotice(sub.getTenantId(), sub.getSuspendAt());
+            sub.setReminderSentAt(Instant.now());
+            subscriptionRepo.save(sub);
+        });
+    }
+
+    // Email 3 — suspende quando suspend_at <= now
+    private void processSuspensions() {
+        List<Subscription> subs = subscriptionRepo
+            .findByStatusAndSuspendAtBefore(ATIVO, Instant.now());
+
+        subs.forEach(sub -> {
+            sub.setStatus(SubscriptionStatus.SUSPENSO);
+            sub.setSuspendedAt(Instant.now());
+            subscriptionRepo.save(sub);
+            tenantStatusCache.put(sub.getTenantId(), SubscriptionStatus.SUSPENSO);
+            emailService.sendAccountSuspendedNotice(sub.getTenantId());
+        });
+    }
+
+    // Email 4 — cancela quando cancel_at <= now
+    private void processCancellations() {
+        List<Subscription> subs = subscriptionRepo
+            .findByStatusAndCancelAtBefore(SUSPENSO, Instant.now());
+
+        subs.forEach(sub -> {
+            sub.setStatus(SubscriptionStatus.CANCELADO);
+            sub.setCancelledAt(Instant.now());
+            sub.setCancellationReason("Inadimplência — cancel_at atingido");
+            subscriptionRepo.save(sub);
+            tenantStatusCache.put(sub.getTenantId(), SubscriptionStatus.CANCELADO);
+            // Cancela comissões PENDENTE do parceiro
+            commissionRepo.cancelPendingByTenantId(sub.getTenantId());
+            emailService.sendSubscriptionCancelledNotice(sub.getTenantId());
+        });
+    }
+}
+```
+
+---
+
+#### 27.7.5 SubscriptionInactivatedHandler — apenas metadado
+
+`SUBSCRIPTION_INACTIVATED` não comanda mais nenhuma transição de estado. Apenas registra que o Asaas desistiu.
+
+```java
+@Override
+public void handle(AsaasWebhookPayload payload) {
+    Subscription sub = subscriptionRepo
+        .findByAsaasSubscriptionId(payload.getSubscription().getId())
+        .orElseThrow();
+
+    // Grava quando o Asaas desistiu — o DunningJob usa cancel_at, não isso
+    sub.setAsaasInactivatedAt(Instant.now());
+    subscriptionRepo.save(sub);
+
+    log.info("Asaas inativou assinatura — DunningJob controla o cancelamento. tenantId={}",
+        sub.getTenantId());
+
+    // Se tenant já está CANCELADO (DunningJob chegou primeiro), apenas loga
+    if (sub.getStatus() == SubscriptionStatus.CANCELADO) {
+        log.info("Tenant já cancelado pelo DunningJob — evento ignorado.");
+    }
+}
+```
+
+---
+
+#### 27.7.6 PaymentReceivedHandler — caso CANCELADO
+
+Tenant cancela, paga depois (boleto/PIX com atraso). Admin decide.
+
+```java
+// Adicionar ao PaymentReceivedHandler antes da lógica de ativação
+if (sub.getStatus() == SubscriptionStatus.CANCELADO) {
+    // Não reativa automaticamente — admin decide
+    adminNotificationService.notifyPaymentAfterCancellation(
+        sub.getTenantId(),
+        payload.getPayment().getValue(),
+        payload.getPayment().getId()
+    );
+    log.warn("PAYMENT_RECEIVED para tenant CANCELADO — aguardando decisão admin. tenantId={}",
+        sub.getTenantId());
+    return; // não processa mais nada
+}
+```
+
+**Admin vê no painel:**
+```
+⚠ Tenant X pagou R$ 990,00 após cancelamento (asaas_payment_id: pay_xxx).
+Decisão necessária: [Reativar manualmente] [Solicitar estorno]
+```
+
+Endpoint para reativação manual:
+```
+POST /api/billing/v1/admin/tenants/{tenantId}/reactivate
+Body: { "asaasPaymentId": "pay_xxx", "reason": "..." }
+ROLE_BILLING_ADMIN
+```
+
+---
+
+#### 27.7.7 Suspensão — bloqueia escrita, mantém leitura
+
+**Decisão:** tenant SUSPENSO pode ler e exportar dados (obrigações fiscais em curso), mas não pode executar operações de escrita.
+
+O check é feito no **middleware da API Gateway / Auth Service**, não só no login:
+
+```java
+// JwtClaimsEnricher — adicionar claim ao JWT
+claims.put("subscription_status", billingService.getStatus(tenantId));
+
+// WriteAccessFilter — filtro em cada serviço do ERP
+if (subscriptionStatus == SUSPENSO && isWriteOperation(request)) {
+    return ResponseEntity.status(402)
+        .body(new ErrorResponse("Conta suspensa. Leitura permitida. " +
+                                "Regularize o pagamento para retomar operações."));
+}
+```
+
+```
+Operações bloqueadas em SUSPENSO:  POST · PUT · PATCH · DELETE
+Operações permitidas em SUSPENSO:  GET · exportações · download de XMLs
+```
+
+---
+
+#### 27.7.8 Sequência de e-mails
+
+| Momento | Gatilho | E-mail | Destinatário |
+|---|---|---|---|
+| `PAYMENT_OVERDUE` | Handler imediato | "Pagamento não aprovado — 5 dias para regularizar" | Tenant |
+| `suspend_at - 2d` | DunningJob · processReminders | "Sua conta suspende em 2 dias" | Tenant |
+| `suspend_at` | DunningJob · processSuspensions | "Conta suspensa — regularize para retomar" | Tenant |
+| `cancel_at` | DunningJob · processCancellations | "Assinatura cancelada" | Tenant |
+| `PAYMENT_RECEIVED` pós-CANCELADO | Handler imediato | Alerta de pagamento tardio | Admin |
+
+---
+
+#### 27.7.9 Fluxo completo
+
+```
+PAYMENT_OVERDUE
+  → suspend_at = now + 5d
+  → cancel_at  = now + 7d
+  → Email 1: "5 dias para regularizar"
+
+DunningJob (4× ao dia)
+  → suspend_at - 2d atingido → Email 2: "suspende em 2 dias"
+  → suspend_at atingido      → SUSPENSO · Email 3 · leitura OK, escrita bloqueada
+  → cancel_at atingido       → CANCELADO · Email 4 · comissões PENDENTE canceladas
+
+SUBSCRIPTION_INACTIVATED (Asaas — qualquer momento)
+  → Grava asaas_inactivated_at · não muda status · DunningJob controla tudo
+
+PAYMENT_RECEIVED (qualquer momento antes de CANCELADO)
+  → ATIVO · cache atualizado · dunning zerado (suspend_at e cancel_at = null)
+
+PAYMENT_RECEIVED (após CANCELADO)
+  → Não reativa · alerta admin no painel · admin decide: reativar ou estornar
+```
+
+---
+
+#### 27.7.10 Itens que entram com o dunning
+
+| Item | Tipo |
+|---|---|
+| Migration `005-11` — 4 campos novos em subscription | Migration |
+| `DunningJob` — substitui `GracePeriodSuspensionJob` | Novo cron |
+| `PaymentOverdueHandler` — seta timestamps absolutos | Handler atualizado |
+| `SubscriptionInactivatedHandler` — apenas metadado | Handler simplificado |
+| `PaymentReceivedHandler` — caso CANCELADO | Handler atualizado |
+| `POST /admin/tenants/{id}/reactivate` | Novo endpoint admin |
+| `WriteAccessFilter` — bloqueia escrita em SUSPENSO | Middleware ERP |
+| `billing.dunning.*` em application.yml | Configuração |
+
+
+
+---
+
+## 28. Hardening — Melhores Práticas de Mercado (revisão pré-implementação)
+
+> Revisão final aplicada antes do início da implementação (10-Jun). Cada item abaixo é padrão de mercado em sistemas de pagamento (Stripe, Adyen, gateways brasileiros). Os fixes 28.1–28.3 **já foram aplicados** no código das seções anteriores; 28.4–28.8 são adições novas.
+
+---
+
+### 28.1 ✅ APLICADO — Erro transitório vs permanente no webhook
+
+**Problema:** o processor marcava `ERROR` no Redis em qualquer exceção. A chave de idempotência permanecia — e as 5 retentativas do Asaas eram descartadas como "duplicatas". Um hiccup de banco de 2 segundos = evento perdido até a reconciliação (que roda 1× ao dia).
+
+**Fix aplicado:** duas vias de erro:
+- `TransientException` (DB down, timeout, deadlock) → `idempotencyService.release()` apaga a chave → retentativa do Asaas reprocessa
+- Exceção permanente (payload inválido, regra violada) → mantém a chave + alerta admin
+
+```java
+// TransientException.java — wrappear erros de infra
+public class TransientException extends RuntimeException {
+    public TransientException(String msg, Throwable cause) { super(msg, cause); }
+}
+
+// Nos handlers: capturar e reclassificar
+try {
+    subscriptionRepo.save(sub);
+} catch (DataAccessResourceFailureException | QueryTimeoutException
+       | CannotAcquireLockException e) {
+    throw new TransientException("Falha de infra ao persistir", e);
+}
+```
+
+---
+
+### 28.2 ✅ APLICADO — `event.id` do Asaas como chave de idempotência
+
+**Problema:** a chave era `{eventType}:{paymentId}`. O Asaas envia um `id` único por entrega de webhook — esse é o identificador correto. Usar `paymentId` funciona para o fluxo normal mas colide em cenários de reenvio manual via painel Asaas.
+
+**Fix aplicado:** `payload.getId()` como chave primária de idempotência, fallback para `paymentId` se ausente. Campo `id` adicionado ao `AsaasWebhookPayload`.
+
+---
+
+### 28.3 ✅ APLICADO — PaymentReceivedHandler corrigido (3 itens)
+
+1. **Write-through em vez de evict** — handler conhece o novo status; popular o cache diretamente elimina a race condition com read replica lag
+2. **`nextDueDate` vem do Asaas** — `plusDays(30)` deriva (meses têm 28–31 dias) e `plusDays(365)` quebra em bissexto. O Asaas calcula a próxima cobrança; consultar e usar
+3. **Guard de estado** — `PAYMENT_RECEIVED` com tenant `CANCELADO` não reativa (alerta admin, conforme 27.7.6)
+
+---
+
+### 28.4 🆕 Money-out: NUNCA retry automático em POST /transfers
+
+**Problema crítico:** o `@Retry` do Resilience4j estava aplicado em todas as chamadas Asaas — incluindo `POST /transfers`. Cenário de double-payment:
+
+```
+1. POST /transfers (R$ 990 para o parceiro)
+2. Timeout de rede — mas o Asaas PROCESSOU a transferência
+3. @Retry dispara nova chamada
+4. Parceiro recebe R$ 1.980
+```
+
+**Regra de mercado:** retry automático apenas em operações idempotentes (GET) ou de criação verificável. Para money-out: **check-then-act**.
+
+```java
+// CommissionPayoutService.java — fluxo seguro (transfer AGREGADO por parceiro por período)
+// A chave de idempotência é por LOTE, não por comissão individual:
+// externalReference = "payout-{partnerId}-{period}"
+// Isso garante um único PIX por parceiro por período, mesmo em retentativas.
+public TransferResult sendTransfer(Partner partner, List<Commission> commissions, YearMonth period) {
+    // Chave de idempotência de lote: um transfer por parceiro por período
+    String externalRef = "payout-" + partner.getId() + "-" + period;
+
+    BigDecimal total = commissions.stream()
+        .map(this::effectiveAmount)
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+    String description = String.format("Comissão Syax — Referência %s — Parceiro %d", period, partner.getId());
+
+    try {
+        AsaasTransferResponse resp = asaasTransferClient.create(
+            AsaasTransferRequest.builder()
+                .value(total)
+                .pixAddressKey(partner.getPixKey())
+                .pixAddressKeyType(partner.getPixKeyType())
+                .description(description)
+                .externalReference(externalRef)   // ← idempotency key de lote
+                .build());
+        return TransferResult.sent(resp.getId());
+
+    } catch (FeignException.GatewayTimeout | RetryableException e) {
+        // TIMEOUT: NÃO retentar às cegas. Consultar se a transfer existe por externalReference.
+        // NUNCA usar @Retry em POST /transfers — risco de pagar o parceiro em dobro.
+        Optional<AsaasTransferData> existing =
+            asaasTransferClient.findByExternalReference(externalRef)
+                .getData().stream().findFirst();
+
+        if (existing.isPresent()) {
+            // Transfer FOI criada — usar o id retornado, não reenviar
+            log.warn("Transfer já existia após timeout — parceiro={} period={} transferId={}",
+                partner.getId(), period, existing.get().getId());
+            return TransferResult.sent(existing.get().getId());
+        }
+        // Não existe — seguro marcar para retry no próximo ciclo D+1
+        return TransferResult.failed("timeout — não criada no Asaas");
+    }
+}
+```
+
+```java
+// AsaasTransferClient.java — SEM @Retry no create
+@CircuitBreaker(name = "asaas-api")  // circuit breaker SIM, retry NÃO
+@PostMapping("/transfers")
+AsaasTransferResponse create(@RequestBody AsaasTransferRequest req);
+
+@GetMapping("/transfers?externalReference={ref}")
+AsaasListResponse<AsaasTransferData> listByExternalReference(@PathVariable("ref") String ref);
+```
+
+> `@Retry` permanece válido para: GET (qualquer), POST /customers e POST /subscriptions (duplicata é detectável e corrigível). **Nunca** para /transfers.
+
+---
+
+### 28.5 🆕 Inbox recovery — webhook persistido antes de processado
+
+**Problema:** o controller retorna 200 e processa via `@Async` (fila em memória). Se o pod morrer entre o 200 e o processamento, o evento é perdido — o Asaas não retenta (recebeu 200).
+
+**Fix:** o `webhook_log` (status `RECEBIDO`) já é gravado ANTES do 200. Adicionar:
+
+1. **UNIQUE constraint** no event id do log:
+
+```yaml
+# Migration: 005-12-webhook-log-event-id-unique
+- addColumn:
+    tableName: webhook_log
+    schemaName: billing
+    columns:
+      - column: { name: asaas_event_id, type: "VARCHAR(64)" }
+- addUniqueConstraint:
+    tableName: webhook_log
+    schemaName: billing
+    columnNames: asaas_event_id
+    constraintName: uq_webhook_log_event_id
+```
+
+2. **WebhookRecoveryJob** — reprocessa eventos presos:
+
+```java
+@Component
+public class WebhookRecoveryJob {
+
+    // A cada 10 minutos
+    @Scheduled(fixedDelay = 600_000)
+    public void recoverStuck() {
+        if (!lockService.acquire("webhook-recovery", instanceId, 300)) return;
+        try {
+            // RECEBIDO há mais de 10 min = processamento morreu no meio
+            List<WebhookLog> stuck = webhookLogRepo
+                .findByStatusAndReceivedAtBefore("RECEBIDO",
+                    Instant.now().minus(10, ChronoUnit.MINUTES));
+
+            stuck.forEach(log -> {
+                AsaasWebhookPayload payload = parsePayload(log.getPayload());
+                processor.processAsync(payload); // idempotência protege contra dupla execução
+            });
+        } finally {
+            lockService.release("webhook-recovery", instanceId);
+        }
+    }
+}
+```
+
+> Com isso o sistema tem **3 camadas de recuperação**: retentativas do Asaas (minutos), WebhookRecoveryJob (10 min), ReconciliationJob (diário).
+
+> **Conexão com o controller (seção 8.1):** a constraint UNIQUE em `webhook_log.asaas_event_id` criada por esta migration é exatamente o que faz o `logReceived` precisar de tratamento de conflito. Na retentativa do Asaas, o INSERT vai falhar com `DataIntegrityViolationException`. O `WebhookLogService.logReceived` DEVE usar `INSERT ... ON CONFLICT (asaas_event_id) DO NOTHING` (query nativa) ou capturar a exceção e seguir silenciosamente — nunca deixar a exceção vazar para o controller. Ver callout na seção 8.1 para o contexto completo.
+
+---
+
+### 28.6 🆕 Guards de máquina de estado — eventos fora de ordem
+
+Webhooks podem chegar fora de ordem (rede, retentativas). Cada handler valida o estado atual antes de transicionar:
+
+| Evento chegando | Estado atual | Ação |
+|---|---|---|
+| PAYMENT_RECEIVED | TRIAL / SUSPENSO | Ativa (fluxo normal) |
+| PAYMENT_RECEIVED | ATIVO | Renovação — atualiza nextDueDate, zera dunning |
+| PAYMENT_RECEIVED | CANCELADO | NÃO reativa — alerta admin (27.7.6) |
+| PAYMENT_OVERDUE | ATIVO | Inicia dunning (suspend_at/cancel_at) |
+| PAYMENT_OVERDUE | SUSPENSO / CANCELADO | Ignora — dunning já em curso ou encerrado |
+| PAYMENT_OVERDUE | TRIAL | Ignora + log warn (não deveria acontecer) |
+| SUBSCRIPTION_INACTIVATED | qualquer | Apenas metadado (asaas_inactivated_at) — 27.7.5 |
+| TRANSFER_COMPLETED | EM_TRANSFERENCIA | PAGO (fluxo normal) |
+| TRANSFER_COMPLETED | PAGO | Ignora (duplicata pós-TTL) |
+| TRANSFER_FAILED | PAGO | Alerta admin — inconsistência grave, investigar |
+
+```java
+// Exemplo — PaymentOverdueHandler com guard
+if (sub.getStatus() != SubscriptionStatus.ATIVO) {
+    log.info("PAYMENT_OVERDUE ignorado — tenant {} em estado {}",
+        sub.getTenantId(), sub.getStatus());
+    return;
+}
+```
+
+---
+
+### 28.7 🆕 Comportamento da fila de webhooks do Asaas — nota operacional
+
+O Asaas usa **fila sequencial de webhooks**: se o endpoint responder erro (não-2xx) repetidamente, o Asaas **pausa a fila inteira** — nenhum evento de nenhum tenant é entregue até reativação manual no painel.
+
+**Implicações:**
+- O controller DEVE retornar 200 mesmo quando o processamento falhar (já faz — processa async)
+- 401 só para token realmente inválido (ataque), nunca para erro interno
+- **Alerta de monitoramento obrigatório:** se nenhum webhook chegar em 6h úteis, notificar admin — a fila pode estar pausada
+- Runbook: reativar fila em Asaas → Configurações → Webhooks → "Fila de sincronização"
+
+---
+
+### 28.8 🆕 Validação de valor no PAYMENT_RECEIVED
+
+Defesa contra inconsistência (mudança de plano no meio do ciclo, cobrança parcial, erro do gateway):
+
+```java
+// PaymentReceivedHandler — após carregar subscription
+BigDecimal expected = sub.getValue();
+BigDecimal received = payload.getPayment().getValue();
+
+if (received.compareTo(expected) != 0) {
+    // Não bloqueia a ativação — tenant pagou. Mas alerta para investigação.
+    log.warn("Valor divergente — esperado={} recebido={} tenant={}",
+        expected, received, sub.getTenantId());
+    adminNotificationService.notifyValueMismatch(sub.getTenantId(), expected, received);
+}
+```
+
+> Política: divergência **não bloqueia** ativação (o tenant pagou algo — pior UX seria bloquear). Admin investiga via alerta. Comissão é calculada sobre o **valor recebido**, não o esperado.
+
+---
+
+### 28.9 Itens novos desta revisão
+
+| Item | Tipo | Migration |
+|---|---|---|
+| `TransientException` + release de chave | Classe + fluxo de erro | — |
+| `event.id` como chave de idempotência | Campo DTO + processor | — |
+| Write-through + guard + nextDueDate no PaymentReceivedHandler | Handler (aplicado) | — |
+| Check-then-act em POST /transfers + externalReference | PayoutService | — |
+| `WebhookRecoveryJob` (10 min) | Novo cron | — |
+| UNIQUE em `webhook_log.asaas_event_id` | Constraint | 005-12 |
+| Guards de estado em todos os handlers | Handlers | — |
+| Alerta de fila Asaas pausada (sem webhook em 6h) | Monitoramento | — |
+| Validação de valor no PAYMENT_RECEIVED | Handler | — |

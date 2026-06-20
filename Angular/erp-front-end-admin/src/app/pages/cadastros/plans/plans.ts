@@ -45,6 +45,7 @@ export class Plans implements OnInit {
 
   toggleDialogVisible = false;
   planToToggle: PlanModel | null = null;
+  toggleLoading = false;
 
   cols: ColumnConfig[] = [
     { field: 'name', header: 'Nome', type: 'text' },
@@ -128,13 +129,16 @@ export class Plans implements OnInit {
   confirmToggle(): void {
     if (!this.planToToggle?.id) return;
     const id = this.planToToggle.id;
-    this.closeToggleDialog();
+    this.toggleLoading = true;
     this.plansService.toggleStatus(id).subscribe({
       next: () => {
+        this.toggleLoading = false;
+        this.closeToggleDialog();
         this.loadPlans();
         this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Status alterado.', life: 3000 });
       },
       error: () => {
+        this.toggleLoading = false;
         this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Falha ao alterar status.', life: 5000 });
       },
     });

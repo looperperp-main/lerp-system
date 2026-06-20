@@ -8,7 +8,7 @@ import {Observable} from 'rxjs';
   providedIn: 'root'
 })
 export class ParceirosService {
-  private apiUrl = `${environment.apiUrl}/billing/api/v1/partners`;
+  private apiUrl = `${environment.apiUrl}/partner/api/v1/partners`;
   constructor(private http: HttpClient) {}
 
   getAll(page: number = 0, size: number = 10, sort: string = 'name,asc'): Observable<any> {

@@ -320,10 +320,20 @@
           </div>
           <div class="flex flex-col gap-2">
             <p-checkbox
+              inputId="principal"
+              formControlName="principal"
+              [binary]="true"></p-checkbox>
+            <label for="principal" class="font-semibold text-gray-700 cursor-pointer">Principal</label>
+          </div>
+          <div class="flex flex-col gap-2">
+            <p-checkbox
               inputId="ativo"
               formControlName="ativo"
               [binary]="true"></p-checkbox>
             <label for="ativo" class="font-semibold text-gray-700 cursor-pointer">Ativo</label>
+          </div>
+          <div class="col-12 flex justify-content-end mb-3">
+            <p-button label="Adicionar Contato" icon="pi pi-plus" (onClick)="salvarContato()" [disabled]="formContato.invalid"></p-button>
           </div>
         </form>
 
@@ -334,6 +344,8 @@
               <th>Descrição</th>
               <th>Email</th>
               <th>Telefone</th>
+              <th>Principal</th>
+              <th>Ativo</th>
               <th>Ações</th>
             </tr>
           </ng-template>
@@ -343,6 +355,8 @@
               <td>{{ contatos.nome }}</td>
               <td>{{ contatos.email }}</td>
               <td>{{ contatos.telefone }}</td>
+              <td>{{ contatos.principal ? 'Sim' : 'Não' }}</td>
+              <td>{{ contatos.ativo ? 'Sim' : 'Não' }}</td>
               <td>
                 <p-button icon="pi pi-pencil" [text]="true" [rounded]="true" (onClick)="editarContato(contatos)"></p-button>
               </td>

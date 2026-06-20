@@ -1,13 +1,14 @@
 .input-container {
-  margin-bottom: 1rem;
+  margin-bottom: 1.1rem;
   width: 100%;
-  max-width: 400px;
+  font-family: 'JetBrains Mono', monospace;
 
   label {
     display: block;
-    font-size: 0.875rem;
+    font-size: 0.72rem;
     font-weight: 500;
-    color: #374151;
+    letter-spacing: 0.04em;
+    color: #9a9a9a;
     margin-bottom: 0.5rem;
   }
 }
@@ -15,34 +16,54 @@
 .input-wrapper {
   display: flex;
   align-items: center;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 0 1rem;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 0 0.9rem;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
 
   &:focus-within {
-    border-color: #4f46e5;
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    border-color: rgba(242, 68, 5, 0.7);
+    background: rgba(242, 68, 5, 0.04);
+    box-shadow: 0 0 0 3px rgba(242, 68, 5, 0.15);
   }
 
   ng-content {
     display: flex;
     align-items: center;
-    margin-right: 0.75rem;
+    margin-right: 0.6rem;
   }
 
   input {
     flex: 1;
-    padding: 0.875rem 0;
+    width: 100%;
+    padding: 0.85rem 0.6rem;
     background: transparent;
     border: none;
     outline: none;
-    font-size: 1rem;
-    color: #1f2937;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.95rem;
+    color: #f2f2f2;
 
     &::placeholder {
-      color: #9ca3af;
+      color: #5f5f5f;
+    }
+  }
+
+  .toggle-password {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    padding: 0.25rem;
+    margin-left: 0.4rem;
+    color: #7a7a7a;
+    cursor: pointer;
+    transition: color 0.2s ease;
+
+    &:hover {
+      color: #ff7a18;
     }
   }
 }

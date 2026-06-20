@@ -1,16 +1,18 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
-import {NgIf, NgOptimizedImage} from '@angular/common';
+import {NgIf} from '@angular/common';
 import {Toast} from 'primeng/toast';
 
 @Component({
     selector: 'app-default-login-layout',
     standalone: true,
-  imports: [NgOptimizedImage, NgIf, Toast],
+  imports: [NgIf, Toast],
     templateUrl: './default-login-layout.html',
     styleUrl: './default-login-layout.scss',
 })
 export class DefaultLoginLayout {
     @Input() title: string = '';
+    @Input() titleAccent: string = '';
+    @Input() subtitle: string = '';
     @Input() primaryBtnText: string = '';
     @Input() secondaryBtnText: string = '';
     @Input() disablePrimaryBtn: boolean = true;

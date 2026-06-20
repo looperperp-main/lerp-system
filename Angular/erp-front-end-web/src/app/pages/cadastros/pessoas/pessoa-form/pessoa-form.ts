@@ -1,5 +1,5 @@
 import {ChangeDetectorRef, Component, EventEmitter, Input, OnInit, Output} from '@angular/core';
-import {CommonModule} from '@angular/common';
+import {CommonModule, formatDate} from '@angular/common';
 import {FormBuilder, FormGroup, ReactiveFormsModule, Validators} from '@angular/forms';
 import {Pessoa} from '../pessoa.model';
 import {PessoaService} from '../pessoa.service';
@@ -108,13 +108,17 @@ export class PessoaForm implements OnInit {
       cargo: [''],
       email: ['', Validators.email],
       telefone: [''],
-      ativo: [true]
+      ativo: [true],
+      principal: [true]
     });
 
     if (this.pessoaEdit) {
       this.pessoaId = this.pessoaEdit.id!;
       this.pessoaSalva = this.pessoaEdit;
-      this.formPessoa.patchValue(this.pessoaEdit);
+      this.formPessoa.patchValue({
+        ...this.pessoaEdit,
+        dataNascimento: this.parseDateNasc(this.pessoaEdit.dataNascimento),
+      });
       this.carregarEnderecos();
       this.carregarContatos();
     }
@@ -123,6 +127,15 @@ export class PessoaForm implements OnInit {
         this.activeStep = 1;
         this.cdr.detectChanges();
     });
+  }
+
+  parseDateNasc(dateStr: string | undefined): Date | null {
+    // API returns 'yyyy-mm-dd'; p-datepicker needs a Date object.
+    if (!dateStr) return null;
+
+    const [year, month, day] = dateStr.split('-').map(Number);
+    // Construct with local components to avoid UTC off-by-one day shift.
+    return new Date(year, month - 1, day);
   }
 
   salvarPessoa() {
@@ -199,7 +212,7 @@ export class PessoaForm implements OnInit {
     const payload = this.formEndereco.getRawValue();
 
     this.pessoaService.salvarContato(url, this.formContato.value).subscribe(() => {
-      this.formContato.reset({ tipo: 'COMERCIAL', ativo: true });
+      this.formContato.reset({ tipo: 'COMERCIAL', ativo: false, principal: true });
       this.formEndereco.enable({ emitEvent: false });
       this.messageService.add({severity: 'success', summary: 'Sucesso', detail: 'Contato salvo com sucesso'});
       this.carregarContatos();

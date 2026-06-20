@@ -4,6 +4,7 @@ import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.exceptions.TokenExpiredException;
+import com.auth0.jwt.interfaces.Claim;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -109,7 +110,7 @@ public class SecurityFilter extends OncePerRequestFilter {
                 List<String> permissions = decodedJWT.getClaim("authorities").asList(String.class);
                 List<String> roles = decodedJWT.getClaim("roles").asList(String.class);
                 Boolean isOwner = decodedJWT.getClaim("isOwner").asBoolean();
-                String tenantId = decodedJWT.getClaim("tenantId").asString();
+                String tenantId = extractTenantId(decodedJWT);
 
                 // Lista final que o Spring vai usar
                 String loginType = decodedJWT.getClaim("loginType").asString();
@@ -243,6 +244,28 @@ public class SecurityFilter extends OncePerRequestFilter {
             extraHeaders.put("X-Is-Owner", String.valueOf(isOwner));
         }
         return extraHeaders;
+    }
+
+    /**
+     * Extracts the {@code tenantId} claim as a String, regardless of whether it was
+     * serialized as a JSON number (Long, current DB type) or a JSON string (String/UUID).
+     * java-jwt's {@code asString()} returns {@code null} for numeric claims and
+     * {@code asLong()} returns {@code null} for textual ones, so we try both.
+     *
+     * @param decodedJWT the verified JWT.
+     * @return the tenant id as a String, or {@code null} if the claim is absent/null.
+     */
+    private static String extractTenantId(DecodedJWT decodedJWT) {
+        Claim claim = decodedJWT.getClaim("tenantId");
+        if (claim.isMissing() || claim.isNull()) {
+            return null;
+        }
+        String asString = claim.asString();
+        if (asString != null) {
+            return asString;
+        }
+        Long asLong = claim.asLong();
+        return asLong != null ? String.valueOf(asLong) : null;
     }
 
     /**

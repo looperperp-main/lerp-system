@@ -12,14 +12,14 @@
     <div class="content-toolbar">
       <h3 class="content-toolbar-title">Filtrar por status</h3>
       <div class="content-toolbar-actions">
-        <p-dropdown
+        <p-select
           [options]="statusOpcoes"
           [(ngModel)]="filtroStatus"
           optionLabel="label"
           optionValue="value"
           (onChange)="onFiltroChange()"
           styleClass="text-sm">
-        </p-dropdown>
+        </p-select>
         <button
           pButton pRipple
           label="Atualizar"
@@ -139,7 +139,7 @@
               <li *ngFor="let g of asArray(p['gaps'])">{{ g }}</li>
             </ul>
           </div>
-          <p *ngIf="p['trialExpiresAt']"><strong>Trial expira:</strong> {{ p['trialExpiresAt'] | date:'dd/MM/yyyy':'America/Sao_Paulo':'pt-BR' }}</p>
+          <p *ngIf="p['trialExpiresAt']"><strong>Trial expira:</strong> {{ asDate(p['trialExpiresAt']) | date:'dd/MM/yyyy':'America/Sao_Paulo':'pt-BR' }}</p>
         </div>
       </div>
       <div *ngIf="selectedTicket.resolutionNotes">
@@ -159,13 +159,13 @@
     <div class="space-y-4 pt-2">
       <div>
         <label class="text-xs text-gray-500 block mb-1">Status</label>
-        <p-dropdown
+        <p-select
           [options]="resolveStatusOpcoes"
           [(ngModel)]="resolveStatus"
           optionLabel="label"
           optionValue="value"
           styleClass="w-full text-sm">
-        </p-dropdown>
+        </p-select>
       </div>
       <div>
         <label class="text-xs text-gray-500 block mb-1">Notas</label>

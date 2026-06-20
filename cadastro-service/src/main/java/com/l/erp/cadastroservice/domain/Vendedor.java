@@ -38,6 +38,7 @@ public class Vendedor extends BaseTenantEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = true)
     @JoinColumn(name = "pessoa_id")
+    @NotNull
     private Pessoa pessoa;
 
     @Size(max = 100)

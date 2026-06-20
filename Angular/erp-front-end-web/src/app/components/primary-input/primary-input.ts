@@ -1,4 +1,5 @@
 import { Component, forwardRef, Input } from '@angular/core';
+import { NgIf } from '@angular/common';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR, ReactiveFormsModule } from '@angular/forms';
 
 type InputTypes = 'text' | 'email' | 'password';
@@ -6,7 +7,7 @@ type InputTypes = 'text' | 'email' | 'password';
 @Component({
     selector: 'app-primary-input',
     standalone: true,
-    imports: [ReactiveFormsModule],
+    imports: [ReactiveFormsModule, NgIf],
     providers: [{
       provide: NG_VALUE_ACCESSOR,
       useExisting: forwardRef(() => PrimaryInput),
@@ -25,12 +26,22 @@ export class PrimaryInput implements ControlValueAccessor {
     @Input() mask: 'cnpj' | null = null;
 
     value: string = '';
+    showPassword: boolean = false;
+
+    get effectiveType(): string {
+      return this.type === 'password' && this.showPassword ? 'text' : this.type;
+    }
+
+    togglePassword() {
+      this.showPassword = !this.showPassword;
+    }
 
     onChange: any = () => {};
     onTouched: any = () => {};
 
     writeValue(value: any): void {
-        this.value = value || '';
+        const raw = value || '';
+        this.value = this.mask === 'cnpj' ? this.formatCnpj(raw) : raw;
     }
 
     registerOnChange(fn: any): void {
