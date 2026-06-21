@@ -32,6 +32,10 @@ public class WebhookLog {
     @Column(name = "event_type", nullable = false, length = 60)
     private String eventType;
 
+    @Size(max = 64)
+    @Column(name = "asaas_event_id", length = 64, unique = true)
+    private String asaasEventId;
+
     @Size(max = 50)
     @Column(name = "asaas_payment_id", length = 50)
     private String asaasPaymentId;

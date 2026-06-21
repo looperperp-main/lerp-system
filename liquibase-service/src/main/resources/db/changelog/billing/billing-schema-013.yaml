@@ -1,0 +1,28 @@
+databaseChangeLog:
+  - changeSet:
+      id: "013-webhook-log-event-id-unique"
+      author: vitor fernandes ferreira
+      comment: "asaas_event_id (event.id do Asaas) como chave de idempotência por entrega — spec §28.2/§28.5 (005-12)"
+      changes:
+        - addColumn:
+            schemaName: billing
+            tableName: webhook_log
+            columns:
+              - column:
+                  name: asaas_event_id
+                  type: VARCHAR(64)
+                  remarks: "event.id único por entrega de webhook — barreira de idempotência no banco"
+        - addUniqueConstraint:
+            schemaName: billing
+            tableName: webhook_log
+            columnNames: asaas_event_id
+            constraintName: uq_webhook_log_event_id
+      rollback:
+        - dropUniqueConstraint:
+            schemaName: billing
+            tableName: webhook_log
+            constraintName: uq_webhook_log_event_id
+        - dropColumn:
+            schemaName: billing
+            tableName: webhook_log
+            columnName: asaas_event_id

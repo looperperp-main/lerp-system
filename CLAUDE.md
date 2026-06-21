@@ -12,12 +12,12 @@ ERP-VSD is a multi-tenant ERP system built as a Spring Boot microservices monore
 |---|---|---|
 | `registry` | 8761 | Eureka service discovery |
 | `gateway` | 8090 | Spring Cloud Gateway MVC — JWT validation + routing |
-| `auth-service` | 8085 | Auth, users, tenants, roles, permissions, Stripe, Kafka audit |
+| `auth-service` | 8085 | Auth, users, tenants, roles, permissions, Kafka audit |
 | `cadastro-service` | 8086 | Master data CRUD (clients, products, suppliers, etc.) |
 | `partner-service` | 8087 | Partner onboarding, approval, referral codes, trial engagement |
 | `billing-service` | 8088 | Subscriptions, Asaas webhooks, commission payouts |
 | `liquibase-service` | — | Standalone app that runs all Liquibase migrations on startup |
-| `common` | — | Shared library: `GlobalExceptionHandler`, `BusinessException`, `AuditEventDTO` |
+| `common` | — | Shared library: `GlobalExceptionHandler`, `BusinessException`, `AuditEventDTO`, `Constants` |
 | `Angular/erp-front-end-web` | 4200 | Angular 21 SPA |
 
 ## Commands
@@ -109,7 +109,7 @@ util/            Static utility classes
 
 All schema changes go through `liquibase-service`. Changelog files are in `liquibase-service/src/main/resources/db/changelog/`, organized by schema (`auth/`, `audit/`, `cadastro/`, `billing/`). The master file is `db.changelog-master.yaml`. **Never use `ddl-auto=create` or `ddl-auto=create-drop` in production** — schema is owned by Liquibase.
 
-Both `auth-service` and `cadastro-service` have `spring.jpa.hibernate.ddl-auto=update` for local dev only.
+Both `auth-service` and `cadastro-service` run with `spring.jpa.hibernate.ddl-auto=validate` — Hibernate checks the schema against the entities but never alters it; Liquibase owns all DDL.
 
 ### Audit Trail
 
@@ -141,7 +141,11 @@ Tests in `auth-service` use `@WebMvcTest` + `MockMvc` with Mockito for mocking s
 
 ### CI/CD
 
-TeamCity is configured via `compose.yaml` (server `:8111` + agent). The agent Dockerfile is `teamcity-agent.Dockerfile`. TeamCity configuration lives in `.teamcity/`.
+CI/CD runs on **Jenkins + SonarQube** (TeamCity and Qodana were removed). The pipeline is defined in `Jenkinsfile` (declarative). Jenkins and SonarQube run via `compose.yaml`; the Jenkins controller image is built from `jenkins.Dockerfile`. Docker builds use a DinD daemon (`DOCKER_HOST=tcp://dind:2375`), and Testcontainers integration tests rely on `TESTCONTAINERS_HOST_OVERRIDE=dind`.
+
+Pipeline stages: **Checkout → Build & Test (`mvnw clean verify` on the four services with `-am`) → SonarQube Analysis → Quality Gate (aborts on failure) → Docker Build & Push** (images `vitorff1234/<service>:<BUILD_NUMBER>` + `:latest` to Docker Hub). Only the four application services are built: `auth-service`, `cadastro-service`, `partner-service`, `billing-service`.
+
+A local pre-push hook lives in `.githooks/pre-push` — enable once with `git config core.hooksPath .githooks`. It runs `./mvnw verify` only on the Java services touched by the push (changes under `common/` trigger a full verify; frontend/infra-only changes skip Java verify).
 
 ### Angular Frontend
 

@@ -3014,11 +3014,11 @@ Seguir esta ordem para garantir que cada fase é testável antes de avançar.
 >
 > **Desvios propositais da spec no repo:** pacotes seguem a convenção do repo (`com.l.erp.billingservice.infra.{config,redis}`, não `com.syax.billing.config/...`). A integração auth via §11 (Feign síncrono) **não** será implementada — substituída pelo consumo Kafka já feito no auth (`SubscriptionActivatedConsumer`).
 
-### Fase 2 — Webhook endpoint (core do sistema)
-7. Implementar `AsaasWebhookPayload.java` e demais DTOs Asaas
-8. Implementar `WebhookSecurityService.java`
-9. Implementar `WebhookLogService.java` (persistência em `billing.webhook_log`)
-10. Implementar `WebhookController.java` (retorna 200 imediatamente)
+### Fase 2 — Webhook endpoint (core do sistema) — 🚧 EM ANDAMENTO (3/10 — 2026-06-21)
+7. [x] DTOs de webhook em `infra/asaas/dto/`: `AsaasWebhookPayload`, `AsaasPaymentData`, `AsaasSubscriptionData`, `AsaasTransferData` (DTOs de request/response do client Asaas ficam para a Fase 3)
+8. [x] `WebhookSecurityService.java` (em `services/`) — constant-time `MessageDigest.isEqual`, lê `asaas.webhook-token`, lança `WebhookAuthException` (em `infra/exception/`)
+9. [x] `WebhookLogService.java` (em `services/`) — RECEBIDO/PROCESSADO/IGNORADO/ERRO + tolerância a duplicata. Requereu: migration `billing-schema-013` (coluna `asaas_event_id` + UNIQUE `uq_webhook_log_event_id`, registrada no master), campo `asaasEventId` na entity `WebhookLog`, `findByAsaasEventId` no repo, constantes `WEBHOOK_*` em common
+10. [ ] Implementar `WebhookController.java` (retorna 200 imediatamente)
 11. Implementar `WebhookProcessor.java` (async dispatcher)
 12. Implementar `WebhookHandlerFactory.java`
 13. Implementar `PaymentReceivedHandler.java` ← prioridade máxima

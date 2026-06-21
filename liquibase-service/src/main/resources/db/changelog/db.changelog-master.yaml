@@ -124,3 +124,6 @@ databaseChangeLog:
   - include:
       file: billing/billing-schema-012.yaml
       relativeToChangelogFile: true
+  - include:
+      file: billing/billing-schema-013.yaml
+      relativeToChangelogFile: true

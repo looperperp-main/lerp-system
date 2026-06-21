@@ -10,4 +10,6 @@ import java.util.UUID;
 @Repository
 public interface WebhookLogRepository extends JpaRepository<WebhookLog, UUID> {
     Optional<WebhookLog> findByAsaasPaymentId(String asaasPaymentId);
+
+    Optional<WebhookLog> findByAsaasEventId(String asaasEventId);
 }

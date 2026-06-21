@@ -210,6 +210,11 @@ public class Constants {
     public static final String PERDIDO = "PERDIDO";
     public static final String IGNORADO = "IGNORADO";
 
+    // Status de webhook (billing.webhook_log)
+    public static final String WEBHOOK_RECEBIDO = "RECEBIDO";
+    public static final String WEBHOOK_PROCESSADO = "PROCESSADO";
+    public static final String WEBHOOK_ERRO = "ERRO";
+
     //Parceiros
     public static final String PARCEIRO = "PARCEIRO";
     public static final String PARCEIRO_CREATION = PARCEIRO + "_" + INSERT;
