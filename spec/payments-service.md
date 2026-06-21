@@ -3014,17 +3014,19 @@ Seguir esta ordem para garantir que cada fase é testável antes de avançar.
 >
 > **Desvios propositais da spec no repo:** pacotes seguem a convenção do repo (`com.l.erp.billingservice.infra.{config,redis}`, não `com.syax.billing.config/...`). A integração auth via §11 (Feign síncrono) **não** será implementada — substituída pelo consumo Kafka já feito no auth (`SubscriptionActivatedConsumer`).
 
-### Fase 2 — Webhook endpoint (core do sistema) — 🚧 EM ANDAMENTO (3/10 — 2026-06-21)
+### Fase 2 — Webhook endpoint (core do sistema) — ✅ FEITO (10/10 — 2026-06-21)
 7. [x] DTOs de webhook em `infra/asaas/dto/`: `AsaasWebhookPayload`, `AsaasPaymentData`, `AsaasSubscriptionData`, `AsaasTransferData` (DTOs de request/response do client Asaas ficam para a Fase 3)
 8. [x] `WebhookSecurityService.java` (em `services/`) — constant-time `MessageDigest.isEqual`, lê `asaas.webhook-token`, lança `WebhookAuthException` (em `infra/exception/`)
 9. [x] `WebhookLogService.java` (em `services/`) — RECEBIDO/PROCESSADO/IGNORADO/ERRO + tolerância a duplicata. Requereu: migration `billing-schema-013` (coluna `asaas_event_id` + UNIQUE `uq_webhook_log_event_id`, registrada no master), campo `asaasEventId` na entity `WebhookLog`, `findByAsaasEventId` no repo, constantes `WEBHOOK_*` em common
-10. [ ] Implementar `WebhookController.java` (retorna 200 imediatamente)
-11. Implementar `WebhookProcessor.java` (async dispatcher)
-12. Implementar `WebhookHandlerFactory.java`
-13. Implementar `PaymentReceivedHandler.java` ← prioridade máxima
-14. Implementar `PaymentOverdueHandler.java`
-15. Implementar `SubscriptionInactivatedHandler.java`
-16. Implementar `PaymentDeletedHandler.java`
+10. [x] `WebhookController.java` — valida token (401 só aqui), parseia, `logReceived`, dispara async, 200 sempre (§28.7). Path mantido `/api/v1/webhooks/asaas`
+11. [x] `WebhookProcessor.java` (em `services/webhook/`) — `@Async("webhookExecutor")`, idempotência Redis, `resolveEventId` (event.id→payment→transfer→subscription §28.2), classifica `TransientException`/`TransientDataAccessException` (release) vs permanente (markError)
+12. [x] `WebhookHandlerFactory.java` — mapa por `getEventType()`; `PAYMENT_CONFIRMED` aliased p/ `PaymentReceivedHandler`
+13. [x] `PaymentReceivedHandler.java` — ATIVA + zera dunning + write-through cache + publica `billing.subscription.activated`; guards CANCELADO (§27.7.6) e valor divergente (§28.8). `nextDueDate` do Asaas pendente p/ Fase 3 (§28.3)
+14. [x] `PaymentOverdueHandler.java` — seta `suspend_at`/`cancel_at` (timestamps absolutos §27.7.3), guard estado (§28.6)
+15. [x] `SubscriptionInactivatedHandler.java` — só metadado `asaas_inactivated_at` (§27.7.5)
+16. [x] `PaymentDeletedHandler.java` — cancela comissão por `asaas_payment_id` (§8.6)
+
+> **Infra de suporte da Fase 2 (além dos 10 itens):** `infra/config/AsyncConfig` (`@EnableAsync` + `webhookExecutor`/`commissionExecutor`), `infra/config/DunningProperties` (`billing.dunning.*` + bloco no `application.yaml`), `infra/exception/TransientException`, `domain/SubscriptionStatus` (constantes String — enum fica p/ Fase 4), migration `billing-schema-014` (timestamps de dunning `grace_period_expires_at`/`suspend_at`/`cancel_at`/`reminder_sent_at`/`asaas_inactivated_at` na subscription, §27.7.1) + campos na entity `Subscription`, `findByAsaasPaymentId` no `CommissionRepository`. **Removido:** `WebhookProcessorService` antigo (substituído pela pipeline). Compila limpo. NotificationService/e-mails de dunning entram na fase de dunning (Fase 7).
 
 ### Fase 3 — Asaas client e criação de assinatura
 17. Implementar `AsaasClient.java` (Feign + Resilience4j)

@@ -8,12 +8,15 @@ import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
 public interface CommissionRepository extends JpaRepository<Commission, UUID> {
 
     boolean existsByAsaasPaymentId(String asaasPaymentId);
+
+    Optional<Commission> findByAsaasPaymentId(String asaasPaymentId);
 
     List<Commission> findByPartnerIdOrderByCalculatedAtDesc(UUID partnerId);
 

@@ -72,6 +72,22 @@ public class Subscription {
     @Column(name = "cancelled_at")
     private OffsetDateTime cancelledAt;
 
+    // Dunning — timestamps absolutos (spec §27.7.1)
+    @Column(name = "grace_period_expires_at")
+    private OffsetDateTime gracePeriodExpiresAt;
+
+    @Column(name = "suspend_at")
+    private OffsetDateTime suspendAt;
+
+    @Column(name = "cancel_at")
+    private OffsetDateTime cancelAt;
+
+    @Column(name = "reminder_sent_at")
+    private OffsetDateTime reminderSentAt;
+
+    @Column(name = "asaas_inactivated_at")
+    private OffsetDateTime asaasInactivatedAt;
+
     @NotNull
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;

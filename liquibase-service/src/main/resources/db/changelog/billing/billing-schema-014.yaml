@@ -1,0 +1,51 @@
+databaseChangeLog:
+  - changeSet:
+      id: "014-subscription-dunning-timestamps"
+      author: vitor fernandes ferreira
+      comment: "Timestamps absolutos de dunning (spec §27.7.1 / 005-03 + 005-11) — o relógio é da Syax, não do Asaas"
+      changes:
+        - addColumn:
+            schemaName: billing
+            tableName: subscription
+            columns:
+              - column:
+                  name: grace_period_expires_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  remarks: "Compatibilidade — espelha suspend_at"
+              - column:
+                  name: suspend_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  remarks: "Quando suspender (PAYMENT_OVERDUE + grace-period-days)"
+              - column:
+                  name: cancel_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  remarks: "Quando cancelar (PAYMENT_OVERDUE + cancel-after-days)"
+              - column:
+                  name: reminder_sent_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  remarks: "Quando o e-mail de lembrete (2 dias antes) foi enviado"
+              - column:
+                  name: asaas_inactivated_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  remarks: "Quando o Asaas inativou a assinatura — metadado, DunningJob controla o estado"
+      rollback:
+        - dropColumn:
+            schemaName: billing
+            tableName: subscription
+            columnName: grace_period_expires_at
+        - dropColumn:
+            schemaName: billing
+            tableName: subscription
+            columnName: suspend_at
+        - dropColumn:
+            schemaName: billing
+            tableName: subscription
+            columnName: cancel_at
+        - dropColumn:
+            schemaName: billing
+            tableName: subscription
+            columnName: reminder_sent_at
+        - dropColumn:
+            schemaName: billing
+            tableName: subscription
+            columnName: asaas_inactivated_at

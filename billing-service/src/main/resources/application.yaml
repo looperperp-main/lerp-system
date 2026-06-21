@@ -46,6 +46,10 @@ billing:
     webhook-idempotency-ttl-seconds: 86400
     tenant-status-cache-ttl-seconds: 300
     annual-commission-guard-ttl-seconds: 31536000
+  dunning:
+    grace-period-days: 5
+    cancel-after-days: 7
+    reminder-before-days: 2
 
 logging:
   level:
