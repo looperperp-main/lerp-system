@@ -21,6 +21,22 @@ services:
     networks:
       - loop-erp-network
 
+  redis:
+    image: 'redis:7-alpine'
+    container_name: erp-redis
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:-test-password}"]
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-test-password}", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - loop-erp-network
+
   zookeeper:
     image: 'confluentinc/cp-zookeeper:7.6.0'
     container_name: erp-zookeeper
@@ -257,6 +273,7 @@ services:
 
 volumes:
   pg_data:
+  redis_data:
   kafka_data:
   prometheus_data:
   grafana_data:

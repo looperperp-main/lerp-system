@@ -3002,13 +3002,17 @@ Seguir esta ordem para garantir que cada fase é testável antes de avançar.
 > - **28** Hardening (TransientException, event.id como chave, check-then-act em transfers, WebhookRecoveryJob, guards de estado, validação de valor)
     > Os códigos das seções 27-28 são a versão FINAL — onde houver divergência com seções anteriores, 27-28 prevalecem.
 
-### Fase 1 — Infraestrutura (sem lógica de negócio)
-1. Criar os 5 scripts Lua em `src/main/resources/lua/`
-2. Implementar `RedisConfig.java` (carregar scripts, configurar templates)
-3. Implementar `DistributedLockService.java`
-4. Implementar `WebhookIdempotencyService.java`
-5. Implementar `TenantStatusCacheService.java`
-6. Testar scripts Lua com `redis-cli EVAL` antes de prosseguir
+### Fase 1 — Infraestrutura (sem lógica de negócio) — ✅ FEITO (2026-06-20)
+1. [x] Criar os 5 scripts Lua em `src/main/resources/lua/` (`webhookIdempotencyAcquire`, `webhookComplete`, `acquireDistributedLock`, `releaseDistributedLock`, `annualCommissionGuard`)
+2. [x] Implementar `RedisConfig.java` (em `infra/config/`) — carrega os 5 scripts como beans + `RedisTemplate<String,String>`
+3. [x] Implementar `DistributedLockService.java` (em `infra/redis/`)
+4. [x] Implementar `WebhookIdempotencyService.java` (em `infra/redis/`)
+5. [x] Implementar `TenantStatusCacheService.java` (em `infra/redis/`) — simplificado para `String` status; endpoint síncrono §11 descartado por decisão de resiliência (auth é event-driven)
+6. [x] Testar scripts Lua com `redis-cli EVAL` — validado em 2026-06-21 (idempotência 1→0, lock com ownership, guard anual 1→0)
+
+> **Infra adicional desta fase (fora da lista original):** Redis adicionado ao `compose.yaml` (serviço `redis` + volume `redis_data`); `spring-boot-starter-data-redis` + `commons-pool2` no `billing-service/pom.xml`; bloco `spring.data.redis` + `billing.redis.*` TTLs no `application.yaml`. Compila limpo (`mvnw -pl billing-service -am compile`).
+>
+> **Desvios propositais da spec no repo:** pacotes seguem a convenção do repo (`com.l.erp.billingservice.infra.{config,redis}`, não `com.syax.billing.config/...`). A integração auth via §11 (Feign síncrono) **não** será implementada — substituída pelo consumo Kafka já feito no auth (`SubscriptionActivatedConsumer`).
 
 ### Fase 2 — Webhook endpoint (core do sistema)
 7. Implementar `AsaasWebhookPayload.java` e demais DTOs Asaas
