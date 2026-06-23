@@ -4,6 +4,8 @@ import com.l.erp.common.exception.custom.BusinessException;
 import com.l.erp.common.exception.custom.UserLockedException;
 import com.l.erp.common.exception.dto.StandardError;
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -19,6 +21,8 @@ import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter
             .ofPattern("dd/MM/yyyy HH:mm:ss")
@@ -40,6 +44,10 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<StandardError> handleGenericException(Exception e, HttpServletRequest request) {
+        if(log.isErrorEnabled()){
+            log.error("Erro não tratado em {} {} — {}",
+                    request.getMethod(), request.getRequestURI(), e.toString(), e);
+        }
         StandardError err = StandardError.builder()
                 .timestamp(Instant.now())
                 .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
