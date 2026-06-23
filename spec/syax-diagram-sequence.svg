@@ -35,7 +35,7 @@
 
 <!-- PHASE LABEL: CONVERSÃO -->
 <rect x="10" y="76" width="660" height="18" rx="3" fill="#E1F5EE" opacity="0.5"/>
-<text x="340" y="85" text-anchor="middle" dominant-baseline="central" font-size="9" font-weight="600" fill="#0F6E56" letter-spacing="1">FASE 4 — CONVERSÃO</text>
+<text x="340" y="85" text-anchor="middle" dominant-baseline="central" font-size="9" font-weight="600" fill="#0F6E56" letter-spacing="1">CONVERSÃO — CRIAÇÃO DE ASSINATURA</text>
 
 <!-- MSG 1: Tenant → Angular -->
 <line x1="50" y1="108" x2="183" y2="108" stroke="#1D9E75" stroke-width="1.5" marker-end="url(#arr)"/>
@@ -43,7 +43,7 @@
 
 <!-- MSG 2: Angular → Billing -->
 <line x1="185" y1="130" x2="318" y2="130" stroke="#378ADD" stroke-width="1.5" marker-end="url(#arr)"/>
-<text x="252" y="126" text-anchor="middle" font-size="10" fill="#2C2C2A">POST /subscriptions</text>
+<text x="252" y="126" text-anchor="middle" font-size="10" fill="#2C2C2A">POST /api/v1/checkout</text>
 
 <!-- Activation box on Billing -->
 <rect x="316" y="140" width="8" height="95" fill="#1D9E75" opacity="0.3" rx="2"/>
@@ -91,11 +91,11 @@
 
 <!-- MSG 12: Billing → DB/Redis ATIVO -->
 <line x1="324" y1="352" x2="615" y2="352" stroke="#1D9E75" stroke-width="1.5" marker-end="url(#arr)"/>
-<text x="470" y="348" text-anchor="middle" font-size="10" fill="#2C2C2A">status = ATIVO + evict cache</text>
+<text x="470" y="348" text-anchor="middle" font-size="10" fill="#2C2C2A">status = ATIVA + write-through cache</text>
 
 <!-- MSG 13: Billing → DB/Redis commission (async) -->
 <line x1="324" y1="372" x2="615" y2="372" stroke="#888780" stroke-width="1" stroke-dasharray="4,4" marker-end="url(#arr)"/>
-<text x="470" y="367" text-anchor="middle" font-size="10" fill="#73726C">INSERT commission PENDENTE (async)</text>
+<text x="470" y="367" text-anchor="middle" font-size="10" fill="#73726C">commission PENDENTE (via Kafka → partner)</text>
 
 <!-- MSG 14: Billing → Redis markDone -->
 <line x1="324" y1="392" x2="615" y2="392" stroke="#A32D2D" stroke-width="1" marker-end="url(#arr)"/>

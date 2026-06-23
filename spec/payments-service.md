@@ -3028,12 +3028,14 @@ Seguir esta ordem para garantir que cada fase é testável antes de avançar.
 
 > **Infra de suporte da Fase 2 (além dos 10 itens):** `infra/config/AsyncConfig` (`@EnableAsync` + `webhookExecutor`/`commissionExecutor`), `infra/config/DunningProperties` (`billing.dunning.*` + bloco no `application.yaml`), `infra/exception/TransientException`, `domain/SubscriptionStatus` (constantes String — enum fica p/ Fase 4), migration `billing-schema-014` (timestamps de dunning `grace_period_expires_at`/`suspend_at`/`cancel_at`/`reminder_sent_at`/`asaas_inactivated_at` na subscription, §27.7.1) + campos na entity `Subscription`, `findByAsaasPaymentId` no `CommissionRepository`. **Removido:** `WebhookProcessorService` antigo (substituído pela pipeline). Compila limpo. NotificationService/e-mails de dunning entram na fase de dunning (Fase 7).
 
-### Fase 3 — Asaas client e criação de assinatura
-17. Implementar `AsaasClient.java` (Feign + Resilience4j)
-18. Implementar `AsaasCustomerClient.java`, `AsaasSubscriptionClient.java`, `AsaasPaymentClient.java`
-19. Implementar `SubscriptionService.java`
-20. Implementar `SubscriptionController.java`
-21. Testar fluxo completo no sandbox Asaas
+### Fase 3 — Asaas client e criação de assinatura — ✅ FEITO (17-20, 2026-06-22; compila limpo)
+17. [x] Camada de saída Asaas com resiliência — `infra/asaas/AsaasGateway.java` (fachada) aplica circuit breaker `asaas-api` + retry com backoff (1s→2s→4s) sobre os sub-clients; mapeia 4xx→`AsaasValidationException` (permanente, sem retry) e 5xx/timeout→`AsaasException` (transitório). CB configurado em `infra/config/AsaasClientConfig` (time limiter 20s — o default da fábrica spring-cloud é 1s).
+18. [x] Sub-clients HTTP Interface em `infra/asaas/client/`: `AsaasCustomerClient`, `AsaasSubscriptionClient` (create + get), `AsaasPaymentClient` (listBySubscription + getPixQrCode); DTOs em `infra/asaas/dto/` (`AsaasCustomerRequest/Response`, `AsaasSubscriptionRequest/Response`, `AsaasPaymentResponse`, `AsaasPixQrCodeResponse`, `AsaasListResponse<T>`).
+19. [x] Criação de assinatura — `CheckoutService` (reaproveitado, NÃO duplicado em SubscriptionService) usa o `AsaasGateway`, persiste `AGUARDANDO_PAGAMENTO` e agora busca a 1ª cobrança (boleto + PIX QR) para devolver no `CheckoutResponse` (ampliado: boletoUrl/pixQrCode/pixCopyPaste/dueDate). `nextDueDate` do Asaas ligado no `PaymentReceivedHandler` (resolve pendência §28.3 da Fase 2).
+20. [x] Endpoint — `CheckoutController` (`POST /api/v1/checkout`) mantido como o endpoint de criação de assinatura (frontend ainda não consome; não criar `/api/billing/v1/subscriptions` paralelo).
+21. Testar fluxo completo no sandbox Asaas (pendente — requer ASAAS_API_KEY de sandbox real)
+
+> **Desvios propositais (Fase 3):** (a) **HTTP Interface `@HttpExchange` + RestClient** no lugar de OpenFeign — Feign não está no pom e é legado no Spring Boot 4; HTTP Interface é o substituto idiomático. Resiliência via `CircuitBreakerFactory` do `spring-cloud-starter-circuitbreaker-resilience4j` (já no pom) + retry manual no gateway, em vez de `@CircuitBreaker`/`@Retry` (cujo starter de anotação não está presente; §13.1 já alertava que não funcionam direto em interface no Boot 4). (b) **Reaproveitamento do Checkout** em vez de `SubscriptionService`/`SubscriptionController` paralelos. (c) `AsaasClient` antigo reduzido só ao stub `transferPix` (payout real = Fase 6).
 
 ### Fase 4 — Engine de comissões
 22. Implementar `CommissionStrategy.java` (interface) e `CommissionStrategyFactory.java`

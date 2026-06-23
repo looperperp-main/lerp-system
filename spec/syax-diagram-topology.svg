@@ -44,7 +44,7 @@
 <rect x="310" y="52" width="155" height="65" rx="8" fill="#EEEDFE" stroke="#7F77DD" stroke-width="0.75"/>
 <text x="387" y="72" text-anchor="middle" dominant-baseline="central" font-size="12" font-weight="500" fill="#26215C">Auth Service</text>
 <text x="387" y="88" text-anchor="middle" dominant-baseline="central" font-size="10" fill="#3C3489">JWT · TrialScheduler</text>
-<text x="387" y="104" text-anchor="middle" dominant-baseline="central" font-size="10" fill="#3C3489">PartnerScheduler · :8080</text>
+<text x="387" y="104" text-anchor="middle" dominant-baseline="central" font-size="10" fill="#3C3489">PartnerScheduler · :8085</text>
 
 <!-- BILLING SERVICE (tall) -->
 <rect x="310" y="138" width="155" height="300" rx="8" fill="#F1EFE8" stroke="#1D9E75" stroke-width="1.5"/>
@@ -58,7 +58,7 @@
 <text x="387" y="292" text-anchor="middle" dominant-baseline="central" font-size="10" fill="#0F6E56">CommissionPayoutJob</text>
 <text x="387" y="312" text-anchor="middle" dominant-baseline="central" font-size="10" fill="#0F6E56">ReconciliationJob</text>
 <line x1="320" y1="328" x2="455" y2="328" stroke="#9FE1CB" stroke-width="0.75"/>
-<text x="387" y="346" text-anchor="middle" dominant-baseline="central" font-size="10" fill="#085041">:8082</text>
+<text x="387" y="346" text-anchor="middle" dominant-baseline="central" font-size="10" fill="#085041">:8088</text>
 <text x="387" y="364" text-anchor="middle" dominant-baseline="central" font-size="10" fill="#085041">schema: billing</text>
 <text x="387" y="382" text-anchor="middle" dominant-baseline="central" font-size="10" fill="#085041">JWT via auth service</text>
 <text x="387" y="400" text-anchor="middle" dominant-baseline="central" font-size="10" fill="#085041">Redis Lua scripts</text>
@@ -112,9 +112,9 @@
 <!-- Admin SPA → Billing (admin API) -->
 <path d="M290 358 L300 358 L300 340 L310 340" fill="none" stroke="#7F77DD" stroke-width="1.5" marker-end="url(#arr)"/>
 
-<!-- Auth → Billing (isActive) -->
-<line x1="387" y1="117" x2="387" y2="138" stroke="#1D9E75" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr)"/>
-<text x="395" y="130" text-anchor="start" font-size="9" fill="#1D9E75">isActive()</text>
+<!-- Billing → Auth (evento Kafka: ativa tenant ao confirmar pagamento) -->
+<line x1="387" y1="138" x2="387" y2="117" stroke="#1D9E75" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr)"/>
+<text x="395" y="130" text-anchor="start" font-size="9" fill="#1D9E75">Kafka: subscription.activated</text>
 
 <!-- Billing → Asaas (outgoing API calls) -->
 <path d="M465 200 L475 200 L475 170 L485 170" fill="none" stroke="#378ADD" stroke-width="1.5" marker-end="url(#arr)"/>
