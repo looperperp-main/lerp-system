@@ -1,6 +1,7 @@
 package com.l.erp.billingservice.services;
 
 import com.l.erp.billingservice.domain.WebhookLog;
+import com.l.erp.billingservice.repository.SubscriptionRepository;
 import com.l.erp.billingservice.repository.WebhookLogRepository;
 import com.l.erp.common.util.Constants;
 import org.slf4j.Logger;
@@ -27,9 +28,12 @@ public class WebhookLogService {
     private static final Logger log = LoggerFactory.getLogger(WebhookLogService.class);
 
     private final WebhookLogRepository webhookLogRepository;
+    private final SubscriptionRepository subscriptionRepository;
 
-    public WebhookLogService(WebhookLogRepository webhookLogRepository) {
+    public WebhookLogService(WebhookLogRepository webhookLogRepository,
+                             SubscriptionRepository subscriptionRepository) {
         this.webhookLogRepository = webhookLogRepository;
+        this.subscriptionRepository = subscriptionRepository;
     }
 
     /**
@@ -56,6 +60,11 @@ public class WebhookLogService {
         webhookLog.setAsaasEventId(asaasEventId);
         webhookLog.setAsaasPaymentId(asaasPaymentId);
         webhookLog.setAsaasSubscriptionId(asaasSubscriptionId);
+        // tenant_id não vem no payload do Asaas — resolvido pela subscription quando disponível
+        if (asaasSubscriptionId != null) {
+            subscriptionRepository.findByAsaasSubscriptionId(asaasSubscriptionId)
+                    .ifPresent(s -> webhookLog.setTenantId(s.getTenantId()));
+        }
         webhookLog.setPayload(rawPayload);
         webhookLog.setStatus(Constants.WEBHOOK_RECEBIDO);
         webhookLog.setReceivedAt(OffsetDateTime.now());

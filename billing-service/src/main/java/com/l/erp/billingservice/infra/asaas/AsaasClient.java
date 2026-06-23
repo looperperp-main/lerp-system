@@ -2,89 +2,27 @@ package com.l.erp.billingservice.infra.asaas;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpStatusCode;
-import org.springframework.http.MediaType;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.util.Map;
+import java.util.UUID;
 
+/**
+ * Operações de money-out para o Asaas (repasse de comissão via PIX/TED).
+ *
+ * <p>As chamadas de entrada/criação de assinatura migraram para {@link AsaasGateway} +
+ * sub-clients HTTP Interface (Fase 3). O payout real ({@code POST /v3/transfers} com
+ * check-then-act §28.4 e chave PIX do parceiro) é da Fase 6 — por ora o método é um stub.</p>
+ */
 @Component
 public class AsaasClient {
 
     private static final Logger log = LoggerFactory.getLogger(AsaasClient.class);
 
-    private final RestClient restClient;
-
-    public AsaasClient(AsaasConfig config) {
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(5_000);
-        factory.setReadTimeout(15_000);
-        this.restClient = RestClient.builder()
-                .baseUrl(config.getBaseUrl())
-                .requestFactory(factory)
-                .defaultHeader("access_token", config.getApiKey())
-                .defaultHeader("Content-Type", MediaType.APPLICATION_JSON_VALUE)
-                .build();
-    }
-
-    public String createCustomer(String cnpj, String email, String name) {
-        log.debug("Criando customer Asaas para cnpj={}", cnpj);
-        Map<?, ?> response = restClient.post()
-                .uri("/customers")
-                .body(Map.of(
-                        "name", name,
-                        "email", email,
-                        "cpfCnpj", cnpj
-                ))
-                .retrieve()
-                .onStatus(HttpStatusCode::isError, (req, resp) -> {
-                    throw new AsaasException("Erro ao criar customer no Asaas: status " + resp.getStatusCode());
-                })
-                .body(Map.class);
-
-        if (response == null || response.get("id") == null) {
-            throw new AsaasException("Resposta inválida do Asaas ao criar customer");
-        }
-        return (String) response.get("id");
-    }
-
-    public AsaasSubscriptionResult createSubscription(String customerId, String cycle,
-                                                       BigDecimal value, LocalDate nextDueDate) {
-        log.info("Criando subscription Asaas para customer={} cycle={}", customerId, cycle);
-        Map<?, ?> response = restClient.post()
-                .uri("/subscriptions")
-                .body(Map.of(
-                        "customer", customerId,
-                        "billingType", "UNDEFINED",
-                        "cycle", cycle,
-                        "value", value,
-                        "nextDueDate", nextDueDate.toString()
-                ))
-                .retrieve()
-                .onStatus(HttpStatusCode::isError, (req, resp) -> {
-                    throw new AsaasException("Erro ao criar subscription no Asaas: status " + resp.getStatusCode());
-                })
-                .body(Map.class);
-
-        if (response == null || response.get("id") == null) {
-            throw new AsaasException("Resposta inválida do Asaas ao criar subscription");
-        }
-        String id = (String) response.get("id");
-        String paymentLink = response.get("paymentLink") instanceof String s ? s : null;
-        return new AsaasSubscriptionResult(id, paymentLink);
-    }
-
-    public String transferPix(java.util.UUID partnerId, java.math.BigDecimal amount) {
+    public String transferPix(UUID partnerId, BigDecimal amount) {
         log.info("Iniciando transferência PIX para parceiro={} amount={}", partnerId, amount);
-        // Busca pixKey do partner via configuração externa ou tabela; por ora usa partnerId como chave provisória
-        // TODO: buscar pixKey real do partner-service
+        // TODO Fase 6: buscar pixKey real do partner-service e chamar POST /v3/transfers (sem retry — §28.4)
         log.warn("PIX key não configurada para parceiro={} — transferência simulada em sandbox", partnerId);
-        return "SIMULADO-" + java.util.UUID.randomUUID();
+        return "SIMULADO-" + UUID.randomUUID();
     }
-
-    public record AsaasSubscriptionResult(String id, String paymentLink) {}
 }

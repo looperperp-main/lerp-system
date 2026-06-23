@@ -2,6 +2,7 @@ package com.l.erp.billingservice.infra.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -23,6 +24,7 @@ import java.nio.charset.StandardCharsets;
 public class RedisConfig {
 
     @Bean
+    @Primary
     public RedisTemplate<String, String> redisTemplate(RedisConnectionFactory factory) {
         RedisTemplate<String, String> tpl = new RedisTemplate<>();
         tpl.setConnectionFactory(factory);

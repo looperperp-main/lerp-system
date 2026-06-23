@@ -2,8 +2,11 @@ package com.l.erp.billingservice.services.webhook.handler;
 
 import com.l.erp.billingservice.domain.Subscription;
 import com.l.erp.billingservice.domain.SubscriptionStatus;
+import com.l.erp.billingservice.infra.asaas.AsaasException;
+import com.l.erp.billingservice.infra.asaas.AsaasGateway;
 import com.l.erp.billingservice.infra.asaas.dto.AsaasPaymentData;
 import com.l.erp.billingservice.infra.asaas.dto.AsaasWebhookPayload;
+import com.l.erp.billingservice.infra.exception.TransientException;
 import com.l.erp.billingservice.infra.kafka.KafkaBillingProducerService;
 import com.l.erp.billingservice.infra.redis.TenantStatusCacheService;
 import com.l.erp.billingservice.repository.SubscriptionRepository;
@@ -14,7 +17,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 
 /**
  * Handler de {@code PAYMENT_RECEIVED} / {@code PAYMENT_CONFIRMED} (spec §8.3, §28.3, §28.8).
@@ -32,13 +37,16 @@ public class PaymentReceivedHandler implements WebhookEventHandler {
     private final SubscriptionRepository subscriptionRepository;
     private final KafkaBillingProducerService kafkaProducer;
     private final TenantStatusCacheService tenantStatusCache;
+    private final AsaasGateway asaasGateway;
 
     public PaymentReceivedHandler(SubscriptionRepository subscriptionRepository,
                                   KafkaBillingProducerService kafkaProducer,
-                                  TenantStatusCacheService tenantStatusCache) {
+                                  TenantStatusCacheService tenantStatusCache,
+                                  AsaasGateway asaasGateway) {
         this.subscriptionRepository = subscriptionRepository;
         this.kafkaProducer = kafkaProducer;
         this.tenantStatusCache = tenantStatusCache;
+        this.asaasGateway = asaasGateway;
     }
 
     @Override
@@ -57,6 +65,17 @@ public class PaymentReceivedHandler implements WebhookEventHandler {
         String asaasSubscriptionId = payment.getSubscription();
         String asaasPaymentId = payment.getId();
         BigDecimal receivedValue = payment.getValue();
+
+        // nextDueDate é a fonte da verdade do Asaas (§8.3, §28.3) — NUNCA calcular com plusDays(30/365).
+        // Buscado ANTES de tocar o banco: a conexão JPA é adquirida lazy na 1ª query (findBy abaixo),
+        // então o round-trip HTTP não segura conexão do pool. Falha → TransientException (Asaas retenta).
+        LocalDate nextDueDate;
+        try {
+            nextDueDate = asaasGateway.getSubscription(asaasSubscriptionId).nextDueDate();
+        } catch (AsaasException e) {
+            throw new TransientException(
+                    "Falha ao consultar nextDueDate no Asaas para " + asaasSubscriptionId, e);
+        }
 
         Subscription sub = subscriptionRepository.findByAsaasSubscriptionId(asaasSubscriptionId)
                 .orElseThrow(() -> new IllegalStateException(
@@ -83,7 +102,10 @@ public class PaymentReceivedHandler implements WebhookEventHandler {
         if (primeiraAtivacao) {
             sub.setActivatedAt(now);
         }
-        // Zera o dunning (reativação) — §27.7.9. nextDueDate virá do Asaas na Fase 3 (§28.3).
+        if (nextDueDate != null) {
+            sub.setNextDueDate(nextDueDate.atStartOfDay().atOffset(ZoneOffset.UTC));
+        }
+        // Zera o dunning (reativação) — §27.7.9.
         sub.setSuspendAt(null);
         sub.setCancelAt(null);
         sub.setReminderSentAt(null);
