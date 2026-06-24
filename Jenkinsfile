@@ -59,11 +59,15 @@ pipeline {
         stage('Docker Build & Push') {
             steps {
                 sh '''
-                    for svc in auth-service cadastro-service partner-service billing-service; do
+                    # gateway e registry herdam de spring-boot-starter-parent (fora do verify/Sonar dos apps);
+                    # empacotamos aqui só para gerar o jar das imagens (sem rodar os testes deles).
+                    ./mvnw clean package -pl gateway,registry -DskipTests --batch-mode --no-transfer-progress
+
+                    for svc in auth-service cadastro-service partner-service billing-service gateway registry; do
                         docker build -t ${DOCKER_REGISTRY}/${svc}:${IMAGE_TAG} -t ${DOCKER_REGISTRY}/${svc}:latest -f ${svc}/Dockerfile ${svc}/
                     done
                     echo "${DOCKER_HUB_CREDS_PSW}" | docker login -u "${DOCKER_HUB_CREDS_USR}" --password-stdin
-                    for svc in auth-service cadastro-service partner-service billing-service; do
+                    for svc in auth-service cadastro-service partner-service billing-service gateway registry; do
                         docker push ${DOCKER_REGISTRY}/${svc}:${IMAGE_TAG}
                         docker push ${DOCKER_REGISTRY}/${svc}:latest
                     done
@@ -79,7 +83,7 @@ pipeline {
 
     post {
         cleanup {
-            sh 'for svc in auth-service cadastro-service partner-service billing-service; do docker rmi ${DOCKER_REGISTRY}/${svc}:${IMAGE_TAG} || true; done'
+            sh 'for svc in auth-service cadastro-service partner-service billing-service gateway registry; do docker rmi ${DOCKER_REGISTRY}/${svc}:${IMAGE_TAG} || true; done'
             cleanWs()
         }
     }
