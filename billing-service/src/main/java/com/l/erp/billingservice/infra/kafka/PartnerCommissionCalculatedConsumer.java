@@ -1,6 +1,7 @@
 package com.l.erp.billingservice.infra.kafka;
 
-import com.l.erp.billingservice.services.CommissionService;
+import com.l.erp.billingservice.services.commission.CommissionEngine;
+import com.l.erp.billingservice.services.commission.CommissionGenerationCommand;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -17,11 +18,11 @@ public class PartnerCommissionCalculatedConsumer {
 
     private static final Logger log = LoggerFactory.getLogger(PartnerCommissionCalculatedConsumer.class);
 
-    private final CommissionService commissionService;
+    private final CommissionEngine commissionEngine;
     private final ObjectMapper objectMapper;
 
-    public PartnerCommissionCalculatedConsumer(CommissionService commissionService, ObjectMapper objectMapper) {
-        this.commissionService = commissionService;
+    public PartnerCommissionCalculatedConsumer(CommissionEngine commissionEngine, ObjectMapper objectMapper) {
+        this.commissionEngine = commissionEngine;
         this.objectMapper = objectMapper;
     }
 
@@ -43,7 +44,8 @@ public class PartnerCommissionCalculatedConsumer {
                 return;
             }
 
-            commissionService.createCommission(partnerId, tenantId, asaasSubscriptionId, amount, asaasPaymentId);
+            commissionEngine.generate(new CommissionGenerationCommand(
+                    partnerId, tenantId, asaasSubscriptionId, asaasPaymentId, amount));
 
         } catch (Exception e) {
             log.error("Falha ao processar partner.commission.calculated. payload={}", payload, e);

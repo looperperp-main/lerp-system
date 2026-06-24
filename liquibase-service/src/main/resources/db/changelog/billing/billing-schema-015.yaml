@@ -1,0 +1,32 @@
+databaseChangeLog:
+  - changeSet:
+      id: "015-commission-model-fields"
+      author: vitor fernandes ferreira
+      comment: "Campos do engine de comissões (spec §16 / 005-02b) — modelo e base de cálculo. reference_year fica de fora: modelo ANUAL é roadmap, não escopo."
+      changes:
+        - addColumn:
+            schemaName: billing
+            tableName: commission
+            columns:
+              - column:
+                  name: commission_model
+                  type: VARCHAR(20)
+                  defaultValue: RECORRENTE
+                  remarks: "Modelo de comissão — só RECORRENTE hoje (ANUAL no roadmap)"
+                  constraints:
+                    nullable: false
+              - column:
+                  name: base_value
+                  type: NUMERIC(10,2)
+                  remarks: "Base mensal usada no cálculo — value, ou value÷12 se o ciclo for YEARLY"
+                  constraints:
+                    nullable: true
+      rollback:
+        - dropColumn:
+            schemaName: billing
+            tableName: commission
+            columnName: commission_model
+        - dropColumn:
+            schemaName: billing
+            tableName: commission
+            columnName: base_value

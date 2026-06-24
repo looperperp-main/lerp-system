@@ -63,6 +63,14 @@ public class Commission {
     @Column(name = "asaas_transfer_id", length = 50)
     private String asaasTransferId;
 
+    @Size(max = 20)
+    @NotNull
+    @Column(name = "commission_model", nullable = false, length = 20)
+    private String commissionModel;
+
+    @Column(name = "base_value", precision = 10, scale = 2)
+    private BigDecimal baseValue;
+
     @NotNull
     @Column(name = "calculated_at", nullable = false)
     private OffsetDateTime calculatedAt;

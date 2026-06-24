@@ -3037,12 +3037,14 @@ Seguir esta ordem para garantir que cada fase é testável antes de avançar.
 
 > **Desvios propositais (Fase 3):** (a) **HTTP Interface `@HttpExchange` + RestClient** no lugar de OpenFeign — Feign não está no pom e é legado no Spring Boot 4; HTTP Interface é o substituto idiomático. Resiliência via `CircuitBreakerFactory` do `spring-cloud-starter-circuitbreaker-resilience4j` (já no pom) + retry manual no gateway, em vez de `@CircuitBreaker`/`@Retry` (cujo starter de anotação não está presente; §13.1 já alertava que não funcionam direto em interface no Boot 4). (b) **Reaproveitamento do Checkout** em vez de `SubscriptionService`/`SubscriptionController` paralelos. (c) `AsaasClient` antigo reduzido só ao stub `transferPix` (payout real = Fase 6).
 
-### Fase 4 — Engine de comissões
-22. Implementar `CommissionStrategy.java` (interface) e `CommissionStrategyFactory.java`
-23. Implementar `RecurrentCommissionStrategy.java`
-24. Implementar `CommissionEngine.java`
-25. Conectar `PaymentReceivedHandler` ao `CommissionEngine`
-26. Rodar `005-billing-payment-engine-additions.yaml` (migration)
+### Fase 4 — Engine de comissões — ✅ FEITO (22-26, 2026-06-24; compila limpo)
+22. [x] `CommissionStrategy.java` (interface, em `services/commission/`) + `CommissionStrategyFactory.java` (mapa por modelo String, mantida p/ extensão ANUAL)
+23. [x] `RecurrentCommissionStrategy.java` — `@Component`; monta a `Commission` a partir do `amount` que já vem do partner-service e deriva `base_value` da própria subscription (`value`, ou `value÷12` se ciclo `YEARLY`). **Não** reaplica a `commission_rate` (regra é do partner). Status `PENDENTE`, period `YYYY-MM`, `asaas_payment_id` como barreira de idempotência.
+24. [x] `CommissionEngine.java` (em `services/commission/`) — `@Transactional`; idempotência dupla (pré-check `existsByAsaasPaymentId` + catch `DataIntegrityViolationException` da UNIQUE `uq_commission_asaas_payment`); resolve a subscription por `asaasSubscriptionId`; seleciona strategy por `CommissionModel.RECORRENTE`.
+25. [x] ~~Conectar `PaymentReceivedHandler` ao `CommissionEngine`~~ → **N/A (decisão 2026-06-24)**: o engine é alimentado pela trilha Kafka existente (`partner.commission.calculated` → `PartnerCommissionCalculatedConsumer` → `CommissionEngine.generate`), **não** pelo webhook — ligar no `PaymentReceivedHandler` criaria a 2ª trilha de comissão (duplicação). Billing fica responsável só por pagamentos + Asaas; o cálculo da taxa mora no partner-service.
+26. [x] Migration — `billing-schema-015.yaml` (convenção do repo, não `005-...`): adiciona `commission_model VARCHAR(20) DEFAULT 'RECORRENTE' NOT NULL` + `base_value NUMERIC(10,2)` na `billing.commission`; registrada no master. `reference_year` ficou de fora (modelo ANUAL é roadmap).
+
+> **Desvios propositais (Fase 4):** (a) **Trilha única de comissão** — `CommissionEngine` formaliza (Strategy/Factory) a persistência que já vinha do consumer Kafka; `CommissionService.createCommission` foi **removido** e seu corpo migrou para o engine. (b) **Sem `PaymentReceivedHandler`→engine** (ver item 25). (c) **`CommissionService.processarRepasses` desabilitado** (achado 🔴 auditoria §2.1): removido o `@Scheduled` e o stub `transferPix` que marcava `PAGO` sem mover dinheiro — payout real é Fase 6. (d) Strategy **não** consulta `Partner`/`PartnerReferral` local (a spec §9.1 assumia isso, mas `billing-schema-010` migrou essas tabelas para o schema `partner`). (e) `CommissionStatus`/`CommissionModel` como constantes String (convenção do repo, igual `SubscriptionStatus`), não enums.
 
 ### Fase 5 — Status API e integração Auth
 27. Implementar `TenantStatusService.java`
