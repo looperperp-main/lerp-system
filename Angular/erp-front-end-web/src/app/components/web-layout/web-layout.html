@@ -2,7 +2,9 @@
   <p-toast></p-toast>
   <!-- Mobile Overlay Backdrop -->
   <!--<div *ngIf="isMobile && !isCollapsed" class="fixed inset-0 bg-black/50 z-20 lg:hidden" (click)="toggleSidebar()"></div>-->
-  <div *ngIf="isMobile && !isCollapsed" class="fixed inset-0 bg-black/50 z-20" (click)="toggleSidebar()"></div>
+  @if (isMobile && !isCollapsed) {
+    <div class="fixed inset-0 bg-black/50 z-20" (click)="toggleSidebar()"></div>
+  }
 
   <!-- Sidebar -->
   <aside
@@ -29,40 +31,46 @@
     <!-- Navigation -->
     <nav class="flex-1 overflow-y-auto px-4 py-4 space-y-1 custom-scrollbar">
 
-      <div *ngFor="let item of menuItems">
-        <!-- Main Item -->
-        <div
-          class="flex items-center justify-between px-3 py-3 rounded-xl cursor-pointer transition-colors group mb-1"
-          [class.bg-white]="item?.['active'] || item.expanded"
-          [class.shadow-sm]="item?.['active'] || item.expanded"
-          (click)="item.items ? toggleSubmenu(item) : null"
-          [routerLink]="item.routerLink"
-          [routerLinkActive]="['bg-white', 'shadow-sm', 'text-gray-900']"
-          [routerLinkActiveOptions]="{exact: false}"
-        >
-          <div class="flex items-center gap-3">
-            <i [class]="item.icon + ' text-lg text-gray-500 group-hover:text-orange-500 transition-colors'"></i>
-            <span class="text-sm font-medium text-gray-600 group-hover:text-gray-900">
-                    {{ item.label }}
-                </span>
+      @for (item of menuItems; track item.label) {
+        <div>
+          <!-- Main Item -->
+          <div
+            class="flex items-center justify-between px-3 py-3 rounded-xl cursor-pointer transition-colors group mb-1"
+            [class.bg-white]="item?.['active'] || item.expanded"
+            [class.shadow-sm]="item?.['active'] || item.expanded"
+            (click)="item.items ? toggleSubmenu(item) : null"
+            [routerLink]="item.routerLink"
+            [routerLinkActive]="['bg-white', 'shadow-sm', 'text-gray-900']"
+            [routerLinkActiveOptions]="{exact: false}"
+          >
+            <div class="flex items-center gap-3">
+              <i [class]="item.icon + ' text-lg text-gray-500 group-hover:text-orange-500 transition-colors'"></i>
+              <span class="text-sm font-medium text-gray-600 group-hover:text-gray-900">
+                      {{ item.label }}
+                  </span>
+            </div>
+
+            @if (item.items) {
+              <i class="pi pi-chevron-right text-xs text-gray-400 transition-transform duration-200"
+                 [class.rotate-90]="item.expanded">
+              </i>
+            }
           </div>
 
-          <i *ngIf="item.items"
-             class="pi pi-chevron-right text-xs text-gray-400 transition-transform duration-200"
-             [class.rotate-90]="item.expanded">
-          </i>
+          <!-- Submenu Items -->
+          @if (item.items && item.expanded) {
+            <div class="pl-10 pr-2 space-y-1 mb-2">
+              @for (subItem of item.items; track subItem.label) {
+                <a [routerLink]="subItem.routerLink"
+                   class="block px-3 py-2 text-sm text-gray-500 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition-colors">
+                  <i [class]="subItem.icon + ' text-lg text-gray-500 group-hover:text-orange-500 transition-colors'"></i>
+                  {{ subItem.label }}
+                </a>
+              }
+            </div>
+          }
         </div>
-
-        <!-- Submenu Items -->
-        <div *ngIf="item.items && item.expanded" class="pl-10 pr-2 space-y-1 mb-2">
-          <a *ngFor="let subItem of item.items"
-             [routerLink]="subItem.routerLink"
-             class="block px-3 py-2 text-sm text-gray-500 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition-colors">
-            <i [class]="subItem.icon + ' text-lg text-gray-500 group-hover:text-orange-500 transition-colors'"></i>
-            {{ subItem.label }}
-          </a>
-        </div>
-      </div>
+      }
 
     </nav>
 

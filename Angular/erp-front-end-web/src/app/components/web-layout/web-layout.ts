@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import {NgForOf, NgIf, NgOptimizedImage} from "@angular/common";
+import {NgOptimizedImage} from "@angular/common";
 import {Router, RouterLink, RouterLinkActive, RouterOutlet} from "@angular/router";
 import {MenuItem, MessageService} from 'primeng/api';
 import {TenantLoginService} from '../../pages/login/service/tenant-login.service';
@@ -10,8 +10,6 @@ import {Toast} from 'primeng/toast';
   selector: 'app-web-layout',
   standalone: true,
   imports: [
-    NgForOf,
-    NgIf,
     RouterOutlet,
     RouterLink,
     RouterLinkActive,
@@ -66,12 +64,34 @@ export class WebLayout {
       icon: 'pi pi-wallet',
       path: '/web/financeiro',
       items: [
-        { label: 'Condições de Pagamento', icon: 'pi pi-id-card', routerLink: '/web/cadastros/cond-pagamento' },
+        { label: 'Condições de Pagamento', icon: 'pi pi-id-card', routerLink: '/web/cadastros/cond-pagamento' }
         // A tabela de "condicao_pagamento_parcela" é gerenciada DENTRO da tela de Condição de Pagamento.
-        { label: 'Contas a Receber', icon: 'pi pi-arrow-right', routerLink: '/web/financeiro/recebiveis' },
-        { label: 'Contas a Pagar', icon: 'pi pi-arrow-left', routerLink: '/web/financeiro/pagaveis' }
       ]
     },
+    {
+      label: 'Contas a Pagar',
+      icon: 'pi pi-arrow-left',
+      path: '/web/financeiro/pagaveis',
+      items: [
+        { label: 'Títulos a Pagar', icon: 'pi pi-file', routerLink: '/web/financeiro/pagaveis' },
+        { label: 'Pagamentos / Baixas', icon: 'pi pi-money-bill', routerLink: '/web/financeiro/pagaveis/baixas' },
+        { label: 'Adiantamentos a Fornecedores', icon: 'pi pi-arrow-up-right', routerLink: '/web/financeiro/pagaveis/adiantamentos' },
+        { label: 'Empréstimos / Financiamentos', icon: 'pi pi-percentage', routerLink: '/web/financeiro/emprestimos' }
+      ]
+    },
+    {
+      label: 'Contas a Receber',
+      icon: 'pi pi-arrow-right',
+      path: '/web/financeiro/recebiveis',
+      items: [
+        { label: 'Títulos a Receber', icon: 'pi pi-file', routerLink: '/web/financeiro/recebiveis' },
+        { label: 'Recebimentos / Baixas', icon: 'pi pi-wallet', routerLink: '/web/financeiro/recebiveis/baixas' },
+        { label: 'Cobrança', icon: 'pi pi-megaphone', routerLink: '/web/financeiro/recebiveis/cobranca' },
+        { label: 'Adiantamentos de Clientes', icon: 'pi pi-arrow-down-left', routerLink: '/web/financeiro/recebiveis/adiantamentos' },
+        { label: 'Antecipação / Desconto', icon: 'pi pi-bolt', routerLink: '/web/financeiro/recebiveis/antecipacao' }
+      ]
+    },
+    { label: 'Compensações', icon: 'pi pi-arrow-right-arrow-left', routerLink: '/web/financeiro/compensacoes' },
 
     { label: 'Segurança', icon: 'pi pi-server', routerLink: '/web/security', items: [
         { label: 'Configurar Roles', icon: 'pi pi-sitemap', routerLink: '/web/security/role-permissions' },
