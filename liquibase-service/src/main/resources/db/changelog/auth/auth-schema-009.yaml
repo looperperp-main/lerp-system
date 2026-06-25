@@ -24,6 +24,10 @@ databaseChangeLog:
   - changeSet:
       id: auth-019-permission-seed
       author: vitor-fernandes
+      # Já aplicado antes de adicionar as permissões pré-existentes (TENANT_*/USER_*/PERMISSION_*).
+      # ANY aceita o checksum novo sem reexecutar — seguro porque o INSERT é idempotente (ON CONFLICT)
+      # e essas linhas já existem no DB atual; em DB novo o changeset roda completo na 1ª vez.
+      validCheckSum: ANY
       changes:
         - sql:
             dbms: postgresql
@@ -95,7 +99,17 @@ databaseChangeLog:
               (gen_random_uuid(), 'GRUPO_CLIENTE_TABELA_PRECO_READ',   'GRUPO_CLIENTE_TABELA_PRECO', 'Permite a leitura do vínculo Grupo de Cliente x Tabela de Preço', 'system-seed'),
               (gen_random_uuid(), 'GRUPO_CLIENTE_TABELA_PRECO_UPDATE', 'GRUPO_CLIENTE_TABELA_PRECO', 'Permite a gestão do vínculo Grupo de Cliente x Tabela de Preço', 'system-seed'),
 
-              -- ===== AUTH (complementa o que já existe: TENANT_*, USER_INSERT/UPDATE, PERMISSION_CREATE/UPDATE) =====
+              -- ===== AUTH — permissões pré-existentes (criadas manualmente; aqui para reproduzir em DB novo) =====
+              (gen_random_uuid(), 'TENANT_READ',      'TENANT', 'Permite a Leitura dos TENANTS', 'system-seed'),
+              (gen_random_uuid(), 'TENANT_INSERT',    'TENANT', 'Permite a criação de TENANTS', 'system-seed'),
+              (gen_random_uuid(), 'TENANT_UPDATE',    'TENANT', 'Permite o Update de TENANTS', 'system-seed'),
+              (gen_random_uuid(), 'TENANT_DELETE',    'TENANT', 'Permite a remoção de TENANTS', 'system-seed'),
+              (gen_random_uuid(), 'USER_INSERT',      'USER', 'Permite a criação de Novos usuários no sistema', 'system-seed'),
+              (gen_random_uuid(), 'USER_UPDATE',      'USER', 'Permite o Update de usuários no sistema', 'system-seed'),
+              (gen_random_uuid(), 'PERMISSION_CREATE','PERMISSION', 'Permite a Criação de Permissões no Sistema.', 'system-seed'),
+              (gen_random_uuid(), 'PERMISSION_UPDATE','PERMISSION', 'Permite o update em permissões', 'system-seed'),
+
+              -- ===== AUTH — novas permissões (complementam as acima) =====
               (gen_random_uuid(), 'ROLE_READ',   'ROLE', 'Permite a leitura de Roles', 'system-seed'),
               (gen_random_uuid(), 'ROLE_INSERT', 'ROLE', 'Permite a criação de Roles', 'system-seed'),
               (gen_random_uuid(), 'ROLE_UPDATE', 'ROLE', 'Permite a atualização de Roles', 'system-seed'),
