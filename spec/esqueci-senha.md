@@ -10,7 +10,7 @@
 - `POST /auth/redefinir-senha` — body `{ token, novaSenha, confirmacaoSenha }` — **compartilhado** (o token aponta pro user, que já carrega o `userType`)
 
 ## Fases
-1. **Persistência** — Liquibase `auth/auth-schema-009.yaml`: tabela `auth.password_reset_token` (`user_id` FK, `token_hash` SHA-256, `expires_at` ~30min, `used_at`, `created_at`) + entity + repo. Token aleatório forte, guarda **só o hash** (padrão do `RefreshToken`), uso único.
+1. **Persistência** — Liquibase `auth/auth-schema-010.yaml` (009 passou a ser o seed de permissões): tabela `auth.password_reset_token` (`user_id` FK, `token_hash` SHA-256, `expires_at` ~30min, `used_at`, `created_at`) + entity + repo. Token aleatório forte, guarda **só o hash** (padrão do `RefreshToken`), uso único.
 2. **Solicitação** — `AuthService.solicitarResetTenant/Partner`: resolve user → gera token → salva hash → publica Kafka `type=RESET_SENHA` `{email, nome, link, userType}`. **200 genérico sempre** (anti-enumeração, igual ao `/auth/criar-conta`). Throttle por e-mail.
 3. **Redefinição** — valida token (existe / não usado / não expirado) → confere senhas + `PasswordValidatorUtil` (14+ chars, 4/4 grupos, blacklist) → `setPasswordHash(encode())` → marca `used_at` → **revoga refresh tokens do user** (`RefreshTokenService` talvez precise de `revokeAllForUser` — hoje só tem `revoke`/`revokeFamily`) → zera lockout (`failedLoginAttempts`/`lockedUntil`) → audit.
 4. **E-mail** — `EmailConsumerService` novo case `RESET_SENHA` → `sendResetSenhaEmail`. Link por portal: tenant = `app.client-portal-url`, partner = `app.partner-portal-url` (essa config pode não existir — adicionar) + `/redefinir-senha?token=`.

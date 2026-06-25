@@ -1,0 +1,114 @@
+databaseChangeLog:
+
+  # Garante unicidade do code (invariante de permissão) e habilita o ON CONFLICT do seed.
+  # Pré-requisito: não pode haver codes duplicados na tabela. Os dados atuais (TENANT_*, USER_*,
+  # PERMISSION_*) são únicos — se algum ambiente tiver duplicado, limpar antes de aplicar.
+  - changeSet:
+      id: auth-018-permission-code-unique
+      author: vitor-fernandes
+      changes:
+        - addUniqueConstraint:
+            schemaName: auth
+            tableName: permission
+            columnNames: code
+            constraintName: uq_permission_code
+      rollback:
+        - dropUniqueConstraint:
+            schemaName: auth
+            tableName: permission
+            constraintName: uq_permission_code
+
+  # Seed autoritativo das permissões. Idempotente via ON CONFLICT (code) DO NOTHING:
+  # em DB novo insere tudo; em DB existente pula o que já está lá (não duplica nem falha).
+  # created_date usa o default (CURRENT_TIMESTAMP); created_by = 'system-seed'.
+  - changeSet:
+      id: auth-019-permission-seed
+      author: vitor-fernandes
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO auth.permission (id, code, domain, description, created_by) VALUES
+              -- ===== CADASTRO =====
+              (gen_random_uuid(), 'CLIENTE_READ',   'CLIENTE', 'Permite a leitura de Clientes', 'system-seed'),
+              (gen_random_uuid(), 'CLIENTE_INSERT', 'CLIENTE', 'Permite a criação de Clientes', 'system-seed'),
+              (gen_random_uuid(), 'CLIENTE_UPDATE', 'CLIENTE', 'Permite a atualização de Clientes', 'system-seed'),
+              (gen_random_uuid(), 'CLIENTE_STATUS', 'CLIENTE', 'Permite ativar/inativar Clientes', 'system-seed'),
+
+              (gen_random_uuid(), 'FORNECEDOR_READ',   'FORNECEDOR', 'Permite a leitura de Fornecedores', 'system-seed'),
+              (gen_random_uuid(), 'FORNECEDOR_INSERT', 'FORNECEDOR', 'Permite a criação de Fornecedores', 'system-seed'),
+              (gen_random_uuid(), 'FORNECEDOR_UPDATE', 'FORNECEDOR', 'Permite a atualização de Fornecedores', 'system-seed'),
+              (gen_random_uuid(), 'FORNECEDOR_STATUS', 'FORNECEDOR', 'Permite ativar/inativar Fornecedores', 'system-seed'),
+
+              (gen_random_uuid(), 'TRANSPORTADORA_READ',   'TRANSPORTADORA', 'Permite a leitura de Transportadoras', 'system-seed'),
+              (gen_random_uuid(), 'TRANSPORTADORA_INSERT', 'TRANSPORTADORA', 'Permite a criação de Transportadoras', 'system-seed'),
+              (gen_random_uuid(), 'TRANSPORTADORA_UPDATE', 'TRANSPORTADORA', 'Permite a atualização de Transportadoras', 'system-seed'),
+              (gen_random_uuid(), 'TRANSPORTADORA_STATUS', 'TRANSPORTADORA', 'Permite ativar/inativar Transportadoras', 'system-seed'),
+
+              (gen_random_uuid(), 'PRODUTO_READ',   'PRODUTO', 'Permite a leitura de Produtos', 'system-seed'),
+              (gen_random_uuid(), 'PRODUTO_INSERT', 'PRODUTO', 'Permite a criação de Produtos', 'system-seed'),
+              (gen_random_uuid(), 'PRODUTO_UPDATE', 'PRODUTO', 'Permite a atualização de Produtos', 'system-seed'),
+              (gen_random_uuid(), 'PRODUTO_DELETE', 'PRODUTO', 'Permite a remoção de Produtos', 'system-seed'),
+
+              (gen_random_uuid(), 'PRODUTO_CATEGORIA_READ',   'PRODUTO_CATEGORIA', 'Permite a leitura de Categorias de Produto', 'system-seed'),
+              (gen_random_uuid(), 'PRODUTO_CATEGORIA_INSERT', 'PRODUTO_CATEGORIA', 'Permite a criação de Categorias de Produto', 'system-seed'),
+              (gen_random_uuid(), 'PRODUTO_CATEGORIA_UPDATE', 'PRODUTO_CATEGORIA', 'Permite a atualização de Categorias de Produto', 'system-seed'),
+              (gen_random_uuid(), 'PRODUTO_CATEGORIA_STATUS', 'PRODUTO_CATEGORIA', 'Permite ativar/inativar Categorias de Produto', 'system-seed'),
+
+              (gen_random_uuid(), 'GRUPO_CLIENTE_READ',   'GRUPO_CLIENTE', 'Permite a leitura de Grupos de Cliente', 'system-seed'),
+              (gen_random_uuid(), 'GRUPO_CLIENTE_INSERT', 'GRUPO_CLIENTE', 'Permite a criação de Grupos de Cliente', 'system-seed'),
+              (gen_random_uuid(), 'GRUPO_CLIENTE_UPDATE', 'GRUPO_CLIENTE', 'Permite a atualização de Grupos de Cliente', 'system-seed'),
+
+              (gen_random_uuid(), 'TABELA_PRECO_READ',   'TABELA_PRECO', 'Permite a leitura de Tabelas de Preço', 'system-seed'),
+              (gen_random_uuid(), 'TABELA_PRECO_INSERT', 'TABELA_PRECO', 'Permite a criação de Tabelas de Preço', 'system-seed'),
+              (gen_random_uuid(), 'TABELA_PRECO_UPDATE', 'TABELA_PRECO', 'Permite a atualização de Tabelas de Preço', 'system-seed'),
+              (gen_random_uuid(), 'TABELA_PRECO_STATUS', 'TABELA_PRECO', 'Permite ativar/inativar Tabelas de Preço', 'system-seed'),
+
+              (gen_random_uuid(), 'CONDICAO_PAGAMENTO_READ',   'CONDICAO_PAGAMENTO', 'Permite a leitura de Condições de Pagamento', 'system-seed'),
+              (gen_random_uuid(), 'CONDICAO_PAGAMENTO_INSERT', 'CONDICAO_PAGAMENTO', 'Permite a criação de Condições de Pagamento', 'system-seed'),
+              (gen_random_uuid(), 'CONDICAO_PAGAMENTO_UPDATE', 'CONDICAO_PAGAMENTO', 'Permite a atualização de Condições de Pagamento', 'system-seed'),
+
+              (gen_random_uuid(), 'CONDICAO_PAGAMENTO_PARCELA_READ',   'CONDICAO_PAGAMENTO_PARCELA', 'Permite a leitura de Parcelas de Condição de Pagamento', 'system-seed'),
+              (gen_random_uuid(), 'CONDICAO_PAGAMENTO_PARCELA_UPDATE', 'CONDICAO_PAGAMENTO_PARCELA', 'Permite a gestão (substituição em lote) de Parcelas de Condição de Pagamento', 'system-seed'),
+
+              (gen_random_uuid(), 'DEPOSITO_READ',   'DEPOSITO', 'Permite a leitura de Depósitos', 'system-seed'),
+              (gen_random_uuid(), 'DEPOSITO_INSERT', 'DEPOSITO', 'Permite a criação de Depósitos', 'system-seed'),
+              (gen_random_uuid(), 'DEPOSITO_UPDATE', 'DEPOSITO', 'Permite a atualização de Depósitos', 'system-seed'),
+
+              (gen_random_uuid(), 'VENDEDOR_READ',   'VENDEDOR', 'Permite a leitura de Vendedores', 'system-seed'),
+              (gen_random_uuid(), 'VENDEDOR_INSERT', 'VENDEDOR', 'Permite a criação de Vendedores', 'system-seed'),
+              (gen_random_uuid(), 'VENDEDOR_UPDATE', 'VENDEDOR', 'Permite a atualização de Vendedores', 'system-seed'),
+
+              (gen_random_uuid(), 'PESSOA_READ',   'PESSOA', 'Permite a leitura de Pessoas', 'system-seed'),
+              (gen_random_uuid(), 'PESSOA_INSERT', 'PESSOA', 'Permite a criação de Pessoas', 'system-seed'),
+              (gen_random_uuid(), 'PESSOA_UPDATE', 'PESSOA', 'Permite a atualização de Pessoas', 'system-seed'),
+
+              (gen_random_uuid(), 'CONTATO_READ',   'CONTATO', 'Permite a leitura de Contatos', 'system-seed'),
+              (gen_random_uuid(), 'CONTATO_INSERT', 'CONTATO', 'Permite a criação de Contatos', 'system-seed'),
+              (gen_random_uuid(), 'CONTATO_UPDATE', 'CONTATO', 'Permite a atualização de Contatos', 'system-seed'),
+
+              (gen_random_uuid(), 'ENDERECO_READ',   'ENDERECO', 'Permite a leitura de Endereços', 'system-seed'),
+              (gen_random_uuid(), 'ENDERECO_INSERT', 'ENDERECO', 'Permite a criação de Endereços', 'system-seed'),
+              (gen_random_uuid(), 'ENDERECO_UPDATE', 'ENDERECO', 'Permite a atualização de Endereços', 'system-seed'),
+
+              (gen_random_uuid(), 'GRUPO_CLIENTE_TABELA_PRECO_READ',   'GRUPO_CLIENTE_TABELA_PRECO', 'Permite a leitura do vínculo Grupo de Cliente x Tabela de Preço', 'system-seed'),
+              (gen_random_uuid(), 'GRUPO_CLIENTE_TABELA_PRECO_UPDATE', 'GRUPO_CLIENTE_TABELA_PRECO', 'Permite a gestão do vínculo Grupo de Cliente x Tabela de Preço', 'system-seed'),
+
+              -- ===== AUTH (complementa o que já existe: TENANT_*, USER_INSERT/UPDATE, PERMISSION_CREATE/UPDATE) =====
+              (gen_random_uuid(), 'ROLE_READ',   'ROLE', 'Permite a leitura de Roles', 'system-seed'),
+              (gen_random_uuid(), 'ROLE_INSERT', 'ROLE', 'Permite a criação de Roles', 'system-seed'),
+              (gen_random_uuid(), 'ROLE_UPDATE', 'ROLE', 'Permite a atualização de Roles', 'system-seed'),
+              (gen_random_uuid(), 'ROLE_DELETE', 'ROLE', 'Permite a remoção de Roles', 'system-seed'),
+
+              (gen_random_uuid(), 'USER_READ',   'USER', 'Permite a leitura de usuários no sistema', 'system-seed'),
+              (gen_random_uuid(), 'USER_DELETE', 'USER', 'Permite a remoção de usuários no sistema', 'system-seed'),
+              (gen_random_uuid(), 'USER_STATUS', 'USER', 'Permite ativar/inativar usuários no sistema', 'system-seed'),
+
+              (gen_random_uuid(), 'PERMISSION_READ',   'PERMISSION', 'Permite a leitura de Permissões', 'system-seed'),
+              (gen_random_uuid(), 'PERMISSION_DELETE', 'PERMISSION', 'Permite a remoção de Permissões', 'system-seed')
+              ON CONFLICT (code) DO NOTHING;
+      rollback:
+        - sql:
+            dbms: postgresql
+            sql: DELETE FROM auth.permission WHERE created_by = 'system-seed';
