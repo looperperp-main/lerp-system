@@ -165,6 +165,21 @@ public class SecurityFilter extends OncePerRequestFilter {
      * @return A wrapped {@link HttpServletRequest} instance that includes the extra headers along
      *         with the headers from the original request.
      */
+    /**
+     * Headers de identidade derivados do JWT. O cliente NUNCA pode fornecê-los: o wrapper
+     * mascara qualquer valor de entrada com esses nomes (comparação case-insensitive, pois
+     * nomes de header HTTP são case-insensitive) e só expõe o valor injetado pelo gateway.
+     * Defense-in-depth: mesmo que algum caminho de proxy leia o header fora do wrapper, o
+     * valor forjado pelo cliente já foi descartado aqui.
+     */
+    private static final Set<String> PROTECTED_HEADERS = Set.of(
+            "x-user-id", "x-user-email", "x-tenant-id", "x-is-owner", "x-partner-id"
+    );
+
+    private static boolean isProtected(String name) {
+        return name != null && PROTECTED_HEADERS.contains(name.toLowerCase());
+    }
+
     private static @NonNull HttpServletRequest getWrappedRequest(HttpServletRequest request, Map<String, String> extraHeaders) {
         return new HttpServletRequestWrapper(request){
             @Override
@@ -172,12 +187,21 @@ public class SecurityFilter extends OncePerRequestFilter {
                 if (extraHeaders.containsKey(name)) {
                     return extraHeaders.get(name);
                 }
+                // Strip de header interno forjado pelo cliente (não injetado pelo gateway nesta request).
+                if (isProtected(name)) {
+                    return null;
+                }
                 return super.getHeader(name);
             }
 
             @Override
             public Enumeration<String> getHeaderNames(){
-                var names = Collections.list(super.getHeaderNames());
+                var names = new ArrayList<String>();
+                for (String n : Collections.list(super.getHeaderNames())) {
+                    if (!isProtected(n)) {
+                        names.add(n);
+                    }
+                }
                 names.addAll(extraHeaders.keySet());
                 return Collections.enumeration(names);
             }
@@ -186,6 +210,9 @@ public class SecurityFilter extends OncePerRequestFilter {
             public Enumeration<String> getHeaders(String name){
                 if (extraHeaders.containsKey(name)) {
                     return Collections.enumeration(Collections.singletonList(extraHeaders.get(name)));
+                }
+                if (isProtected(name)) {
+                    return Collections.emptyEnumeration();
                 }
                 return super.getHeaders(name);
             }

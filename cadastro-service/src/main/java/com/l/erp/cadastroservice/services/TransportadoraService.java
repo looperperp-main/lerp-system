@@ -46,7 +46,8 @@ public class TransportadoraService {
 
     @Transactional(readOnly = true)
     public Transportadora findById(UUID id) {
-        return transportadoraRepository.findById(id)
+        Long tenantId = TenantContext.getTenantId();
+        return transportadoraRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new BusinessException(Constants.TRANSPORTADORA_NOT_FOUND+" - id: " + id, HttpStatus.NOT_FOUND));
     }
 
@@ -87,7 +88,7 @@ public class TransportadoraService {
         UUID correlationID = getCorrelationIdFromRequest(logger);
         Long tenantId = TenantContext.getTenantId();
 
-        Transportadora transportadora = transportadoraRepository.findById(id)
+        Transportadora transportadora = transportadoraRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> {
                     sendAuditEvent(Constants.TRANSPORTADORA_UPDATE, userId, null, Constants.ERROR, "{ERROR: "+Constants.TRANSPORTADORA_NOT_FOUND+"}", correlationID);
                     return new BusinessException("Transportadora não encontrada - id: " + id, HttpStatus.NOT_FOUND);
@@ -119,8 +120,9 @@ public class TransportadoraService {
     public void updateStatus(UUID id, UUID userId) {
         logger.info("Alterando status da transportadora {}", id);
         UUID correlationID = getCorrelationIdFromRequest(logger);
+        Long tenantId = TenantContext.getTenantId();
 
-        Transportadora transportadora = transportadoraRepository.findById(id)
+        Transportadora transportadora = transportadoraRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> {
                     sendAuditEvent(Constants.TRANSPORTADORA_UPDATE, userId, null, Constants.ERROR, "{ERROR: "+Constants.TRANSPORTADORA_NOT_FOUND+"}", correlationID);
                     return new BusinessException("Transportadora não encontrada - id: " + id, HttpStatus.NOT_FOUND);

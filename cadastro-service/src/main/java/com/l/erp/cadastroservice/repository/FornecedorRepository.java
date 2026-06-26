@@ -18,4 +18,8 @@ public interface FornecedorRepository extends JpaRepository<Fornecedor, UUID> {
 
     @EntityGraph(attributePaths = {"pessoa"})
     Optional<Fornecedor> findById(UUID id);
+
+    // Acesso por-id COM escopo de tenant — o @Filter não cobre load por PK (ver TenantFilterAspect).
+    @EntityGraph(attributePaths = {"pessoa"})
+    Optional<Fornecedor> findByIdAndTenantId(UUID id, Long tenantId);
 }

@@ -48,7 +48,8 @@ public class ProdutoController {
 
     @GetMapping("/{id}")
     public ResponseEntity<ProdutoResponseDTO> findById(@PathVariable UUID id) {
-        Produto produto = service.findById(id);
+        Long tenantId = SecurityUtils.getCurrentTenantId().orElseThrow(() -> new RuntimeException(Constants.TENANT_NOT_FOUND));
+        Produto produto = service.findById(id, tenantId);
         return ResponseEntity.ok(assembler.toModel(produto));
     }
 
@@ -79,7 +80,8 @@ public class ProdutoController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new RuntimeException("User Id não encontrado!"));
-        service.delete(id, userId);
+        Long tenantId = SecurityUtils.getCurrentTenantId().orElseThrow(() -> new RuntimeException(Constants.TENANT_NOT_FOUND));
+        service.delete(id, userId, tenantId);
         return ResponseEntity.noContent().build();
     }
 

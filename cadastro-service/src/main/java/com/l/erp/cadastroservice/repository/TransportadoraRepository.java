@@ -19,4 +19,8 @@ public interface TransportadoraRepository extends JpaRepository<Transportadora, 
 
     @EntityGraph(attributePaths = {"pessoa"})
     Optional<Transportadora> findById(UUID id);
+
+    // Acesso por-id COM escopo de tenant — o @Filter não cobre load por PK (ver TenantFilterAspect).
+    @EntityGraph(attributePaths = {"pessoa"})
+    Optional<Transportadora> findByIdAndTenantId(UUID id, Long tenantId);
 }

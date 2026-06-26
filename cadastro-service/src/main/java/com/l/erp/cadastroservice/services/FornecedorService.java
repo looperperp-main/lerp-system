@@ -46,7 +46,8 @@ public class FornecedorService {
 
     @Transactional(readOnly = true)
     public Fornecedor findById(UUID id) {
-        return fornecedorRepository.findById(id)
+        Long tenantId = TenantContext.getTenantId();
+        return fornecedorRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new BusinessException(Constants.FORNECEDORES_NOT_FOUND + id, HttpStatus.NOT_FOUND));
     }
 
@@ -86,7 +87,7 @@ public class FornecedorService {
         UUID correlationID = getCorrelationIdFromRequest(logger);
         Long tenantId = TenantContext.getTenantId();
 
-        Fornecedor fornecedor = fornecedorRepository.findById(id)
+        Fornecedor fornecedor = fornecedorRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> {
                     sendAuditEvent(Constants.FORNECEDORES_UPDATE, userId, null, Constants.ERROR, "{ERROR: Fornecedor não encontrado}", correlationID);
                     return new BusinessException(Constants.FORNECEDORES_NOT_FOUND + id, HttpStatus.NOT_FOUND);
@@ -116,8 +117,9 @@ public class FornecedorService {
     public void updateStatus(UUID id, UUID userId) {
         logger.info("Alterando status do fornecedor {}", id);
         UUID correlationID = getCorrelationIdFromRequest(logger);
+        Long tenantId = TenantContext.getTenantId();
 
-        Fornecedor fornecedor = fornecedorRepository.findById(id)
+        Fornecedor fornecedor = fornecedorRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> {
                     sendAuditEvent(Constants.FORNECEDORES_UPDATE, userId, null, Constants.ERROR, "{ERROR: Fornecedor não encontrado}", correlationID);
                     return new BusinessException(Constants.FORNECEDORES_NOT_FOUND + id, HttpStatus.NOT_FOUND);

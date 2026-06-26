@@ -61,8 +61,8 @@ public class ProdutoService {
     }
 
     @Transactional(readOnly = true)
-    public Produto findById(UUID id) {
-        return produtoRepository.findById(id)
+    public Produto findById(UUID id, Long tenantId) {
+        return produtoRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new BusinessException(Constants.PRODUTO_NOT_FOUND, HttpStatus.NOT_FOUND));
     }
 
@@ -75,7 +75,7 @@ public class ProdutoService {
         produto.setCreatedBy(userId);
 
         if (dto.categoriaId() != null) {
-            produto.setCategoria(categoriaRepository.findById(dto.categoriaId()).orElse(null));
+            produto.setCategoria(categoriaRepository.findByIdAndTenantId(dto.categoriaId(), tenantId).orElse(null));
         }
 
         // No Hibernate, antes de popularmos coleções filhas em Cascade onde o pai tem UUID manual (ou Identity),
@@ -94,7 +94,7 @@ public class ProdutoService {
     @Transactional
     public Produto update(UUID id, UUID userId, ProdutoDTO dto, Long tenantId) {
         UUID correlationID = getCorrelationIdFromRequest(logger);
-        Produto produto = produtoRepository.findById(id).orElseThrow(() -> new BusinessException(Constants.PRODUTO_NOT_FOUND, HttpStatus.NOT_FOUND));
+        Produto produto = produtoRepository.findByIdAndTenantId(id, tenantId).orElseThrow(() -> new BusinessException(Constants.PRODUTO_NOT_FOUND, HttpStatus.NOT_FOUND));
 
         mapper.updateEntityFromDto(dto, produto);
 
@@ -102,7 +102,7 @@ public class ProdutoService {
         produto.setLastUpdatedBy(userId);
 
         if (dto.categoriaId() != null) {
-            produto.setCategoria(categoriaRepository.findById(dto.categoriaId()).orElse(null));
+            produto.setCategoria(categoriaRepository.findByIdAndTenantId(dto.categoriaId(), tenantId).orElse(null));
         } else {
             produto.setCategoria(null);
         }
@@ -122,9 +122,12 @@ public class ProdutoService {
     }
 
     @Transactional
-    public void delete(UUID id, UUID userId) {
+    public void delete(UUID id, UUID userId, Long tenantId) {
         UUID correlationID = getCorrelationIdFromRequest(logger);
-        produtoRepository.deleteById(id);
+        long deleted = produtoRepository.deleteByIdAndTenantId(id, tenantId);
+        if (deleted == 0) {
+            throw new BusinessException(Constants.PRODUTO_NOT_FOUND, HttpStatus.NOT_FOUND);
+        }
         sendAuditEvent(Constants.PRODUTO_DELETE, userId, id, Constants.SUCCESS, null, correlationID);
     }
 
@@ -144,7 +147,7 @@ public class ProdutoService {
                 config.setProduto(produto);
                 // VINVULA O DEPÓSITO (Obrigatório)
                 if(configDto.depositoId() != null) {
-                    config.setDeposito(depositoRepository.findById(configDto.depositoId()).orElseThrow(() -> new BusinessException("Depósito não encontrado", HttpStatus.BAD_REQUEST)));
+                    config.setDeposito(depositoRepository.findByTenantIdAndId(tenantId, configDto.depositoId()).orElseThrow(() -> new BusinessException("Depósito não encontrado", HttpStatus.BAD_REQUEST)));
                 } else {
                     throw new BusinessException("Depósito é obrigatório na configuração de estoque", HttpStatus.BAD_REQUEST);
                 }
@@ -182,7 +185,7 @@ public class ProdutoService {
                 ProdutoFornecedor fornecedor = new ProdutoFornecedor();
                 fornecedor.setTenantId(tenantId);
                 fornecedor.setProduto(produto);
-                fornecedor.setFornecedor(fornecedorRepository.findById(fornDto.fornecedorId()).orElse(null));
+                fornecedor.setFornecedor(fornecedorRepository.findByIdAndTenantId(fornDto.fornecedorId(), tenantId).orElse(null));
                 fornecedor.setCodigoProdutoFornecedor(fornDto.codigoProdutoFornecedor());
                 fornecedor.setPrecoCusto(fornDto.precoCusto());
                 fornecedor.setLeadTimeDias(fornDto.leadTimeDias());
@@ -205,7 +208,7 @@ public class ProdutoService {
                 ProdutoPreco preco = new ProdutoPreco();
                 preco.setTenantId(tenantId);
                 preco.setProduto(produto);
-                preco.setTabelaPreco(tabelaPrecoRepository.findById(precoDto.tabelaPrecoId()).orElse(null));
+                preco.setTabelaPreco(tabelaPrecoRepository.findByIdAndTenantId(precoDto.tabelaPrecoId(), tenantId).orElse(null));
                 preco.setPreco(precoDto.preco());
                 preco.setInicioVigencia(precoDto.inicioVigencia());
                 preco.setFimVigencia(precoDto.fimVigencia());

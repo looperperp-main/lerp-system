@@ -17,4 +17,11 @@ public interface ProdutoRepository extends JpaRepository<Produto, UUID> {
 
     @EntityGraph(attributePaths = {"produtoPrecos", "produtoFornecedors", "produtoEstoqueConfigs"})
     Optional<Produto> findById(UUID id);
+
+    // Acesso por-id COM escopo de tenant: o @Filter do Hibernate NÃO protege load por chave primária
+    // (ver TenantFilterAspect). Usar este método em read/update/delete para evitar IDOR cross-tenant.
+    @EntityGraph(attributePaths = {"produtoPrecos", "produtoFornecedors", "produtoEstoqueConfigs"})
+    Optional<Produto> findByIdAndTenantId(UUID id, Long tenantId);
+
+    long deleteByIdAndTenantId(UUID id, Long tenantId);
 }

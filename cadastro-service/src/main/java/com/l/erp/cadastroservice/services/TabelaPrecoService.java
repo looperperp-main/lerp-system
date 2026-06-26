@@ -40,7 +40,8 @@ public class TabelaPrecoService {
 
     @Transactional(readOnly = true)
     public TabelaPreco findById(UUID id) {
-        return repository.findById(id)
+        Long tenantId = TenantContext.getTenantId();
+        return repository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new BusinessException("Tabela de Preço não encontrada - id: " + id, HttpStatus.NOT_FOUND));
     }
 
@@ -85,7 +86,7 @@ public class TabelaPrecoService {
         UUID correlationID = getCorrelationIdFromRequest(logger);
         Long tenantId = TenantContext.getTenantId();
 
-        TabelaPreco tabelaPreco = repository.findById(id)
+        TabelaPreco tabelaPreco = repository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> {
                     sendAuditEvent(Constants.TABELA_PRECO_UPDATE, userId, null, Constants.ERROR, "{ERROR: "+Constants.TABELA_PRECO_NOT_FOUND+"}", correlationID);
                     return new BusinessException(Constants.TABELA_PRECO_NOT_FOUND + " - id: " + id, HttpStatus.NOT_FOUND);
@@ -120,8 +121,9 @@ public class TabelaPrecoService {
     public void updateStatus(UUID id, UUID userId) {
         logger.info("Alterando status da tabela de preço {}", id);
         UUID correlationID = getCorrelationIdFromRequest(logger);
+        Long tenantId = TenantContext.getTenantId();
 
-        TabelaPreco tabelaPreco = repository.findById(id)
+        TabelaPreco tabelaPreco = repository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> {
                     sendAuditEvent(Constants.TABELA_PRECO_UPDATE, userId, null, Constants.ERROR, "{ERROR: "+Constants.TABELA_PRECO_NOT_FOUND+"}", correlationID);
                     return new BusinessException(Constants.TABELA_PRECO_NOT_FOUND+"- id: " + id, HttpStatus.NOT_FOUND);
