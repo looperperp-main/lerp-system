@@ -12,6 +12,8 @@ public class Constants {
     public static final BigDecimal DEFAULT_COMMISSION_RATE = new BigDecimal("10.00");
 
     public static final String email  = "email";
+    public static final String system  = "system";
+    public static final String ISSUER  = "L-ERP-auth-service";
 
     public static final String STATUS_PENDENTE  = "PENDENTE";
     public static final String STATUS_ATIVO     = "ATIVO";

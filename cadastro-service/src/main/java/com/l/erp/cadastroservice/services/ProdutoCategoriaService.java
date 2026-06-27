@@ -45,7 +45,7 @@ public class ProdutoCategoriaService {
     @Transactional(readOnly = true)
     public ProdutoCategoria findById(UUID id, Long tenantId) {
         return repository.findByIdAndTenantId(id, tenantId)
-                .orElseThrow(() -> new RuntimeException(Constants.PROD_CAT_NOT_FOUND+" - id: " + id));
+                .orElseThrow(() -> new RuntimeException(Constants.PROD_CAT_NOT_FOUND+Constants._ID + id));
     }
 
     @Transactional
@@ -55,7 +55,7 @@ public class ProdutoCategoriaService {
 
         // 1. Validação de Unicidade: Uma categoria de produto por tenant
         if (repository.existsByTenantIdAndNome(tenantId, dto.nome())) {
-            sendAuditEvent(Constants.PROD_CAT_CREATION, userId, null, Constants.ERROR, "{ERROR: Categoria de Produto já existe}", correlationID);
+            sendAuditEvent(Constants.PROD_CAT_CREATION, userId, null, Constants.ERROR, "{"+Constants.ERROR+": Categoria de Produto já existe}", correlationID);
             throw new BusinessException(Constants.PROD_CAT_ALREADY_EXISTS + " - pessoaId: " + dto.id(), HttpStatus.BAD_REQUEST);
         }
 
@@ -84,8 +84,8 @@ public class ProdutoCategoriaService {
 
         ProdutoCategoria prodCat = repository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> {
-                    sendAuditEvent(Constants.PROD_CAT_UPDATE, userId, null, Constants.ERROR, "{ERROR: Categoria não encontrado}", correlationID);
-                    return new BusinessException(Constants.PROD_CAT_NOT_FOUND+" - id: " + id,HttpStatus.BAD_REQUEST);
+                    sendAuditEvent(Constants.PROD_CAT_UPDATE, userId, null, Constants.ERROR, "{"+Constants.ERROR+": Categoria não encontrado}", correlationID);
+                    return new BusinessException(Constants.PROD_CAT_NOT_FOUND+Constants._ID + id,HttpStatus.BAD_REQUEST);
                 });
 
         // Atualiza campos
@@ -108,8 +108,8 @@ public class ProdutoCategoriaService {
 
         ProdutoCategoria produtoCategoria = repository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> {
-                    sendAuditEvent(Constants.PROD_CAT_UPDATE, userId, null, Constants.ERROR, "{ERROR: Categoria de Produto não encontrado}", correlationID);
-                    return new BusinessException(Constants.PROD_CAT_NOT_FOUND + " - id: " + id, HttpStatus.BAD_REQUEST);
+                    sendAuditEvent(Constants.PROD_CAT_UPDATE, userId, null, Constants.ERROR, "{"+Constants.ERROR+": Categoria de Produto não encontrado}", correlationID);
+                    return new BusinessException(Constants.PROD_CAT_NOT_FOUND + Constants._ID + id, HttpStatus.BAD_REQUEST);
                 });
 
         produtoCategoria.setAtiva(!produtoCategoria.getAtiva());

@@ -62,7 +62,7 @@ public class TokenService {
         try {
             return JWT.create()
                     .withSubject(String.valueOf(user.getId()))
-                    .withIssuer("L-ERP-auth-service")
+                    .withIssuer(Constants.ISSUER)
                     .withExpiresAt(generateExpirationDate())
                     .withIssuedAt(Instant.now())
                     .withClaim("roles", List.of("ROLE_PARTNER"))
@@ -93,7 +93,7 @@ public class TokenService {
     private String createJWT(UserAccount user, List<String> roles, boolean isOwner, List<String> permissions, String email, String displayName, Tenant tenant, String loginType){
         return JWT.create()
                 .withSubject(String.valueOf(user.getId()))
-                .withIssuer("L-ERP-auth-service")
+                .withIssuer(Constants.ISSUER)
                 .withExpiresAt(generateExpirationDate())
                 .withIssuedAt(Instant.now())
                 .withClaim("roles", roles)
@@ -112,7 +112,7 @@ public class TokenService {
         try {
             return JWT.create()
                     .withSubject(String.valueOf(tenantId))
-                    .withIssuer("L-ERP-auth-service")
+                    .withIssuer(Constants.ISSUER)
                     .withExpiresAt(Instant.now().plus(7, ChronoUnit.DAYS))
                     .withIssuedAt(Instant.now())
                     .withClaim("type", "INVITATION")
@@ -129,7 +129,7 @@ public class TokenService {
     public DecodedJWT validateInvitationToken(String token) {
         try {
             return JWT.require(Algorithm.HMAC256(secret))
-                    .withIssuer("L-ERP-auth-service")
+                    .withIssuer(Constants.ISSUER)
                     .withClaim("type", "INVITATION")
                     .build()
                     .verify(token);

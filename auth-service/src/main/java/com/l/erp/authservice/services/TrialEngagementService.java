@@ -24,16 +24,20 @@ public class TrialEngagementService {
 
     @Transactional
     public void track(Long tenantId, String feature) {
+        doTrack(tenantId, feature);
+    }
+
+    @Transactional
+    public void trackLogin(Long tenantId) {
+        doTrack(tenantId, LOGIN_FEATURE);
+    }
+
+    private void doTrack(Long tenantId, String feature) {
         try {
             repository.upsert(tenantId, feature, Instant.now());
         } catch (Exception e) {
             log.error("Falha ao registrar engagement tenantId={} feature={}", tenantId, feature, e);
         }
-    }
-
-    @Transactional
-    public void trackLogin(Long tenantId) {
-        track(tenantId, LOGIN_FEATURE);
     }
 
     public List<TrialEngagement> getByTenantId(Long tenantId) {

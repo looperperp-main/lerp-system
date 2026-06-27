@@ -52,19 +52,19 @@ public class TabelaPrecoService {
         Long tenantId = TenantContext.getTenantId();
 
         if (repository.existsByNomeIgnoreCaseAndTenantId(dto.nome(), tenantId)) {
-            sendAuditEvent(Constants.TABELA_PRECO_CREATION, userId, null, Constants.ERROR, "{ERROR: "+Constants.TABELA_PRECO_ALREADY_EXISTS+"}", correlationID);
+            sendAuditEvent(Constants.TABELA_PRECO_CREATION, userId, null, Constants.ERROR, "{"+Constants.ERROR+": "+Constants.TABELA_PRECO_ALREADY_EXISTS+"}", correlationID);
             throw new BusinessException(Constants.TABELA_PRECO_ALREADY_EXISTS+": " + dto.nome(), HttpStatus.BAD_REQUEST);
         }
 
         if (Boolean.TRUE.equals(dto.padrao()) && repository.existsByPadraoIsTrueAndTenantId(tenantId)) {
-            sendAuditEvent(Constants.TABELA_PRECO_CREATION, userId, null, Constants.ERROR, "{ERROR: "+Constants.TABELA_PRECO_PADRAO_ALREADY_EXISTS+"}", correlationID);
+            sendAuditEvent(Constants.TABELA_PRECO_CREATION, userId, null, Constants.ERROR, "{"+Constants.ERROR+": "+Constants.TABELA_PRECO_PADRAO_ALREADY_EXISTS+"}", correlationID);
             throw new BusinessException(Constants.TABELA_PRECO_PADRAO_ALREADY_EXISTS+": " + dto.nome(), HttpStatus.BAD_REQUEST);
         }
 
         TabelaPreco tabelaPreco = TabelaPreco.builder()
                 .nome(dto.nome())
                 .moeda(dto.moeda() != null ? dto.moeda() : "BRL")
-                .ativa(dto.ativa() != null ? dto.ativa() : true)
+                .ativa(dto.ativa())
                 .padrao(dto.padrao() != null && dto.padrao())
                 .inicioVigencia(dto.inicioVigencia())
                 .fimVigencia(dto.fimVigencia())
@@ -88,17 +88,17 @@ public class TabelaPrecoService {
 
         TabelaPreco tabelaPreco = repository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> {
-                    sendAuditEvent(Constants.TABELA_PRECO_UPDATE, userId, null, Constants.ERROR, "{ERROR: "+Constants.TABELA_PRECO_NOT_FOUND+"}", correlationID);
+                    sendAuditEvent(Constants.TABELA_PRECO_UPDATE, userId, null, Constants.ERROR, "{"+Constants.ERROR+": "+Constants.TABELA_PRECO_NOT_FOUND+"}", correlationID);
                     return new BusinessException(Constants.TABELA_PRECO_NOT_FOUND + " - id: " + id, HttpStatus.NOT_FOUND);
                 });
 
         if (!tabelaPreco.getNome().equalsIgnoreCase(dto.nome()) && repository.existsByNomeIgnoreCaseAndTenantId(dto.nome(), tenantId)) {
-            sendAuditEvent(Constants.TABELA_PRECO_UPDATE, userId, null, Constants.ERROR, "{ERROR: "+Constants.TABELA_PRECO_ALREADY_EXISTS+"}", correlationID);
+            sendAuditEvent(Constants.TABELA_PRECO_UPDATE, userId, null, Constants.ERROR, "{"+Constants.ERROR+": "+Constants.TABELA_PRECO_ALREADY_EXISTS+"}", correlationID);
             throw new BusinessException(Constants.TABELA_PRECO_ALREADY_EXISTS+": " + dto.nome(), HttpStatus.BAD_REQUEST);
         }
 
         if (Boolean.TRUE.equals(dto.padrao()) && repository.existsByPadraoIsTrueAndTenantId(tenantId)) {
-            sendAuditEvent(Constants.TABELA_PRECO_CREATION, userId, null, Constants.ERROR, "{ERROR: "+Constants.TABELA_PRECO_PADRAO_ALREADY_EXISTS+"}", correlationID);
+            sendAuditEvent(Constants.TABELA_PRECO_CREATION, userId, null, Constants.ERROR, "{"+Constants.ERROR+": "+Constants.TABELA_PRECO_PADRAO_ALREADY_EXISTS+"}", correlationID);
             throw new BusinessException(Constants.TABELA_PRECO_PADRAO_ALREADY_EXISTS+": " + dto.nome(), HttpStatus.BAD_REQUEST);
         }
 
@@ -125,7 +125,7 @@ public class TabelaPrecoService {
 
         TabelaPreco tabelaPreco = repository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> {
-                    sendAuditEvent(Constants.TABELA_PRECO_UPDATE, userId, null, Constants.ERROR, "{ERROR: "+Constants.TABELA_PRECO_NOT_FOUND+"}", correlationID);
+                    sendAuditEvent(Constants.TABELA_PRECO_UPDATE, userId, null, Constants.ERROR, "{"+Constants.ERROR+": "+Constants.TABELA_PRECO_NOT_FOUND+"}", correlationID);
                     return new BusinessException(Constants.TABELA_PRECO_NOT_FOUND+"- id: " + id, HttpStatus.NOT_FOUND);
                 });
 

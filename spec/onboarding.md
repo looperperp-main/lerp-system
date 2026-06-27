@@ -154,25 +154,30 @@
 
 **Definição:** 5 dias corridos após o vencimento da cobrança.
 
-**Fluxo:**
+**Fluxo (modelo de timestamps absolutos — convenção do billing):**
 1. Asaas dispara `PAYMENT_OVERDUE` no dia do vencimento
-2. Sistema alerta o tenant por e-mail
-3. Cron job de suspensão verifica diariamente tenants com `next_due_date < hoje - 5 dias` sem `PAYMENT_RECEIVED` correspondente
-4. Após D+5 sem pagamento → status muda para `SUSPENSO`
+2. O `PaymentOverdueHandler` grava timestamps absolutos na `billing.subscription`: `suspend_at = now + 5d`
+   e `cancel_at = now + 7d` (não recalcula janela a cada execução)
+3. Sistema alerta o tenant por e-mail
+4. O `DunningJob` (Fase 7) roda diariamente e age por comparação de timestamp:
+   `suspend_at <= now` → status `SUSPENSO`; `cancel_at <= now` → status `CANCELADO`
+5. `PAYMENT_RECEIVED` antes do prazo zera `suspend_at`/`cancel_at` e reativa
 
-**Regra técnica:** consulta `billing.subscription` onde `status = 'ATIVO'` e `next_due_date < NOW() - INTERVAL '5 days'`, cruzando com `billing.webhook_log` para confirmar ausência de `PAYMENT_RECEIVED` no período.
+**Regra técnica:** o `DunningJob` varre `billing.subscription` onde `suspend_at <= NOW()` (ainda `ATIVA`)
+para suspender e `cancel_at <= NOW()` para cancelar. Os timestamps absolutos vêm do `PaymentOverdueHandler`,
+dispensando o cruzamento com `webhook_log` do modelo antigo (`next_due_date < hoje - 5d`).
 
 ---
 
 ### 2. Cron de suspensão
 
-Quarto cron job do sistema — ausente na documentação inicial.
+Quarto cron job do sistema — implementado como `DunningJob` (Fase 7 do billing).
 
 | Job | Disparo | Ação | Tabelas |
 |---|---|---|---|
-| **Suspension Check** | Diário (ex: 02:00) | Busca tenants ATIVOS com `next_due_date` vencido há mais de 5 dias sem pagamento confirmado. Muda status para `SUSPENSO` e registra `suspended_at`. | `subscription`, `webhook_log` |
+| **DunningJob** | Diário (ex: 02:00) | Suspende subscriptions com `suspend_at <= now` (→ `SUSPENSO`) e cancela as com `cancel_at <= now` (→ `CANCELADO` + comissões PENDENTE canceladas). Timestamps gravados pelo `PaymentOverdueHandler`. | `subscription`, `commission` |
 
-**Idempotência:** antes de suspender, verifica se o tenant já está `SUSPENSO`. Reexecuções não geram efeito duplicado.
+**Idempotência:** age por comparação de timestamp e checa o estado atual antes de transicionar — reexecuções não geram efeito duplicado.
 
 ---
 
@@ -180,22 +185,37 @@ Quarto cron job do sistema — ausente na documentação inicial.
 
 Fluxo 100% automático via webhook — nenhuma ação manual necessária.
 
+> **Arquitetura event-driven (decisão de resiliência):** o auth service **não** consulta o billing
+> de forma síncrona no login. O estado de acesso do tenant vive no próprio `auth.tenant.status`,
+> atualizado por eventos Kafka que o billing publica. Assim, se o billing estiver fora do ar, o login
+> continua funcionando com o último status conhecido. (O endpoint síncrono `billing.isActive()` /
+> `GET /internal/billing/status` que retornaria HTTP 402 foi **descartado** — ver `payments-service.md`
+> §11 e §21 Fase 5.)
+
 ```
-Tenant tenta logar
+Billing service: ATIVO → SUSPENSO (cron de suspensão, Fase 7)
+    ↓ publica billing.subscription.suspended
+Auth service consome o evento → auth.tenant.status = SUSPENSO
     ↓
-Auth service consulta billing.isActive(tenantId)
-    ↓ retorna false → HTTP 402
+Tenant tenta logar → POST /auth/tenant/login
+    ↓ auth barra localmente (status != ATIVO/TRIAL) → 401 TENANT_NOT_ACTIVE
     ↓ mensagem: "Sua conta está suspensa. Regularize o pagamento."
     ↓
 Cliente paga boleto ou PIX
     ↓
 Asaas dispara PAYMENT_RECEIVED
     ↓
-Billing service: SUSPENSO → ATIVO
-suspended_at preservado (auditoria) · next_due_date atualizado
+Billing service: SUSPENSO → ATIVO · suspended_at preservado (auditoria) · next_due_date atualizado
+    ↓ publica billing.subscription.activated
+Auth service consome o evento → auth.tenant.status = ATIVO
     ↓
 Próximo login liberado normalmente
 ```
+
+> **Gap conhecido (a fechar na Fase 7):** hoje o billing só publica `billing.subscription.activated` e o
+> auth só consome esse. Os eventos `billing.subscription.suspended`/`.cancelled` e seus consumers ainda
+> **não existem** — então um tenant suspenso/cancelado no billing ainda consegue logar até essa fase ser
+> implementada.
 
 ---
 
@@ -288,7 +308,7 @@ CONVIDADO → TRIAL → ATIVO ⇄ SUSPENSO
 | `CONVIDADO → TRIAL` | Cliente clica no link de ativação e define senha |
 | `TRIAL → ATIVO` | `PAYMENT_RECEIVED` após conversão |
 | `TRIAL → PERDIDO` | 3 follow-ups sem conversão |
-| `ATIVO → SUSPENSO` | Cron de suspensão após grace period de 5 dias |
+| `ATIVO → SUSPENSO` | `DunningJob` quando `suspend_at <= now` (grace period de 5 dias) |
 | `SUSPENSO → ATIVO` | `PAYMENT_RECEIVED` (pagamento regularizado) |
 | `ATIVO → CANCELADO` | `SUBSCRIPTION_INACTIVATED` ou cancelamento manual |
 | `SUSPENSO → CANCELADO` | `SUBSCRIPTION_INACTIVATED` ou cancelamento manual |
@@ -301,7 +321,8 @@ CONVIDADO → TRIAL → ATIVO ⇄ SUSPENSO
 |---|---|---|---|
 | Trial Alert | D+10 após `trial_started_at` | Com parceiro: envia relatório ao contador. Sem parceiro: entrega para fila interna da Syax | `trial_engagement`, `partner_referral` |
 | Trial Expiry | D+15 após `trial_started_at` | Com parceiro: notificação urgente ao contador. Sem parceiro: cria ticket interno + e-mail ao cliente | `subscription`, `partner_referral` |
-| **Suspension Check** | Diário (02:00) | Suspende tenants ATIVOS com `next_due_date` vencido há mais de 5 dias sem `PAYMENT_RECEIVED` | `subscription`, `webhook_log` |
+| **DunningJob** | Diário (02:00) | Suspende (`suspend_at <= now` → `SUSPENSO`) e cancela (`cancel_at <= now` → `CANCELADO`) por timestamps absolutos gravados pelo `PaymentOverdueHandler` | `subscription`, `commission` |
 | Commission Payout | D+1 de cada mês | Processa repasses PENDENTES via Asaas (PIX ou TED) → status: PAGO | `commission` |
 
-> Todos os jobs devem ser idempotentes. Usar distributed lock (ex: ShedLock) em ambiente multi-instância.
+> Todos os jobs devem ser idempotentes. Usar distributed lock via Redis (`DistributedLockService` +
+> scripts Lua, implementado na Fase 1 do billing) em ambiente multi-instância.
