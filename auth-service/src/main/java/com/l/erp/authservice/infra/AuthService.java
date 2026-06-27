@@ -379,7 +379,7 @@ public class AuthService {
             throw new ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT, "Conta já ativada");
         }
 
-        String emailDecoded = decoded.getClaim("email").asString();
+        String emailDecoded = decoded.getClaim(Constants.email).asString();
         String displayName = emailDecoded != null
                 ? emailDecoded.split("@")[0]
                 : tenant.getEmail().split("@")[0];
@@ -482,7 +482,7 @@ public class AuthService {
     private void publishJaExisteConta(String email) {
         try {
             java.util.Map<String, Object> event = new java.util.HashMap<>();
-            event.put("email", email);
+            event.put(Constants.email, email);
             event.put("type", "JA_EXISTE_CONTA");
             kafkaTemplate.send("user-welcome-email-topic", email, objectMapper.writeValueAsString(event));
         } catch (Exception e) {
@@ -493,7 +493,7 @@ public class AuthService {
     private void publishBoasVindasTrial(String email, String name, String tenantName, Instant trialExpiresAt) {
         try {
             java.util.Map<String, Object> event = new java.util.HashMap<>();
-            event.put("email", email);
+            event.put(Constants.email, email);
             event.put("name", name);
             event.put("tenantName", tenantName);
             event.put("trialExpiresAt", trialExpiresAt.toString());

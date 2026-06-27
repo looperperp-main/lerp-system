@@ -8,5 +8,5 @@ import java.util.UUID;
 
 public interface OwnerMarkerRepository extends JpaRepository<OwnerMarker, Long> {
 
-    boolean existsByUser_IdAndEnabledTrue(@NotNull UUID user_id);
+    boolean existsByUser_IdAndEnabledTrue(@NotNull UUID userId);
 }

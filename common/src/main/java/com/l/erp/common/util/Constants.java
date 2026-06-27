@@ -11,6 +11,7 @@ public class Constants {
 
     public static final BigDecimal DEFAULT_COMMISSION_RATE = new BigDecimal("10.00");
 
+    public static final String email  = "email";
 
     public static final String STATUS_PENDENTE  = "PENDENTE";
     public static final String STATUS_ATIVO     = "ATIVO";
@@ -65,6 +66,7 @@ public class Constants {
     public static final String ROLE_CREATION = ROLE + "_" + INSERT;
     public static final String ROLE_UPDATE = ROLE + "_" + UPDATE;
     public static final String ROLE_DELETE = ROLE + "_" + DELETE;
+    public static final String ROLE_NOT_FOUND = "Role não encontrada!";
 
     public static final String ROLE_PERMISSION = ROLE + "_" + PERMISSION;
     public static final String ROLE_PERMISSION_CREATION = ROLE_PERMISSION + "_" + INSERT;

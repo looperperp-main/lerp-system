@@ -37,6 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
+import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
@@ -46,7 +47,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 import static com.l.erp.partnerservice.util.SecurityUtils.getCorrelationIdFromRequest;
@@ -558,10 +558,12 @@ public class PartnerService {
         return saved;
     }
 
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
     private String generateReferralCode() {
         String code;
         do {
-            int n = ThreadLocalRandom.current().nextInt(0, 100_000);
+            int n = SECURE_RANDOM.nextInt(100_000);
             code = String.format("CTR-%05d", n);
         } while (repository.existsByReferralCode(code));
         return code;

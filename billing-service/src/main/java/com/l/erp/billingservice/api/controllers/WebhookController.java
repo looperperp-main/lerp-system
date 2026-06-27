@@ -61,7 +61,7 @@ public class WebhookController {
             payload = objectMapper.readValue(rawPayload, AsaasWebhookPayload.class);
         } catch (Exception e) {
             log.error("Webhook Asaas com payload inválido — ignorado, tamanho={}", rawPayload.length(), e);
-            return ResponseEntity.ok().build();
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
 
         // 3. Persistir recebimento (RECEBIDO, tolera duplicata) e processar async

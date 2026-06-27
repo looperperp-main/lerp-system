@@ -63,7 +63,7 @@ public class CommissionEngine {
             log.info("Comissão {} gerada — partner={} tenant={} amount={} period={}",
                     strategy.getModel(), command.partnerId(), command.tenantId(),
                     commission.getAmount(), commission.getPeriod());
-        } catch (DataIntegrityViolationException e) {
+        } catch (DataIntegrityViolationException _) {
             log.info("Comissão duplicada ignorada (UNIQUE asaas_payment_id={})", command.asaasPaymentId());
         }
     }

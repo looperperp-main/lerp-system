@@ -27,7 +27,7 @@ public final class SecurityUtils {
             if (headerCorId != null && !headerCorId.isBlank()) {
                 try {
                     return UUID.fromString(headerCorId);
-                } catch (IllegalArgumentException e) {
+                } catch (IllegalArgumentException _) {
                     log.warn("Formato de Correlation ID inválido: {}", headerCorId);
                 }
             }

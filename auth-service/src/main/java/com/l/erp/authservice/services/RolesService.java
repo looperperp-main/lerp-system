@@ -140,7 +140,7 @@ public class RolesService {
         logger.debug("Vinculando Permissao: {} a Role: {}", permissionId, roleId);
 
         Role role = roleRepository.findById(roleId)
-                .orElseThrow(() -> new BusinessException("Role não encontrada", HttpStatus.BAD_REQUEST));
+                .orElseThrow(() -> new BusinessException(Constants.ROLE_NOT_FOUND, HttpStatus.BAD_REQUEST));
 
         Permission permission = permissionRepository.findById(permissionId)
                 .orElseThrow(() -> new BusinessException("Permissão não encontrada", HttpStatus.BAD_REQUEST));
@@ -190,7 +190,7 @@ public class RolesService {
 
         // Garante que a role existe
         roleRepository.findById(roleId)
-                .orElseThrow(() -> new BusinessException("Role não encontrada", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(Constants.ROLE_NOT_FOUND, HttpStatus.NOT_FOUND));
 
         return rolePermissionRepository.findAllByRoleId(roleId).stream()
                 .map(rp -> new PermissionDTO(
@@ -214,7 +214,7 @@ public class RolesService {
         logger.debug("Atribuindo {} permissões para a Role: {}", permissionIds.size(), roleId);
 
         Role role = roleRepository.findById(roleId)
-                .orElseThrow(() -> new BusinessException("Role não encontrada", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(Constants.ROLE_NOT_FOUND, HttpStatus.NOT_FOUND));
 
         // Para evitar duplicidade complexa, na UI de "Atribuição em Lote",
         // costuma-se remover as antigas e inserir as novas,
@@ -281,7 +281,7 @@ public class RolesService {
         logger.debug("Deletando Role ID: {}", roleId);
 
         Role role = roleRepository.findById(roleId)
-                .orElseThrow(() -> new BusinessException("Role não encontrada", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(Constants.ROLE_NOT_FOUND, HttpStatus.NOT_FOUND));
 
         // OBS: Se a Role tiver vinculada a Usuários (user_role) ou Permissões (role_permission),
         // O banco de dados pode estourar erro de restrição de chave estrangeira dependendo de como as constraints foram feitas.
