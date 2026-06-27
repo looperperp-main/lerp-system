@@ -14,6 +14,7 @@ import com.l.erp.cadastroservice.repository.TransportadoraRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -28,6 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * {@code findByIdAndTenantId}/{@code deleteByIdAndTenantId} carregam o escopo na própria query,
  * de modo que o tenant B nunca enxerga nem remove o recurso do tenant A.
  */
+@Transactional
 class TenantScopingIT extends AbstractIntegrationTest {
 
     @Autowired ProdutoRepository produtoRepository;
