@@ -24,6 +24,10 @@
 
     <root level="INFO">
         <appender-ref ref="CONSOLE" />
-        <appender-ref ref="LOGSTASH" />
+        <!-- Logstash só fora dos testes: em CI/local de teste não há sink em localhost:5000
+             (evita stacktrace de "Connection refused" e o backoff de ~30s de reconexão). -->
+        <springProfile name="!test">
+            <appender-ref ref="LOGSTASH" />
+        </springProfile>
     </root>
 </configuration>
