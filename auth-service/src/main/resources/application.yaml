@@ -78,3 +78,15 @@ eureka:
   client:
     service-url:
       defaultZone: http://localhost:8761/eureka/
+
+---
+# Profile de produção: desabilita a documentação OpenAPI/Swagger
+spring:
+  config:
+    activate:
+      on-profile: prod
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

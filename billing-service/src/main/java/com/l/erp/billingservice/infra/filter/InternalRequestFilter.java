@@ -52,6 +52,8 @@ public class InternalRequestFilter extends OncePerRequestFilter {
 
     private boolean isPublic(String path, String method) {
         if (PUBLIC_EXACT.contains(path)) return true;
+        // Documentação OpenAPI / Swagger UI
+        if (path.startsWith("/v3/api-docs") || path.startsWith("/swagger-ui")) return true;
         // POST /api/v1/partners — registro de parceiro via billing (público no gateway)
         if (HttpMethod.POST.matches(method) && "/api/v1/partners".equals(path)) return true;
         return false;

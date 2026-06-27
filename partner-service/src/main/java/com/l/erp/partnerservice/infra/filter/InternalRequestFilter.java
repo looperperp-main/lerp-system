@@ -47,6 +47,8 @@ public class InternalRequestFilter extends OncePerRequestFilter {
 
     private boolean isPublic(String path) {
         if (PUBLIC_EXACT.contains(path)) return true;
+        // Documentação OpenAPI / Swagger UI
+        if (path.startsWith("/v3/api-docs") || path.startsWith("/swagger-ui")) return true;
         // GET /api/v1/partners/cnpj/** — consulta pública de CNPJ
         if (path.startsWith("/api/v1/partners/cnpj/")) return true;
         return false;
