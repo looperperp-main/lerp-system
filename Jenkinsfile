@@ -11,6 +11,10 @@ pipeline {
         SONAR_TOKEN                           = credentials('sonarqube-token')
         DOCKER_HOST                           = 'tcp://dind:2375'
         TESTCONTAINERS_HOST_OVERRIDE          = 'dind'
+        // Ryuk não consegue manter o heartbeat com o controller via rede do DinD e acaba
+        // matando os containers de teste no meio do build (→ "Connection refused" em dind:<porta>).
+        // Seguro desabilitar aqui: o DinD é efêmero por build e o post{cleanup} já limpa tudo.
+        TESTCONTAINERS_RYUK_DISABLED          = 'true'
         DOCKER_REGISTRY                       = 'vitorff1234'
         IMAGE_TAG                             = "${env.BUILD_NUMBER}"
         SONAR_HOST_URL                        = 'http://erp-sonarqube:9000'
