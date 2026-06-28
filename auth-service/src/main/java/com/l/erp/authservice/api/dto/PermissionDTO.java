@@ -14,6 +14,9 @@ public record PermissionDTO(
         @NotBlank(message = "O domínio é obrigatório")
         @Size(max = 60, message = "O domínio deve ter no máximo 60 caracteres")
         String domain,
+        // TENANT (default) ou PLATFORM. PLATFORM = só admin Syax; não aparece no portal de tenant.
+        @Size(max = 10)
+        String scope,
         @NotBlank(message = "A descrição é obrigatória")
         @Size(max = 500, message = "A descrição deve ter no máximo 500 caracteres")
         String description,

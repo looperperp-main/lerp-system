@@ -379,6 +379,13 @@ public class AuthService {
             throw new ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT, "Conta já ativada");
         }
 
+        // email é único global em users_account — colisão com outro tenant/parceiro precisa
+        // de mensagem clara antes do insert (senão estoura constraint e dá rollback).
+        if (userRepo.findByEmail(tenant.getEmail()).isPresent()) {
+            throw new ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,
+                    "Este e-mail já está em uso em outra conta.");
+        }
+
         String emailDecoded = decoded.getClaim(Constants.email).asString();
         String displayName = emailDecoded != null
                 ? emailDecoded.split("@")[0]
@@ -402,6 +409,8 @@ public class AuthService {
         Instant trialExpiresAt = trialStartedAt.plus(15, ChronoUnit.DAYS);
 
         tenant.setStatus(EnumTenantStatus.TRIAL);
+        tenant.setTrialStartedAt(trialStartedAt);
+        tenant.setTrialExpiresAt(trialExpiresAt);
         tenantRepository.save(tenant);
 
         String referralId = decoded.getClaim("referralId").asString();

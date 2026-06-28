@@ -14,6 +14,7 @@ export class DashboardComponent implements OnInit {
   private readonly dashboardService = inject(DashboardService);
 
   readonly carregando = signal(true);
+  readonly atualizando = signal(false);
   readonly erro = signal<string | null>(null);
   readonly dashboard = signal<DashboardResponse | null>(null);
 
@@ -29,13 +30,33 @@ export class DashboardComponent implements OnInit {
   ];
 
   ngOnInit(): void {
-    this.carregarDashboard();
+    // 1ª visita carrega; visitas seguintes reusam o cache de sessão (sem mostrar "Carregando").
+    this.carregarDashboard(false);
   }
 
-  carregarDashboard(): void {
-    this.carregando.set(true);
+  /** Refresh manual (botão pi-sync no card de Clientes Ativos) — força nova busca. */
+  refresh(): void {
+    if (this.atualizando()) return;
+    this.atualizando.set(true);
+    this.dashboardService.getDashboard(true).subscribe({
+      next: (data) => {
+        this.dashboard.set(data);
+        this.atualizando.set(false);
+      },
+      error: () => {
+        this.erro.set('Erro ao atualizar dashboard. Tente novamente.');
+        this.atualizando.set(false);
+      },
+    });
+  }
+
+  private carregarDashboard(force: boolean): void {
+    // Só mostra o estado "Carregando…" cheio quando ainda não há dados em tela.
+    if (!this.dashboard()) {
+      this.carregando.set(true);
+    }
     this.erro.set(null);
-    this.dashboardService.getDashboard().subscribe({
+    this.dashboardService.getDashboard(force).subscribe({
       next: (data) => {
         this.dashboard.set(data);
         this.carregando.set(false);

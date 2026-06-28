@@ -29,6 +29,47 @@
   display: flex;
   align-items: flex-start;
   gap: 14px;
+  position: relative;
+}
+
+.dash-refresh {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid #222222;
+  border-radius: 8px;
+  color: #9ca3af;
+  cursor: pointer;
+
+  svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  &:hover:not(:disabled) {
+    color: #f5f5f5;
+    border-color: #3b82f6;
+  }
+
+  &:disabled {
+    cursor: default;
+  }
+
+  .spinning {
+    animation: dash-spin 0.8s linear infinite;
+  }
+}
+
+@keyframes dash-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .stat-icon {

@@ -47,6 +47,21 @@
         </small>
       </div>
 
+      <!-- Escopo: Tenant (default) vs Plataforma (só admin Syax) -->
+      <div class="flex items-start gap-2">
+        <input
+          type="checkbox"
+          id="isPlatform"
+          [(ngModel)]="isPlatform"
+          class="mt-1" />
+        <label for="isPlatform" class="text-sm font-medium text-gray-700">
+          Permissão de Plataforma (Syax)
+          <span class="block text-xs font-normal text-gray-500">
+            Marcada = só pode ser concedida pelo admin da plataforma; não aparece no portal do tenant.
+          </span>
+        </label>
+      </div>
+
       <!-- Descrição -->
       <div class="flex flex-col gap-1">
         <label for="description" class="text-sm font-medium text-gray-700">

@@ -1,0 +1,73 @@
+<div class="card">
+
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Assinaturas</h1>
+      <p class="page-subtitle">Acompanhe as assinaturas dos tenants</p>
+    </div>
+  </div>
+
+  <div class="content-card">
+    <div class="table-container">
+      <p-table
+        [value]="rows()"
+        [columns]="cols"
+        [loading]="carregando()"
+        [paginator]="true"
+        [rows]="10"
+        [showCurrentPageReport]="true"
+        currentPageReportTemplate="Mostrando {first} até {last} de {totalRecords} registros"
+        [rowsPerPageOptions]="[10, 25, 50]"
+        [tableStyle]="{ 'min-width': '50rem' }"
+        styleClass="p-datatable-sm text-sm">
+
+        <ng-template pTemplate="header" let-columns>
+          <tr>
+            @for (col of columns; track col.field) {
+              <th class="text-xs uppercase text-gray-400 font-semibold border-b border-gray-100 pb-3">
+                {{ col.header }}
+              </th>
+            }
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="body" let-rowData let-columns="columns">
+          <tr class="hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-colors">
+            @for (col of columns; track col.field) {
+              <td class="py-3 text-gray-600">
+
+                @if (col.field === 'tenantId') {
+                  {{ rowData.tenantId }}
+                } @else if (col.field === 'planType') {
+                  <span [class]="'px-2 py-1 rounded text-xs font-medium ' +
+                    (rowData.planType === 'ANUAL' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700')">
+                    {{ rowData.planType }}
+                  </span>
+                } @else if (col.field === 'billingCycle') {
+                  {{ rowData.billingCycle }}
+                } @else if (col.field === 'value') {
+                  {{ rowData.value | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}
+                } @else if (col.type === 'status') {
+                  <span [class]="statusClass(rowData.status)">{{ rowData.status }}</span>
+                } @else if (col.field === 'nextDueDate') {
+                  {{ rowData.nextDueDate ? (rowData.nextDueDate | date: 'dd/MM/yyyy') : '—' }}
+                } @else if (col.field === 'asaasSubscriptionId') {
+                  <span class="text-gray-500 text-xs truncate max-w-xs block">{{ rowData.asaasSubscriptionId }}</span>
+                }
+
+              </td>
+            }
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td [attr.colspan]="cols.length" class="text-center py-6 text-gray-500">
+              Nenhuma assinatura encontrada.
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </div>
+  </div>
+</div>

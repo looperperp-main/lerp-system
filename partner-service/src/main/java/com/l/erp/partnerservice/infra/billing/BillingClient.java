@@ -38,9 +38,15 @@ public class BillingClient {
             var future = replyingKafkaTemplate.sendAndReceive(producerRecord);
             var response = future.get(10, TimeUnit.SECONDS);
             return objectMapper.readValue(response.value(), BillingExtratoDTO.class);
-        } catch (Exception e) {
-            log.error("Falha ao consultar extrato via Kafka para partnerId={}", partnerId, e);
+        } catch (InterruptedException e) {
+            // Só aqui faz sentido restaurar a flag (a espera foi realmente interrompida).
+            log.error("Consulta de extrato interrompida para partnerId={}", partnerId, e);
             Thread.currentThread().interrupt();
+            return null;
+        } catch (Exception e) {
+            // TimeoutException/ExecutionException: engole e devolve null. NUNCA setar a flag de
+            // interrupção na thread web aqui — ela envenena o flush da resposta (ClientAbortException → 500).
+            log.error("Falha ao consultar extrato via Kafka para partnerId={}", partnerId, e);
             return null;
         }
     }

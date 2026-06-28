@@ -1,6 +1,7 @@
 package com.l.erp.authservice.api.controllers;
 
 import com.l.erp.authservice.api.dto.TenantDTO;
+import com.l.erp.authservice.api.dto.TenantProfileDTO;
 import com.l.erp.authservice.services.TenantService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -12,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -30,6 +32,12 @@ public class TenantController {
 
     public TenantController(TenantService tenantService) {
         this.tenantService = tenantService;
+    }
+
+    /** Perfil do próprio tenant logado — usado pelo portal (prefill do checkout + banner de trial). */
+    @GetMapping("/tenant/me")
+    public ResponseEntity<TenantProfileDTO> getMyTenant(@RequestHeader("X-Tenant-Id") Long tenantId) {
+        return ResponseEntity.ok(tenantService.getTenantProfile(tenantId));
     }
 
     @PostMapping("/tenants")

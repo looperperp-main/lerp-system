@@ -2646,10 +2646,28 @@ Adicionar ao `db/db.changelog-master.yaml`:
 
 ### 18.1 Modelo de roles (claims no JWT do auth service)
 
-| Role | Permissões |
+> **⚠️ IMPLEMENTADO NO REPO (2026-06-28) — diverge da spec genérica.** O RBAC do ERP-VSD autoriza por
+> **permissão** (`authorities` = `permission.code`, convenção `DOMINIO_ACAO`), não por role do Spring.
+> Então `ROLE_BILLING_ADMIN` virou a **permissão** **`REPASSE_EXECUTE`** (domínio `REPASSE`), e `ROLE_BILLING_READ`
+> → `REPASSE_READ`. O endpoint de payout usa `@PreAuthorize("hasAuthority('REPASSE_EXECUTE')")`.
+> - **Escopo:** `auth.permission` ganhou a coluna `scope` (`TENANT`|`PLATFORM`, migration `auth-schema-010`).
+>   `REPASSE_EXECUTE`/`REPASSE_READ`/`PLATFORM_PERMISSION_ASSIGN` são **`PLATFORM`** (operador Syax) — **não
+>   aparecem nem são atribuíveis pelo portal de tenant**. Tela de permissão (front-admin) tem checkbox de escopo.
+> - **Guard de concessão** (`RolesService.addPermissionToRoleAndTenant`): conceder uma permissão `PLATFORM`
+>   exige que o ator tenha `PLATFORM_PERMISSION_ASSIGN` → 403 caso contrário. Auto-consistente, **não** depende
+>   do M7 (identidade GLOBAL). Bootstrap: semear `PLATFORM_PERMISSION_ASSIGN` + `REPASSE_EXECUTE` nas roles de
+>   admin Syax via SQL/admin.
+> - **Transporte:** o gateway injeta o header **`X-Authorities`** (roles+permissões do JWT, protegido contra
+>   forja); o `InternalRequestFilter` do billing popula o `SecurityContext` a partir dele (billing já tinha
+>   `@EnableMethodSecurity`).
+> - **NÃO implementado do §18:** payout-preview, adjust, cancel, job assíncrono (`jobId`/status) e os campos
+>   admin do §18.3 (`adjusted_amount`/`approved_*`/`confirmed_at`/`transfer_failed_reason`...). `effectiveAmount`
+>   = `amount`; `failReason` só logado. Ficam como follow-up ("§18 completo").
+
+| Role / permissão (spec → repo) | Permissões |
 |---|---|
-| `ROLE_BILLING_READ` | Visualizar comissões e extrato de parceiros |
-| `ROLE_BILLING_ADMIN` | Tudo acima + editar valor de comissão + processar repasse + cancelar |
+| `ROLE_BILLING_READ` → **`REPASSE_READ`** (scope PLATFORM) | Visualizar comissões e extrato de parceiros |
+| `ROLE_BILLING_ADMIN` → **`REPASSE_EXECUTE`** (scope PLATFORM) | Processar/reprocessar repasse (money-out) |
 
 ```java
 // BillingAdminSecurityConfig.java

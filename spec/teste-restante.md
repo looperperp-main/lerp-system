@@ -43,11 +43,13 @@ manuais/e2e por fase.
 ### A.1 Unitários — Fases 4/6/7 (spec §22.1)
 - [x] `RecurrentCommissionStrategyTest` (✅ 2026-06-24): `base_value` = mensalidade (`value`, ou `value÷12` se ciclo `YEARLY`); `amount` é o que veio no comando (não recalcula taxa); status `PENDENTE`/model `RECORRENTE`/`asaas_payment_id`/tenant setados.
 - [x] `CommissionEngineTest` (✅ 2026-06-24): pré-check de duplicado descarta antes do lookup; subscription inexistente não gera; happy salva `PENDENTE`; corrida → catch `DataIntegrityViolationException` sem estourar.
-- [ ] `CommissionPayoutService` (Fase 6): parceiro **sem PIX** é pulado sem quebrar os outros; agrega `amount` por parceiro; marca `EM_TRANSFERENCIA` + `asaas_transfer_id`; `transferId=null` (não confirmado) → deixa PENDENTE.
-- [ ] `DistributedLockService` (Fase 6/7): acquire+release; acquire falha se já existe (revalidar com o `CommissionPayoutJob`).
-- [ ] `TransferCompletedHandler`: `status=PAGO` + `paid_at` (atualiza TODAS as comissões do `asaas_transfer_id`); transferId desconhecido → loga e ignora.
-- [ ] `TransferFailedHandler`: volta `status=PENDENTE` + limpa `asaas_transfer_id`; loga `failReason`.
-- [ ] `CommissionPayoutJob` (Fase 6): adquire lock, D+1 sobre mês anterior, `processPayouts`; sem PENDENTE → nada. `ReconciliationJob` (Fase 7).
+- [x] `CommissionPayoutServiceTest` ✅ (2026-06-28): parceiro **sem PIX** é pulado; happy marca `EM_TRANSFERENCIA` + `asaas_transfer_id`; `transferId=null` → deixa PENDENTE.
+- [x] `TransferCompletedHandlerTest` ✅: `status=PAGO` + `paid_at` (TODAS as comissões do `asaas_transfer_id`); sem comissão → no-op; sem transfer.id → erro.
+- [x] `TransferFailedHandlerTest` ✅: volta `status=PENDENTE` + limpa `asaas_transfer_id`; loga `failReason`.
+- [x] `AsaasGatewayTest` ✅ atualizado p/ `transferClient` no ctor.
+- [x] `RolesServiceGuardTest` (auth) ✅: conceder permissão `PLATFORM` sem `PLATFORM_PERMISSION_ASSIGN` → 403 (mockStatic SecurityUtils).
+- [ ] `DistributedLockService`/`CommissionPayoutJob` (lock acquire/release + skip; IT) — pendente.
+- [ ] `ReconciliationJob` (Fase 7).
 
 ### A.2 Integração — Testcontainers (PostgreSQL + Redis) (spec §22.2)
 - `PAYMENT_RECEIVED`→`ATIVA` + cache write-through; duplicado→processado 1×.
@@ -89,7 +91,9 @@ Pré: infra de pé (`postgres/redis/kafka/zookeeper`), billing rodando, env do A
 ### Fase 6 — Payout de comissões (PIX) — pronto p/ testar (impl 2026-06-28)
 Pré: rodar liquibase (aplica `partner-schema-010` = `pix_key_type`). Setup da chave PIX do parceiro: **portal do parceiro → Configurações** (`PUT /me/payout-info`), ou SQL direto em `partner.partner` (`pix_key`, `pix_key_type`).
 - [ ] **Setar chave PIX no portal do parceiro** (`/configuracoes`): salva `pix_key` + `pix_key_type` (CPF/CNPJ/EMAIL/PHONE/EVP) → confere em `partner.partner`.
-- [ ] Parceiro com `pix_key` + comissão PENDENTE → `POST /api/v1/commissions/admin/trigger-repasse` (header `X-User-Id`) → comissão(ões) → `EM_TRANSFERENCIA` + `asaas_transfer_id`; `POST /v3/transfers` criado no sandbox.
+- [ ] **Gate de autorização (money-out):** `POST /admin/trigger-repasse` **sem** `REPASSE_EXECUTE` → **403** (`@PreAuthorize`). Via curl direto no billing (sem gateway) passar `X-User-Id` + `X-Authorities: REPASSE_EXECUTE`; pelo gateway, o JWT do usuário precisa ter `REPASSE_EXECUTE` (permissão PLATFORM, role de admin Syax). Sem o header de authorities → 403.
+- [ ] **RBAC scope (auth):** tentar vincular `REPASSE_EXECUTE` (scope PLATFORM) a uma role sendo um usuário sem `PLATFORM_PERMISSION_ASSIGN` → **403** (`RolesService` guard). Portal de tenant não lista permissões PLATFORM.
+- [ ] Parceiro com `pix_key` + comissão PENDENTE → `POST /api/v1/commissions/admin/trigger-repasse` (com `REPASSE_EXECUTE`) → comissão(ões) → `EM_TRANSFERENCIA` + `asaas_transfer_id`; `POST /v3/transfers` criado no sandbox.
 - [ ] Webhook `TRANSFER_COMPLETED` (curl, `{"event":"TRANSFER_COMPLETED","transfer":{"id":"<asaas_transfer_id>"}}`) → todas as comissões do transfer → `PAGO` + `paid_at`.
 - [ ] Webhook `TRANSFER_FAILED` (`{"event":"TRANSFER_FAILED","transfer":{"id":"...","failReason":"INVALID_PIX_KEY"}}`) → comissões voltam a `PENDENTE` + `asaas_transfer_id=null`; log de erro com `failReason`.
 - [ ] Parceiro **sem** PIX → pulado (log "sem chave PIX — repasse adiado"), sem quebrar os outros; comissões seguem PENDENTE.

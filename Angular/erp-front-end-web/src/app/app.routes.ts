@@ -14,6 +14,7 @@ export const routes: Routes = [
         children: [
             { path: '', redirectTo: 'home', pathMatch: 'full' },
             { path: 'home', loadComponent: () => import('./pages/home/home').then(m => m.Home) },
+            { path: 'assinar', loadComponent: () => import('./pages/assinar/assinar').then(m => m.Assinar) },
             { path: 'cadastros/grp_c', loadComponent: () => import('./pages/cadastros/grupo-clientes/grupo-clientes').then(m => m.GrupoClientes) },
             { path: 'cadastros/depositos', loadComponent: () => import('./pages/cadastros/deposito/depositos').then(m => m.Depositos) },
             { path: 'cadastros/cond-pagamento', loadComponent: () => import('./pages/cadastros/cond-pagamento/cond-pagamentos').then(m => m.CondPagamentos) },

@@ -145,6 +145,16 @@ public class RolesService {
         Permission permission = permissionRepository.findById(permissionId)
                 .orElseThrow(() -> new BusinessException("Permissão não encontrada", HttpStatus.BAD_REQUEST));
 
+        // Segregação de escopo: permissão PLATFORM (ex.: REPASSE_EXECUTE) só pode ser concedida por quem
+        // tem PLATFORM_PERMISSION_ASSIGN (admin Syax). Owner de tenant nunca a tem → 403. Bloqueia o portal
+        // de tenant de auto-conceder permissões de plataforma, mesmo chamando a API direto.
+        if ("PLATFORM".equalsIgnoreCase(permission.getScope())
+                && !actorHoldsPermission("PLATFORM_PERMISSION_ASSIGN")) {
+            throw new BusinessException(
+                    "Permissão de escopo PLATFORM só pode ser concedida por um administrador da plataforma",
+                    HttpStatus.FORBIDDEN);
+        }
+
         tenantRepository.findById(tenantId)
                 .orElseThrow(() -> new BusinessException("Tenant não encontrado", HttpStatus.BAD_REQUEST));
 
@@ -175,6 +185,17 @@ public class RolesService {
 
     }
 
+    /** True se o ator autenticado possui a permissão {@code code} (via suas roles). */
+    private boolean actorHoldsPermission(String code) {
+        UUID userId = SecurityUtils.getCurrentUserId().orElse(null);
+        if (userId == null) {
+            return false;
+        }
+        return userRoleRepository.findAllByUserId(userId).stream()
+                .flatMap(ur -> rolePermissionRepository.findAllByRoleId(ur.getRole().getId()).stream())
+                .anyMatch(rp -> code.equalsIgnoreCase(rp.getPermission().getCode()));
+    }
+
     public List<Permission> getPermissionsByRoleId(UUID roleId) {
         return rolePermissionRepository.findAllByRoleId(roleId)
                 .stream()
@@ -197,6 +218,7 @@ public class RolesService {
                         rp.getPermission().getId(),
                         rp.getPermission().getCode(),
                         rp.getPermission().getDomain(),
+                        rp.getPermission().getScope(),
                         rp.getPermission().getDescription(),
                         rp.getPermission().getCreatedDate(),
                         rp.getPermission().getCreatedBy(),

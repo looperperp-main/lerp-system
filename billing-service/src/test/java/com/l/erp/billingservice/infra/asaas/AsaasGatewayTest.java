@@ -3,6 +3,7 @@ package com.l.erp.billingservice.infra.asaas;
 import com.l.erp.billingservice.infra.asaas.client.AsaasCustomerClient;
 import com.l.erp.billingservice.infra.asaas.client.AsaasPaymentClient;
 import com.l.erp.billingservice.infra.asaas.client.AsaasSubscriptionClient;
+import com.l.erp.billingservice.infra.asaas.client.AsaasTransferClient;
 import com.l.erp.billingservice.infra.asaas.dto.AsaasCustomerRequest;
 import com.l.erp.billingservice.infra.asaas.dto.AsaasCustomerResponse;
 import org.junit.jupiter.api.Test;
@@ -37,6 +38,9 @@ class AsaasGatewayTest {
     AsaasPaymentClient paymentClient;
 
     @Mock
+    AsaasTransferClient transferClient;
+
+    @Mock
     CircuitBreakerFactory<?, ?> circuitBreakerFactory;
 
     /** CB falso: executa o supplier e, em falha, aplica o fallback — como o resilience4j real. */
@@ -55,7 +59,7 @@ class AsaasGatewayTest {
     }
 
     private AsaasGateway gateway(int maxAttempts) {
-        return new AsaasGateway(customerClient, subscriptionClient, paymentClient,
+        return new AsaasGateway(customerClient, subscriptionClient, paymentClient, transferClient,
                 circuitBreakerFactory, maxAttempts);
     }
 

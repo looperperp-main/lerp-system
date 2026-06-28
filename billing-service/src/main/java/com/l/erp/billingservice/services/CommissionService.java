@@ -50,6 +50,11 @@ public class CommissionService {
         return commissionRepository.findByPartnerIdOrderByCalculatedAtDesc(partnerId);
     }
 
+    /** Listagem admin (tela Pagamentos) — todas as comissões paginadas. */
+    public org.springframework.data.domain.Page<Commission> listAll(org.springframework.data.domain.Pageable pageable) {
+        return commissionRepository.findAll(pageable);
+    }
+
     @Transactional(readOnly = true)
     public BigDecimal getComissaoMesAtual(UUID partnerId) {
         return commissionRepository.sumPendenteByPartnerAndPeriod(partnerId, YearMonth.now().toString());

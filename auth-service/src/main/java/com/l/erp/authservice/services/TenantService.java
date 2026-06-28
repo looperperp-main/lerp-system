@@ -102,6 +102,15 @@ public class TenantService {
         );
     }
 
+    /** Perfil do tenant logado (GET /auth/tenant/me) — leitura simples, sem permissão especial. */
+    public com.l.erp.authservice.api.dto.TenantProfileDTO getTenantProfile(Long tenantId) {
+        Tenant t = tenantRepository.findById(tenantId)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, ENTITY_NAME + " : " + Constants.TENANT_NOT_FOUND));
+        return new com.l.erp.authservice.api.dto.TenantProfileDTO(
+                t.getId(), t.getName(), t.getCnpj(), t.getEmail(),
+                t.getStatus().name(), t.getTrialStartedAt(), t.getTrialExpiresAt());
+    }
+
     public TenantDTO updateTenant(TenantDTO tenantDTO) {
         logger.debug("REST request to update Tenant : {}", tenantDTO);
         UUID correlationId = getCorrelationIdFromRequest(logger);

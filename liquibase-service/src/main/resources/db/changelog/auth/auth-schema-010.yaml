@@ -1,0 +1,45 @@
+databaseChangeLog:
+
+  # Eixo de escopo da permissão: TENANT (atribuível pelo portal de tenant) vs PLATFORM (só admin Syax).
+  # Default TENANT → todas as permissões já semeadas (cadastro/auth) viram TENANT automaticamente.
+  - changeSet:
+      id: auth-020-permission-scope
+      author: vitor fernandes ferreira
+      changes:
+        - addColumn:
+            schemaName: auth
+            tableName: permission
+            columns:
+              - column:
+                  name: scope
+                  type: VARCHAR(10)
+                  defaultValue: TENANT
+                  constraints:
+                    nullable: false
+                  remarks: "TENANT | PLATFORM — PLATFORM não aparece nem é atribuível pelo portal de tenant"
+      rollback:
+        - dropColumn:
+            schemaName: auth
+            tableName: permission
+            columnName: scope
+
+  # Permissões de plataforma (operador Syax). Idempotente via ON CONFLICT.
+  # REPASSE_EXECUTE gate o money-out (billing); PLATFORM_PERMISSION_ASSIGN gate a concessão de
+  # qualquer permissão PLATFORM (bootstrap: semear nas roles de admin Syax via SQL/admin).
+  - changeSet:
+      id: auth-021-permission-platform-seed
+      author: vitor fernandes ferreira
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO auth.permission (id, code, domain, description, scope, created_by) VALUES
+              (gen_random_uuid(), 'REPASSE_EXECUTE', 'REPASSE', 'Executar/reprocessar o repasse de comissões aos parceiros (money-out)', 'PLATFORM', 'system-seed'),
+              (gen_random_uuid(), 'REPASSE_READ', 'REPASSE', 'Visualizar preview e status dos repasses de comissão', 'PLATFORM', 'system-seed'),
+              (gen_random_uuid(), 'PLATFORM_PERMISSION_ASSIGN', 'PERMISSION', 'Conceder permissões de escopo PLATFORM a roles (apenas admin Syax)', 'PLATFORM', 'system-seed')
+              ON CONFLICT (code) DO NOTHING;
+      rollback:
+        - sql:
+            dbms: postgresql
+            sql: DELETE FROM auth.permission WHERE code IN ('REPASSE_EXECUTE','REPASSE_READ','PLATFORM_PERMISSION_ASSIGN');

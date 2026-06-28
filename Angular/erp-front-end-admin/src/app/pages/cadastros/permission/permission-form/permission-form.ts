@@ -26,12 +26,20 @@ import {PermissionModel} from '../permission.model';
 })
 export class PermissionForm {
   @Input() visible: boolean = false;
-  @Input() permission: PermissionModel = { code: '', domain: '', description: '' };
+  @Input() permission: PermissionModel = { code: '', domain: '', description: '', scope: 'TENANT' };
 
   @Output() visibleChange = new EventEmitter<boolean>();
   @Output() save = new EventEmitter<PermissionModel>();
 
   submitted: boolean = false;
+
+  // Checkbox "Permissão de Plataforma" <-> scope PLATFORM/TENANT
+  get isPlatform(): boolean {
+    return this.permission.scope === 'PLATFORM';
+  }
+  set isPlatform(value: boolean) {
+    this.permission.scope = value ? 'PLATFORM' : 'TENANT';
+  }
 
   close() {
     this.visible = false;
@@ -46,6 +54,9 @@ export class PermissionForm {
     if (this.permission.code?.trim() && this.permission.domain?.trim() && this.permission.description?.trim()) {
       // Força uppercase no código no front-end também
       this.permission.code = this.permission.code.toUpperCase().replace(/\s/g, '_');
+      if (!this.permission.scope) {
+        this.permission.scope = 'TENANT';
+      }
       this.save.emit(this.permission);
       this.close();
     }

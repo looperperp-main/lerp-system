@@ -1,7 +1,7 @@
 package com.l.erp.billingservice.integration;
 
 import com.l.erp.billingservice.domain.Plan;
-import com.l.erp.billingservice.infra.asaas.AsaasClient;
+import com.l.erp.billingservice.infra.asaas.AsaasGateway;
 import com.l.erp.billingservice.repository.PlanRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,7 +21,7 @@ class PlanServiceIT extends AbstractIntegrationTest {
     PlanRepository planRepository;
 
     @MockitoBean
-    AsaasClient asaasClient;
+    AsaasGateway asaasGateway;
 
     @BeforeEach
     void clean() {

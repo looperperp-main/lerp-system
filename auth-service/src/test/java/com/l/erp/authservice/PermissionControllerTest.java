@@ -68,7 +68,7 @@ class PermissionControllerTest {
         permission.setId(UUID.randomUUID());
         permission.setCode("TENANT_READ");
 
-        PermissionDTO dto = new PermissionDTO(permission.getId(), "TENANT_READ", "TENANT",
+        PermissionDTO dto = new PermissionDTO(permission.getId(), "TENANT_READ", "TENANT", "TENANT",
                 "Read tenants", Instant.now(), "seed", null, null);
 
         Page<Permission> page = new PageImpl<>(List.of(permission));
@@ -89,9 +89,9 @@ class PermissionControllerTest {
         saved.setCode("TENANT_INSERT");
         saved.setDomain("TENANT");
 
-        PermissionDTO input = new PermissionDTO(null, "TENANT_INSERT", "TENANT",
+        PermissionDTO input = new PermissionDTO(null, "TENANT_INSERT", "TENANT", "TENANT",
                 "Insert tenant", null, null, null, null);
-        PermissionDTO output = new PermissionDTO(permId, "TENANT_INSERT", "TENANT",
+        PermissionDTO output = new PermissionDTO(permId, "TENANT_INSERT", "TENANT", "TENANT",
                 "Insert tenant", Instant.now(), "test@test.com", null, null);
 
         when(permissionRepository.findByCode("TENANT_INSERT")).thenReturn(Optional.empty());
@@ -120,7 +120,7 @@ class PermissionControllerTest {
         existing.setId(UUID.randomUUID());
         existing.setCode("TENANT_INSERT");
 
-        PermissionDTO input = new PermissionDTO(null, "TENANT_INSERT", "TENANT",
+        PermissionDTO input = new PermissionDTO(null, "TENANT_INSERT", "TENANT", "TENANT",
                 "Insert tenant", null, null, null, null);
 
         when(permissionRepository.findByCode("TENANT_INSERT")).thenReturn(Optional.of(existing));
@@ -148,7 +148,7 @@ class PermissionControllerTest {
         permission.setCode("TENANT_READ");
         permission.setDomain("TENANT");
 
-        PermissionDTO dto = new PermissionDTO(permId, "TENANT_READ", "TENANT",
+        PermissionDTO dto = new PermissionDTO(permId, "TENANT_READ", "TENANT", "TENANT",
                 "Read tenant", Instant.now(), "seed", null, null);
 
         when(permissionRepository.findById(permId)).thenReturn(Optional.of(permission));
@@ -190,9 +190,9 @@ class PermissionControllerTest {
         updated.setDomain("TENANT");
         updated.setDescription("New description");
 
-        PermissionDTO input = new PermissionDTO(permId, "TENANT_READ", "TENANT",
+        PermissionDTO input = new PermissionDTO(permId, "TENANT_READ", "TENANT", "TENANT",
                 "New description", null, null, null, null);
-        PermissionDTO output = new PermissionDTO(permId, "TENANT_READ", "TENANT",
+        PermissionDTO output = new PermissionDTO(permId, "TENANT_READ", "TENANT", "TENANT",
                 "New description", Instant.now(), "seed", Instant.now(), "test@test.com");
 
         when(permissionRepository.findById(permId)).thenReturn(Optional.of(existing));
@@ -229,7 +229,7 @@ class PermissionControllerTest {
         another.setId(UUID.randomUUID());
         another.setCode("NEW_CODE");
 
-        PermissionDTO input = new PermissionDTO(permId, "NEW_CODE", "TENANT",
+        PermissionDTO input = new PermissionDTO(permId, "NEW_CODE", "TENANT", "TENANT",
                 "Some description", null, null, null, null);
 
         when(permissionRepository.findById(permId)).thenReturn(Optional.of(existing));

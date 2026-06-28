@@ -1,0 +1,93 @@
+<div class="max-w-5xl mx-auto py-6">
+
+  <header class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-900">Assinar plano</h1>
+    <p class="text-gray-500 text-sm mt-1">
+      Escolha o plano ideal e ative sua conta. Planos anuais já vêm com 2 meses grátis no valor.
+    </p>
+  </header>
+
+  @if (carregando()) {
+    <div class="text-gray-500">Carregando planos...</div>
+  } @else if (resultado(); as res) {
+
+    <!-- Pagamento gerado -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 max-w-xl">
+      <h2 class="text-lg font-bold text-gray-900 mb-1">Pagamento gerado — {{ res.planName }}</h2>
+      <p class="text-gray-500 text-sm mb-4">
+        {{ res.value | currency: 'BRL' }} · vencimento {{ res.dueDate }}
+      </p>
+
+      @if (res.pixQrCode) {
+        <div class="flex flex-col items-center mb-4">
+          <img [src]="'data:image/png;base64,' + res.pixQrCode" alt="QR Code PIX"
+               class="w-48 h-48 border border-gray-200 rounded-lg" />
+        </div>
+      }
+      @if (res.pixCopyPaste) {
+        <label class="block text-xs font-medium text-gray-500 mb-1">PIX copia e cola</label>
+        <textarea readonly rows="3"
+          class="w-full text-xs bg-gray-50 border border-gray-200 rounded-lg p-2 text-gray-700 mb-4">{{ res.pixCopyPaste }}</textarea>
+      }
+
+      <div class="flex flex-wrap gap-3">
+        @if (res.paymentUrl) {
+          <a [href]="res.paymentUrl" target="_blank" rel="noopener"
+             class="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-semibold">
+            Abrir página de pagamento
+          </a>
+        }
+        @if (res.boletoUrl) {
+          <a [href]="res.boletoUrl" target="_blank" rel="noopener"
+             class="px-4 py-2 border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-lg text-sm font-semibold">
+            Baixar boleto (PDF)
+          </a>
+        }
+      </div>
+
+      <p class="text-xs text-gray-400 mt-4">
+        Após o pagamento ser confirmado, sua conta é ativada automaticamente.
+      </p>
+    </div>
+
+  } @else {
+
+    @if (erro()) {
+      <div class="mb-4 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-4 py-3">
+        {{ erro() }}
+      </div>
+    }
+
+    <!-- Grade de planos -->
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-6">
+      @for (p of planos(); track p.id) {
+        <button type="button" (click)="selecionar(p)"
+          class="text-left bg-white rounded-2xl border p-5 transition-all"
+          [class.border-orange-500]="selecionado()?.id === p.id"
+          [class.ring-2]="selecionado()?.id === p.id"
+          [class.ring-orange-200]="selecionado()?.id === p.id"
+          [class.border-gray-100]="selecionado()?.id !== p.id">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-sm font-semibold text-gray-900">{{ p.name }}</span>
+            <span class="text-xs text-gray-400">{{ p.billingCycle }}</span>
+          </div>
+          <div class="text-2xl font-bold text-gray-900">{{ p.value | currency: 'BRL' }}</div>
+          @if (p.description) {
+            <p class="text-xs text-gray-500 mt-2">{{ p.description }}</p>
+          }
+        </button>
+      } @empty {
+        <div class="text-gray-500">Nenhum plano disponível no momento.</div>
+      }
+    </div>
+
+    <button type="button" (click)="assinar()"
+      [disabled]="!selecionado() || !tenant() || processando()"
+      class="px-6 py-3 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed
+             text-white rounded-xl text-sm font-semibold">
+      {{ processando() ? 'Gerando pagamento...' : 'Assinar plano selecionado' }}
+    </button>
+
+  }
+
+</div>

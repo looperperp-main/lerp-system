@@ -1,0 +1,86 @@
+<div class="card">
+  <p-toast></p-toast>
+
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Pagamentos (Comissões)</h1>
+      <p class="page-subtitle">Gerencie os repasses de comissões dos parceiros</p>
+    </div>
+  </div>
+
+  <div class="content-card">
+    <div class="content-toolbar">
+      <h3 class="content-toolbar-title">Ações</h3>
+      <div class="content-toolbar-actions">
+        <button
+          pButton
+          pRipple
+          [label]="processando() ? 'Processando...' : 'Processar Repasses do Mês'"
+          icon="pi pi-money-bill"
+          class="p-button-success w-full sm:w-auto p-button-sm rounded-lg"
+          [disabled]="processando()"
+          (click)="processarRepasses()">
+        </button>
+      </div>
+    </div>
+
+    <div class="table-container">
+      <p-table
+        [value]="rows()"
+        [columns]="cols"
+        [loading]="carregando()"
+        [paginator]="true"
+        [rows]="10"
+        [showCurrentPageReport]="true"
+        currentPageReportTemplate="Mostrando {first} até {last} de {totalRecords} registros"
+        [rowsPerPageOptions]="[10, 25, 50]"
+        [tableStyle]="{ 'min-width': '50rem' }"
+        styleClass="p-datatable-sm text-sm">
+
+        <ng-template pTemplate="header" let-columns>
+          <tr>
+            @for (col of columns; track col.field) {
+              <th class="text-xs uppercase text-gray-400 font-semibold border-b border-gray-100 pb-3">
+                {{ col.header }}
+              </th>
+            }
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="body" let-rowData let-columns="columns">
+          <tr class="hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-colors">
+            @for (col of columns; track col.field) {
+              <td class="py-3 text-gray-600">
+
+                @if (col.field === 'partnerId') {
+                  <span class="text-gray-500 text-xs truncate max-w-xs block">{{ rowData.partnerId }}</span>
+                } @else if (col.field === 'tenantId') {
+                  {{ rowData.tenantId }}
+                } @else if (col.field === 'amount') {
+                  {{ rowData.amount | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}
+                } @else if (col.field === 'period') {
+                  {{ rowData.period }}
+                } @else if (col.type === 'status') {
+                  <span [class]="statusClass(rowData.status)">{{ rowData.status }}</span>
+                } @else if (col.field === 'asaasTransferId') {
+                  <span class="text-gray-500 text-xs truncate max-w-xs block">{{ rowData.asaasTransferId || '—' }}</span>
+                } @else if (col.field === 'paidAt') {
+                  {{ rowData.paidAt ? (rowData.paidAt | date: 'dd/MM/yyyy HH:mm') : '—' }}
+                }
+
+              </td>
+            }
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td [attr.colspan]="cols.length" class="text-center py-6 text-gray-500">
+              Nenhuma comissão encontrada.
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </div>
+  </div>
+</div>

@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, of, tap } from 'rxjs';
 
 export interface TrialUrgenteDTO {
   referralId: string;
@@ -77,8 +77,17 @@ export class DashboardService {
   private readonly http = inject(HttpClient);
   private readonly BASE = 'http://localhost:8090/partner/api/v1/partners';
 
-  getDashboard(): Observable<DashboardResponse> {
-    return this.http.get<DashboardResponse>(`${this.BASE}/me/dashboard`);
+  // Cache de sessão: o dashboard é carregado 1x (1ª visita) e reusado nas navegações seguintes.
+  // Só refaz a chamada quando forçado (botão de refresh). Service é singleton (providedIn root).
+  private cache: DashboardResponse | null = null;
+
+  getDashboard(force = false): Observable<DashboardResponse> {
+    if (this.cache && !force) {
+      return of(this.cache);
+    }
+    return this.http
+      .get<DashboardResponse>(`${this.BASE}/me/dashboard`)
+      .pipe(tap((data) => (this.cache = data)));
   }
 
   getClienteDetalhe(referralId: string): Observable<ClienteDetalheResponse> {

@@ -34,6 +34,7 @@ export class WebLayout {
 
   menuItems: MenuItem[] = [
     { label: 'Overview', icon: 'pi pi-home', routerLink: '/web/home' },
+    { label: 'Assinar Plano', icon: 'pi pi-credit-card', routerLink: '/web/assinar' },
     {
       label: 'Parceiros de Negócio',
       icon: 'pi pi-users',

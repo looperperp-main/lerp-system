@@ -63,6 +63,7 @@ public class PermissionService {
         Permission permission = new Permission();
         permission.setCode(dto.code().toUpperCase()); // Padronizando para uppercase
         permission.setDomain(dto.domain());
+        permission.setScope(normalizeScope(dto.scope()));
         permission.setDescription(dto.description());
         permission.setCreatedBy(actor);
         permission.setCreatedDate(Instant.now());
@@ -98,6 +99,7 @@ public class PermissionService {
 
         permission.setCode(dto.code().toUpperCase());
         permission.setDomain(dto.domain());
+        permission.setScope(normalizeScope(dto.scope()));
         permission.setDescription(dto.description());
         permission.setLastUpdatedBy(actor);
         permission.setLastUpdateDate(Instant.now());
@@ -111,6 +113,11 @@ public class PermissionService {
                 null, correlationId);
 
         return permissionMapper.toPermissionDTO(updatedPermission);
+    }
+
+    /** Normaliza o escopo: {@code PLATFORM} se informado explicitamente, senão {@code TENANT} (default seguro). */
+    private String normalizeScope(String scope) {
+        return "PLATFORM".equalsIgnoreCase(scope) ? "PLATFORM" : "TENANT";
     }
 
     @Transactional

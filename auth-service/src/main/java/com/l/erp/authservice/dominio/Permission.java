@@ -35,6 +35,13 @@ public class Permission {
     @Column(name = "domain", nullable = false, length = 60)
     private String domain;
 
+    /** {@code TENANT} (atribuível pelo portal de tenant) ou {@code PLATFORM} (só admin Syax). */
+    @Size(max = 10)
+    @NotNull
+    @ColumnDefault("'TENANT'")
+    @Column(name = "scope", nullable = false, length = 10)
+    private String scope;
+
     @Size(max = 500)
     @NotNull
     @Column(name = "description", nullable = false, length = 500)

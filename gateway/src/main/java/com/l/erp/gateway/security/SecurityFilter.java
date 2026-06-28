@@ -126,7 +126,7 @@ public class SecurityFilter extends OncePerRequestFilter {
                 );
                 SecurityContextHolder.getContext().setAuthentication(authentication);
 
-                Map<String, String> extraHeaders = getExtraHeaders(decodedJWT, loginType, tenantId, isOwner);
+                Map<String, String> extraHeaders = getExtraHeaders(decodedJWT, loginType, tenantId, isOwner, grantedAuthorities);
 
                 HttpServletRequest wrappedRequest = getWrappedRequest(request, extraHeaders);
 
@@ -173,7 +173,7 @@ public class SecurityFilter extends OncePerRequestFilter {
      * valor forjado pelo cliente já foi descartado aqui.
      */
     private static final Set<String> PROTECTED_HEADERS = Set.of(
-            "x-user-id", "x-user-email", "x-tenant-id", "x-is-owner", "x-partner-id"
+            "x-user-id", "x-user-email", "x-tenant-id", "x-is-owner", "x-partner-id", "x-authorities"
     );
 
     private static boolean isProtected(String name) {
@@ -258,7 +258,8 @@ public class SecurityFilter extends OncePerRequestFilter {
      * @param isOwner a flag indicating if the user is the owner, used to determine header values.
      * @return a map containing key-value pairs for the extra headers to be added to the request.
      */
-    private static @NonNull Map<String, String> getExtraHeaders(DecodedJWT decodedJWT, String loginType, String tenantId, Boolean isOwner) {
+    private static @NonNull Map<String, String> getExtraHeaders(DecodedJWT decodedJWT, String loginType, String tenantId, Boolean isOwner,
+                                                                List<SimpleGrantedAuthority> grantedAuthorities) {
         String partnerId = decodedJWT.getClaim("partnerId").asString();
         String userEmail = decodedJWT.getClaim("userEmail").asString();
         Map<String, String> extraHeaders = new HashMap<>();
@@ -270,6 +271,12 @@ public class SecurityFilter extends OncePerRequestFilter {
             extraHeaders.put("X-Tenant-Id", tenantId);
             extraHeaders.put("X-Is-Owner", String.valueOf(isOwner));
         }
+        // Roles + permissões (authorities) para os serviços downstream autorizarem por permissão
+        // (ex.: billing exige REPASSE_EXECUTE). Header protegido contra forja pelo wrapper.
+        String authorities = grantedAuthorities.stream()
+                .map(SimpleGrantedAuthority::getAuthority)
+                .collect(java.util.stream.Collectors.joining(","));
+        extraHeaders.put("X-Authorities", authorities);
         return extraHeaders;
     }
 

@@ -6,10 +6,16 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -40,14 +46,33 @@ public class InternalRequestFilter extends OncePerRequestFilter {
             return;
         }
 
-        if (request.getHeader("X-User-Id") == null) {
+        String userId = request.getHeader("X-User-Id");
+        if (userId == null) {
             response.setStatus(HttpStatus.UNAUTHORIZED.value());
             response.setContentType("application/json");
             response.getWriter().write("{\"status\":401,\"error\":\"Unauthorized\"}");
             return;
         }
 
+        // Popula o SecurityContext com as authorities injetadas pelo gateway (X-Authorities, header
+        // protegido contra forja). Habilita @PreAuthorize/@Secured nos endpoints (ex.: REPASSE_EXECUTE).
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(userId, null, parseAuthorities(request.getHeader("X-Authorities"))));
+
         chain.doFilter(request, response);
+    }
+
+    private List<GrantedAuthority> parseAuthorities(String header) {
+        List<GrantedAuthority> authorities = new ArrayList<>();
+        if (header != null && !header.isBlank()) {
+            for (String a : header.split(",")) {
+                String code = a.trim();
+                if (!code.isEmpty()) {
+                    authorities.add(new SimpleGrantedAuthority(code));
+                }
+            }
+        }
+        return authorities;
     }
 
     private boolean isPublic(String path, String method) {
