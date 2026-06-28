@@ -2,6 +2,7 @@ package com.l.erp.common.util;
 
 import java.math.BigDecimal;
 import java.time.Duration;
+import java.util.UUID;
 
 public class Constants {
 
@@ -10,6 +11,9 @@ public class Constants {
     }
 
     public static final BigDecimal DEFAULT_COMMISSION_RATE = new BigDecimal("10.00");
+
+    /** Ator usado em auditoria de ações do sistema (eventos Kafka, crons) — sem usuário logado. */
+    public static final UUID SYSTEM_ACTOR_ID = new UUID(0L, 0L);
 
     public static final String email  = "email";
     public static final String system  = "system";

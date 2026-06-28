@@ -187,7 +187,7 @@ public class TenantService {
         tenantRepository.save(tenant);
 
         auditService.logAuditEventWithActor(
-                Constants.TENANT_SUBSCRIPTION_ACTIVATED, null, Constants.TENANT, null,
+                Constants.TENANT_SUBSCRIPTION_ACTIVATED, Constants.SYSTEM_ACTOR_ID, Constants.TENANT, null,
                 Constants.SUCCESS,
                 "{\"tenantId\":" + tenantId + ",\"planType\":\"" + (planType != null ? planType : "") + "\"}",
                 UUID.randomUUID());
