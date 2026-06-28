@@ -11,6 +11,7 @@ import com.l.erp.partnerservice.api.dto.FollowupRequestDTO;
 import com.l.erp.partnerservice.api.dto.PartnerRequestDTO;
 import com.l.erp.partnerservice.api.dto.PartnerResponseDTO;
 import com.l.erp.partnerservice.api.dto.PartnerReviewDTO;
+import com.l.erp.partnerservice.api.dto.PayoutInfoDTO;
 import com.l.erp.partnerservice.api.mappers.PartnerAssembler;
 import com.l.erp.partnerservice.domain.Partner;
 import com.l.erp.partnerservice.domain.PartnerReferral;
@@ -175,6 +176,23 @@ public class PartnerController {
         logger.info("Follow-up iniciado para referralId={} pelo parceiro {}", referralId, partnerId);
         service.iniciarFollowup(referralId, partnerId, dto);
         return ResponseEntity.accepted().build();
+    }
+
+    @GetMapping("/me/payout-info")
+    public ResponseEntity<PayoutInfoDTO> getPayoutInfo() {
+        UUID partnerId = SecurityUtils.getPartnerId()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, Constants.PARCEIRO_ID_NOT_FOUND));
+        logger.info("Dados de repasse solicitados pelo parceiro {}", partnerId);
+        return ResponseEntity.ok(service.getPayoutInfo(partnerId));
+    }
+
+    @PutMapping("/me/payout-info")
+    public ResponseEntity<PayoutInfoDTO> updatePayoutInfo(@RequestBody @Valid PayoutInfoDTO dto) {
+        UUID partnerId = SecurityUtils.getPartnerId()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, Constants.PARCEIRO_ID_NOT_FOUND));
+        String actor = SecurityUtils.getCurrentUserSub().orElse(Constants.system);
+        logger.info("Parceiro {} atualizando chave PIX (tipo={})", partnerId, dto.pixKeyType());
+        return ResponseEntity.ok(service.updatePayoutInfo(partnerId, dto, actor));
     }
 
     @GetMapping("/me/comissoes")

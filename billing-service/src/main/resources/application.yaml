@@ -51,6 +51,9 @@ billing:
     grace-period-days: 5
     cancel-after-days: 7
     reminder-before-days: 2
+  cron:
+    # D+1: 02:00 do dia 1 de cada mês — repasse das comissões PENDENTE do mês anterior (Fase 6, §10.1)
+    commission-payout: ${BILLING_PAYOUT_CRON:0 0 2 1 * *}
 
 logging:
   level:

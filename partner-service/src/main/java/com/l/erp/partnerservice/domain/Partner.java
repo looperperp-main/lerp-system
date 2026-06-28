@@ -70,6 +70,10 @@ public class Partner {
     @Column(name = "pix_key", length = 100)
     private String pixKey;
 
+    @Size(max = 10)
+    @Column(name = "pix_key_type", length = 10)
+    private String pixKeyType;
+
     @NotNull
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;

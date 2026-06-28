@@ -4,6 +4,7 @@ import com.l.erp.billingservice.infra.asaas.AsaasConfig;
 import com.l.erp.billingservice.infra.asaas.client.AsaasCustomerClient;
 import com.l.erp.billingservice.infra.asaas.client.AsaasPaymentClient;
 import com.l.erp.billingservice.infra.asaas.client.AsaasSubscriptionClient;
+import com.l.erp.billingservice.infra.asaas.client.AsaasTransferClient;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.timelimiter.TimeLimiterConfig;
 import org.springframework.cloud.circuitbreaker.resilience4j.Resilience4JCircuitBreakerFactory;
@@ -56,6 +57,11 @@ public class AsaasClientConfig {
     @Bean
     public AsaasPaymentClient asaasPaymentClient(RestClient asaasRestClient) {
         return proxyFactory(asaasRestClient).createClient(AsaasPaymentClient.class);
+    }
+
+    @Bean
+    public AsaasTransferClient asaasTransferClient(RestClient asaasRestClient) {
+        return proxyFactory(asaasRestClient).createClient(AsaasTransferClient.class);
     }
 
     private HttpServiceProxyFactory proxyFactory(RestClient restClient) {

@@ -1,0 +1,19 @@
+databaseChangeLog:
+  - changeSet:
+      id: "partner-010-add-pix-key-type"
+      author: vitor fernandes ferreira
+      comment: "Adiciona o tipo da chave PIX do parceiro (Asaas exige pixAddressKeyType no transfer — Fase 6)"
+      changes:
+        - addColumn:
+            schemaName: partner
+            tableName: partner
+            columns:
+              - column:
+                  name: pix_key_type
+                  type: VARCHAR(10)
+                  remarks: "Tipo da chave PIX: CPF | CNPJ | EMAIL | PHONE | EVP"
+      rollback:
+        - dropColumn:
+            schemaName: partner
+            tableName: partner
+            columnName: pix_key_type

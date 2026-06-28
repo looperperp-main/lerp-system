@@ -3051,12 +3051,14 @@ Seguir esta ordem para garantir que cada fase é testável antes de avançar.
 28. Implementar `TenantStatusController.java`
 29. Testar integração com Auth Service (mock billing status → verificar que JWT é bloqueado)
 
-### Fase 6 — Payout de comissões
-30. Implementar `AsaasTransferClient.java`
-31. Implementar `CommissionPayoutService.java`
-32. Implementar `CommissionPayoutJob.java` com distributed lock
-33. Implementar `TransferCompletedHandler.java` e `TransferFailedHandler.java` (8.9/8.10)
-34. Testar com contas sandbox Asaas
+### Fase 6 — Payout de comissões — ✅ FEITO (30-33, 2026-06-28; compila limpo — billing, partner-service, partner frontend)
+30. [x] `AsaasTransferClient.java` (`@HttpExchange`: `POST transfers` + `GET transfers?externalReference`); bean em `AsaasClientConfig`. DTOs `AsaasPixTransferRequest`/`AsaasTransferResponse`. `AsaasGateway.createPixTransfer` — money-out **SEM retry** (§28.4): 1 tentativa via circuit breaker + check-then-act por `externalReference` no timeout. **Stub `AsaasClient.java` DELETADO** (código morto/perigoso — resolve auditoria §2.1).
+31. [x] `CommissionPayoutService.java` — agrupa PENDENTE por parceiro, soma `amount`, dispara 1 PIX agregado, marca `EM_TRANSFERENCIA` + `asaas_transfer_id` (transação curta via `TransactionTemplate`, HTTP fora de tx). Falha de um parceiro não bloqueia os outros.
+32. [x] `CommissionPayoutJob.java` — `@Scheduled(cron billing.cron.commission-payout = "0 0 2 1 * *")`, D+1 sobre o mês anterior, com `DistributedLockService` (resolve auditoria §2.5). Trigger manual de dev: `CommissionService.processarRepasses()` → período atual.
+33. [x] `TransferCompletedHandler` (→ `PAGO` + `paid_at`) e `TransferFailedHandler` (→ volta `PENDENTE` + limpa `asaas_transfer_id`, loga `failReason`). Auto-registrados via lista de `WebhookEventHandler`.
+34. Testar com contas sandbox Asaas (pendente — transfer PIX exige saldo na conta Asaas; validar ao menos `EM_TRANSFERENCIA` + criação no Asaas).
+
+> **Desvios propositais (Fase 6):** (a) **PIX-only** — `partner.partner` só tem `pix_key`; sem dados bancários → TED da §10.3 fica de fora. (b) **`pix_key_type`** novo (migration `partner-schema-010` no partner-service, valores CPF/CNPJ/EMAIL/PHONE/EVP) + UI no portal do parceiro (`/configuracoes`, `GET`/`PUT /me/payout-info`) — Asaas exige `pixAddressKeyType`. (c) **Billing lê a `pix_key` direto de `partner.partner`** (mesmo Postgres) via `JdbcTemplate` read-only (`PartnerPayoutReader`), **NÃO** via HTTP/Feign §11 — decisão dos sócios: zero acoplamento de runtime entre serviços, sem staleness (lê na hora do payout). JdbcTemplate (não JPA) p/ não acoplar o boot do billing à validação do schema `partner` (billing roda `ddl-auto=validate`). (d) Colunas reais: `Commission.asaas_transfer_id`/`paid_at` (não `payout_asaas_id`/`confirmed_at`); sem `adjusted_amount`/`transfer_failed_reason`/`approved_*` → `effectiveAmount`=`amount`, `failReason` só logado. (e) 1 transfer cobre N comissões (lote por parceiro/período) → `findByAsaasTransferId` retorna `List`.
 
 ### Fase 7 — Cron jobs de dunning e recuperação
 35. Implementar `DunningJob.java` (27.7.4 — substitui o antigo GracePeriodSuspensionJob)

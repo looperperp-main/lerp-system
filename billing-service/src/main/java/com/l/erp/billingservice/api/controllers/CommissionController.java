@@ -23,13 +23,12 @@ public class CommissionController {
         this.commissionService = commissionService;
     }
 
-    // Trigger manual do cron de repasse — apenas para testes/dev
-    // Repasse desabilitado até a Fase 6 (payout PIX real); hoje é no-op.
-    //TODO: Remover ao ir pra PROD
+    // Trigger manual do payout (Fase 6) — apenas para testes/dev. Processa o período atual.
+    //TODO: Remover ao ir pra PROD (em produção o repasse roda pelo CommissionPayoutJob D+1)
     @PostMapping("/admin/trigger-repasse")
     public ResponseEntity<String> triggerRepasse() {
         commissionService.processarRepasses();
-        return ResponseEntity.ok("Repasse desabilitado até a Fase 6 (payout PIX real). Nenhuma comissão alterada.");
+        return ResponseEntity.ok("Repasse disparado para o período atual. Comissões PENDENTE com chave PIX vão para EM_TRANSFERENCIA (PAGO após TRANSFER_COMPLETED).");
     }
 
     // Endpoint interno — chamado pelo partner-service via HTTP direto (porta 8088)

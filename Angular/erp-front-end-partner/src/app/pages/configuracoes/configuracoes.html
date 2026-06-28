@@ -1,0 +1,42 @@
+<div class="config-page">
+  <header class="config-page__header">
+    <h1>Configurações de Repasse</h1>
+    <p>Cadastre a chave PIX que receberá o repasse das suas comissões.</p>
+  </header>
+
+  @if (carregando()) {
+    <p class="config-card__loading">Carregando…</p>
+  } @else {
+    <div class="config-card">
+      <label class="config-field">
+        <span>Tipo da chave</span>
+        <select [ngModel]="pixKeyType()" (ngModelChange)="pixKeyType.set($event)">
+          @for (tipo of tipos; track tipo) {
+            <option [value]="tipo">{{ tipo }}</option>
+          }
+        </select>
+      </label>
+
+      <label class="config-field">
+        <span>Chave PIX</span>
+        <input
+          type="text"
+          [ngModel]="pixKey()"
+          (ngModelChange)="pixKey.set($event)"
+          placeholder="ex: parceiro@email.com, CPF/CNPJ, telefone ou chave aleatória"
+        />
+      </label>
+
+      @if (mensagem()) {
+        <p class="config-msg config-msg--ok">{{ mensagem() }}</p>
+      }
+      @if (erro()) {
+        <p class="config-msg config-msg--err">{{ erro() }}</p>
+      }
+
+      <button class="config-btn" [disabled]="salvando()" (click)="salvar()">
+        {{ salvando() ? 'Salvando…' : 'Salvar' }}
+      </button>
+    </div>
+  }
+</div>

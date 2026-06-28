@@ -116,6 +116,9 @@ databaseChangeLog:
   - include:
       file: partner/partner-schema-009.yaml
       relativeToChangelogFile: true
+  - include:
+      file: partner/partner-schema-010.yaml
+      relativeToChangelogFile: true
 
   # 5. Limpeza billing — remove tabelas de parceiro após migração para schema partner
   - include:

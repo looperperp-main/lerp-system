@@ -10,11 +10,11 @@
 | Serviço / script Lua | Caller real | Veredito |
 |---|---|---|
 | **WebhookIdempotencyService** (`webhookIdempotencyAcquire` + `webhookComplete`) | `WebhookProcessor` | ✅ **Usado e testado** — única peça de Redis genuinamente em uso |
-| **DistributedLockService** (`acquireLock` + `releaseLock`) | **ninguém** | ⚠️ **Órfão** — os crons que usariam (CommissionPayoutJob/DunningJob) são Fase 6/7, ainda não existem |
+| **DistributedLockService** (`acquireLock` + `releaseLock`) | `CommissionPayoutJob` (Fase 6) | ✅ **Em uso** desde a Fase 6 — o cron de payout adquire/libera o lock por período. DunningJob (Fase 7) também usará |
 | **TenantStatusCacheService.put** (write-through) | `PaymentReceivedHandler` | ⚠️ **Escreve, mas ninguém lê** — `get()`/`evict()` sem caller (endpoint síncrono `GET /internal/billing/status` foi descartado). Custo sem consumidor |
 | **annualGuardScript** + `annualCommissionGuard.lua` | **ninguém** | ❌ **Morto** — modelo de comissão anual não existe (comissão é recorrente, criada via Kafka) |
 
-**Resumo:** dos 5 scripts Lua, só **2 estão em uso** (idempotência de webhook). 2 (lock) aguardam Fase 6/7. 1 (guard anual) é morto.
+**Resumo:** dos 5 scripts Lua, **3 em uso** (idempotência de webhook + lock distribuído desde a Fase 6). 1 (guard anual) é morto. 1 (cache) escreve sem leitor.
 
 ---
 
@@ -25,9 +25,8 @@
 ~~`@Scheduled(cron "0 0 8 2 * *")`: todo dia 2 às 08h chama `AsaasClient.transferPix` (stub que retorna
 `"SIMULADO-..."` sem mandar dinheiro) e mesmo assim seta `status=PAGO` + `paidAt`. Em qualquer instância
 rodando, **falsifica repasses no banco**.~~
-**Feito:** removido o `@Scheduled` e o corpo que chamava o stub; `processarRepasses()` virou no-op que só
-loga "desabilitado — payout real só na Fase 6". O endpoint manual `/admin/trigger-repasse` devolve a mesma
-mensagem. Nenhuma comissão é mais marcada `PAGO` sem transferência real.
+**Feito (Fase 4):** removido o `@Scheduled` e o corpo que chamava o stub; `processarRepasses()` virou no-op.
+**Atualizado (Fase 6, 2026-06-28):** o stub `AsaasClient.java` foi **DELETADO** (código morto/perigoso — "SIMULADO-"). O payout real vive em `CommissionPayoutService`/`CommissionPayoutJob` via `AsaasTransferClient` (`POST /v3/transfers`, sem retry — §28.4). `processarRepasses()` agora dispara o payout real do período atual (trigger manual de dev). Comissão só vira `PAGO` no webhook `TRANSFER_COMPLETED` — nunca por chamada falsa.
 
 **2.2 — `TokenService.validateSecret` (auth-service): check de ≥32 chars está COMENTADO.**
 `if (secret == null /*|| secret.length() < 32*/)`. O `CLAUDE.md` afirma que o secret é validado no startup
@@ -41,8 +40,9 @@ existir consumidor. A javadoc da classe já admite que o endpoint síncrono foi 
 
 **2.4 — `annualGuard` (bean + Lua) é código morto.** Remover, ou marcar explicitamente como roadmap (modelo anual).
 
-**2.5 — `DistributedLockService` órfão.** OK se Fase 6/7 vier logo; senão é código nunca exercido
-(os testes da Fase 1 validaram o Lua isolado, não o serviço integrado).
+**2.5 — `DistributedLockService` órfão.** ✅ **RESOLVIDO (2026-06-28, Fase 6).** O `CommissionPayoutJob`
+adquire/libera o lock por período (`syax:billing:lock:commission-payout:{período}`, TTL 1800s). Falta só o
+teste integrado do serviço (a Fase 1 validou o Lua isolado).
 
 **2.6 — Duas trilhas de comissão.** ✅ **RESOLVIDO (2026-06-24, Fase 4).**
 ~~Hoje a comissão nasce via Kafka (partner-service → `CommissionService.createCommission`); a spec prevê
@@ -59,10 +59,10 @@ sempre retorna `null`. Chamada extra ao Asaas sem efeito (tratada sem quebrar, m
 ---
 
 ## 3. Prioridade sugerida
-- ✅ **2.1 resolvido** (Fase 4 — payout falso desabilitado) e ✅ **2.6 resolvido** (Fase 4 — trilha única).
+- ✅ **2.1 resolvido** (Fase 4 desabilitou o payout falso; Fase 6 deletou o stub e ligou o payout real),
+  ✅ **2.6 resolvido** (Fase 4 — trilha única) e ✅ **2.5 resolvido** (Fase 6 — lock distribuído em uso).
 - **Agir já:** 2.2 (reativar check do JWT secret no auth-service).
-- **Resgatado por fases seguintes:** 2.3, 2.5 (Redis órfão/sem-leitor) — a Fase 6 resgata o lock e o payout
-  real; a Fase 5/7 resgata o cache (se um leitor interno for criado). 2.4 (`annualGuard` morto) segue como
-  roadmap do modelo ANUAL.
+- **Resgatado por fases seguintes:** 2.3 (cache sem leitor) — Fase 7 pode resgatar se um leitor interno
+  (dunning) for criado. 2.4 (`annualGuard` morto) segue como roadmap do modelo ANUAL.
 
 > Relacionado: gap da Fase 5 (suspensão/cancelamento não propagados ao auth) — ver `spec/teste-restante.md`.

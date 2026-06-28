@@ -22,6 +22,9 @@ public interface CommissionRepository extends JpaRepository<Commission, UUID> {
 
     List<Commission> findByStatusAndPeriod(String status, String period);
 
+    /** Comissões de um transfer de payout (1 transfer por parceiro/período cobre N comissões). */
+    List<Commission> findByAsaasTransferId(String asaasTransferId);
+
     @Query("SELECT COALESCE(SUM(c.amount), 0) FROM Commission c WHERE c.partnerId = :partnerId AND c.period = :period AND c.status = 'PENDENTE'")
     BigDecimal sumPendenteByPartnerAndPeriod(@Param("partnerId") UUID partnerId, @Param("period") String period);
 

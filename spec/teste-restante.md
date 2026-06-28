@@ -21,7 +21,12 @@ manuais/e2e por fase.
 >   `PartnerCommissionCalculatedConsumer` → **`CommissionEngine.generate`** (Strategy/Factory em
 >   `services/commission/`). O engine **não** é ligado ao `PaymentReceivedHandler` (evita 2ª trilha). O
 >   `amount` vem pronto do partner-service; o billing só persiste e deriva `base_value` da subscription.
->   O payout (`processarRepasses`) está **desabilitado** até a Fase 6.
+> - **Fase 6 (payout PIX) IMPLEMENTADA (2026-06-28).** PIX-only (sem TED). billing lê `pix_key`+`pix_key_type`
+>   direto de `partner.partner` (mesmo Postgres, `JdbcTemplate` read-only — sem HTTP). Colunas reais:
+>   `commission.asaas_transfer_id` + `paid_at` (NÃO `payout_asaas_id`/`confirmed_at`); sem
+>   `transfer_failed_reason`/`adjusted_amount` → `failReason` só logado, `effectiveAmount`=`amount`.
+>   Idempotência de lote por `externalReference=payout-{partnerId}-{period}` + check-then-act (sem retry cego);
+>   **não** há `payout_asaas_id UNIQUE`. 1 transfer cobre N comissões do parceiro/período.
 
 ---
 
@@ -38,16 +43,11 @@ manuais/e2e por fase.
 ### A.1 Unitários — Fases 4/6/7 (spec §22.1)
 - [x] `RecurrentCommissionStrategyTest` (✅ 2026-06-24): `base_value` = mensalidade (`value`, ou `value÷12` se ciclo `YEARLY`); `amount` é o que veio no comando (não recalcula taxa); status `PENDENTE`/model `RECORRENTE`/`asaas_payment_id`/tenant setados.
 - [x] `CommissionEngineTest` (✅ 2026-06-24): pré-check de duplicado descarta antes do lookup; subscription inexistente não gera; happy salva `PENDENTE`; corrida → catch `DataIntegrityViolationException` sem estourar.
-- [ ] `CommissionPayoutService` (Fase 6): parceiro sem PIX nem TED é pulado sem quebrar os outros; `effectiveAmount` usa `adjustedAmount` se preenchido.
-- [ ] `DistributedLockService` (Fase 6/7): acquire+release; acquire falha se já existe.
-- [ ] `TransferCompletedHandler`/`TransferFailedHandler` (Fase 6).
-- [ ] `CommissionPayoutJob` / `ReconciliationJob` (Fase 6/7).
-- `CommissionPayoutService`: parceiro sem PIX nem TED é pulado sem quebrar os outros; `effectiveAmount` usa `adjustedAmount` se preenchido.
-- `DistributedLockService`: acquire+release; acquire falha se já existe (Fase 1 — revalidar com o job).
-- `TransferCompletedHandler`: `status=PAGO` + `confirmed_at`; `transferId` desconhecido→loga e ignora.
-- `TransferFailedHandler`: `status=PENDENTE` + `payout_asaas_id=null`; grava `transfer_failed_reason` + notifica.
-- `CommissionPayoutJob`: D+1 notifica admin e envia transfers com `effectiveAmount`; sem PENDENTE→nada.
-- `ReconciliationJob`: tenant com pagamento RECEIVED→aciona handler; sem divergência→nada.
+- [ ] `CommissionPayoutService` (Fase 6): parceiro **sem PIX** é pulado sem quebrar os outros; agrega `amount` por parceiro; marca `EM_TRANSFERENCIA` + `asaas_transfer_id`; `transferId=null` (não confirmado) → deixa PENDENTE.
+- [ ] `DistributedLockService` (Fase 6/7): acquire+release; acquire falha se já existe (revalidar com o `CommissionPayoutJob`).
+- [ ] `TransferCompletedHandler`: `status=PAGO` + `paid_at` (atualiza TODAS as comissões do `asaas_transfer_id`); transferId desconhecido → loga e ignora.
+- [ ] `TransferFailedHandler`: volta `status=PENDENTE` + limpa `asaas_transfer_id`; loga `failReason`.
+- [ ] `CommissionPayoutJob` (Fase 6): adquire lock, D+1 sobre mês anterior, `processPayouts`; sem PENDENTE → nada. `ReconciliationJob` (Fase 7).
 
 ### A.2 Integração — Testcontainers (PostgreSQL + Redis) (spec §22.2)
 - `PAYMENT_RECEIVED`→`ATIVA` + cache write-through; duplicado→processado 1×.
@@ -86,13 +86,16 @@ Pré: infra de pé (`postgres/redis/kafka/zookeeper`), billing rodando, env do A
 
 > **Gotchas do teste manual (2026-06-27):** (1) no PowerShell usar `Invoke-RestMethod` — `curl` é alias bugado; token do webhook = `ASAAS_WEBHOOK_TOKEN` (não a API key). (2) O tenant ativado vem do `X-Tenant-Id` gravado na subscription **no checkout**; o webhook só relê via `findByAsaasSubscriptionId`. (3) `uq_subscription_tenant` = 1 subscription por tenant (não dá 2 planos no mesmo tenant — usar tenants distintos). (4) Comissão só gera se o tenant tiver `partner_referral` (status TRIAL/FOLLOWUP/CONVIDADO/ATIVADO/CONVERTIDO) **E** o Partner tiver `commission_rate` não-null. (5) `PaymentReceivedHandler` busca `nextDueDate` via `getSubscription` no Asaas — id errado (404) vira `TRANSIENT` porque `AsaasValidationException extends AsaasException` e o handler só faz `catch(AsaasException)`.
 
-### Fase 6 — Payout de comissões (PIX)
-- [ ] Parceiro com `pix_key` + comissões PENDENTE → disparar `CommissionPayoutJob` (ou endpoint admin) → `POST /v3/transfers` no sandbox; comissões → `EM_TRANSFERENCIA` + `payout_asaas_id` gravado.
-- [ ] Webhook `TRANSFER_COMPLETED` → comissão `PAGO` + `confirmed_at`.
-- [ ] Webhook `TRANSFER_FAILED` → comissão volta a `PENDENTE` + `payout_asaas_id=null` + `transfer_failed_reason` + alerta admin; entra no próximo D+1.
-- [ ] Parceiro **sem** PIX nem TED → pulado, sem quebrar o repasse dos outros parceiros.
-- [ ] **Idempotência de payout:** `payout_asaas_id UNIQUE` impede pagar 2×; após timeout, check-then-act por `externalReference` (§28.4) antes de reenviar (money-out **sem** retry cego).
+### Fase 6 — Payout de comissões (PIX) — pronto p/ testar (impl 2026-06-28)
+Pré: rodar liquibase (aplica `partner-schema-010` = `pix_key_type`). Setup da chave PIX do parceiro: **portal do parceiro → Configurações** (`PUT /me/payout-info`), ou SQL direto em `partner.partner` (`pix_key`, `pix_key_type`).
+- [ ] **Setar chave PIX no portal do parceiro** (`/configuracoes`): salva `pix_key` + `pix_key_type` (CPF/CNPJ/EMAIL/PHONE/EVP) → confere em `partner.partner`.
+- [ ] Parceiro com `pix_key` + comissão PENDENTE → `POST /api/v1/commissions/admin/trigger-repasse` (header `X-User-Id`) → comissão(ões) → `EM_TRANSFERENCIA` + `asaas_transfer_id`; `POST /v3/transfers` criado no sandbox.
+- [ ] Webhook `TRANSFER_COMPLETED` (curl, `{"event":"TRANSFER_COMPLETED","transfer":{"id":"<asaas_transfer_id>"}}`) → todas as comissões do transfer → `PAGO` + `paid_at`.
+- [ ] Webhook `TRANSFER_FAILED` (`{"event":"TRANSFER_FAILED","transfer":{"id":"...","failReason":"INVALID_PIX_KEY"}}`) → comissões voltam a `PENDENTE` + `asaas_transfer_id=null`; log de erro com `failReason`.
+- [ ] Parceiro **sem** PIX → pulado (log "sem chave PIX — repasse adiado"), sem quebrar os outros; comissões seguem PENDENTE.
+- [ ] **Idempotência de payout:** `externalReference=payout-{partnerId}-{period}`; no timeout, check-then-act por `externalReference` antes de reenviar (money-out **sem** retry cego). (Não há `payout_asaas_id UNIQUE`.)
 - [ ] Conferir no painel Asaas sandbox: a transferência aparece em **Transferências**.
+- ⚠️ **Sandbox:** transfer PIX exige **saldo** na conta Asaas — pode não completar de verdade. Validar ao menos `EM_TRANSFERENCIA` + criação do transfer no Asaas; `TRANSFER_COMPLETED`/`FAILED` simular por curl.
 
 ### Fase 7 — Dunning, recuperação e reconciliação
 - [ ] **DunningJob** (rodar manual ajustando timestamps no banco):

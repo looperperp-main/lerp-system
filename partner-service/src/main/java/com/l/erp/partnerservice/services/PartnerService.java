@@ -13,6 +13,7 @@ import com.l.erp.partnerservice.api.dto.FeatureStatDTO;
 import com.l.erp.partnerservice.api.dto.FollowupRequestDTO;
 import com.l.erp.partnerservice.api.dto.PartnerRequestDTO;
 import com.l.erp.partnerservice.api.dto.PartnerReviewDTO;
+import com.l.erp.partnerservice.api.dto.PayoutInfoDTO;
 import com.l.erp.partnerservice.api.dto.TrialUrgenteDTO;
 import com.l.erp.partnerservice.domain.Partner;
 import com.l.erp.partnerservice.domain.PartnerReferral;
@@ -91,6 +92,26 @@ public class PartnerService {
         return repository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Parceiro não encontrado - id: " + id));
+    }
+
+    /** Dados de repasse (chave PIX + tipo) do parceiro — lido pelo próprio parceiro no portal. */
+    @Transactional(readOnly = true)
+    public PayoutInfoDTO getPayoutInfo(UUID partnerId) {
+        Partner partner = findById(partnerId);
+        return new PayoutInfoDTO(partner.getPixKey(), partner.getPixKeyType());
+    }
+
+    /** Atualiza a chave PIX + tipo do parceiro (usado pelo billing no payout via leitura cross-schema). */
+    @Transactional
+    public PayoutInfoDTO updatePayoutInfo(UUID partnerId, PayoutInfoDTO dto, String updatedBy) {
+        Partner partner = findById(partnerId);
+        partner.setPixKey(dto.pixKey());
+        partner.setPixKeyType(dto.pixKeyType());
+        partner.setUpdatedAt(OffsetDateTime.now());
+        partner.setUpdatedBy(updatedBy);
+        repository.save(partner);
+        logger.info("Chave PIX atualizada para o parceiro {} (tipo={})", partnerId, dto.pixKeyType());
+        return new PayoutInfoDTO(partner.getPixKey(), partner.getPixKeyType());
     }
 
     @Transactional(readOnly = true)
