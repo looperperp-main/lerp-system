@@ -75,14 +75,16 @@ manuais/e2e por fase.
 Pré: infra de pé (`postgres/redis/kafka/zookeeper`), billing rodando, env do Asaas sandbox correta
 (`ASAAS_BASE_URL` sem aspas!), plano semeado. Reusar a assinatura/`sub_xxx` criada na Fase 3 ou criar nova.
 
-### Fase 4 — Engine de comissões (trilha Kafka; engine alimentado pelo consumer)
-- [ ] Webhook `PAYMENT_RECEIVED` de um tenant **com parceiro vinculado** → após o ciclo Kafka, `billing.commission` com `status=PENDENTE`, `partner_id`, `amount` (calculado pelo partner-service = `value × commission_rate` 10%), `commission_model=RECORRENTE`, `base_value` = mensalidade da subscription, `period=YYYY-MM`.
-- [ ] **Idempotência:** reenviar mesmo `asaas_payment_id` (replay do `partner.commission.calculated`) → **não** duplica comissão (pré-check `existsByAsaasPaymentId` + UNIQUE `uq_commission_asaas_payment`).
-- [ ] Tenant **sem** parceiro → ativa, mas partner-service não emite `partner.commission.calculated` → **nenhuma** comissão.
-- [ ] `PAYMENT_DELETED` do mesmo pagamento → comissão associada vira `CANCELADO` (`PaymentDeletedHandler`).
-- [ ] `base_value` prorateado: subscription com `billing_cycle=YEARLY` → `base_value = value÷12` (o `amount` segue vindo do partner).
-- [ ] Conferir no Kafka UI (:8080) o fluxo `billing.subscription.activated` → `partner.commission.calculated` → comissão gravada pelo `CommissionEngine`.
-- [ ] **Payout desabilitado:** `POST /api/v1/commissions/admin/trigger-repasse` → 200 com mensagem "desabilitado até a Fase 6"; nenhuma comissão muda para `PAGO`.
+### Fase 4 — Engine de comissões (trilha Kafka; engine alimentado pelo consumer) — ✅ VERIFICADO MANUALMENTE (2026-06-27)
+- [x] Webhook `PAYMENT_RECEIVED` de um tenant **com parceiro vinculado** → após o ciclo Kafka, `billing.commission` com `status=PENDENTE`, `partner_id`, `amount` (calculado pelo partner-service = `value × commission_rate`), `commission_model=RECORRENTE`, `base_value` = mensalidade da subscription, `period=YYYY-MM`. **Obs:** partner-service calcula o `amount` sobre o **valor cheio do evento** (ANUAL 479×5%=23.95), enquanto o billing deriva `base_value` da subscription.
+- [x] **Idempotência:** reenviar mesmo `asaas_payment_id` (replay do `partner.commission.calculated`) → **não** duplica comissão (pré-check `existsByAsaasPaymentId` + UNIQUE `uq_commission_asaas_payment`).
+- [x] Tenant **sem** parceiro → ativa, mas partner-service não emite `partner.commission.calculated` → **nenhuma** comissão (consumer loga "Nenhum PartnerReferral encontrado").
+- [x] `PAYMENT_DELETED` do mesmo pagamento → comissão associada vira `CANCELADO` (`PaymentDeletedHandler`; só usa `payment.id`, ignora `status`).
+- [x] `base_value` prorateado: subscription com `billing_cycle=YEARLY` → `base_value = value÷12` (479→39.92; o `amount` segue vindo do partner).
+- [x] Conferir no Kafka UI (:8080) o fluxo `billing.subscription.activated` → `partner.commission.calculated` → comissão gravada pelo `CommissionEngine`.
+- [x] **Payout desabilitado:** `POST /api/v1/commissions/admin/trigger-repasse` (header `X-User-Id` obrigatório, senão 401) → 200 "Repasse desabilitado até a Fase 6 (payout PIX real). Nenhuma comissão alterada."; nenhuma comissão muda para `PAGO`.
+
+> **Gotchas do teste manual (2026-06-27):** (1) no PowerShell usar `Invoke-RestMethod` — `curl` é alias bugado; token do webhook = `ASAAS_WEBHOOK_TOKEN` (não a API key). (2) O tenant ativado vem do `X-Tenant-Id` gravado na subscription **no checkout**; o webhook só relê via `findByAsaasSubscriptionId`. (3) `uq_subscription_tenant` = 1 subscription por tenant (não dá 2 planos no mesmo tenant — usar tenants distintos). (4) Comissão só gera se o tenant tiver `partner_referral` (status TRIAL/FOLLOWUP/CONVIDADO/ATIVADO/CONVERTIDO) **E** o Partner tiver `commission_rate` não-null. (5) `PaymentReceivedHandler` busca `nextDueDate` via `getSubscription` no Asaas — id errado (404) vira `TRANSIENT` porque `AsaasValidationException extends AsaasException` e o handler só faz `catch(AsaasException)`.
 
 ### Fase 6 — Payout de comissões (PIX)
 - [ ] Parceiro com `pix_key` + comissões PENDENTE → disparar `CommissionPayoutJob` (ou endpoint admin) → `POST /v3/transfers` no sandbox; comissões → `EM_TRANSFERENCIA` + `payout_asaas_id` gravado.

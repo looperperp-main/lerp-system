@@ -39,6 +39,9 @@ spring:
 logging:
   level:
     root: ${LOG_LEVEL:INFO}
+    org.apache.kafka: WARN
+    com.netflix.discovery: WARN
+    org.springframework.kafka: INFO
 
 server:
   port: 8087
