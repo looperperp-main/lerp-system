@@ -60,6 +60,7 @@ public class DunningService {
         enviarLembretes(now);
         suspender(now);
         cancelar(now);
+        finalizarCancelamentos(now);
     }
 
     private void enviarLembretes(OffsetDateTime now) {
@@ -93,22 +94,35 @@ public class DunningService {
         List<Subscription> aCancelar = subscriptionRepository.findByStatusInAndCancelAtLessThanEqual(
                 List.of(SubscriptionStatus.ATIVA, SubscriptionStatus.SUSPENSO), now);
         for (Subscription sub : aCancelar) {
-            sub.setStatus(SubscriptionStatus.CANCELADO);
-            sub.setCancelledAt(now);
-            sub.setUpdatedAt(now);
-            subscriptionRepository.save(sub);
-
-            // Comissões PENDENTE do tenant são canceladas (sem repasse retroativo).
-            List<Commission> pendentes = commissionRepository.findByTenantIdAndStatus(sub.getTenantId(), PENDENTE);
-            for (Commission c : pendentes) {
-                c.setStatus(CANCELADO);
-            }
-            commissionRepository.saveAll(pendentes);
-
-            tenantStatusCache.put(sub.getTenantId(), SubscriptionStatus.CANCELADO);
-            kafkaProducer.sendSubscriptionCancelled(sub.getTenantId());
-            log.warn("Assinatura CANCELADA por inadimplência — tenant {} ({} comissões PENDENTE canceladas)",
-                    sub.getTenantId(), pendentes.size());
+            aplicarCancelamento(sub, now, "inadimplência");
         }
+    }
+
+    /** Finaliza cancelamentos manuais (§6): CANCELAMENTO_SOLICITADO cujo período pago já venceu. */
+    private void finalizarCancelamentos(OffsetDateTime now) {
+        List<Subscription> aFinalizar = subscriptionRepository
+                .findByStatusAndNextDueDateLessThanEqual(SubscriptionStatus.CANCELAMENTO_SOLICITADO, now);
+        for (Subscription sub : aFinalizar) {
+            aplicarCancelamento(sub, now, "fim do período pago");
+        }
+    }
+
+    private void aplicarCancelamento(Subscription sub, OffsetDateTime now, String motivo) {
+        sub.setStatus(SubscriptionStatus.CANCELADO);
+        sub.setCancelledAt(now);
+        sub.setUpdatedAt(now);
+        subscriptionRepository.save(sub);
+
+        // Comissões PENDENTE do tenant são canceladas (sem repasse retroativo).
+        List<Commission> pendentes = commissionRepository.findByTenantIdAndStatus(sub.getTenantId(), PENDENTE);
+        for (Commission c : pendentes) {
+            c.setStatus(CANCELADO);
+        }
+        commissionRepository.saveAll(pendentes);
+
+        tenantStatusCache.put(sub.getTenantId(), SubscriptionStatus.CANCELADO);
+        kafkaProducer.sendSubscriptionCancelled(sub.getTenantId());
+        log.warn("Assinatura CANCELADA ({}) — tenant {} ({} comissões PENDENTE canceladas)",
+                motivo, sub.getTenantId(), pendentes.size());
     }
 }

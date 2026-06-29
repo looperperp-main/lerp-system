@@ -81,6 +81,11 @@ public class AsaasGateway {
         return call("getSubscription", () -> subscriptionClient.get(asaasSubscriptionId));
     }
 
+    /** Cancela a assinatura no Asaas (interrompe renovações futuras — cancelamento manual §6). */
+    public void cancelSubscription(String asaasSubscriptionId) {
+        call("cancelSubscription", () -> subscriptionClient.delete(asaasSubscriptionId));
+    }
+
     /** Primeira cobrança da assinatura — boleto/PIX inicial para devolver ao frontend (§7.2). */
     public AsaasPaymentResponse getFirstPayment(String asaasSubscriptionId) {
         AsaasListResponse<AsaasPaymentResponse> list =

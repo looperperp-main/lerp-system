@@ -50,4 +50,12 @@ export class BillingService {
   checkout(req: CheckoutRequest): Observable<CheckoutResponse> {
     return this.http.post<CheckoutResponse>(`${this.base}/checkout`, req);
   }
+
+  /** Cancela a assinatura do tenant logado (acesso mantido até o fim do período pago). */
+  cancelarAssinatura(): Observable<{ status: string; acessoAte: string | null }> {
+    return this.http.post<{ status: string; acessoAte: string | null }>(
+      `${this.base}/subscriptions/me/cancel`,
+      {},
+    );
+  }
 }

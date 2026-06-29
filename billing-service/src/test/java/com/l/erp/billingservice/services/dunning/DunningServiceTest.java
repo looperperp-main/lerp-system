@@ -39,6 +39,7 @@ class DunningServiceTest {
         lenient().when(subscriptionRepository.findRemindersDue(any(), any(), any())).thenReturn(List.of());
         lenient().when(subscriptionRepository.findByStatusAndSuspendAtLessThanEqual(any(), any())).thenReturn(List.of());
         lenient().when(subscriptionRepository.findByStatusInAndCancelAtLessThanEqual(any(), any())).thenReturn(List.of());
+        lenient().when(subscriptionRepository.findByStatusAndNextDueDateLessThanEqual(any(), any())).thenReturn(List.of());
     }
 
     private Subscription sub(long tenantId, String status) {
@@ -95,5 +96,19 @@ class DunningServiceTest {
         assertThat(captor.getValue()).containsExactly(c);
         verify(tenantStatusCache).put(9L, SubscriptionStatus.CANCELADO);
         verify(kafkaProducer).sendSubscriptionCancelled(9L);
+    }
+
+    @Test
+    void cancelamentoManual_finalizaQuandoPeriodoVence() {
+        Subscription s = sub(11L, SubscriptionStatus.CANCELAMENTO_SOLICITADO);
+        when(subscriptionRepository.findByStatusAndNextDueDateLessThanEqual(
+                eq(SubscriptionStatus.CANCELAMENTO_SOLICITADO), any())).thenReturn(List.of(s));
+        when(commissionRepository.findByTenantIdAndStatus(11L, "PENDENTE")).thenReturn(List.of());
+
+        service.run();
+
+        assertThat(s.getStatus()).isEqualTo(SubscriptionStatus.CANCELADO);
+        verify(tenantStatusCache).put(11L, SubscriptionStatus.CANCELADO);
+        verify(kafkaProducer).sendSubscriptionCancelled(11L);
     }
 }

@@ -20,6 +20,12 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, UUID
     /** Assinaturas num status (Fase 7 — ReconciliationJob varre AGUARDANDO_PAGAMENTO). */
     List<Subscription> findByStatus(String status);
 
+    /** Assinaturas de um tenant (cancelamento self-service). */
+    List<Subscription> findByTenantId(Long tenantId);
+
+    /** Cancelamento solicitado cujo período pago já venceu — finalizar para CANCELADO. */
+    List<Subscription> findByStatusAndNextDueDateLessThanEqual(String status, OffsetDateTime now);
+
     // ── Dunning (Fase 7) ──
     /** A suspender: ainda no status dado e já passou do suspend_at. */
     List<Subscription> findByStatusAndSuspendAtLessThanEqual(String status, OffsetDateTime now);

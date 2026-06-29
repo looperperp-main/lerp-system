@@ -90,4 +90,21 @@
 
   }
 
+  <!-- Cancelar assinatura -->
+  <div class="mt-10 border-t border-gray-100 pt-6">
+    <h2 class="text-sm font-semibold text-gray-700 mb-1">Cancelar assinatura</h2>
+    <p class="text-xs text-gray-500 mb-3">
+      Você para as próximas cobranças, mas mantém o acesso até o fim do período já pago (sem reembolso).
+    </p>
+    @if (cancelMsg()) {
+      <div class="mb-3 text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-lg px-4 py-3">
+        {{ cancelMsg() }}
+      </div>
+    }
+    <button type="button" (click)="cancelar()" [disabled]="cancelando()"
+      class="px-4 py-2 border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50 rounded-lg text-sm font-semibold">
+      {{ cancelando() ? 'Cancelando...' : 'Cancelar assinatura' }}
+    </button>
+  </div>
+
 </div>

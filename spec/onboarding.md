@@ -252,16 +252,26 @@ Comissão é gerada apenas por `PAYMENT_RECEIVED` efetivo. Se o tenant ficou 2 m
 
 **Plano anual:** sem aviso prévio. Sem reembolso. Acesso mantido até `next_due_date`.
 
-**Fluxo técnico:**
+**Fluxo técnico (IMPLEMENTADO 2026-06-28):**
 ```
-Confirmação do cancelamento
+Tenant clica "Cancelar assinatura" (portal /web/assinar)
     ↓
-Billing service → POST /api/asaas/subscriptions/{id}/cancel
+POST /api/v1/subscriptions/me/cancel  (gateway injeta X-Tenant-Id)
     ↓
-Asaas dispara SUBSCRIPTION_INACTIVATED
+SubscriptionService.cancelForTenant → AsaasGateway.cancelSubscription (DELETE subscriptions/{id} — para renovações)
     ↓
-subscription.status = CANCELADO · tenant.status = CANCELADO · cancelled_at = NOW()
+subscription.status = CANCELAMENTO_SOLICITADO  (NÃO propaga bloqueio → login segue até vencer)
+    ↓ acesso mantido até next_due_date (mensal: aviso prévio; anual: sem reembolso — §7)
+DunningJob (diário): status=CANCELAMENTO_SOLICITADO e next_due_date <= now
+    ↓
+subscription.status = CANCELADO · cancelled_at = NOW() · comissões PENDENTE → CANCELADO
+    ↓ billing publica billing.subscription.cancelled
+auth SubscriptionLifecycleConsumer → tenant.status = CANCELADO  (login barrado)
 ```
+> Idempotente: 2ª chamada de cancelamento devolve o estado atual sem rechamar o Asaas. O webhook
+> `SUBSCRIPTION_INACTIVATED` continua sendo só metadado (`asaas_inactivated_at`) — quem decide a
+> transição para CANCELADO é o DunningJob pelo `next_due_date` (relógio da Syax). Testes:
+> `SubscriptionServiceTest`, `DunningServiceTest#cancelamentoManual_finalizaQuandoPeriodoVence`.
 
 **Comissão:** comissão do mês já calculada (PENDENTE) não é estornada. Nenhuma nova comissão gerada a partir do cancelamento.
 

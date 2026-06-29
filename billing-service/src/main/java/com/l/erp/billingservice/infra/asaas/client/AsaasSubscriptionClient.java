@@ -4,6 +4,7 @@ import com.l.erp.billingservice.infra.asaas.dto.AsaasSubscriptionRequest;
 import com.l.erp.billingservice.infra.asaas.dto.AsaasSubscriptionResponse;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.service.annotation.DeleteExchange;
 import org.springframework.web.service.annotation.GetExchange;
 import org.springframework.web.service.annotation.HttpExchange;
 import org.springframework.web.service.annotation.PostExchange;
@@ -17,4 +18,8 @@ public interface AsaasSubscriptionClient {
 
     @GetExchange("subscriptions/{id}")
     AsaasSubscriptionResponse get(@PathVariable String id);
+
+    /** Cancela a assinatura no Asaas (para renovações futuras). */
+    @DeleteExchange("subscriptions/{id}")
+    AsaasSubscriptionResponse delete(@PathVariable String id);
 }

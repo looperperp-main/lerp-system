@@ -23,6 +23,9 @@ export class Assinar implements OnInit {
   readonly processando = signal(false);
   readonly resultado = signal<CheckoutResponse | null>(null);
 
+  readonly cancelando = signal(false);
+  readonly cancelMsg = signal<string | null>(null);
+
   ngOnInit(): void {
     this.billing.getPlans().subscribe({
       next: (planos) => {
@@ -63,5 +66,30 @@ export class Assinar implements OnInit {
           this.processando.set(false);
         },
       });
+  }
+
+  cancelar(): void {
+    if (this.cancelando()) return;
+    if (!confirm('Cancelar sua assinatura? O acesso continua até o fim do período já pago.'))
+      return;
+    this.cancelando.set(true);
+    this.cancelMsg.set(null);
+    this.billing.cancelarAssinatura().subscribe({
+      next: (r) => {
+        const ate = r.acessoAte
+          ? new Date(r.acessoAte).toLocaleDateString('pt-BR')
+          : 'o fim do período pago';
+        this.cancelMsg.set(`Cancelamento registrado. Seu acesso continua até ${ate}.`);
+        this.cancelando.set(false);
+      },
+      error: (err) => {
+        this.cancelMsg.set(
+          err?.status === 404
+            ? 'Nenhuma assinatura ativa para cancelar.'
+            : 'Falha ao cancelar. Tente novamente.',
+        );
+        this.cancelando.set(false);
+      },
+    });
   }
 }
