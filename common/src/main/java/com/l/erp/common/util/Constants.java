@@ -15,8 +15,7 @@ public class Constants {
     /** Ator usado em auditoria de ações do sistema (eventos Kafka, crons) — sem usuário logado. */
     public static final UUID SYSTEM_ACTOR_ID = new UUID(0L, 0L);
 
-    public static final String email  = "email";
-    public static final String system  = "system";
+    public static final String EMAIL  = "email";
     public static final String ISSUER  = "L-ERP-auth-service";
 
     public static final String STATUS_PENDENTE  = "PENDENTE";

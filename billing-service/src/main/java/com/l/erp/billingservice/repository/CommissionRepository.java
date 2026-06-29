@@ -22,6 +22,9 @@ public interface CommissionRepository extends JpaRepository<Commission, UUID> {
 
     List<Commission> findByStatusAndPeriod(String status, String period);
 
+    /** Comissões de um tenant num status (Fase 7 — cancelar PENDENTE ao cancelar a assinatura). */
+    List<Commission> findByTenantIdAndStatus(Long tenantId, String status);
+
     /** Comissões de um transfer de payout (1 transfer por parceiro/período cobre N comissões). */
     List<Commission> findByAsaasTransferId(String asaasTransferId);
 

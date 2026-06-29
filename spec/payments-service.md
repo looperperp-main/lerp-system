@@ -3078,12 +3078,14 @@ Seguir esta ordem para garantir que cada fase é testável antes de avançar.
 
 > **Desvios propositais (Fase 6):** (a) **PIX-only** — `partner.partner` só tem `pix_key`; sem dados bancários → TED da §10.3 fica de fora. (b) **`pix_key_type`** novo (migration `partner-schema-010` no partner-service, valores CPF/CNPJ/EMAIL/PHONE/EVP) + UI no portal do parceiro (`/configuracoes`, `GET`/`PUT /me/payout-info`) — Asaas exige `pixAddressKeyType`. (c) **Billing lê a `pix_key` direto de `partner.partner`** (mesmo Postgres) via `JdbcTemplate` read-only (`PartnerPayoutReader`), **NÃO** via HTTP/Feign §11 — decisão dos sócios: zero acoplamento de runtime entre serviços, sem staleness (lê na hora do payout). JdbcTemplate (não JPA) p/ não acoplar o boot do billing à validação do schema `partner` (billing roda `ddl-auto=validate`). (d) Colunas reais: `Commission.asaas_transfer_id`/`paid_at` (não `payout_asaas_id`/`confirmed_at`); sem `adjusted_amount`/`transfer_failed_reason`/`approved_*` → `effectiveAmount`=`amount`, `failReason` só logado. (e) 1 transfer cobre N comissões (lote por parceiro/período) → `findByAsaasTransferId` retorna `List`.
 
-### Fase 7 — Cron jobs de dunning e recuperação
-35. Implementar `DunningJob.java` (27.7.4 — substitui o antigo GracePeriodSuspensionJob)
-36. Implementar `WebhookRecoveryJob.java` (28.5)
-37. Implementar `ReconciliationJob.java` (seção 19)
+### Fase 7 — Cron jobs de dunning e recuperação — ✅ FEITO (35-37, 2026-06-28; compila limpo; 7 unit tests verdes)
+35. [x] `DunningJob`/`DunningService` (27.7.4) — lembrete/suspensão/cancelamento por `suspend_at`/`cancel_at`; cron `billing.cron.dunning` + lock Redis. Cancelamento cancela comissões PENDENTE do tenant.
+36. [x] `WebhookRecoveryJob` (28.5) — reprocessa `webhook_log` RECEBIDO >10min via `WebhookProcessor` (idempotência Redis); cron `billing.cron.webhook-recovery` (15min).
+37. [x] `ReconciliationJob` (seção 19) — varre `AGUARDANDO_PAGAMENTO`, consulta `AsaasGateway.getFirstPayment`; se RECEIVED/CONFIRMED reusa `PaymentReceivedHandler` (idempotente — sai de AGUARDANDO ao ativar); cron `billing.cron.reconciliation` (30min).
 
 > Os crons de trial D+10/D+15 já estão implementados no auth service e no partner service (seção 12) — nada a fazer no billing.
+
+> **Desvios/decisões (Fase 7):** (a) **Propagação de bloqueio** — billing publica `billing.subscription.suspended`/`.cancelled` (`KafkaBillingProducerService`) → auth `SubscriptionLifecycleConsumer` → `TenantService.applyBillingStatus` (idempotente; não reabre CANCELADO). Fecha o gap da Fase 5 (tenant suspenso/cancelado barrado no login local). (b) **Reativação** (zerar `suspend_at`/`cancel_at` em PAYMENT_RECEIVED) já estava no `PaymentReceivedHandler` desde a Fase 2. (c) **DunningJob roda diário** (`0 30 2 * * *`), não 4×/dia — timestamps absolutos tornam a frequência irrelevante; ajustável por `BILLING_DUNNING_CRON`. (d) **Reconciliação sem listagem global de pagamentos** — o `AsaasGateway` só tem `getFirstPayment(subscriptionId)`, então itera as assinaturas `AGUARDANDO_PAGAMENTO` em vez de `GET /payments?status=RECEIVED`. (e) **E-mails de dunning** só logam (estado `reminder_sent_at` garante "uma vez só"); plugar no serviço de e-mail existente quando for o caso (`ponytail:` no código). (f) **Pendente:** e2e manual dos 3 jobs + IT do `DistributedLockService`.
 
 ---
 

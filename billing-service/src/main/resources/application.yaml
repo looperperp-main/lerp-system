@@ -54,6 +54,12 @@ billing:
   cron:
     # D+1: 02:00 do dia 1 de cada mês — repasse das comissões PENDENTE do mês anterior (Fase 6, §10.1)
     commission-payout: ${BILLING_PAYOUT_CRON:0 0 2 1 * *}
+    # Diário 02:30 — lembrete/suspensão/cancelamento por inadimplência (Fase 7, §27.7)
+    dunning: ${BILLING_DUNNING_CRON:0 30 2 * * *}
+    # A cada 15 min — reprocessa webhooks presos em RECEBIDO >10min (Fase 7)
+    webhook-recovery: ${BILLING_WEBHOOK_RECOVERY_CRON:0 */15 * * * *}
+    # A cada 30 min — ativa pagamentos confirmados no Asaas sem webhook (Fase 7)
+    reconciliation: ${BILLING_RECONCILIATION_CRON:0 */30 * * * *}
 
 logging:
   level:

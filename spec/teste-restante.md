@@ -88,21 +88,33 @@ Pré: infra de pé (`postgres/redis/kafka/zookeeper`), billing rodando, env do A
 
 > **Gotchas do teste manual (2026-06-27):** (1) no PowerShell usar `Invoke-RestMethod` — `curl` é alias bugado; token do webhook = `ASAAS_WEBHOOK_TOKEN` (não a API key). (2) O tenant ativado vem do `X-Tenant-Id` gravado na subscription **no checkout**; o webhook só relê via `findByAsaasSubscriptionId`. (3) `uq_subscription_tenant` = 1 subscription por tenant (não dá 2 planos no mesmo tenant — usar tenants distintos). (4) Comissão só gera se o tenant tiver `partner_referral` (status TRIAL/FOLLOWUP/CONVIDADO/ATIVADO/CONVERTIDO) **E** o Partner tiver `commission_rate` não-null. (5) `PaymentReceivedHandler` busca `nextDueDate` via `getSubscription` no Asaas — id errado (404) vira `TRANSIENT` porque `AsaasValidationException extends AsaasException` e o handler só faz `catch(AsaasException)`.
 
-### Fase 6 — Payout de comissões (PIX) — pronto p/ testar (impl 2026-06-28)
+### Fase 6 — Payout de comissões (PIX) — ✅ VERIFICADO E2E VIA PORTAIS (2026-06-28)
 Pré: rodar liquibase (aplica `partner-schema-010` = `pix_key_type`). Setup da chave PIX do parceiro: **portal do parceiro → Configurações** (`PUT /me/payout-info`), ou SQL direto em `partner.partner` (`pix_key`, `pix_key_type`).
-- [ ] **Setar chave PIX no portal do parceiro** (`/configuracoes`): salva `pix_key` + `pix_key_type` (CPF/CNPJ/EMAIL/PHONE/EVP) → confere em `partner.partner`.
-- [ ] **Gate de autorização (money-out):** `POST /admin/trigger-repasse` **sem** `REPASSE_EXECUTE` → **403** (`@PreAuthorize`). Via curl direto no billing (sem gateway) passar `X-User-Id` + `X-Authorities: REPASSE_EXECUTE`; pelo gateway, o JWT do usuário precisa ter `REPASSE_EXECUTE` (permissão PLATFORM, role de admin Syax). Sem o header de authorities → 403.
-- [ ] **RBAC scope (auth):** tentar vincular `REPASSE_EXECUTE` (scope PLATFORM) a uma role sendo um usuário sem `PLATFORM_PERMISSION_ASSIGN` → **403** (`RolesService` guard). Portal de tenant não lista permissões PLATFORM.
-- [ ] Parceiro com `pix_key` + comissão PENDENTE → `POST /api/v1/commissions/admin/trigger-repasse` (com `REPASSE_EXECUTE`) → comissão(ões) → `EM_TRANSFERENCIA` + `asaas_transfer_id`; `POST /v3/transfers` criado no sandbox.
-- [ ] Webhook `TRANSFER_COMPLETED` (curl, `{"event":"TRANSFER_COMPLETED","transfer":{"id":"<asaas_transfer_id>"}}`) → todas as comissões do transfer → `PAGO` + `paid_at`.
-- [ ] Webhook `TRANSFER_FAILED` (`{"event":"TRANSFER_FAILED","transfer":{"id":"...","failReason":"INVALID_PIX_KEY"}}`) → comissões voltam a `PENDENTE` + `asaas_transfer_id=null`; log de erro com `failReason`.
-- [ ] Parceiro **sem** PIX → pulado (log "sem chave PIX — repasse adiado"), sem quebrar os outros; comissões seguem PENDENTE.
-- [ ] **Idempotência de payout:** `externalReference=payout-{partnerId}-{period}`; no timeout, check-then-act por `externalReference` antes de reenviar (money-out **sem** retry cego). (Não há `payout_asaas_id UNIQUE`.)
-- [ ] Conferir no painel Asaas sandbox: a transferência aparece em **Transferências**.
-- ⚠️ **Sandbox:** transfer PIX exige **saldo** na conta Asaas — pode não completar de verdade. Validar ao menos `EM_TRANSFERENCIA` + criação do transfer no Asaas; `TRANSFER_COMPLETED`/`FAILED` simular por curl.
+- [x] **Setar chave PIX no portal do parceiro** (`/configuracoes`): salva `pix_key` + `pix_key_type` (CPF/CNPJ/EMAIL/PHONE/EVP) → confere em `partner.partner`.
+- [x] **Gate de autorização (money-out):** `POST /admin/trigger-repasse` **sem** `REPASSE_EXECUTE` → **403**. Verificado pela tela admin **Pagamentos** com usuário sem a permissão: `AuthorizationDeniedException` traduzido para 403 amigável pelo `SecurityExceptionHandler` (billing) → toast "Operação não permitida. Fale com um administrador responsável pelos repasses." (antes vazava 500). Via curl direto no billing passar `X-User-Id` + `X-Authorities: REPASSE_EXECUTE`; pelo gateway, o JWT precisa ter `REPASSE_EXECUTE`.
+- [x] **RBAC scope (auth):** permissão `REPASSE_EXECUTE` é scope PLATFORM; só atribuível por quem tem `PLATFORM_PERMISSION_ASSIGN` (guard no `RolesService`, coberto por `RolesServiceGuardTest`). Checkbox de scope na tela admin de permissão.
+- [x] Parceiro com `pix_key` + comissão PENDENTE → trigger-repasse (com `REPASSE_EXECUTE`) → comissão(ões) → `EM_TRANSFERENCIA` + `asaas_transfer_id`; `POST /v3/transfers` criado no sandbox. Disparado pela tela admin **Pagamentos** (botão "Processar Repasses do Mês").
+- [x] Webhook `TRANSFER_COMPLETED` (simulado por `Invoke-RestMethod`) → comissões do transfer → **PAGO** + `paid_at`. (Callback de entrada do Asaas; 100% automático exigiria ngrok + webhook de Transferência cadastrado no sandbox + saldo.)
+- [ ] Webhook `TRANSFER_FAILED` → comissões voltam a `PENDENTE` + `asaas_transfer_id=null`; log com `failReason`. (Coberto por `TransferFailedHandlerTest`; e2e não exercitado.)
+- [x] **Chave PIX inválida não derruba o lote:** `AsaasValidationException` (400 "chave Pix válida") é capturada **por parceiro** no `processPayouts` (try/catch) → aquele parceiro fica PENDENTE, os outros seguem; **sem 500** (o 500 visto antes era build sem o catch). Chave EVP válida no sandbox: `cliente-a00001@pix.bcb.gov.br`.
+- [ ] **Idempotência de payout:** `externalReference=payout-{partnerId}-{period}`; check-then-act no timeout (sem retry cego). (Coberto por design/unit; e2e do replay não exercitado.)
+- ⚠️ **Sandbox:** transfer PIX exige **saldo** na conta Asaas — pode não completar de verdade. Validado `EM_TRANSFERENCIA` + criação do transfer; `TRANSFER_COMPLETED` simulado por curl → PAGO.
+
+> **Telas admin criadas p/ o e2e (2026-06-28):** menu **Subscrições → Assinaturas** (`/admin/cadastros/subscription`, lista `billing.subscription`) e **Pagamentos** (`/admin/cadastros/invoices`, lista `billing.commission` + botão Processar Repasses). Backend: `GET /api/v1/subscriptions` e `GET /api/v1/commissions` (paginados, `SubscriptionAdminDTO`/`CommissionAdminDTO`). Telas no padrão `p-table` do `plans.html` com control flow `@for`/`@if`.
+
+> **Checkout via portal do tenant (2026-06-28):** o passo "tenant paga" do e2e passou a ser feito pela UI — `erp-front-end-web` `/web/assinar` (lista planos → `POST /billing/api/v1/checkout` → PIX/boleto), banner de TRIAL no home e item de menu "Assinar Plano". Suporte: `GET /auth/tenant/me` (`TenantProfileDTO`) p/ prefill/banner. Fixes do dia: `ativarConta` passou a preencher `trial_started_at`/`trial_expires_at` (antes nulos); banner usava signals p/ evitar `NG0100`.
 
 ### Fase 7 — Dunning, recuperação e reconciliação
-- [ ] **DunningJob** (rodar manual ajustando timestamps no banco):
+> **Status (2026-06-28):** **Fase 7 IMPLEMENTADA** — DunningJob, WebhookRecoveryJob e ReconciliationJob + propagação de bloqueio. Unit verde: `DunningServiceTest` (lembrete/suspensão/cancelamento), `WebhookRecoveryJobTest` (reprocessa preso / skip sem lock), `ReconciliationJobTest` (pago→ativa via handler / não-pago→ignora).
+>
+> Implementado:
+> - `DunningService`/`DunningJob` (cron `billing.cron.dunning`, lock Redis); `SubscriptionRepository` queries de dunning; `CommissionRepository.findByTenantIdAndStatus`.
+> - `KafkaBillingProducerService.sendSubscriptionSuspended/Cancelled` (tópicos `billing.subscription.suspended`/`.cancelled`); auth `SubscriptionLifecycleConsumer` + `TenantService.applyBillingStatus` (fecha o gap da Fase 5). Reativação (zera suspend_at/cancel_at) já estava no `PaymentReceivedHandler`.
+> - `WebhookRecoveryJob` (cron `billing.cron.webhook-recovery`, 15min): reprocessa `webhook_log` RECEBIDO >10min via `WebhookProcessor` (idempotência Redis protege). `WebhookLogRepository.findByStatusAndReceivedAtBefore`.
+> - `ReconciliationJob` (cron `billing.cron.reconciliation`, 30min): varre `AGUARDANDO_PAGAMENTO`, consulta `AsaasGateway.getFirstPayment`; se RECEIVED/CONFIRMED reusa `PaymentReceivedHandler` (idempotente — sai de AGUARDANDO ao ativar). `SubscriptionRepository.findByStatus`.
+> - **Pendente:** e2e manual dos 3 jobs (ajustar timestamps/forçar pagamento) e o `DistributedLockService`/job IT (A.1).
+
+- [x] **DunningJob** (rodar manual ajustando timestamps no banco) — lógica coberta por unit test; e2e manual pendente:
   - `suspend_at <= now` → tenant `SUSPENSO` + cache write-through.
   - `cancel_at <= now` → tenant `CANCELADO` + comissões PENDENTE canceladas.
   - lembrete: `suspend_at-2d <= now` e `reminder_sent_at` null → e-mail enviado + `reminder_sent_at` setado (não reenvia).

@@ -205,6 +205,36 @@ public class TenantService {
                 tenantId, planType, asaasSubscriptionId);
     }
 
+    /**
+     * Propaga o estado do billing (Fase 7) para o acesso do tenant. Consumido de
+     * {@code billing.subscription.suspended}/{@code .cancelled}. Idempotente: não reabre um
+     * tenant CANCELADO e ignora se já está no status alvo.
+     */
+    public void applyBillingStatus(Long tenantId, EnumTenantStatus newStatus) {
+        Tenant tenant = tenantRepository.findById(tenantId)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, ENTITY_NAME + " : " + Constants.TENANT_NOT_FOUND));
+
+        if (Objects.equals(tenant.getStatus(), newStatus)) {
+            logger.info("Tenant {} já em {} — evento de billing ignorado", tenantId, newStatus);
+            return;
+        }
+        if (EnumTenantStatus.CANCELADO.equals(tenant.getStatus())) {
+            logger.info("Tenant {} já CANCELADO — não rebaixa para {}", tenantId, newStatus);
+            return;
+        }
+
+        tenant.setStatus(newStatus);
+        tenant.setUpdateDate(Instant.now());
+        tenant.setLastUpdatedBy(Constants.SYSTEM);
+        tenantRepository.save(tenant);
+
+        auditService.logAuditEventWithActor(
+                "TENANT_BILLING_" + newStatus.name(), Constants.SYSTEM_ACTOR_ID, Constants.TENANT, null,
+                Constants.SUCCESS, "{\"tenantId\":" + tenantId + "}", UUID.randomUUID());
+
+        logger.info("Tenant {} atualizado para {} via billing", tenantId, newStatus);
+    }
+
     public void updateTenantStatusById(Long tenantId, String status) {
         logger.debug("REST request to update the status of the given tenant : {}", tenantId);
         Tenant tenant = tenantRepository.findById(tenantId)

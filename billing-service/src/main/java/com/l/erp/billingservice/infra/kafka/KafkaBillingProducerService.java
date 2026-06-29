@@ -17,6 +17,8 @@ public class KafkaBillingProducerService {
 
     private static final Logger log = LoggerFactory.getLogger(KafkaBillingProducerService.class);
         private static final String TOPIC = "billing.subscription.activated";
+    private static final String SUSPENDED_TOPIC = "billing.subscription.suspended";
+    private static final String CANCELLED_TOPIC = "billing.subscription.cancelled";
     private static final String AUDIT_TOPIC = "audit.events";
 
     private final KafkaTemplate<String, String> kafkaTemplate;
@@ -44,6 +46,28 @@ public class KafkaBillingProducerService {
             log.info("billing.subscription.activated publicado tenantId={} planType={}", tenantId, planType);
         } catch (Exception e) {
             log.error("Falha ao publicar billing.subscription.activated tenantId={}", tenantId, e);
+        }
+    }
+
+    /** Fase 7 — propaga suspensão pro auth (Tenant.status = SUSPENSO). */
+    public void sendSubscriptionSuspended(Long tenantId) {
+        publishLifecycle(SUSPENDED_TOPIC, tenantId, "billing.subscription.suspended");
+    }
+
+    /** Fase 7 — propaga cancelamento pro auth (Tenant.status = CANCELADO). */
+    public void sendSubscriptionCancelled(Long tenantId) {
+        publishLifecycle(CANCELLED_TOPIC, tenantId, "billing.subscription.cancelled");
+    }
+
+    private void publishLifecycle(String topic, Long tenantId, String label) {
+        try {
+            java.util.HashMap<String, Object> payload = new java.util.HashMap<>();
+            payload.put("tenantId", tenantId);
+            payload.put("at", OffsetDateTime.now().toString());
+            kafkaTemplate.send(topic, String.valueOf(tenantId), objectMapper.writeValueAsString(payload));
+            log.info("{} publicado tenantId={}", label, tenantId);
+        } catch (Exception e) {
+            log.error("Falha ao publicar {} tenantId={}", label, tenantId, e);
         }
     }
 

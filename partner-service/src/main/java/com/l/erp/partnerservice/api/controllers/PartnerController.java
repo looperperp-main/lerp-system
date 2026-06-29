@@ -75,7 +75,7 @@ public class PartnerController {
     @PostMapping
     public ResponseEntity<PartnerResponseDTO> save(@RequestBody @Valid PartnerRequestDTO dto) {
         logger.info("Criando parceiro: {}", dto.email());
-        String actor = SecurityUtils.getCurrentUserSub().orElse(Constants.system);
+        String actor = SecurityUtils.getCurrentUserSub().orElse(Constants.SYSTEM);
         Partner saved = service.save(dto, actor);
         PartnerResponseDTO response = assembler.toModel(saved);
         return ResponseEntity.created(response.getRequiredLink(IanaLinkRelations.SELF).toUri()).body(response);
@@ -86,7 +86,7 @@ public class PartnerController {
             @PathVariable UUID id,
             @RequestBody @Valid PartnerRequestDTO dto) {
         logger.info("Atualizando parceiro {}", id);
-        String actor = SecurityUtils.getCurrentUserSub().orElse(Constants.system);
+        String actor = SecurityUtils.getCurrentUserSub().orElse(Constants.SYSTEM);
         return ResponseEntity.ok(assembler.toModel(service.update(id, dto, actor)));
     }
 
@@ -95,7 +95,7 @@ public class PartnerController {
             @PathVariable UUID id,
             @RequestBody(required = false) @Valid PartnerReviewDTO dto) {
         logger.info("Aprovando parceiro {}", id);
-        String actor = SecurityUtils.getCurrentUserSub().orElse(Constants.system);
+        String actor = SecurityUtils.getCurrentUserSub().orElse(Constants.SYSTEM);
         return ResponseEntity.ok(assembler.toModel(service.approve(id, dto, actor)));
     }
 
@@ -104,14 +104,14 @@ public class PartnerController {
             @PathVariable UUID id,
             @RequestBody(required = false) @Valid PartnerReviewDTO dto) {
         logger.info("Reprovando parceiro {}", id);
-        String actor = SecurityUtils.getCurrentUserSub().orElse(Constants.system);
+        String actor = SecurityUtils.getCurrentUserSub().orElse(Constants.SYSTEM);
         return ResponseEntity.ok(assembler.toModel(service.reject(id, dto, actor)));
     }
 
     @PatchMapping("/{id}/inactivate")
     public ResponseEntity<PartnerResponseDTO> inactivate(@PathVariable UUID id) {
         logger.info("Inativando parceiro {}", id);
-        String actor = SecurityUtils.getCurrentUserSub().orElse(Constants.system);
+        String actor = SecurityUtils.getCurrentUserSub().orElse(Constants.SYSTEM);
         return ResponseEntity.ok(assembler.toModel(service.inactivate(id, actor)));
     }
 
@@ -190,7 +190,7 @@ public class PartnerController {
     public ResponseEntity<PayoutInfoDTO> updatePayoutInfo(@RequestBody @Valid PayoutInfoDTO dto) {
         UUID partnerId = SecurityUtils.getPartnerId()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, Constants.PARCEIRO_ID_NOT_FOUND));
-        String actor = SecurityUtils.getCurrentUserSub().orElse(Constants.system);
+        String actor = SecurityUtils.getCurrentUserSub().orElse(Constants.SYSTEM);
         logger.info("Parceiro {} atualizando chave PIX (tipo={})", partnerId, dto.pixKeyType());
         return ResponseEntity.ok(service.updatePayoutInfo(partnerId, dto, actor));
     }
