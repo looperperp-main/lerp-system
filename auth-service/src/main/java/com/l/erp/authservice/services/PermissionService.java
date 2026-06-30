@@ -43,6 +43,13 @@ public class PermissionService {
                 .map(permissionMapper :: toPermissionDTO);
     }
 
+    /** Permissões visíveis ao portal do tenant: apenas scope TENANT (esconde PLATFORM). */
+    public Page<PermissionDTO> getTenantScopedPermissions(Pageable pageable) {
+        logger.debug("Buscando permissões de escopo TENANT (portal do tenant)");
+        return permissionRepository.findByScope("TENANT", pageable)
+                .map(permissionMapper :: toPermissionDTO);
+    }
+
     public PermissionDTO getPermissionById(UUID id) {
         Permission permission = permissionRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(Constants.PERMISSION_NOT_FOUND, HttpStatus.NOT_FOUND));

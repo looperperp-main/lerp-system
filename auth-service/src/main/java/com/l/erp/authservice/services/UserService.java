@@ -203,4 +203,41 @@ public class UserService {
         UUID correlationId = SecurityUtils.getCorrelationIdFromRequest(logger);
         auditService.logAuditEvent(Constants.USER_UPDATE, Constants.USER, userId, Constants.SUCCESS, null, correlationId);
     }
+
+    // ==========================================================================
+    // Tenant-scoped (portal do tenant) — tenant vem do header X-Tenant-Id.
+    // ==========================================================================
+
+    /** Busca paginada de usuários do tenant (força o tenant no filtro). */
+    @Transactional(readOnly = true)
+    public Page<UserAccountPageDTO> searchAccountsForTenant(UserSearchFilterDTO filter, Pageable pageable, Long tenantId) {
+        UserSearchFilterDTO scoped = new UserSearchFilterDTO(tenantId, filter.displayName(), filter.active());
+        return userAccountRepository.findProjectedWithFilters(scoped, pageable);
+    }
+
+    /** Cria usuário forçando o tenant do header (ignora tenantId do body). */
+    public UserAccountDTO createUserForTenant(UserAccountDTO userDTO, Long tenantId) {
+        UserAccountDTO scoped = new UserAccountDTO(null, tenantId, userDTO.email(), userDTO.passwordHash(),
+                userDTO.displayName(), null, null, null, null, null, null);
+        return createUser(scoped);
+    }
+
+    /** Atualiza usuário do tenant (IDOR-safe); mantém o tenant atual (sem troca). */
+    public UserAccountDTO updateUserForTenant(UUID userId, UserAccountDTO userDTO, Long tenantId) {
+        assertUserInTenant(userId, tenantId);
+        UserAccountDTO scoped = new UserAccountDTO(userId, tenantId, userDTO.email(), userDTO.passwordHash(),
+                userDTO.displayName(), null, null, null, null, null, null);
+        return updateUserById(userId, scoped);
+    }
+
+    /** Inverte o status (ativo/inativo) de um usuário do tenant (IDOR-safe). */
+    public void updateUserStatusForTenant(UUID userId, Long tenantId) {
+        assertUserInTenant(userId, tenantId);
+        updateUserStatusById(userId);
+    }
+
+    private void assertUserInTenant(UUID userId, Long tenantId) {
+        userAccountRepository.findByIdAndTenantId(userId, tenantId)
+                .orElseThrow(() -> new BusinessException(Constants.USER_NOT_FOUND, HttpStatus.NOT_FOUND));
+    }
 }

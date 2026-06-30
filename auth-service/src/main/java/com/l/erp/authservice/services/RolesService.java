@@ -327,4 +327,64 @@ public class RolesService {
                 roleId, Constants.SUCCESS,
                 null, correlationId);
     }
+
+    // ==========================================================================
+    // Tenant-scoped (portal do tenant) — derivam o tenant do header X-Tenant-Id.
+    // Reusam a lógica das chamadas admin; só garantem que tudo pertence ao tenant.
+    // ==========================================================================
+
+    /** Lista paginada de roles do tenant (com filtro por nome). */
+    public Page<RoleDTO> searchRolesByTenant(RoleSearchFilterDTO filter, Pageable pageable, Long tenantId) {
+        return roleRepository.findWithFiltersAndTenant(filter, tenantId, pageable).map(roleMapper::toRoleDTO);
+    }
+
+    /** Todas as roles do tenant (sem paginação) — para dropdowns/picklists. */
+    public List<RoleDTO> getRolesByTenant(Long tenantId) {
+        return roleMapper.toRoleDTOs(roleRepository.findByTenantId(tenantId));
+    }
+
+    /** Cria role forçando o tenant do header (ignora qualquer tenantId vindo do body). */
+    @Transactional
+    public RoleDTO createRoleForTenant(RoleDTO roleDTO, Long tenantId) {
+        RoleDTO scoped = new RoleDTO(null, roleDTO.name(), tenantId, null, null, null, null);
+        return createRole(scoped);
+    }
+
+    /** Deleta role garantindo que ela é do tenant. */
+    @Transactional
+    public void deleteRoleForTenant(UUID roleId, Long tenantId) {
+        assertRoleInTenant(roleId, tenantId);
+        deleteRole(roleId);
+    }
+
+    public List<PermissionDTO> getPermissionsByRoleForTenant(UUID roleId, Long tenantId) {
+        assertRoleInTenant(roleId, tenantId);
+        return getPermissionsByRole(roleId);
+    }
+
+    @Transactional
+    public void assignPermissionsToRoleForTenant(UUID roleId, List<UUID> permissionIds, Long tenantId) {
+        assertRoleInTenant(roleId, tenantId);
+        // Bloqueio de escopo: o portal do tenant nunca atribui permissão PLATFORM.
+        for (UUID permissionId : permissionIds) {
+            Permission permission = permissionRepository.findById(permissionId)
+                    .orElseThrow(() -> new BusinessException("Permissão ID " + permissionId + " não encontrada", HttpStatus.NOT_FOUND));
+            if ("PLATFORM".equalsIgnoreCase(permission.getScope())) {
+                throw new BusinessException("Permissão de escopo PLATFORM não pode ser atribuída neste portal", HttpStatus.FORBIDDEN);
+            }
+        }
+        assignPermissionsToRole(roleId, permissionIds);
+    }
+
+    @Transactional
+    public void removePermissionFromRoleForTenant(UUID roleId, UUID permissionId, Long tenantId) {
+        assertRoleInTenant(roleId, tenantId);
+        removePermissionFromRole(roleId, permissionId);
+    }
+
+    /** Garante que a role existe e pertence ao tenant; 404 caso contrário (não vaza existência cross-tenant). */
+    private void assertRoleInTenant(UUID roleId, Long tenantId) {
+        roleRepository.findByIdAndTenantId(roleId, tenantId)
+                .orElseThrow(() -> new BusinessException(Constants.ROLE_NOT_FOUND, HttpStatus.NOT_FOUND));
+    }
 }

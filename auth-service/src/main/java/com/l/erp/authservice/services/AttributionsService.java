@@ -144,4 +144,31 @@ public class AttributionsService {
                 Constants.USER_ROLE, roleId, Constants.SUCCESS,
                 null, correlationId);
     }
+
+    // ==========================================================================
+    // Tenant-scoped (portal do tenant) — tenant vem do header X-Tenant-Id.
+    // ==========================================================================
+
+    public List<RoleDTO> getRolesByUserForTenant(UUID userId, Long tenantId) {
+        assertUserInTenant(userId, tenantId);
+        return getRolesByUser(userId);
+    }
+
+    @Transactional
+    public void assignRolesToUserForTenant(UUID userId, List<UUID> roleIds, Long tenantId) {
+        assertUserInTenant(userId, tenantId);
+        // assignRolesToUser já valida que cada role pertence ao mesmo tenant do usuário.
+        assignRolesToUser(userId, roleIds);
+    }
+
+    @Transactional
+    public void removeRoleFromUserForTenant(UUID userId, UUID roleId, Long tenantId) {
+        assertUserInTenant(userId, tenantId);
+        removeRoleFromUser(userId, roleId);
+    }
+
+    private void assertUserInTenant(UUID userId, Long tenantId) {
+        userAccountRepository.findByIdAndTenantId(userId, tenantId)
+                .orElseThrow(() -> new BusinessException("Usuário não encontrado", HttpStatus.NOT_FOUND));
+    }
 }

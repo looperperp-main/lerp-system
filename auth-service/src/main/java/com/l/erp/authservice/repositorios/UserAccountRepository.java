@@ -30,6 +30,12 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, UUID> 
     Optional<UserAccount> findByEmailAndTenantId(String email, Long tenantId);
 
     /**
+     * Acesso por-id tenant-scoped (IDOR-safe) para o portal do tenant.
+     */
+    @Query("SELECT u FROM UserAccount u WHERE u.id = :id AND u.tenant.id = :tenantId")
+    Optional<UserAccount> findByIdAndTenantId(@Param("id") UUID id, @Param("tenantId") Long tenantId);
+
+    /**
      * Retorna uma página de usuários projetada diretamente no DTO.
      * Note a sintaxe "new pacote.completo.do.Record(...)"
      */
