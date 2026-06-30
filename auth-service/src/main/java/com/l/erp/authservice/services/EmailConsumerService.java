@@ -49,6 +49,8 @@ public class EmailConsumerService {
                 sendBoasVindasTrialEmail(toEmail, name, tenantName, trialExpiresAt);
             } else if ("JA_EXISTE_CONTA".equals(type)) {
                 sendJaExisteContaEmail(toEmail);
+            } else if ("RESET_SENHA".equals(type)) {
+                sendResetSenhaEmail(toEmail, name, data.get("token"));
             }
         } catch (Exception e) {
             logger.error("Falha ao processar ou enviar o e-mail. Payload: {}", payload, e);
@@ -502,6 +504,40 @@ public class EmailConsumerService {
 
         } catch (Exception e) {
             logger.error("Erro ao tentar enviar o e-mail HTML de boas-vindas para: {}", to, e);
+        }
+    }
+
+    private void sendResetSenhaEmail(String to, String name, String token) {
+        try {
+            MimeMessage mimeMessage = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, Constants.UTF8);
+            helper.setFrom(fromEmail, "Equipe Syax");
+            helper.setTo(to);
+            helper.setSubject("Redefinição de senha — Syax");
+            String resetLink = clientPortalUrl + "/redefinir-senha?token=" + token;
+            String displayName = name != null ? name : to.split("@")[0];
+            String htmlBody = String.format("""
+                    <html><body style='font-family: Arial, sans-serif; color: #333; line-height: 1.6;'>
+                      <div style='max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;'>
+                        <h2 style='color: #0056b3;'>Olá, %s!</h2>
+                        <p>Recebemos uma solicitação para redefinir a senha da sua conta.</p>
+                        <p>Clique no botão abaixo para criar uma nova senha. Este link é válido por <strong>7 dias</strong>.</p>
+                        <div style='text-align: center; margin: 30px 0;'>
+                          <a href='%s' style='background:#0056b3;color:#fff;padding:14px 28px;border-radius:6px;text-decoration:none;font-size:16px;font-weight:bold;'>
+                            Redefinir minha senha
+                          </a>
+                        </div>
+                        <p style='color: #c00; font-size: 13px;'>&#128274; Se você não solicitou, ignore este e-mail — sua senha continua a mesma.</p>
+                        <hr style='border: none; border-top: 1px solid #eee;'/>
+                        <p>Atenciosamente,<br/><strong>Equipe Syax</strong></p>
+                      </div>
+                    </body></html>
+                    """, displayName, resetLink);
+            helper.setText(htmlBody, true);
+            mailSender.send(mimeMessage);
+            logger.info("E-mail RESET_SENHA enviado para {}", to);
+        } catch (Exception e) {
+            logger.error("Erro ao enviar RESET_SENHA para {}", to, e);
         }
     }
 

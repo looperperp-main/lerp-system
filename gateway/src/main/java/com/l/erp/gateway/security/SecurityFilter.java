@@ -34,7 +34,7 @@ public class SecurityFilter extends OncePerRequestFilter {
 
     private static final Set<String> PUBLIC_PATHS = Set.of(
             "/auth/login", "/auth/tenant/login", "/auth/partner/login", "/auth/refresh", "/auth/logout",
-            "/auth/ativar", "/auth/criar-conta",
+            "/auth/ativar", "/auth/criar-conta", "/auth/tenant/esqueci-senha", "/auth/redefinir-senha",
             "/partner/api/v1/partners/cnpj", "/billing/api/v1/webhooks/asaas"
     );
 

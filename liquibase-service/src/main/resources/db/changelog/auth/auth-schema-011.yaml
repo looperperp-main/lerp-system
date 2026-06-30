@@ -1,0 +1,50 @@
+databaseChangeLog:
+
+  # Token de redefinição de senha (esqueci-minha-senha). Single-use, guarda só o hash SHA-256
+  # do token aleatório (mesmo padrão de auth.refresh_token). Expira em ~30min.
+  - changeSet:
+      id: auth-022-password-reset-token
+      author: vitor fernandes ferreira
+      changes:
+        - createTable:
+            schemaName: auth
+            tableName: password_reset_token
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: token_hash
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: user_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_password_reset_user_id
+                    referencedTableSchemaName: auth
+                    references: auth.users_account(id)
+              - column:
+                  name: expires_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: used_at
+                  type: timestamp
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+      rollback:
+        - dropTable:
+            schemaName: auth
+            tableName: password_reset_token

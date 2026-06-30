@@ -35,6 +35,9 @@ databaseChangeLog:
       file: auth/auth-schema-010.yaml
       relativeToChangelogFile: true
   - include:
+      file: auth/auth-schema-011.yaml
+      relativeToChangelogFile: true
+  - include:
       file: audit/audit-schema-001.yaml
       relativeToChangelogFile: true
   - include:
