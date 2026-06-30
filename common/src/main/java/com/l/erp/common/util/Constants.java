@@ -253,4 +253,13 @@ public class Constants {
     public static final String TOKEN_REFRESH = "TOKEN_REFRESH";
     public static final String TOKEN_REFRESH_SUCCESS = TOKEN_REFRESH + "_" + SUCCESS;
     public static final String TOKEN_REFRESH_REUSE = TOKEN_REFRESH + "_REUSE_DETECTED";
+
+    // Password reset (esqueci minha senha)
+    public static final String PASSWORD_RESET = "PASSWORD_RESET";
+    public static final String PASSWORD_RESET_REQUESTED = PASSWORD_RESET + "_REQUESTED";
+    public static final String PASSWORD_RESET_COMPLETED = PASSWORD_RESET + "_COMPLETED";
+    public static final String PASSWORD_RESET_ACTOR = "password-reset";
+    public static final String EMAIL_TYPE_RESET_SENHA = "RESET_SENHA";
+    public static final String SENHAS_NAO_CONFEREM = "Senhas não conferem";
+    public static final String TOKEN_INVALIDO_EXPIRADO = "Token inválido ou expirado";
 }

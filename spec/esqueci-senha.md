@@ -19,7 +19,8 @@
 
 **✅ Throttle + validade (2026-06-30):**
 - **Throttle de 120s** no `solicitarResetTenant`: `findFirstByUser_IdOrderByCreatedAtDesc` → se o último token (não usado) foi criado há < 120s, no-op silencioso (reaproveita o pedido em voo, sem novo e-mail; mantém o 200 genérico). Reusa a tabela, sem Redis. Cobre e-mail bombing / abuso de cota SMTP. Testes `solicitar_recentTokenWithinCooldown_skipsEmail` / `solicitar_oldTokenBeyondCooldown_sendsNew`.
-- **Validade do token: 7 dias** (`TOKEN_TTL_DAYS = 7`) — textos de e-mail e da página `/esqueci-senha` atualizados.
+- **Validade do token: 1 hora** (`TOKEN_TTL_HOURS = 1`) — textos de e-mail e da página `/esqueci-senha` atualizados.
+- **Strings constantes em `common/Constants.java`** (diretiva do projeto): `PASSWORD_RESET_REQUESTED/COMPLETED`, `PASSWORD_RESET_ACTOR`, `EMAIL_TYPE_RESET_SENHA`, `SENHAS_NAO_CONFEREM`, `TOKEN_INVALIDO_EXPIRADO`.
 
 **⏳ Pendente:**
 - **Fluxo PARCEIRO** (`POST /auth/partner/esqueci-senha`, body `{ email }` → `findByEmail` com `userType=PARTNER`) + link/páginas no portal do parceiro. `/auth/redefinir-senha` já é compartilhado (token aponta pro user).

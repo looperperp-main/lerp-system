@@ -32,7 +32,7 @@ import java.util.UUID;
  * Fluxo "esqueci minha senha" do portal do tenant.
  *
  * <p>Token aleatório single-use guardado só como hash SHA-256 (padrão do refresh token), expira em
- * 30min. A solicitação responde sempre 200 genérico (anti-enumeração). A redefinição valida o token,
+ * 1h. A solicitação responde sempre 200 genérico (anti-enumeração). A redefinição valida o token,
  * troca a senha, revoga sessões e zera o lockout.</p>
  */
 @Service
@@ -112,7 +112,7 @@ public class PasswordResetService {
 
         publishResetEmail(user.getEmail(), user.getDisplayName(), rawToken);
 
-        auditService.logAuditEventWithActor("PASSWORD_RESET_REQUESTED", user.getId(), Constants.USER,
+        auditService.logAuditEventWithActor(Constants.PASSWORD_RESET_REQUESTED, user.getId(), Constants.USER,
                 user.getId(), Constants.SUCCESS, "Reset de senha solicitado", null);
     }
 
@@ -123,17 +123,17 @@ public class PasswordResetService {
     @Transactional
     public void redefinirSenha(String token, String novaSenha, String confirmacaoSenha) {
         if (!novaSenha.equals(confirmacaoSenha)) {
-            throw new BusinessException("Senhas não conferem", HttpStatus.BAD_REQUEST);
+            throw new BusinessException(Constants.SENHAS_NAO_CONFEREM, HttpStatus.BAD_REQUEST);
         }
 
         PasswordResetToken prt = tokenRepository.findByTokenHash(sha256Hex(token))
-                .orElseThrow(() -> new BusinessException("Token inválido ou expirado", HttpStatus.UNPROCESSABLE_ENTITY));
+                .orElseThrow(() -> new BusinessException(Constants.TOKEN_INVALIDO_EXPIRADO, HttpStatus.UNPROCESSABLE_ENTITY));
 
         if (prt.getUsedAt() != null) {
-            throw new BusinessException("Token inválido ou expirado", HttpStatus.UNPROCESSABLE_ENTITY);
+            throw new BusinessException(Constants.TOKEN_INVALIDO_EXPIRADO, HttpStatus.UNPROCESSABLE_ENTITY);
         }
         if (prt.getExpiresAt().isBefore(Instant.now())) {
-            throw new BusinessException("Token inválido ou expirado", HttpStatus.UNPROCESSABLE_ENTITY);
+            throw new BusinessException(Constants.TOKEN_INVALIDO_EXPIRADO, HttpStatus.UNPROCESSABLE_ENTITY);
         }
 
         UserAccount user = prt.getUser();
@@ -144,7 +144,7 @@ public class PasswordResetService {
         user.setFailedLoginAttempts(0);
         user.setLockedUntil(null);
         user.setLastUpdateDate(Instant.now());
-        user.setLastUpdatedBy("password-reset");
+        user.setLastUpdatedBy(Constants.PASSWORD_RESET_ACTOR);
         userRepo.save(user);
 
         prt.setUsedAt(Instant.now());
@@ -153,7 +153,7 @@ public class PasswordResetService {
         // Invalida todas as sessões ativas — quem trocou a senha (ou um atacante) é deslogado.
         refreshTokenRepository.revokeAllActiveByUserId(user.getId(), Instant.now());
 
-        auditService.logAuditEventWithActor("PASSWORD_RESET_COMPLETED", user.getId(), Constants.USER,
+        auditService.logAuditEventWithActor(Constants.PASSWORD_RESET_COMPLETED, user.getId(), Constants.USER,
                 user.getId(), Constants.SUCCESS, "Senha redefinida via token", null);
 
         logger.info("Senha redefinida para o usuário {}", user.getId());
@@ -165,7 +165,7 @@ public class PasswordResetService {
                     "email", email,
                     "name", name != null ? name : email.split("@")[0],
                     "token", rawToken,
-                    "type", "RESET_SENHA"));
+                    "type", Constants.EMAIL_TYPE_RESET_SENHA));
             kafkaTemplate.send(EmailNotificationService.EMAIL_TOPIC, email, payload);
         } catch (Exception e) {
             logger.error("Falha ao publicar e-mail RESET_SENHA para {}", email, e);

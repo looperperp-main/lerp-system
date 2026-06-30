@@ -49,7 +49,7 @@ public class EmailConsumerService {
                 sendBoasVindasTrialEmail(toEmail, name, tenantName, trialExpiresAt);
             } else if ("JA_EXISTE_CONTA".equals(type)) {
                 sendJaExisteContaEmail(toEmail);
-            } else if ("RESET_SENHA".equals(type)) {
+            } else if (Constants.EMAIL_TYPE_RESET_SENHA.equals(type)) {
                 sendResetSenhaEmail(toEmail, name, data.get("token"));
             }
         } catch (Exception e) {
@@ -521,7 +521,7 @@ public class EmailConsumerService {
                       <div style='max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;'>
                         <h2 style='color: #0056b3;'>Olá, %s!</h2>
                         <p>Recebemos uma solicitação para redefinir a senha da sua conta.</p>
-                        <p>Clique no botão abaixo para criar uma nova senha. Este link é válido por <strong>7 dias</strong>.</p>
+                        <p>Clique no botão abaixo para criar uma nova senha. Este link é válido por <strong>1 hora</strong>.</p>
                         <div style='text-align: center; margin: 30px 0;'>
                           <a href='%s' style='background:#0056b3;color:#fff;padding:14px 28px;border-radius:6px;text-decoration:none;font-size:16px;font-weight:bold;'>
                             Redefinir minha senha

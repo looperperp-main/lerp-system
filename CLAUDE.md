@@ -155,6 +155,8 @@ Angular 21, standalone components (no NgModules). Pages in `src/app/pages/` (`lo
 
 ## Workflow Directives
 
+**Constantes:** todo valor constante (strings de ação/auditoria, tipos de evento, mensagens reutilizáveis, códigos) deve ser declarado em `common/src/main/java/com/l/erp/common/util/Constants.java` e referenciado de lá — não usar literais "soltos" no código dos serviços.
+
 After every set of code changes, propose a short commit message in the format:
 
 ```
