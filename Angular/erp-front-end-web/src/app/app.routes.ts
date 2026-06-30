@@ -27,6 +27,10 @@ export const routes: Routes = [
             { path: 'cadastros/tabela-preco', loadComponent: () => import('./pages/cadastros/tabela-precos/tabela-precos').then(m => m.TabelaPrecos) },
             { path: 'cadastros/tabela-preco-grupo', loadComponent: () => import('./pages/cadastros/grupo-cliente-tabela-preco/grupo-cliente-tabela-preco').then(m => m.GrupoClienteTabelaPrecoComponent) },
             { path: 'cadastros/produtos', loadComponent: () => import('./pages/cadastros/produtos/produtos').then(m => m.Produtos) },
+            { path: 'security/users', loadComponent: () => import('./pages/security/users/users').then(m => m.SecurityUsers) },
+            { path: 'security/roles', loadComponent: () => import('./pages/security/roles/roles').then(m => m.SecurityRoles) },
+            { path: 'security/role-permissions', loadComponent: () => import('./pages/security/role-permissions/role-permissions').then(m => m.SecurityRolePermissions) },
+            { path: 'security/user-roles', loadComponent: () => import('./pages/security/user-roles/user-roles').then(m => m.SecurityUserRoles) },
         ],
     },
     { path: '**', redirectTo: 'login' }

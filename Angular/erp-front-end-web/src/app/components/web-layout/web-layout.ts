@@ -94,7 +94,9 @@ export class WebLayout {
     },
     { label: 'Compensações', icon: 'pi pi-arrow-right-arrow-left', routerLink: '/web/financeiro/compensacoes' },
 
-    { label: 'Segurança', icon: 'pi pi-server', routerLink: '/web/security', items: [
+    { label: 'Segurança', icon: 'pi pi-server', path: '/web/security', items: [
+        { label: 'Usuários', icon: 'pi pi-user', routerLink: '/web/security/users' },
+        { label: 'Roles', icon: 'pi pi-id-card', routerLink: '/web/security/roles' },
         { label: 'Configurar Roles', icon: 'pi pi-sitemap', routerLink: '/web/security/role-permissions' },
         { label: 'Atribuir Acessos', icon: 'pi pi-key', routerLink: '/web/security/user-roles' }
       ] },

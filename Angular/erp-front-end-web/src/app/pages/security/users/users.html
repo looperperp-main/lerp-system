@@ -1,0 +1,94 @@
+<div class="card">
+  <p-toast></p-toast>
+
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Usuários</h1>
+      <p class="page-subtitle">Gerencie os usuários da sua empresa</p>
+    </div>
+  </div>
+
+  <div class="content-card">
+    <div class="content-toolbar">
+      <h3 class="content-toolbar-title">Ações</h3>
+      <div class="content-toolbar-actions">
+        <input pInputText type="text" placeholder="Filtrar por nome" [(ngModel)]="filterName" (keydown.enter)="load()" />
+        <button pButton pRipple label="Filtrar" icon="pi pi-search" class="p-button-sm" (click)="load()"></button>
+        <button pButton pRipple label="Novo Usuário" icon="pi pi-plus" class="p-button-success p-button-sm" (click)="openNew()"></button>
+      </div>
+    </div>
+
+    <div class="table-container">
+      <p-table
+        [value]="users()"
+        [loading]="loading()"
+        [lazy]="true"
+        (onLazyLoad)="onLazyLoad($event)"
+        [totalRecords]="totalRecords()"
+        [paginator]="true"
+        [rows]="10"
+        [rowsPerPageOptions]="[10, 25, 50]"
+        [tableStyle]="{ 'min-width': '50rem' }"
+        styleClass="p-datatable-sm text-sm">
+
+        <ng-template pTemplate="header">
+          <tr>
+            <th pSortableColumn="displayName">Nome <p-sortIcon field="displayName"></p-sortIcon></th>
+            <th>Email</th>
+            <th>Status</th>
+            <th>Ações</th>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="body" let-user>
+          <tr>
+            <td class="font-medium text-gray-900">{{ user.displayName }}</td>
+            <td class="text-gray-600">{{ user.email }}</td>
+            <td>
+              <span [class]="'px-2 py-1 rounded text-xs font-medium ' + (user.active ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700')">
+                {{ user.active ? 'ATIVO' : 'INATIVO' }}
+              </span>
+            </td>
+            <td>
+              <div class="flex gap-2">
+                <button pButton pRipple icon="pi pi-pencil" class="p-button-rounded p-button-text p-button-info p-button-sm"
+                        pTooltip="Editar" (click)="openEdit(user)"></button>
+                <button pButton pRipple [icon]="user.active ? 'pi pi-ban' : 'pi pi-check'"
+                        class="p-button-rounded p-button-text p-button-sm" [class.p-button-danger]="user.active" [class.p-button-success]="!user.active"
+                        [pTooltip]="user.active ? 'Inativar' : 'Ativar'" (click)="toggleStatus(user)"></button>
+              </div>
+            </td>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="emptymessage">
+          <tr><td colspan="4" class="text-center py-6 text-gray-500">Nenhum usuário encontrado.</td></tr>
+        </ng-template>
+      </p-table>
+    </div>
+  </div>
+
+  <p-dialog [(visible)]="dialog" [style]="{ width: '480px' }" [header]="editing ? 'Editar Usuário' : 'Novo Usuário'" [modal]="true">
+    <div class="flex flex-col gap-3 pt-2">
+      <div class="flex flex-col gap-1">
+        <label class="text-sm text-gray-600">Email</label>
+        <input pInputText [(ngModel)]="form.email" [disabled]="editing" placeholder="email@empresa.com" />
+        @if (submitted && !editing && !form.email?.trim()) { <small class="text-red-500">Informe o email.</small> }
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="text-sm text-gray-600">Nome</label>
+        <input pInputText [(ngModel)]="form.displayName" placeholder="Nome do usuário" />
+        @if (submitted && !form.displayName?.trim()) { <small class="text-red-500">Informe o nome.</small> }
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="text-sm text-gray-600">{{ editing ? 'Nova senha (deixe vazio para manter)' : 'Senha' }}</label>
+        <input pInputText type="password" [(ngModel)]="form.passwordHash" placeholder="••••••••" />
+        @if (submitted && !editing && !form.passwordHash?.trim()) { <small class="text-red-500">Informe a senha.</small> }
+      </div>
+    </div>
+    <ng-template pTemplate="footer">
+      <button pButton pRipple label="Cancelar" icon="pi pi-times" class="p-button-text" (click)="dialog = false"></button>
+      <button pButton pRipple label="Salvar" icon="pi pi-check" class="p-button-success" (click)="save()"></button>
+    </ng-template>
+  </p-dialog>
+</div>
