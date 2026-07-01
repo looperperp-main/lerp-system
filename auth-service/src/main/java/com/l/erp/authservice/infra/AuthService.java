@@ -57,6 +57,7 @@ public class AuthService {
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
     private final com.l.erp.authservice.services.TrialEngagementService trialEngagementService;
+    private final com.l.erp.authservice.services.TenantOwnerBootstrapService tenantOwnerBootstrapService;
 
     public AuthService(UserAccountRepository userRepo,
                        OwnerMarkerRepository ownerRepo,
@@ -71,7 +72,8 @@ public class AuthService {
                        PasswordValidatorUtil passwordValidatorUtil,
                        KafkaTemplate<String, String> kafkaTemplate,
                        ObjectMapper objectMapper,
-                       com.l.erp.authservice.services.TrialEngagementService trialEngagementService) {
+                       com.l.erp.authservice.services.TrialEngagementService trialEngagementService,
+                       com.l.erp.authservice.services.TenantOwnerBootstrapService tenantOwnerBootstrapService) {
         this.userRepo = userRepo;
         this.ownerRepo = ownerRepo;
         this.tenantRepository = tenantRepository;
@@ -86,6 +88,7 @@ public class AuthService {
         this.kafkaTemplate = kafkaTemplate;
         this.objectMapper = objectMapper;
         this.trialEngagementService = trialEngagementService;
+        this.tenantOwnerBootstrapService = tenantOwnerBootstrapService;
     }
 
     public LoginResponse loginPartner(String email, String password) {
@@ -405,6 +408,9 @@ public class AuthService {
         user.setCreatedBy("self-activation");
         userRepo.save(user);
 
+        // Bootstrap: cria a role do owner (PROPRIETARIO) com as permissões de segurança e a atribui ao usuário.
+        tenantOwnerBootstrapService.bootstrapOwner(tenant, user);
+
         Instant trialStartedAt = Instant.now();
         Instant trialExpiresAt = trialStartedAt.plus(15, ChronoUnit.DAYS);
 
@@ -472,6 +478,9 @@ public class AuthService {
         user.setCreatedDate(now);
         user.setCreatedBy("self-registration");
         userRepo.save(user);
+
+        // Bootstrap: cria a role do owner (PROPRIETARIO) com as permissões de segurança e a atribui ao usuário.
+        tenantOwnerBootstrapService.bootstrapOwner(tenant, user);
 
         publishBoasVindasTrial(req.email(), displayName, tenant.getName(), trialExpiresAt);
 

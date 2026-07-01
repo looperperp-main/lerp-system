@@ -262,4 +262,8 @@ public class Constants {
     public static final String EMAIL_TYPE_RESET_SENHA = "RESET_SENHA";
     public static final String SENHAS_NAO_CONFEREM = "Senhas não conferem";
     public static final String TOKEN_INVALIDO_EXPIRADO = "Token inválido ou expirado";
+
+    // Bootstrap da role do owner do tenant (criação inicial automática)
+    public static final String OWNER_ROLE_NAME = "PROPRIETARIO";
+    public static final String SYSTEM_BOOTSTRAP = "system-bootstrap";
 }
