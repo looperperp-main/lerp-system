@@ -4,7 +4,6 @@ import com.l.erp.authservice.api.dto.PermissionDTO;
 import com.l.erp.authservice.api.dto.RoleDTO;
 import com.l.erp.authservice.api.dto.RolePermissionRequestDTO;
 import com.l.erp.authservice.api.dto.lists.RoleSearchFilterDTO;
-import com.l.erp.authservice.infra.config.Roles;
 import com.l.erp.authservice.services.RolesService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -14,7 +13,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.annotation.Secured;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -39,7 +38,7 @@ public class RoleController {
     }
 
     @PostMapping("")
-    @Secured({Roles.APP_OWNER,Roles.TENANT_OWNER})
+    @PreAuthorize("hasAuthority('ROLE_INSERT')")
     public ResponseEntity<RoleDTO> createRole(@Valid @RequestBody RoleDTO roleDTO){
         log.debug("REST request to create a role: {}",roleDTO.name());
         RoleDTO created = roleService.createRole(roleDTO);
@@ -47,7 +46,7 @@ public class RoleController {
     }
 
     @GetMapping("")
-    @Secured({Roles.APP_OWNER,Roles.TENANT_OWNER})
+    @PreAuthorize("hasAuthority('ROLE_READ')")
     public ResponseEntity<List<RoleDTO>> getAllRoles(){
         log.debug("REST request to get all roles");
         List<RoleDTO> roles = roleService.getAllRoles();
@@ -55,7 +54,7 @@ public class RoleController {
     }
 
     @GetMapping("/pages")
-    @Secured({Roles.APP_OWNER,Roles.TENANT_OWNER})
+    @PreAuthorize("hasAuthority('ROLE_READ')")
     public ResponseEntity<Page<RoleDTO>> getAllRolesPages(@PageableDefault(size = 10, sort = "name") Pageable pageable){
         log.debug("REST request to get all roles by page");
         Page<RoleDTO> roles = roleService.getAllRoles(pageable);
@@ -63,7 +62,7 @@ public class RoleController {
     }
 
     @PostMapping("/search")
-    @Secured({Roles.APP_OWNER,Roles.TENANT_OWNER})
+    @PreAuthorize("hasAuthority('ROLE_READ')")
     public ResponseEntity<Page<RoleDTO>> searchRoles(
             @RequestBody RoleSearchFilterDTO filter,
             @PageableDefault(size = 10, sort = "name") Pageable pageable) {
@@ -73,35 +72,35 @@ public class RoleController {
     }
 
     @GetMapping("/{Id}")
-    @Secured({Roles.APP_OWNER,Roles.TENANT_OWNER})
+    @PreAuthorize("hasAuthority('ROLE_READ')")
     public ResponseEntity<String> getRoleById(@PathVariable UUID Id){
         log.debug("REST request to get a role by id {}", Id);
         return ResponseEntity.ok().build();
     }
 
     @PutMapping("/{Id}")
-    @Secured({Roles.APP_OWNER,Roles.TENANT_OWNER})
+    @PreAuthorize("hasAuthority('ROLE_UPDATE')")
     public ResponseEntity<String> updateRoleById(@PathVariable UUID Id){
         log.debug("REST request to update a role by id {}", Id);
         return ResponseEntity.ok().build();
     }
 
     @DeleteMapping("/{Id}")
-    @Secured({Roles.APP_OWNER,Roles.TENANT_OWNER})
+    @PreAuthorize("hasAuthority('ROLE_DELETE')")
     public ResponseEntity<String> deleteRoleById(@PathVariable UUID Id){
         log.debug("REST request to delete a role by id {}", Id);
         return ResponseEntity.ok().build();
     }
 
     @GetMapping("/{roleId}/permissions")
-    @Secured({Roles.APP_OWNER, Roles.TENANT_OWNER})
+    @PreAuthorize("hasAuthority('PERMISSION_READ')")
     public ResponseEntity<List<PermissionDTO>> getRolePermissions(@PathVariable UUID roleId) {
         log.debug("REST request to get permissions for role: {}", roleId);
         return ResponseEntity.ok(roleService.getPermissionsByRole(roleId));
     }
 
     @PostMapping("/{roleId}/permissions")
-    @Secured({Roles.APP_OWNER, Roles.TENANT_OWNER})
+    @PreAuthorize("hasAuthority('PERMISSION_UPDATE')")
     public ResponseEntity<Void> assignPermissionsToRole(
             @PathVariable UUID roleId,
             @Valid @RequestBody RolePermissionRequestDTO request) {
@@ -118,7 +117,7 @@ public class RoleController {
     }
 
     @DeleteMapping("/{roleId}/permissions/{permissionId}")
-    @Secured({Roles.APP_OWNER, Roles.TENANT_OWNER})
+    @PreAuthorize("hasAuthority('PERMISSION_UPDATE')")
     public ResponseEntity<Void> removePermissionFromRole(
             @PathVariable UUID roleId,
             @PathVariable UUID permissionId) {
@@ -129,7 +128,7 @@ public class RoleController {
     }
 
     @DeleteMapping("/{id}/delete")
-    @Secured({Roles.APP_OWNER, Roles.TENANT_OWNER})
+    @PreAuthorize("hasAuthority('ROLE_DELETE')")
     public ResponseEntity<Void> deleteRole(@PathVariable UUID id) {
         log.debug("REST request to delete role: {}", id);
         roleService.deleteRole(id);

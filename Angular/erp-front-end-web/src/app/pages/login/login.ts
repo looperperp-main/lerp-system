@@ -65,9 +65,9 @@ export class TenantLogin implements OnInit {
 
   submit() {
     if (this.loginForm.valid) {
-      const { cnpj, email, password } = this.loginForm.value;
+      const { cnpj, email, password, rememberMe } = this.loginForm.value;
 
-      this.loginService.login(cnpj, email, password).subscribe({
+      this.loginService.login(cnpj, email, password, rememberMe).subscribe({
         next: (response) => {
           if (this.loginForm.value.rememberMe) {
             localStorage.setItem('rememberedEmail', this.loginForm.value.email);

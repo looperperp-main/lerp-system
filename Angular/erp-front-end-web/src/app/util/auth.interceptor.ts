@@ -33,6 +33,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
           // Só 401 (token expirado/inválido) desloga. 403 = autenticado sem permissão → deixa o componente tratar.
           if (error.status === 401) {
             sessionStorage.clear();
+            localStorage.clear(); // encerra também a sessão "manter conectado"
             router.navigate(['/login']);
           }
           return throwError(() => error);
