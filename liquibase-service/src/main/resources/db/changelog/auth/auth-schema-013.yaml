@@ -1,0 +1,21 @@
+databaseChangeLog:
+
+  # Garante no nível do banco que NO MÁXIMO um owner_marker pode estar ativo (enabled=true)
+  # em toda a instalação. O owner_marker é o superuser de plataforma (único, o dono do SaaS) —
+  # nunca deve haver mais de um. Índice único parcial: como todas as linhas indexadas têm
+  # enabled=true, a unicidade sobre esse valor constante permite apenas uma linha ativa.
+  # Pré-condição: se já existir mais de um enabled=true, a criação falha (aponta dado inconsistente).
+  - changeSet:
+      id: auth-024-owner-marker-single-enabled
+      author: vitor fernandes ferreira
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              CREATE UNIQUE INDEX IF NOT EXISTS uq_owner_marker_single_enabled
+              ON auth.owner_marker (enabled) WHERE enabled = true;
+      rollback:
+        - sql:
+            dbms: postgresql
+            sql: DROP INDEX IF EXISTS auth.uq_owner_marker_single_enabled;

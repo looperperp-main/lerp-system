@@ -203,6 +203,10 @@ export class Home implements OnInit {
     this.router.navigate(['/web/cadastros/fornecedores']);
   }
 
+  cadastrarProduto() {
+    this.router.navigate(['/web/cadastros/produtos']);
+  }
+
   emDesenvolvimento(recurso: string) {
     this.messageService.add({
       severity: 'info',

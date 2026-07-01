@@ -266,4 +266,14 @@ public class Constants {
     // Bootstrap da role do owner do tenant (criação inicial automática)
     public static final String OWNER_ROLE_NAME = "PROPRIETARIO";
     public static final String SYSTEM_BOOTSTRAP = "system-bootstrap";
+
+    // Origem do cadastro (created_by)
+    public static final String SELF_REGISTRATION = "self-registration";
+    public static final String SELF_ACTIVATION = "self-activation";
+    public static final String CRIAR_CONTA_GRATIS = "CRIAR_CONTA_GRATIS";
+
+    // DLQ / log de erro de consumidores Kafka (audit.consumer_error_log)
+    public static final String AUTH_SERVICE_NAME = "auth-service";
+    public static final String TOPIC_SUBSCRIPTION_ACTIVATED = "billing.subscription.activated";
+    public static final String AUTH_SERVICE_GROUP = "auth-service-group";
 }

@@ -2,6 +2,8 @@ package com.l.erp.authservice.services;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.l.erp.authservice.services.audit.ConsumerErrorLogService;
+import com.l.erp.common.util.Constants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -24,13 +26,16 @@ public class SubscriptionActivatedConsumer {
 
     private final ObjectMapper objectMapper;
     private final TenantService tenantService;
+    private final ConsumerErrorLogService consumerErrorLogService;
 
-    public SubscriptionActivatedConsumer(ObjectMapper objectMapper, TenantService tenantService) {
+    public SubscriptionActivatedConsumer(ObjectMapper objectMapper, TenantService tenantService,
+                                         ConsumerErrorLogService consumerErrorLogService) {
         this.objectMapper = objectMapper;
         this.tenantService = tenantService;
+        this.consumerErrorLogService = consumerErrorLogService;
     }
 
-    @KafkaListener(topics = "billing.subscription.activated", groupId = "auth-service-group")
+    @KafkaListener(topics = Constants.TOPIC_SUBSCRIPTION_ACTIVATED, groupId = Constants.AUTH_SERVICE_GROUP)
     public void consume(String payload) {
         logger.info("Recebido evento billing.subscription.activated");
         try {
@@ -47,7 +52,10 @@ public class SubscriptionActivatedConsumer {
 
             tenantService.activateSubscription(tenantId, planType, asaasSubscriptionId);
         } catch (Exception e) {
-            logger.error("Falha ao processar billing.subscription.activated. Payload: {}", payload, e);
+            // Falha ao ativar o tenant não pode se perder no commit do offset: persiste na DLQ
+            // (audit.consumer_error_log) para reprocessamento manual/agendado.
+            logger.error("Falha ao processar billing.subscription.activated — gravando na DLQ. Payload: {}", payload, e);
+            consumerErrorLogService.record(Constants.AUTH_SERVICE_NAME, Constants.TOPIC_SUBSCRIPTION_ACTIVATED, payload, e);
         }
     }
 }

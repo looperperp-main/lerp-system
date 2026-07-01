@@ -401,11 +401,13 @@ public class AuthService {
         user.setEmail(tenant.getEmail());
         user.setDisplayName(displayName);
         user.setPasswordHash(passwordEncoder.encode(req.senha()));
-        user.setUserType("TENANT_OWNER");
+        // Dono da conta é TENANT_USER no userType (o papel de owner vem da role PROPRIETARIO do
+        // bootstrap). Isso alinha com criarContaGratis e garante o ramo correto no refresh do token.
+        user.setUserType(Constants.TENANT_USER);
         user.setActive(true);
         user.setFailedLoginAttempts(0);
         user.setCreatedDate(Instant.now());
-        user.setCreatedBy("self-activation");
+        user.setCreatedBy(Constants.SELF_ACTIVATION);
         userRepo.save(user);
 
         // Bootstrap: cria a role do owner (PROPRIETARIO) com as permissões de segurança e a atribui ao usuário.
@@ -461,7 +463,7 @@ public class AuthService {
         tenant.setTelefone(req.telefone());
         tenant.setStatus(EnumTenantStatus.TRIAL);
         tenant.setCreationDate(now);
-        tenant.setCreatedBy("self-registration");
+        tenant.setCreatedBy(Constants.SELF_REGISTRATION);
         tenant.setTrialStartedAt(now);
         tenant.setTrialExpiresAt(trialExpiresAt);
         tenant = tenantRepository.save(tenant);
@@ -476,7 +478,7 @@ public class AuthService {
         user.setActive(true);
         user.setFailedLoginAttempts(0);
         user.setCreatedDate(now);
-        user.setCreatedBy("self-registration");
+        user.setCreatedBy(Constants.SELF_REGISTRATION);
         userRepo.save(user);
 
         // Bootstrap: cria a role do owner (PROPRIETARIO) com as permissões de segurança e a atribui ao usuário.
@@ -484,7 +486,7 @@ public class AuthService {
 
         publishBoasVindasTrial(req.email(), displayName, tenant.getName(), trialExpiresAt);
 
-        auditService.logAuditEventWithActor("CRIAR_CONTA_GRATIS", user.getId(), Constants.USER,
+        auditService.logAuditEventWithActor(Constants.CRIAR_CONTA_GRATIS, user.getId(), Constants.USER,
                 user.getId(), Constants.SUCCESS, "Auto-cadastro para " + tenant.getName(), null);
 
         logger.info("Conta grátis criada (TRIAL) para tenant {} ({}), trial expira em {}",
