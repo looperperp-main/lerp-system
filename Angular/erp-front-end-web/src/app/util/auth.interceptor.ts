@@ -14,7 +14,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
     // Rotas públicas que não precisam de token
     const publicRoutes = ['/auth/login', '/auth/tenant/login', '/auth/refresh'];
-    const isPublicRoute = publicRoutes.some(route => req.url.includes(route));
+    const isPublicRoute = publicRoutes.some((route) => req.url.includes(route));
 
     if (isPublicRoute) {
       return next(req);
@@ -24,19 +24,19 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
     if (token) {
       const clonedReq = req.clone({
         setHeaders: {
-          Authorization: `Bearer ${token}`
-        }
+          Authorization: `Bearer ${token}`,
+        },
       });
 
       return next(clonedReq).pipe(
         catchError((error: HttpErrorResponse) => {
-          // Token expirado ou inválido
-          if (error.status === 401 || error.status === 403) {
+          // Só 401 (token expirado/inválido) desloga. 403 = autenticado sem permissão → deixa o componente tratar.
+          if (error.status === 401) {
             sessionStorage.clear();
             router.navigate(['/login']);
           }
           return throwError(() => error);
-        })
+        }),
       );
     }
   }

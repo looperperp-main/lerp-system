@@ -9,7 +9,7 @@
   (navigate)="navigateToHelp()"
   [disablePrimaryBtn]="!loginForm.valid"
 >
-  <form [formGroup]="loginForm">
+  <form [formGroup]="loginForm" (keydown.enter)="loginForm.valid && submit()">
     <app-primary-input
       formControlName="cnpj"
       inputName="cnpj"
