@@ -163,9 +163,9 @@
         <div class="funnel-rate">
           <div>
             <span class="funnel-rate__label">Taxa de conversão</span>
-            <div class="funnel-rate__value">53%</div>
+            <div class="funnel-rate__value">{{ conversao().rate }}%</div>
           </div>
-          <span class="funnel-rate__detail">8 de 15<br>convidados convertidos</span>
+          <span class="funnel-rate__detail">{{ conversao().conv }} de {{ conversao().total }}<br>convidados convertidos</span>
         </div>
       </div>
 

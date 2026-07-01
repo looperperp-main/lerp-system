@@ -1,6 +1,11 @@
 import { Component, OnInit, signal, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { DashboardService, DashboardResponse, AtividadeItemDTO } from '../../services/dashboard.service';
+import {
+  DashboardService,
+  DashboardResponse,
+  AtividadeItemDTO,
+} from '../../services/dashboard.service';
+import { ConviteService, ConviteDTO } from '../../services/convite.service';
 import { ClienteDetailPanelComponent } from '../../components/cliente-detail-panel/cliente-detail-panel';
 
 @Component({
@@ -12,6 +17,10 @@ import { ClienteDetailPanelComponent } from '../../components/cliente-detail-pan
 })
 export class DashboardComponent implements OnInit {
   private readonly dashboardService = inject(DashboardService);
+  private readonly conviteService = inject(ConviteService);
+
+  // Lista real de convites — fonte da verdade do funil (mesma da tela /clientes).
+  private readonly convites = signal<ConviteDTO[]>([]);
 
   readonly carregando = signal(true);
   readonly atualizando = signal(false);
@@ -21,28 +30,43 @@ export class DashboardComponent implements OnInit {
   readonly selectedReferralId = signal<string | null>(null);
   readonly panelOpen = signal(false);
 
-  // Funil derivado dos stats reais do dashboard. Base 100% = Convidados (topo do funil).
+  // Funil derivado da lista real de convites. Base 100% = Convidados (topo do funil).
   readonly funnelSteps = computed(() => {
-    const d = this.dashboard();
-    const convidados = d?.statsConvidados ?? 0;
+    const list = this.convites();
+    const convidados = list.length;
+    const ativados = list.filter((c) => c.status !== 'CONVIDADO' && c.status !== 'PERDIDO').length;
+    const trial = list.filter((c) => c.status === 'TRIAL').length;
+    const convertidos = list.filter(
+      (c) => c.status === 'CONVERTIDO' || c.status === 'ATIVADO',
+    ).length;
     const pct = (v: number) => (convidados > 0 ? Math.round((v / convidados) * 100) : 0);
     return [
       { label: 'Convidados', value: convidados, color: '#3b82f6', pct: convidados > 0 ? 100 : 0 },
-      { label: 'Ativados', value: d?.statsAtivos ?? 0, color: '#f97316', pct: pct(d?.statsAtivos ?? 0) },
-      { label: 'Em Trial', value: d?.statsTrial ?? 0, color: '#eab308', pct: pct(d?.statsTrial ?? 0) },
-      { label: 'Convertidos', value: d?.statsConvertidos ?? 0, color: '#22c55e', pct: pct(d?.statsConvertidos ?? 0) },
+      { label: 'Ativados', value: ativados, color: '#f97316', pct: pct(ativados) },
+      { label: 'Em Trial', value: trial, color: '#eab308', pct: pct(trial) },
+      { label: 'Convertidos', value: convertidos, color: '#22c55e', pct: pct(convertidos) },
     ];
+  });
+
+  // Taxa de conversão do rodapé do funil (Convertidos / Convidados).
+  readonly conversao = computed(() => {
+    const s = this.funnelSteps();
+    const total = s[0].value;
+    const conv = s[3].value;
+    return { conv, total, rate: total > 0 ? Math.round((conv / total) * 100) : 0 };
   });
 
   ngOnInit(): void {
     // 1ª visita carrega; visitas seguintes reusam o cache de sessão (sem mostrar "Carregando").
     this.carregarDashboard(false);
+    this.conviteService.listar().subscribe((page) => this.convites.set(page.content));
   }
 
   /** Refresh manual (botão pi-sync no card de Clientes Ativos) — força nova busca. */
   refresh(): void {
     if (this.atualizando()) return;
     this.atualizando.set(true);
+    this.conviteService.listar().subscribe((page) => this.convites.set(page.content));
     this.dashboardService.getDashboard(true).subscribe({
       next: (data) => {
         this.dashboard.set(data);

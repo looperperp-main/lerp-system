@@ -41,7 +41,9 @@
           <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
         </svg>
         <span>Meus Clientes</span>
-        <span class="nav-badge">12</span>
+        @if (clientesCount() > 0) {
+          <span class="nav-badge">{{ clientesCount() }}</span>
+        }
       </a>
 
       <a class="nav-item" routerLink="/comissoes" routerLinkActive="nav-item--active">
@@ -50,7 +52,7 @@
           <line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
         </svg>
         <span>Comissões</span>
-        <span class="nav-badge nav-badge--green">R$ 3.140</span>
+        <span class="nav-badge nav-badge--green">{{ comissaoMes() }}</span>
       </a>
 
       <a class="nav-item" routerLink="/repasses" routerLinkActive="nav-item--active">

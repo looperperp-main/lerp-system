@@ -1,5 +1,9 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
-import { DashboardService, ExtratoComissoesDTO, ComissaoItemDTO } from '../../services/dashboard.service';
+import {
+  DashboardService,
+  ExtratoComissoesDTO,
+  ComissaoItemDTO,
+} from '../../services/dashboard.service';
 
 @Component({
   selector: 'app-comissoes',
@@ -11,18 +15,37 @@ export class ComissoesComponent implements OnInit {
   private readonly dashboardService = inject(DashboardService);
 
   readonly carregando = signal(true);
+  readonly atualizando = signal(false);
   readonly erro = signal<string | null>(null);
   readonly extrato = signal<ExtratoComissoesDTO | null>(null);
 
   ngOnInit(): void {
-    this.dashboardService.getComissoes().subscribe({
+    // 1ª visita carrega; visitas seguintes reusam o cache (sem "Carregando…").
+    this.carregar(false);
+  }
+
+  /** Refresh manual — força nova busca (botão de resync). */
+  refresh(): void {
+    if (this.atualizando()) return;
+    this.atualizando.set(true);
+    this.carregar(true);
+  }
+
+  private carregar(force: boolean): void {
+    if (!this.extrato()) {
+      this.carregando.set(true);
+    }
+    this.erro.set(null);
+    this.dashboardService.getComissoes(force).subscribe({
       next: (data) => {
         this.extrato.set(data);
         this.carregando.set(false);
+        this.atualizando.set(false);
       },
       error: () => {
         this.erro.set('Erro ao carregar o extrato de comissões. Tente novamente.');
         this.carregando.set(false);
+        this.atualizando.set(false);
       },
     });
   }

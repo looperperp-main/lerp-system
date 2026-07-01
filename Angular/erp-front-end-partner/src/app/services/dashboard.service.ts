@@ -80,6 +80,7 @@ export class DashboardService {
   // Cache de sessão: o dashboard é carregado 1x (1ª visita) e reusado nas navegações seguintes.
   // Só refaz a chamada quando forçado (botão de refresh). Service é singleton (providedIn root).
   private cache: DashboardResponse | null = null;
+  private comissoesCache: ExtratoComissoesDTO | null = null;
 
   getDashboard(force = false): Observable<DashboardResponse> {
     if (this.cache && !force) {
@@ -98,7 +99,12 @@ export class DashboardService {
     return this.http.post<void>(`${this.BASE}/me/convites/${referralId}/followup`, { message });
   }
 
-  getComissoes(): Observable<ExtratoComissoesDTO> {
-    return this.http.get<ExtratoComissoesDTO>(`${this.BASE}/me/comissoes`);
+  getComissoes(force = false): Observable<ExtratoComissoesDTO> {
+    if (this.comissoesCache && !force) {
+      return of(this.comissoesCache);
+    }
+    return this.http
+      .get<ExtratoComissoesDTO>(`${this.BASE}/me/comissoes`)
+      .pipe(tap((data) => (this.comissoesCache = data)));
   }
 }
