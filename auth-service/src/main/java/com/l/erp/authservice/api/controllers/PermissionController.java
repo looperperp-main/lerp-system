@@ -1,7 +1,6 @@
 package com.l.erp.authservice.api.controllers;
 
 import com.l.erp.authservice.api.dto.PermissionDTO;
-import com.l.erp.authservice.infra.config.Roles;
 import com.l.erp.authservice.services.PermissionService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -11,7 +10,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.annotation.Secured;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -35,7 +34,7 @@ public class PermissionController {
     }
 
     @PostMapping("")
-    @Secured({Roles.APP_OWNER, Roles.TENANT_OWNER})
+    @PreAuthorize("hasAuthority('PERMISSION_INSERT')")
     public ResponseEntity<PermissionDTO> createPermission(@Valid @RequestBody PermissionDTO permissionDTO){
         log.debug("REST request to create a permission: {}", permissionDTO.code());
         PermissionDTO created = permissionService.createPermission(permissionDTO);
@@ -43,28 +42,28 @@ public class PermissionController {
     }
 
     @GetMapping("")
-    @Secured({Roles.APP_OWNER, Roles.TENANT_OWNER})
+    @PreAuthorize("hasAuthority('PERMISSION_READ')")
     public ResponseEntity<Page<PermissionDTO>> getAllPermissions(@PageableDefault(size = 10, sort = "domain") Pageable pageable){
         log.debug("REST request to get all permissions");
         return ResponseEntity.ok(permissionService.getAllPermissions(pageable));
     }
 
     @GetMapping("/{permissionId}")
-    @Secured({Roles.APP_OWNER, Roles.TENANT_OWNER})
+    @PreAuthorize("hasAuthority('PERMISSION_READ')")
     public ResponseEntity<PermissionDTO> getPermissionById(@PathVariable UUID permissionId){
         log.debug("REST request to get a permission by id: {}", permissionId);
         return ResponseEntity.ok(permissionService.getPermissionById(permissionId));
     }
 
     @PutMapping("/{permissionId}")
-    @Secured({Roles.APP_OWNER, Roles.TENANT_OWNER})
+    @PreAuthorize("hasAuthority('PERMISSION_UPDATE')")
     public ResponseEntity<PermissionDTO> updatePermissionById(@PathVariable UUID permissionId, @Valid @RequestBody PermissionDTO permissionDTO){
         log.debug("REST request to update a permission by id: {}", permissionId);
         return ResponseEntity.ok(permissionService.updatePermission(permissionId, permissionDTO));
     }
 
     @DeleteMapping("/{permissionId}")
-    @Secured({Roles.APP_OWNER, Roles.TENANT_OWNER})
+    @PreAuthorize("hasAuthority('PERMISSION_DELETE')")
     public ResponseEntity<Void> deletePermissionById(@PathVariable UUID permissionId){
         log.debug("REST request to delete a permission by id: {}", permissionId);
         permissionService.deletePermission(permissionId);
