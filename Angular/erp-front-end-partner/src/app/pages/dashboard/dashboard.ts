@@ -21,13 +21,18 @@ export class DashboardComponent implements OnInit {
   readonly selectedReferralId = signal<string | null>(null);
   readonly panelOpen = signal(false);
 
-  // Funil permanece mockado
-  readonly funnelSteps = [
-    { label: 'Convidados', value: 15, color: '#3b82f6', pct: 100 },
-    { label: 'Ativados',   value: 12, color: '#f97316', pct: 80 },
-    { label: 'Em Trial',   value: 4,  color: '#eab308', pct: 27 },
-    { label: 'Convertidos',value: 8,  color: '#22c55e', pct: 53 },
-  ];
+  // Funil derivado dos stats reais do dashboard. Base 100% = Convidados (topo do funil).
+  readonly funnelSteps = computed(() => {
+    const d = this.dashboard();
+    const convidados = d?.statsConvidados ?? 0;
+    const pct = (v: number) => (convidados > 0 ? Math.round((v / convidados) * 100) : 0);
+    return [
+      { label: 'Convidados', value: convidados, color: '#3b82f6', pct: convidados > 0 ? 100 : 0 },
+      { label: 'Ativados', value: d?.statsAtivos ?? 0, color: '#f97316', pct: pct(d?.statsAtivos ?? 0) },
+      { label: 'Em Trial', value: d?.statsTrial ?? 0, color: '#eab308', pct: pct(d?.statsTrial ?? 0) },
+      { label: 'Convertidos', value: d?.statsConvertidos ?? 0, color: '#22c55e', pct: pct(d?.statsConvertidos ?? 0) },
+    ];
+  });
 
   ngOnInit(): void {
     // 1ª visita carrega; visitas seguintes reusam o cache de sessão (sem mostrar "Carregando").

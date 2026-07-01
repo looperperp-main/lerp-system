@@ -1,0 +1,49 @@
+<section class="comissoes">
+  @if (carregando()) {
+    <p class="state">Carregando extrato…</p>
+  } @else if (erro()) {
+    <p class="state state--error">{{ erro() }}</p>
+  } @else if (extrato(); as ext) {
+    <div class="summary">
+      <div class="summary-card">
+        <span class="summary-card__label">Comissão do mês</span>
+        <span class="summary-card__value">{{ formatarMoeda(ext.comissaoMesAtual) }}</span>
+      </div>
+      <div class="summary-card">
+        <span class="summary-card__label">Total pago</span>
+        <span class="summary-card__value summary-card__value--green">{{ formatarMoeda(ext.totalPago) }}</span>
+      </div>
+    </div>
+
+    @if (ext.historico.length === 0) {
+      <p class="state">Nenhuma comissão registrada ainda.</p>
+    } @else {
+      <table class="extrato-table">
+        <thead>
+          <tr>
+            <th>Cliente</th>
+            <th>CNPJ</th>
+            <th>Período</th>
+            <th>Valor</th>
+            <th>Status</th>
+            <th>Calculada em</th>
+            <th>Paga em</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of ext.historico; track trackId($index, item)) {
+            <tr>
+              <td>{{ item.razaoSocial }}</td>
+              <td>{{ formatarCnpj(item.cnpj) }}</td>
+              <td>{{ item.period }}</td>
+              <td>{{ formatarMoeda(item.amount) }}</td>
+              <td><span [class]="statusClasse(item.status)">{{ item.status }}</span></td>
+              <td>{{ formatarData(item.calculatedAt) }}</td>
+              <td>{{ formatarData(item.paidAt) }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  }
+</section>

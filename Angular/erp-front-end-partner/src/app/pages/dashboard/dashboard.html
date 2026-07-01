@@ -145,7 +145,7 @@
           <span class="section-tag">90 DIAS</span>
         </div>
         <div class="funnel-list">
-          @for (step of funnelSteps; track step.label) {
+          @for (step of funnelSteps(); track step.label) {
             <div class="funnel-step">
               <div class="funnel-step__header">
                 <span class="funnel-step__label">{{ step.label }}</span>
