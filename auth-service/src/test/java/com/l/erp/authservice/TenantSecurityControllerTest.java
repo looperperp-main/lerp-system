@@ -65,7 +65,7 @@ class TenantSecurityControllerTest {
     private AttributionsService attributionsService;
 
     @Test
-    @WithMockUser(roles = "TENANT_OWNER")
+    @WithMockUser(authorities = "ROLE_READ")
     void searchRolesPassesTenantFromHeader() throws Exception {
         RoleDTO role = new RoleDTO(UUID.randomUUID(), "GESTOR", TENANT, null, null, null, null);
         when(rolesService.searchRolesByTenant(any(), any(), eq(TENANT)))
@@ -82,7 +82,7 @@ class TenantSecurityControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "TENANT_OWNER")
+    @WithMockUser(authorities = "PERMISSION_READ")
     void listTenantScopedPermissions() throws Exception {
         PermissionDTO perm = new PermissionDTO(UUID.randomUUID(), "CLIENTE_LER", "CADASTRO",
                 "TENANT", "Ler clientes", null, null, null, null);
@@ -96,7 +96,7 @@ class TenantSecurityControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "TENANT_OWNER")
+    @WithMockUser(authorities = "PERMISSION_UPDATE")
     void assignPermissionsRejectsIdMismatch() throws Exception {
         UUID roleId = UUID.randomUUID();
         RolePermissionRequestDTO req = new RolePermissionRequestDTO(UUID.randomUUID(), List.of(UUID.randomUUID()));
@@ -109,7 +109,7 @@ class TenantSecurityControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "TENANT_OWNER")
+    @WithMockUser(authorities = "PERMISSION_UPDATE")
     void assignPlatformPermissionIsForbidden() throws Exception {
         UUID roleId = UUID.randomUUID();
         UUID permId = UUID.randomUUID();
@@ -126,7 +126,7 @@ class TenantSecurityControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "TENANT_OWNER")
+    @WithMockUser(authorities = "USER_UPDATE")
     void assignRolesRejectsIdMismatch() throws Exception {
         UUID userId = UUID.randomUUID();
         UserRoleRequestDTO req = new UserRoleRequestDTO(UUID.randomUUID(), List.of(UUID.randomUUID()));
@@ -139,7 +139,7 @@ class TenantSecurityControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "TENANT_OWNER")
+    @WithMockUser(authorities = "USER_STATUS")
     void updateUserStatusPassesTenant() throws Exception {
         UUID userId = UUID.randomUUID();
 

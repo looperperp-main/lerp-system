@@ -1,0 +1,23 @@
+databaseChangeLog:
+
+  # Seed das permissões do domínio ROLE (espelha o padrão do auth-schema-009, idempotente via
+  # ON CONFLICT (code) DO NOTHING). Necessário porque ambientes que aplicaram o 009 antes das linhas
+  # ROLE_* terem sido adicionadas ficaram sem elas. scope=TENANT → atribuível pelo portal do tenant.
+  - changeSet:
+      id: auth-023-role-domain-permission-seed
+      author: vitor fernandes ferreira
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO auth.permission (id, code, domain, description, scope, created_by) VALUES
+              (gen_random_uuid(), 'ROLE_READ',   'ROLE', 'Permite a leitura de Roles', 'TENANT', 'system-seed'),
+              (gen_random_uuid(), 'ROLE_INSERT', 'ROLE', 'Permite a criação de Roles', 'TENANT', 'system-seed'),
+              (gen_random_uuid(), 'ROLE_UPDATE', 'ROLE', 'Permite a atualização de Roles', 'TENANT', 'system-seed'),
+              (gen_random_uuid(), 'ROLE_DELETE', 'ROLE', 'Permite a remoção de Roles', 'TENANT', 'system-seed')
+              ON CONFLICT (code) DO NOTHING;
+      rollback:
+        - sql:
+            dbms: postgresql
+            sql: DELETE FROM auth.permission WHERE code IN ('ROLE_READ','ROLE_INSERT','ROLE_UPDATE','ROLE_DELETE');
