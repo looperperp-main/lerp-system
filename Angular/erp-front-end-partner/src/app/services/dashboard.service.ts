@@ -35,6 +35,10 @@ export interface ComissaoItemDTO {
   razaoSocial: string;
   cnpj: string;
   amount: number;
+  baseValue: number | null;
+  percentual: number | null;
+  modelo: string | null;
+  plano: string | null;
   period: string;
   status: string;
   calculatedAt: string;
@@ -44,6 +48,10 @@ export interface ComissaoItemDTO {
 export interface ExtratoComissoesDTO {
   comissaoMesAtual: number;
   totalPago: number;
+  ultimoRepasseValor: number | null;
+  ultimoRepassePeriodo: string | null;
+  ultimoRepassePagoEm: string | null;
+  diasParaRepasse: number;
   historico: ComissaoItemDTO[];
 }
 

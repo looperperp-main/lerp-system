@@ -340,7 +340,7 @@ public class PartnerService {
     public ExtratoComissoesDTO getComissoes(UUID partnerId) {
         BillingExtratoDTO raw = billingClient.getExtrato(partnerId);
         if (raw == null) {
-            return new ExtratoComissoesDTO(BigDecimal.ZERO, BigDecimal.ZERO, List.of());
+            return new ExtratoComissoesDTO(BigDecimal.ZERO, BigDecimal.ZERO, null, null, null, 0, List.of());
         }
 
         // Enriquece os itens com razaoSocial/cnpj do PartnerReferral local
@@ -359,6 +359,10 @@ public class PartnerService {
                             r != null ? r.getRazaoSocial() : "—",
                             r != null ? r.getCnpj() : "—",
                             item.amount(),
+                            item.baseValue(),
+                            item.percentual(),
+                            item.modelo(),
+                            item.plano(),
                             item.period(),
                             item.status(),
                             item.calculatedAt(),
@@ -367,7 +371,11 @@ public class PartnerService {
                 })
                 .toList();
 
-        return new ExtratoComissoesDTO(raw.comissaoMesAtual(), raw.totalPago(), enriquecidos);
+        return new ExtratoComissoesDTO(
+                raw.comissaoMesAtual(), raw.totalPago(),
+                raw.ultimoRepasseValor(), raw.ultimoRepassePeriodo(),
+                raw.ultimoRepassePagoEm(), raw.diasParaRepasse(),
+                enriquecidos);
     }
 
     private List<AtividadeItemDTO> buildAtividadeRecente(UUID partnerId) {

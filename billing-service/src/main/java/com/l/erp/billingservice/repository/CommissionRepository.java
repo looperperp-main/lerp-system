@@ -18,7 +18,8 @@ public interface CommissionRepository extends JpaRepository<Commission, UUID> {
 
     Optional<Commission> findByAsaasPaymentId(String asaasPaymentId);
 
-    List<Commission> findByPartnerIdOrderByCalculatedAtDesc(UUID partnerId);
+    @Query("SELECT c FROM Commission c JOIN FETCH c.subscription WHERE c.partnerId = :partnerId ORDER BY c.calculatedAt DESC")
+    List<Commission> findByPartnerIdOrderByCalculatedAtDesc(@Param("partnerId") UUID partnerId);
 
     List<Commission> findByStatusAndPeriod(String status, String period);
 
@@ -30,6 +31,10 @@ public interface CommissionRepository extends JpaRepository<Commission, UUID> {
 
     @Query("SELECT COALESCE(SUM(c.amount), 0) FROM Commission c WHERE c.partnerId = :partnerId AND c.period = :period AND c.status = 'PENDENTE'")
     BigDecimal sumPendenteByPartnerAndPeriod(@Param("partnerId") UUID partnerId, @Param("period") String period);
+
+    /** Todo o pendente do parceiro (independe de período) — é o que será repassado no próximo payout. */
+    @Query("SELECT COALESCE(SUM(c.amount), 0) FROM Commission c WHERE c.partnerId = :partnerId AND c.status = 'PENDENTE'")
+    BigDecimal sumPendenteByPartner(@Param("partnerId") UUID partnerId);
 
     @Query("SELECT COALESCE(SUM(c.amount), 0) FROM Commission c WHERE c.partnerId = :partnerId AND c.status = 'PAGO'")
     BigDecimal sumPagoByPartner(@Param("partnerId") UUID partnerId);

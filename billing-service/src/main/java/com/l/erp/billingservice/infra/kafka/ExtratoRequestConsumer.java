@@ -2,8 +2,6 @@ package com.l.erp.billingservice.infra.kafka;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.l.erp.billingservice.api.dto.ComissaoItemDTO;
-import com.l.erp.billingservice.api.dto.ExtratoComissoesDTO;
 import com.l.erp.billingservice.services.CommissionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,7 +9,6 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.stereotype.Component;
 
-import java.math.BigDecimal;
 import java.util.UUID;
 
 @Component
@@ -31,21 +28,7 @@ public class ExtratoRequestConsumer {
     @SendTo("!")
     public String handleExtratoRequest(String partnerId) throws JsonProcessingException {
         log.info("Recebendo solicitação de extrato via Kafka para partnerId={}", partnerId);
-        var id = UUID.fromString(partnerId);
-
-        var mesAtual = commissionService.getComissaoMesAtual(id);
-        var totalPago = commissionService.getTotalPago(id);
-        var historico = commissionService.findByPartner(id).stream()
-                .map(c -> new ComissaoItemDTO(
-                        c.getId(), c.getTenantId(), c.getAmount(),
-                        c.getPeriod(), c.getStatus(), c.getCalculatedAt(), c.getPaidAt()))
-                .toList();
-
-        var extrato = new ExtratoComissoesDTO(
-                mesAtual != null ? mesAtual : BigDecimal.ZERO,
-                totalPago != null ? totalPago : BigDecimal.ZERO,
-                historico);
-
+        var extrato = commissionService.getExtrato(UUID.fromString(partnerId));
         return objectMapper.writeValueAsString(extrato);
     }
 }

@@ -1,20 +1,31 @@
 <section class="comissoes">
   <div class="comissoes__header">
     <h2 class="comissoes__title">Extrato de comissões</h2>
-    <button
-      class="resync-btn"
-      type="button"
-      title="Atualizar extrato"
-      [disabled]="atualizando()"
-      (click)="refresh()">
-      <svg [class.spinning]="atualizando()" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-           stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="23 4 23 10 17 10"/>
-        <polyline points="1 20 1 14 7 14"/>
-        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-      </svg>
-      <span>Atualizar</span>
-    </button>
+    <div class="comissoes__actions">
+      <button class="ghost-btn" type="button" (click)="exportarPdf()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        <span>Exportar PDF</span>
+      </button>
+      <button
+        class="resync-btn"
+        type="button"
+        title="Atualizar extrato"
+        [disabled]="atualizando()"
+        (click)="refresh()">
+        <svg [class.spinning]="atualizando()" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10"/>
+          <polyline points="1 20 1 14 7 14"/>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+        </svg>
+        <span>Atualizar</span>
+      </button>
+    </div>
   </div>
 
   @if (carregando()) {
@@ -24,43 +35,93 @@
   } @else if (extrato(); as ext) {
     <div class="summary">
       <div class="summary-card">
-        <span class="summary-card__label">Comissão do mês</span>
-        <span class="summary-card__value">{{ formatarMoeda(ext.comissaoMesAtual) }}</span>
+        <span class="summary-card__label">Total acumulado</span>
+        <span class="summary-card__value summary-card__value--green">{{ formatarMoeda(ext.totalPago) }}</span>
+        <span class="summary-card__hint">comissões já repassadas</span>
       </div>
       <div class="summary-card">
-        <span class="summary-card__label">Total pago</span>
-        <span class="summary-card__value summary-card__value--green">{{ formatarMoeda(ext.totalPago) }}</span>
+        <span class="summary-card__label">Pendente este mês</span>
+        <span class="summary-card__value">{{ formatarMoeda(ext.comissaoMesAtual) }}</span>
+        <span class="summary-card__hint">repasse em {{ ext.diasParaRepasse }} dia(s)</span>
+      </div>
+      <div class="summary-card">
+        <span class="summary-card__label">Último repasse pago</span>
+        <span class="summary-card__value">{{ formatarMoeda(ext.ultimoRepasseValor) }}</span>
+        <span class="summary-card__hint">
+          @if (ext.ultimoRepassePagoEm) {
+            {{ ext.ultimoRepassePeriodo }} · {{ formatarData(ext.ultimoRepassePagoEm) }}
+          } @else {
+            nenhum repasse ainda
+          }
+        </span>
       </div>
     </div>
 
     @if (ext.historico.length === 0) {
       <p class="state">Nenhuma comissão registrada ainda.</p>
     } @else {
+      <div class="filters">
+        <select class="filter-select" [value]="filtroMes()" (change)="filtroMes.set($any($event.target).value)">
+          <option value="">Todos os meses</option>
+          @for (m of meses(); track m) {
+            <option [value]="m">{{ m }}</option>
+          }
+        </select>
+        <select class="filter-select" [value]="filtroModelo()" (change)="filtroModelo.set($any($event.target).value)">
+          <option value="">Todos os modelos</option>
+          @for (m of modelos(); track m) {
+            <option [value]="m">{{ m }}</option>
+          }
+        </select>
+        <select class="filter-select" [value]="filtroStatus()" (change)="filtroStatus.set($any($event.target).value)">
+          <option value="">Todos os status</option>
+          @for (s of statuses(); track s) {
+            <option [value]="s">{{ s }}</option>
+          }
+        </select>
+        @if (filtroMes() || filtroModelo() || filtroStatus()) {
+          <button class="clear-btn" type="button" (click)="limparFiltros()">Limpar</button>
+        }
+      </div>
+
       <table class="extrato-table">
         <thead>
           <tr>
             <th>Cliente</th>
             <th>CNPJ</th>
+            <th>Plano</th>
+            <th>Modelo</th>
             <th>Período</th>
-            <th>Valor</th>
+            <th class="num">Valor base</th>
+            <th class="num">%</th>
+            <th class="num">Valor</th>
             <th>Status</th>
-            <th>Calculada em</th>
             <th>Paga em</th>
           </tr>
         </thead>
         <tbody>
-          @for (item of ext.historico; track trackId($index, item)) {
+          @for (item of historicoFiltrado(); track trackId($index, item)) {
             <tr>
               <td>{{ item.razaoSocial }}</td>
               <td>{{ formatarCnpj(item.cnpj) }}</td>
+              <td>{{ item.plano ?? '—' }}</td>
+              <td>{{ item.modelo ?? '—' }}</td>
               <td>{{ item.period }}</td>
-              <td>{{ formatarMoeda(item.amount) }}</td>
+              <td class="num">{{ formatarMoeda(item.baseValue) }}</td>
+              <td class="num">{{ formatarPercentual(item.percentual) }}</td>
+              <td class="num">{{ formatarMoeda(item.amount) }}</td>
               <td><span [class]="statusClasse(item.status)">{{ item.status }}</span></td>
-              <td>{{ formatarData(item.calculatedAt) }}</td>
               <td>{{ formatarData(item.paidAt) }}</td>
             </tr>
           }
         </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="7" class="foot-label">Total do filtro ({{ historicoFiltrado().length }})</td>
+            <td class="num foot-total">{{ formatarMoeda(totalFiltro()) }}</td>
+            <td colspan="2"></td>
+          </tr>
+        </tfoot>
       </table>
     }
   }
