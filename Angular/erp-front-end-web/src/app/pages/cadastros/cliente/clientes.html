@@ -85,6 +85,16 @@
                         [style]="rowData.ativo === true ? 'color: #F24405; background-color: rgba(242, 68, 5, 0.15); border: none' : 'color: #22c55e; background-color: rgba(34, 197, 94, 0.15); border: none'"
                         pTooltip="Inativar" (click)="inativarCliente(rowData)" tooltipPosition="top">
                 </button>
+                @if (rowData.ativo !== true){
+                  <button
+                    pButton
+                    pRipple
+                    icon="pi pi-trash"
+                    class="p-button-rounded p-button-text p-button-danger p-button-sm w-8 h-8"
+                    (click)="deleteCliente(rowData)"
+                    pTooltip="Excluir">
+                  </button>
+                }
               </ng-container>
 
               <ng-container *ngIf="col.type === 'text'">

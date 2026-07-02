@@ -161,6 +161,7 @@ public class Constants {
     public static final String CLIENTE = "CLIENTE";
     public static final String CLIENTE_CREATION = CLIENTE + "_" + INSERT;
     public static final String CLIENTE_UPDATE = CLIENTE +"_" + UPDATE;
+    public static final String CLIENTE_DELETE = CLIENTE +"_" + DELETE;
     public static final String CLIENTE_NOT_FOUND = "Cliente não encontrado!";
     public static final String CLIENTE_ALREADY_EXISTS = "Já existe um Cliente com este nome";
 

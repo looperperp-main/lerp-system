@@ -111,7 +111,7 @@ export class ClienteForm implements OnInit{
           this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Cliente atualizado com sucesso' });
           this.saved.emit();
         },
-        error: (err: HttpErrorResponse) => this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao atualizar cliente: ' + err.message })
+        error: (err: HttpErrorResponse) => this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao atualizar cliente: ' + err.error.message })
       });
     } else {
       this.clienteService.create(payload).subscribe({
@@ -119,7 +119,7 @@ export class ClienteForm implements OnInit{
           this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Cliente criado com sucesso' });
           this.saved.emit();
         },
-        error: (err: HttpErrorResponse) => this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao criar cliente: ' + err.message })
+        error: (err: HttpErrorResponse) => this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao criar cliente: ' + err.error.message })
       });
     }
   }

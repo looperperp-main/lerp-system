@@ -15,4 +15,5 @@ public interface ClienteRepository extends JpaRepository<Cliente, UUID> {
     Optional<Cliente> findByIdAndTenantId(UUID id, Long tenantId);
     boolean existsByTenantIdAndPessoaNomeRazaoIgnoreCase(Long tenantId, String nome);
     boolean existsByTenantIdAndPessoaId(Long tenantId, UUID pessoaId);
+    long deleteByIdAndTenantId(UUID id, Long tenantId);
 }

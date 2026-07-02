@@ -31,6 +31,10 @@ export class ClientesService {
     return this.http.put<Cliente>(`${this.apiUrl}/${id}`, cliente);
   }
 
+  delete(id: string): Observable<Cliente> {
+    return this.http.delete<Cliente>(`${this.apiUrl}/${id}`);
+  }
+
   // --- Endpoints de Apoio (Dropdowns) ---
   getPessoasDropdown(): Observable<any> {
     return this.http.get<any>(`${environment.apiUrl}/api/v1/pessoas?size=1000`);

@@ -4,7 +4,7 @@ import {MessageService} from "primeng/api";
 import {ClientesService} from './clientes.service';
 import {RouterModule} from '@angular/router';
 import {TableModule} from 'primeng/table';
-import {ButtonModule} from "primeng/button";
+import {ButtonDirective, ButtonModule} from "primeng/button";
 import {CommonModule} from '@angular/common';
 import {Dialog} from 'primeng/dialog';
 import {HtmlDecodePipe} from '../../../util/pipe/html-decode.pipe';
@@ -14,10 +14,11 @@ import {Toast} from 'primeng/toast';
 import {Tooltip} from 'primeng/tooltip';
 import {ClienteForm} from './cliente-form/cliente-form';
 import {Cliente} from './clientes.model';
+import {HttpErrorResponse} from '@angular/common/http';
 
 @Component({
   selector: 'app-cliente',
-  imports: [CommonModule, RouterModule, TableModule, ButtonModule, Dialog, HtmlDecodePipe, PrimaryButtonComponent, Ripple, Toast, Tooltip, ClienteForm],
+  imports: [CommonModule, RouterModule, TableModule, ButtonModule, Dialog, HtmlDecodePipe, PrimaryButtonComponent, Ripple, Toast, Tooltip, ClienteForm, ButtonDirective, Ripple, Tooltip],
   templateUrl: './clientes.html',
   styleUrl: './clientes.scss',
 })
@@ -99,6 +100,19 @@ export class Clientes implements OnInit {
       },
       error: () => {
         this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao alterar o status do cliente.' });
+      }
+    });
+  }
+
+  deleteCliente(cliente: Cliente):void{
+    if (!cliente.id) return;
+    this.clienteService.delete(cliente.id).subscribe({
+      next: () => {
+        this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: `Cliente removido com sucesso.` });
+        this.loadClientes({ first: this.page * this.size, rows: this.size }); // Recarrega a página atual
+      },
+      error: (err: HttpErrorResponse) => {
+        this.messageService.add({ severity: 'error', summary: 'Erro', detail: err.error.message || 'Erro ao remover cliente.' });
       }
     });
   }

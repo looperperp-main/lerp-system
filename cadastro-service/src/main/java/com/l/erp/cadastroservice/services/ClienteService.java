@@ -192,4 +192,22 @@ public class ClienteService {
         );
         auditProducer.sendAuditEvent(auditEvent);
     }
+
+    @Transactional
+    public void delete(UUID id, Long tenantId, UUID userId) {
+        UUID correlationID = getCorrelationIdFromRequest(logger);
+        logger.info("Deletando cliente {} no tenant {}", id, tenantId);
+        Cliente cliente = clienteRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new BusinessException(Constants.CLIENTE_NOT_FOUND + Constants._ID + id, HttpStatus.BAD_REQUEST));
+        if(Boolean.TRUE.equals(cliente.getAtivo())){
+            sendAuditEvent(Constants.CLIENTE_DELETE, userId, id, Constants.ERROR, "{"+Constants.ERROR+" Erro ao excluir Cliente Ativo}", correlationID);
+            throw new BusinessException("Erro ao remover Cliente: Cliente Ativo", HttpStatus.BAD_REQUEST);
+        }
+        long deletedCount = clienteRepository.deleteByIdAndTenantId(id, tenantId);
+        if (deletedCount == 0) {
+            sendAuditEvent(Constants.CLIENTE_DELETE, userId, id, Constants.ERROR, "{"+Constants.ERROR+" Nenhum registro deletado/encontrado}", correlationID);
+            throw new BusinessException(Constants.CLIENTE_NOT_FOUND + Constants._ID + id, HttpStatus.BAD_REQUEST);
+        }
+        sendAuditEvent(Constants.CLIENTE_DELETE, userId, id, Constants.SUCCESS, null, correlationID);
+    }
 }

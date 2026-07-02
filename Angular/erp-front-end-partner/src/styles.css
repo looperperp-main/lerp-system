@@ -13,20 +13,218 @@ html, body {
 }
 
 /* ── Login page ────────────────────────────────── */
-.page-wrapper {
-  position: relative;
+.login-layout {
   min-height: 100vh;
   background-color: #0d0d0d;
+  display: grid;
+  grid-template-columns: 1fr;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+@media (min-width: 1024px) {
+  .login-layout {
+    grid-template-columns: 1.05fr 1fr;
+  }
+}
+
+/* ── Left · prova social ───────────────────────── */
+.promo-panel {
+  position: relative;
+  display: none;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+  padding: 48px;
+  border-right: 1px solid #2a2521;
+  background: linear-gradient(160deg, #15110d 0%, #0f0e0d 70%);
+}
+
+@media (min-width: 1024px) {
+  .promo-panel {
+    display: flex;
+  }
+}
+
+.promo-glow {
+  position: absolute;
+  top: -96px;
+  left: -96px;
+  width: 420px;
+  height: 420px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(255, 75, 18, 0.28), transparent 70%);
+  filter: blur(70px);
+}
+
+.promo-logo {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.promo-logo-tag {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  color: #8c8475;
+  margin-left: 4px;
+  padding-left: 12px;
+  border-left: 1px solid #2a2521;
+}
+
+.promo-body {
+  position: relative;
+  max-width: 440px;
+}
+
+.promo-kicker {
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: #ff9a4d;
+}
+
+.promo-headline {
+  font-size: 44px;
+  font-weight: 700;
+  line-height: 1.04;
+  letter-spacing: -0.02em;
+  color: #faf8f5;
+  margin: 16px 0 20px;
+}
+
+.grad-text {
+  background: linear-gradient(135deg, #e63900 0%, #ff4b12 48%, #fdb60d 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.promo-text {
+  font-size: 15px;
+  line-height: 1.6;
+  color: #b3ab9b;
+  margin: 0 0 32px;
+}
+
+/* ── Ticker (animação de repasses) ─────────────── */
+.ticker {
+  position: relative;
+  height: 148px;
+  overflow: hidden;
+  padding: 6px;
+  border-radius: 12px;
+  border: 1px solid #2a2521;
+  background: rgba(19, 17, 15, 0.8);
+}
+
+.ticker-fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 24px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.ticker-fade--top {
+  top: 0;
+  background: linear-gradient(#13110f, transparent);
+}
+
+.ticker-fade--bottom {
+  bottom: 0;
+  background: linear-gradient(transparent, #13110f);
+}
+
+.ticker-track {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  animation: ticker-scroll 16s linear infinite;
+}
+
+@keyframes ticker-scroll {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-50%);
+  }
+}
+
+.ticker-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.ticker-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.ticker-name {
+  font-size: 14px;
+  color: #faf8f5;
+  flex: 1;
+}
+
+.ticker-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: #5fd39a;
+}
+
+.promo-checks {
+  position: relative;
+  display: flex;
+  gap: 24px;
+  font-size: 13px;
+  color: #b3ab9b;
+}
+
+.promo-checks span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.promo-checks .check {
+  color: #5fd39a;
+}
+
+/* ── Right · login ─────────────────────────────── */
+.login-main {
+  position: relative;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   padding: 48px 16px 32px;
   overflow: hidden;
-  font-family: 'JetBrains Mono', monospace !important;
 }
 
-.page-wrapper * {
-  font-family: 'JetBrains Mono', monospace !important;
+.logo-row--mobile {
+  display: flex;
+}
+
+@media (min-width: 1024px) {
+  .logo-row--mobile {
+    display: none;
+  }
 }
 
 .glow-top-right {
