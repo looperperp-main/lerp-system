@@ -1,9 +1,12 @@
 package com.l.erp.billingservice.services;
 
+import com.l.erp.billingservice.api.dto.AssinaturaResumoDTO;
 import com.l.erp.billingservice.api.dto.CancelSubscriptionResponse;
+import com.l.erp.billingservice.domain.Commission;
 import com.l.erp.billingservice.domain.Subscription;
 import com.l.erp.billingservice.domain.SubscriptionStatus;
 import com.l.erp.billingservice.infra.asaas.AsaasGateway;
+import com.l.erp.billingservice.repository.CommissionRepository;
 import com.l.erp.billingservice.repository.SubscriptionRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.OffsetDateTime;
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -28,11 +32,51 @@ public class SubscriptionService {
     private static final List<String> CANCELAVEIS = List.of(SubscriptionStatus.ATIVA, SubscriptionStatus.SUSPENSO);
 
     private final SubscriptionRepository subscriptionRepository;
+    private final CommissionRepository commissionRepository;
     private final AsaasGateway asaasGateway;
 
-    public SubscriptionService(SubscriptionRepository subscriptionRepository, AsaasGateway asaasGateway) {
+    public SubscriptionService(SubscriptionRepository subscriptionRepository,
+                                CommissionRepository commissionRepository,
+                                AsaasGateway asaasGateway) {
         this.subscriptionRepository = subscriptionRepository;
+        this.commissionRepository = commissionRepository;
         this.asaasGateway = asaasGateway;
+    }
+
+    /** Resumo de assinatura + última comissão paga de um tenant, para o drawer "Ver assinatura" do portal do parceiro. */
+    @Transactional(readOnly = true)
+    public AssinaturaResumoDTO getResumoAssinatura(Long tenantId) {
+        Subscription sub = subscriptionRepository.findByTenantId(tenantId).stream()
+                .findFirst()
+                .orElse(null);
+        if (sub == null) {
+            return new AssinaturaResumoDTO(null, null, null, null, null, null, null, null);
+        }
+
+        Commission ultimoPago = commissionRepository.findByTenantIdAndStatus(tenantId, "PAGO").stream()
+                .max(Comparator.comparing(Commission::getPaidAt))
+                .orElse(null);
+
+        return new AssinaturaResumoDTO(
+                sub.getStatus(),
+                statusCobrancaLabel(sub.getStatus()),
+                sub.getValue(),
+                sub.getPaymentMethod(),
+                sub.getActivatedAt(),
+                sub.getNextDueDate(),
+                ultimoPago != null ? ultimoPago.getAmount() : null,
+                ultimoPago != null ? ultimoPago.getPeriod() : null);
+    }
+
+    private static String statusCobrancaLabel(String status) {
+        return switch (status) {
+            case SubscriptionStatus.ATIVA -> "Em dia";
+            case SubscriptionStatus.AGUARDANDO_PAGAMENTO -> "Aguardando pagamento";
+            case SubscriptionStatus.SUSPENSO -> "Suspenso";
+            case SubscriptionStatus.CANCELAMENTO_SOLICITADO -> "Cancelamento solicitado";
+            case SubscriptionStatus.CANCELADO -> "Cancelado";
+            default -> status;
+        };
     }
 
     @Transactional

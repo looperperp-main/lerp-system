@@ -102,6 +102,9 @@ public class PaymentReceivedHandler implements WebhookEventHandler {
         if (primeiraAtivacao) {
             sub.setActivatedAt(now);
         }
+        if (payment.getBillingType() != null) {
+            sub.setPaymentMethod(payment.getBillingType());
+        }
         if (nextDueDate != null) {
             sub.setNextDueDate(nextDueDate.atStartOfDay().atOffset(ZoneOffset.UTC));
         }

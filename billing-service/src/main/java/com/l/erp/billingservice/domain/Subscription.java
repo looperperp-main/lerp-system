@@ -41,6 +41,10 @@ public class Subscription {
     @Column(name = "value", precision = 10, scale = 2)
     private BigDecimal value;
 
+    @Size(max = 20)
+    @Column(name = "payment_method", length = 20)
+    private String paymentMethod;
+
     @Size(max = 30)
     @NotNull
     @Column(name = "status", nullable = false, length = 30)

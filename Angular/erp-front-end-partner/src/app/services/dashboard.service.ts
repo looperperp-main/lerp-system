@@ -62,6 +62,17 @@ export interface FeatureStatDTO {
   lastAccessedAt: string | null;
 }
 
+export interface AssinaturaResumoDTO {
+  status: string | null;
+  statusCobranca: string | null;
+  value: number | null;
+  paymentMethod: string | null;
+  activatedAt: string | null;
+  nextDueDate: string | null;
+  ultimoRepasseValor: number | null;
+  ultimoRepassePeriodo: string | null;
+}
+
 export interface ClienteDetalheResponse {
   referral: {
     referralId: string;
@@ -101,6 +112,10 @@ export class DashboardService {
 
   getClienteDetalhe(referralId: string): Observable<ClienteDetalheResponse> {
     return this.http.get<ClienteDetalheResponse>(`${this.BASE}/me/convites/${referralId}/detalhe`);
+  }
+
+  getAssinatura(referralId: string): Observable<AssinaturaResumoDTO> {
+    return this.http.get<AssinaturaResumoDTO>(`${this.BASE}/me/convites/${referralId}/assinatura`);
   }
 
   iniciarFollowup(referralId: string, message: string): Observable<void> {

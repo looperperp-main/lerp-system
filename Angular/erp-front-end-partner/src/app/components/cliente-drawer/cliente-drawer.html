@@ -105,18 +105,20 @@
     }
 
     @if (mode === 'assinatura') {
-      <!-- ponytail: sem endpoint de billing por cliente no partner-service ainda; dados de plano/comissão abaixo são placeholder até existir. -->
+      @let a = assinatura();
       <div class="stat-row">
         <div class="stat-box">
-          <span class="stat-box__value stat-box__value--sm">—</span>
+          <span class="stat-box__value stat-box__value--sm">{{ formatarData(a?.activatedAt) }}</span>
           <span class="stat-box__label">Ativado em</span>
         </div>
         <div class="stat-box">
-          <span class="stat-box__value stat-box__value--sm">—</span>
+          <span class="stat-box__value stat-box__value--sm">{{ formatarData(a?.nextDueDate) }}</span>
           <span class="stat-box__label">Próx. cobrança</span>
         </div>
         <div class="stat-box">
-          <span class="stat-box__value stat-box__value--sm stat-box__value--green">—</span>
+          <span class="stat-box__value stat-box__value--sm stat-box__value--green">
+            {{ engajamentoPercent() !== null ? engajamentoPercent() + '%' : '—' }}
+          </span>
           <span class="stat-box__label">Engajamento</span>
         </div>
       </div>
@@ -125,15 +127,17 @@
       <div class="info-list">
         <div class="info-row">
           <span>Valor da assinatura</span>
-          <strong>—</strong>
+          <strong>{{ formatarMoeda(a?.value) }}</strong>
         </div>
         <div class="info-row">
           <span>Forma de pagamento</span>
-          <strong>—</strong>
+          <strong>{{ formaPagamento(a?.paymentMethod) }}</strong>
         </div>
         <div class="info-row">
           <span>Status da cobrança</span>
-          <span class="badge badge--ativo"><span class="badge__dot"></span>—</span>
+          <span class="badge" [class]="statusCobrancaClasse(a?.status)">
+            <span class="badge__dot"></span>{{ a?.statusCobranca ?? '—' }}
+          </span>
         </div>
       </div>
 
@@ -148,12 +152,12 @@
           }
         </div>
         <div class="info-row">
-          <span>Repassado</span>
-          <strong class="info-row__valor">—</strong>
+          <span>Repassado{{ a?.ultimoRepassePeriodo ? ' em ' + a?.ultimoRepassePeriodo : '' }}</span>
+          <strong class="info-row__valor">{{ formatarMoeda(a?.ultimoRepasseValor) }}</strong>
         </div>
       </div>
 
-      <p class="drawer__aviso">Detalhes de faturamento por cliente ainda não estão disponíveis no portal do parceiro.</p>
+      <p class="drawer__aviso">Lista de faturas detalhada ainda não está disponível no portal do parceiro.</p>
 
       <div class="drawer__footer">
         <button class="btn-primary" type="button" disabled>
@@ -162,7 +166,6 @@
           </svg>
           Ver faturas
         </button>
-        <button class="btn-secondary" type="button" disabled>Mudar plano</button>
       </div>
     }
   </aside>

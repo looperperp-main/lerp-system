@@ -1,0 +1,21 @@
+databaseChangeLog:
+  - changeSet:
+      id: "016-subscription-payment-method"
+      author: vitor fernandes ferreira
+      comment: "Forma de pagamento da assinatura (billingType do Asaas: BOLETO/CREDIT_CARD/PIX/UNDEFINED), gravada a cada PAYMENT_RECEIVED — exibida no drawer de assinatura do portal do parceiro."
+      changes:
+        - addColumn:
+            schemaName: billing
+            tableName: subscription
+            columns:
+              - column:
+                  name: payment_method
+                  type: VARCHAR(20)
+                  remarks: "billingType do Asaas na última cobrança confirmada — nulo até o 1º pagamento"
+                  constraints:
+                    nullable: true
+      rollback:
+        - dropColumn:
+            schemaName: billing
+            tableName: subscription
+            columnName: payment_method

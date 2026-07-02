@@ -1,5 +1,5 @@
 import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, inject, signal } from '@angular/core';
-import { DashboardService, ClienteDetalheResponse } from '../../services/dashboard.service';
+import { AssinaturaResumoDTO, DashboardService, ClienteDetalheResponse } from '../../services/dashboard.service';
 import { Cliente } from '../../pages/clientes/clientes';
 
 @Component({
@@ -16,16 +16,20 @@ export class ClienteDrawer implements OnChanges {
   @Output() fechar = new EventEmitter<void>();
 
   readonly detalhe = signal<ClienteDetalheResponse | null>(null);
+  readonly assinatura = signal<AssinaturaResumoDTO | null>(null);
   readonly carregando = signal(false);
   readonly followupEnviado = signal(false);
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['cliente'] || changes['mode']) {
       this.followupEnviado.set(false);
-      if (this.mode === 'engajamento' && this.cliente) {
+      this.detalhe.set(null);
+      this.assinatura.set(null);
+      if (this.cliente && (this.mode === 'engajamento' || this.mode === 'assinatura')) {
         this.carregarDetalhe(this.cliente.id);
-      } else {
-        this.detalhe.set(null);
+      }
+      if (this.mode === 'assinatura' && this.cliente) {
+        this.carregarAssinatura(this.cliente.id);
       }
     }
   }
@@ -41,8 +45,21 @@ export class ClienteDrawer implements OnChanges {
     });
   }
 
+  private carregarAssinatura(referralId: string): void {
+    this.dashboardService.getAssinatura(referralId).subscribe({
+      next: (a) => this.assinatura.set(a),
+    });
+  }
+
   maiorAcesso(): number {
     return Math.max(1, ...(this.detalhe()?.features.map((f) => f.accessCount) ?? [1]));
+  }
+
+  engajamentoPercent(): number | null {
+    const features = this.detalhe()?.features;
+    if (!features || features.length === 0) return null;
+    const acessadas = features.filter((f) => f.accessCount > 0).length;
+    return Math.round((acessadas / features.length) * 100);
   }
 
   diasDesde(iso: string | null): string {
@@ -64,5 +81,39 @@ export class ClienteDrawer implements OnChanges {
 
   fecharDrawer(): void {
     this.fechar.emit();
+  }
+
+  formatarMoeda(valor: number | null | undefined): string {
+    if (valor == null) return '—';
+    return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  }
+
+  formatarData(iso: string | null | undefined): string {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleDateString('pt-BR');
+  }
+
+  formaPagamento(billingType: string | null | undefined): string {
+    switch (billingType) {
+      case 'CREDIT_CARD':
+        return 'Cartão de crédito';
+      case 'BOLETO':
+        return 'Boleto';
+      case 'PIX':
+        return 'Pix';
+      default:
+        return '—';
+    }
+  }
+
+  statusCobrancaClasse(status: string | null | undefined): string {
+    switch (status) {
+      case 'ATIVA':
+        return 'badge--ativo';
+      case 'AGUARDANDO_PAGAMENTO':
+        return 'badge--trial';
+      default:
+        return 'badge--perdido';
+    }
   }
 }

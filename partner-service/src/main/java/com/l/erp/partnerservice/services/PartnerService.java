@@ -2,6 +2,7 @@ package com.l.erp.partnerservice.services;
 
 import com.l.erp.common.api.dto.AuditEventDTO;
 import com.l.erp.common.util.Constants;
+import com.l.erp.partnerservice.api.dto.AssinaturaResumoDTO;
 import com.l.erp.partnerservice.api.dto.AtividadeItemDTO;
 import com.l.erp.partnerservice.api.dto.ClienteDetalheResponseDTO;
 import com.l.erp.partnerservice.api.dto.ComissaoItemDTO;
@@ -426,6 +427,22 @@ public class PartnerService {
                 : List.of();
 
         return new ClienteDetalheResponseDTO(conviteDTO, loginCount, lastLoginAt, daysActive, (List<FeatureStatDTO>) features, (List<String>) gaps);
+    }
+
+    @Transactional(readOnly = true)
+    public AssinaturaResumoDTO getAssinatura(UUID referralId, UUID partnerId) {
+        PartnerReferral referral = referralRepository.findByIdAndPartner_Id(referralId, partnerId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, Constants.CONVITE_NOT_FOUND));
+
+        if (referral.getTenantId() == null) {
+            return new AssinaturaResumoDTO(null, null, null, null, null, null, null, null);
+        }
+
+        var resumo = billingClient.getAssinaturaResumo(referral.getTenantId());
+        return new AssinaturaResumoDTO(
+                resumo.status(), resumo.statusCobranca(), resumo.value(), resumo.paymentMethod(),
+                resumo.activatedAt(), resumo.nextDueDate(),
+                resumo.ultimoRepasseValor(), resumo.ultimoRepassePeriodo());
     }
 
     @Transactional

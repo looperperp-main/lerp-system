@@ -1,6 +1,7 @@
 package com.l.erp.partnerservice.api.controllers;
 
 import com.l.erp.common.util.Constants;
+import com.l.erp.partnerservice.api.dto.AssinaturaResumoDTO;
 import com.l.erp.partnerservice.api.dto.ClienteDetalheResponseDTO;
 import com.l.erp.partnerservice.api.dto.CnpjConsultaResponseDTO;
 import com.l.erp.partnerservice.api.dto.ConviteRequestDTO;
@@ -166,6 +167,14 @@ public class PartnerController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, Constants.PARCEIRO_ID_NOT_FOUND));
         logger.info("Detalhe do cliente referralId={} solicitado pelo parceiro {}", referralId, partnerId);
         return ResponseEntity.ok(service.getClienteDetalhe(referralId, partnerId));
+    }
+
+    @GetMapping("/me/convites/{referralId}/assinatura")
+    public ResponseEntity<AssinaturaResumoDTO> getAssinatura(@PathVariable UUID referralId) {
+        UUID partnerId = SecurityUtils.getPartnerId()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, Constants.PARCEIRO_ID_NOT_FOUND));
+        logger.info("Resumo de assinatura do cliente referralId={} solicitado pelo parceiro {}", referralId, partnerId);
+        return ResponseEntity.ok(service.getAssinatura(referralId, partnerId));
     }
 
     @PostMapping("/me/convites/{referralId}/followup")
