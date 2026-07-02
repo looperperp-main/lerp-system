@@ -23,7 +23,7 @@ export class PartnerSessionService {
     if (!email) return;
 
     this.http.get<any>(`${this.API}/me`, { params: { email } }).subscribe({
-      next: res => {
+      next: (res) => {
         this.info.set({
           name: res.name,
           email: res.email,
@@ -42,5 +42,12 @@ export class PartnerSessionService {
 
   clear(): void {
     this.info.set(null);
+  }
+
+  logout(): void {
+    localStorage.removeItem('partner_token');
+    localStorage.removeItem('username');
+    localStorage.removeItem('email');
+    this.clear();
   }
 }

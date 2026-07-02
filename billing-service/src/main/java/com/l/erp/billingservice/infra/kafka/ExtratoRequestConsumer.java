@@ -25,7 +25,7 @@ public class ExtratoRequestConsumer {
     }
 
     @KafkaListener(topics = "partner.extrato.request", groupId = "billing-extrato-group")
-    @SendTo("!")
+    @SendTo
     public String handleExtratoRequest(String partnerId) throws JsonProcessingException {
         log.info("Recebendo solicitação de extrato via Kafka para partnerId={}", partnerId);
         var extrato = commissionService.getExtrato(UUID.fromString(partnerId));

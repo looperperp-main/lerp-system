@@ -3,6 +3,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { CadastrarClienteModalService } from '../../services/cadastrar-cliente-modal.service';
 import { ConviteService, ConviteDTO } from '../../services/convite.service';
+import { ClienteDrawer } from '../../components/cliente-drawer/cliente-drawer';
 
 export type ClienteStatus = 'ATIVO' | 'TRIAL' | 'CONVIDADO' | 'PERDIDO';
 export type ClientePlano = 'Anual' | 'Mensal' | null;
@@ -36,15 +37,23 @@ const STATUS_LABEL: Record<ClienteStatus, string> = {
 
 const ACOES_MAP: Record<ConviteDTO['status'], ClienteAcao[]> = {
   CONVIDADO: ['email'],
-  TRIAL: ['documento', 'mensagem'],
-  ATIVADO: ['documento', 'mensagem'],
+  TRIAL: ['atividade', 'mensagem'],
+  ATIVADO: ['documento'],
   CONVERTIDO: ['documento'],
   PERDIDO: ['reengajar'],
 };
 
+const ACAO_TOOLTIP: Record<ClienteAcao, string> = {
+  email: 'Reenviar convite',
+  atividade: 'Ver engajamento',
+  mensagem: 'Follow-up',
+  documento: 'Ver assinatura',
+  reengajar: 'Reativar',
+};
+
 @Component({
   selector: 'app-clientes',
-  imports: [FormsModule],
+  imports: [FormsModule, ClienteDrawer],
   templateUrl: './clientes.html',
   styleUrl: './clientes.scss',
 })
@@ -54,6 +63,21 @@ export class Clientes implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
 
   readonly statusLabel = STATUS_LABEL;
+  readonly acaoTooltip = ACAO_TOOLTIP;
+
+  readonly drawer = signal<{ mode: 'engajamento' | 'assinatura'; cliente: Cliente } | null>(null);
+
+  openEngagement(c: Cliente): void {
+    this.drawer.set({ mode: 'engajamento', cliente: c });
+  }
+
+  openAssinatura(c: Cliente): void {
+    this.drawer.set({ mode: 'assinatura', cliente: c });
+  }
+
+  fecharDrawer(): void {
+    this.drawer.set(null);
+  }
 
   readonly busca = signal('');
   readonly statusFiltro = signal<ClienteStatus | 'TODOS'>('TODOS');

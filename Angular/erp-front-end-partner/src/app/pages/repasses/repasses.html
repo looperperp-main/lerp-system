@@ -1,0 +1,83 @@
+<section class="repasses">
+  @if (carregando()) {
+    <p class="state">Carregando repasses…</p>
+  } @else if (erro()) {
+    <p class="state state--error">{{ erro() }}</p>
+  } @else {
+    <div class="hero">
+      <div class="hero__col">
+        <span class="hero__label">Próximo repasse</span>
+        <span class="hero__value">{{ formatarMoeda(proximoRepasseValor()) }}</span>
+        <span class="hero__hint">{{ proximoRepasseComissoes() }} comissões · período {{ proximoRepassePeriodo() }}</span>
+      </div>
+      <div class="hero__col">
+        <span class="hero__label">Data agendada</span>
+        @let data = formatarDataAgendada(dataAgendada());
+        <span class="hero__value hero__value--orange">{{ data.dia }} / {{ data.mes }} / {{ data.ano }}</span>
+        <span class="hero__hint__dias">em {{ diasParaRepasse() }} dia(s)</span>
+      </div>
+      <div class="hero__col hero__col--pix hero__col--glow">
+        <span class="hero__label">Chave PIX</span>
+        <div class="pix-box">
+          <span class="pix-box__value">{{ payoutInfo()?.pixKey ?? 'Nenhuma chave cadastrada' }}</span>
+          <button class="pix-box__copy" type="button" title="Copiar" (click)="copiarChavePix()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2"/>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+          </button>
+        </div>
+        <span class="hero__hint">tipo: {{ (payoutInfo()?.pixKeyType ?? '—') | lowercase }}</span>
+      </div>
+    </div>
+
+    <div class="historico-card">
+      <div class="historico-card__header">
+        <h2>Histórico de repasses</h2>
+        <button class="ghost-btn" type="button" (click)="exportarCsv()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          <span>Exportar CSV</span>
+        </button>
+      </div>
+
+      <table class="repasses-table">
+        <thead>
+          <tr>
+            <th>Período</th>
+            <th>Valor</th>
+            <th class="num">Comissões</th>
+            <th>Agendado</th>
+            <th>Pago em</th>
+            <th>Status</th>
+            <th>Comprovante</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of historicoRepasses(); track r.period) {
+            <tr>
+              <td>{{ r.period }}</td>
+              <td>{{ formatarMoeda(r.valor) }}</td>
+              <td class="num">{{ r.comissoes }}</td>
+              <td>{{ formatarData(r.pagoEm) }}</td>
+              <td>{{ formatarData(r.pagoEm) }}</td>
+              <td><span class="badge badge--green">PAGO</span></td>
+              <td>
+                <button class="link-btn" type="button" (click)="baixarComprovante()">Baixar PDF</button>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="7" class="empty-row">Nenhum repasse realizado ainda.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>

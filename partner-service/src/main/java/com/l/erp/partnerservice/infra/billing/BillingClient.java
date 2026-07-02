@@ -28,6 +28,10 @@ public class BillingClient {
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * @throws IllegalStateException se o billing-service não responder (timeout/erro Kafka) —
+     *         quem chamar decide se propaga o erro ou trata como indisponibilidade parcial.
+     */
     public BillingExtratoDTO getExtrato(UUID partnerId) {
         log.info("Consultando extrato de comissões via Kafka para partnerId={}", partnerId);
         try {
@@ -42,12 +46,12 @@ public class BillingClient {
             // Só aqui faz sentido restaurar a flag (a espera foi realmente interrompida).
             log.error("Consulta de extrato interrompida para partnerId={}", partnerId, e);
             Thread.currentThread().interrupt();
-            return null;
+            throw new IllegalStateException("Consulta de extrato interrompida", e);
         } catch (Exception e) {
-            // TimeoutException/ExecutionException: engole e devolve null. NUNCA setar a flag de
-            // interrupção na thread web aqui — ela envenena o flush da resposta (ClientAbortException → 500).
+            // TimeoutException/ExecutionException: NUNCA setar a flag de interrupção na thread web
+            // aqui — ela envenena o flush da resposta (ClientAbortException → 500).
             log.error("Falha ao consultar extrato via Kafka para partnerId={}", partnerId, e);
-            return null;
+            throw new IllegalStateException("billing-service indisponível para consulta de extrato", e);
         }
     }
 }

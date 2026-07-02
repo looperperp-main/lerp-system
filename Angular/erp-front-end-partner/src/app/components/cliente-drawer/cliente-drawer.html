@@ -1,0 +1,169 @@
+@if (cliente && mode) {
+  <div class="drawer-overlay" (click)="fecharDrawer()"></div>
+
+  <aside class="drawer">
+    <div class="drawer__header">
+      <div>
+        <h2 class="drawer__nome">{{ cliente.nome }}</h2>
+        <span class="drawer__cnpj">{{ cliente.cnpj }}</span>
+      </div>
+      <button class="drawer__close" type="button" (click)="fecharDrawer()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="drawer__badges">
+      <span class="badge" [class]="'badge--' + cliente.status.toLowerCase()">
+        <span class="badge__dot"></span>{{ cliente.status }}
+      </span>
+      @if (mode === 'engajamento' && cliente.trialExpira) {
+        <span class="drawer__hint">trial expira {{ cliente.trialExpira }}</span>
+      }
+      @if (mode === 'assinatura' && cliente.plano) {
+        <span class="plano-badge" [class]="'plano-badge--' + cliente.plano.toLowerCase()">Plano {{ cliente.plano }}</span>
+      }
+    </div>
+
+    @if (mode === 'engajamento') {
+      @if (carregando()) {
+        <p class="drawer__state">Carregando engajamento…</p>
+      } @else if (detalhe(); as d) {
+        <div class="stat-row">
+          <div class="stat-box">
+            <span class="stat-box__value">{{ d.loginCount }}</span>
+            <span class="stat-box__label">Logins</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-box__value">{{ d.daysActive }}</span>
+            <span class="stat-box__label">Dias ativos</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-box__value stat-box__value--sm">{{ diasDesde(d.lastLoginAt) }}</span>
+            <span class="stat-box__label">Últ. acesso</span>
+          </div>
+        </div>
+
+        <h3 class="section-title">Features acessadas</h3>
+        <div class="feature-list">
+          @for (f of d.features; track f.featureKey) {
+            <div class="feature-row">
+              @if (f.accessCount > 0) {
+                <svg class="feature-row__icon feature-row__icon--ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+              } @else {
+                <svg class="feature-row__icon feature-row__icon--warn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+              }
+              <div class="feature-row__body">
+                <div class="feature-row__top">
+                  <span class="feature-row__label">{{ f.label }}</span>
+                  <span class="feature-row__count">{{ f.accessCount }}×</span>
+                </div>
+                <div class="feature-row__bar">
+                  <div class="feature-row__bar-fill" [style.width.%]="(f.accessCount / maiorAcesso()) * 100"></div>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+
+        @if (d.adoptionGaps.length > 0) {
+          <div class="gaps-box">
+            <div class="gaps-box__title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              GAPs de adoção
+            </div>
+            <ul>
+              @for (gap of d.adoptionGaps; track gap) {
+                <li>{{ gap }}</li>
+              }
+            </ul>
+          </div>
+        }
+
+        <div class="drawer__footer">
+          <button class="btn-primary" type="button" [disabled]="followupEnviado()" (click)="iniciarFollowup()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+            {{ followupEnviado() ? 'Follow-up enviado' : 'Iniciar follow-up' }}
+          </button>
+          <button class="btn-secondary" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+            Resumo
+          </button>
+        </div>
+      }
+    }
+
+    @if (mode === 'assinatura') {
+      <!-- ponytail: sem endpoint de billing por cliente no partner-service ainda; dados de plano/comissão abaixo são placeholder até existir. -->
+      <div class="stat-row">
+        <div class="stat-box">
+          <span class="stat-box__value stat-box__value--sm">—</span>
+          <span class="stat-box__label">Ativado em</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-box__value stat-box__value--sm">—</span>
+          <span class="stat-box__label">Próx. cobrança</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-box__value stat-box__value--sm stat-box__value--green">—</span>
+          <span class="stat-box__label">Engajamento</span>
+        </div>
+      </div>
+
+      <h3 class="section-title">Plano &amp; pagamento</h3>
+      <div class="info-list">
+        <div class="info-row">
+          <span>Valor da assinatura</span>
+          <strong>—</strong>
+        </div>
+        <div class="info-row">
+          <span>Forma de pagamento</span>
+          <strong>—</strong>
+        </div>
+        <div class="info-row">
+          <span>Status da cobrança</span>
+          <span class="badge badge--ativo"><span class="badge__dot"></span>—</span>
+        </div>
+      </div>
+
+      <h3 class="section-title">Comissão gerada</h3>
+      <div class="info-list">
+        <div class="info-row">
+          <span>Modelo</span>
+          @if (cliente.plano) {
+            <span class="plano-badge" [class]="'plano-badge--' + cliente.plano.toLowerCase()">{{ cliente.plano }}</span>
+          } @else {
+            <strong>—</strong>
+          }
+        </div>
+        <div class="info-row">
+          <span>Repassado</span>
+          <strong class="info-row__valor">—</strong>
+        </div>
+      </div>
+
+      <p class="drawer__aviso">Detalhes de faturamento por cliente ainda não estão disponíveis no portal do parceiro.</p>
+
+      <div class="drawer__footer">
+        <button class="btn-primary" type="button" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/>
+          </svg>
+          Ver faturas
+        </button>
+        <button class="btn-secondary" type="button" disabled>Mudar plano</button>
+      </div>
+    }
+  </aside>
+}

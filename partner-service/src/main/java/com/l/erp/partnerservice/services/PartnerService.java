@@ -338,10 +338,8 @@ public class PartnerService {
 
     @Transactional(readOnly = true)
     public ExtratoComissoesDTO getComissoes(UUID partnerId) {
+        // Propaga falha do billing-service (não mascara indisponibilidade como "sem comissões").
         BillingExtratoDTO raw = billingClient.getExtrato(partnerId);
-        if (raw == null) {
-            return new ExtratoComissoesDTO(BigDecimal.ZERO, BigDecimal.ZERO, null, null, null, 0, List.of());
-        }
 
         // Enriquece os itens com razaoSocial/cnpj do PartnerReferral local
         Map<Long, PartnerReferral> referralByTenant = referralRepository

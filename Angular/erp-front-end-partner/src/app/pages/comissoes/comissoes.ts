@@ -107,6 +107,18 @@ export class ComissoesComponent implements OnInit {
     }
   }
 
+  planoClasse(plano: string | null | undefined): string {
+    return plano?.toUpperCase() === 'MENSAL'
+      ? 'badge-plano badge-plano--mensal'
+      : 'badge-plano badge-plano--anual';
+  }
+
+  modeloClasse(modelo: string | null | undefined): string {
+    return modelo?.toUpperCase() === 'RECORRENTE'
+      ? 'badge-modelo badge-modelo--recorrente'
+      : 'badge-modelo badge-modelo--anual';
+  }
+
   formatarCnpj(cnpj: string): string {
     return cnpj?.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') ?? '—';
   }

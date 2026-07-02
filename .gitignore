@@ -1,5 +1,9 @@
 HELP.md
 target/
+node_modules/
+graphify-out/
+htmlReport/
+.junie/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/

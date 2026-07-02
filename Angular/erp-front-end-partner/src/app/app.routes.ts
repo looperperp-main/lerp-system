@@ -30,6 +30,10 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./pages/configuracoes/configuracoes').then((m) => m.ConfiguracoesComponent),
       },
+      {
+        path: 'repasses',
+        loadComponent: () => import('./pages/repasses/repasses').then((m) => m.RepassesComponent),
+      },
     ],
   },
 ];

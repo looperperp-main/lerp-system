@@ -102,7 +102,7 @@ public class CommissionService {
                 : null;
         return new ComissaoItemDTO(
                 c.getId(), c.getTenantId(), c.getAmount(), base, percentual,
-                c.getCommissionModel(), c.getSubscription().getBillingCycle(),
+                c.getCommissionModel(), c.getSubscription().getPlanType(),
                 c.getPeriod(), c.getStatus(), c.getCalculatedAt(), c.getPaidAt());
     }
 

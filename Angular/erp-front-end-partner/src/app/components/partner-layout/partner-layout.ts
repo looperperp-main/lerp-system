@@ -70,4 +70,9 @@ export class PartnerLayout {
   toggleSidebar(): void {
     this.isSidebarOpen.update((v) => !v);
   }
+
+  logout(): void {
+    this.session.logout();
+    this.router.navigateByUrl('/login');
+  }
 }
