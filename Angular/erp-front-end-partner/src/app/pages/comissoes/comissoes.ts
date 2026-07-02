@@ -26,8 +26,19 @@ export class ComissoesComponent implements OnInit {
 
   private readonly historico = computed(() => this.extrato()?.historico ?? []);
 
-  readonly meses = computed(() => [...new Set(this.historico().map((i) => i.period))].sort().reverse());
-  readonly modelos = computed(() => [...new Set(this.historico().map((i) => i.modelo).filter(Boolean))] as string[]);
+  readonly meses = computed(() =>
+    [...new Set(this.historico().map((i) => i.period))].sort().reverse(),
+  );
+  readonly modelos = computed(
+    () =>
+      [
+        ...new Set(
+          this.historico()
+            .map((i) => i.modelo)
+            .filter(Boolean),
+        ),
+      ] as string[],
+  );
   readonly statuses = computed(() => [...new Set(this.historico().map((i) => i.status))]);
 
   readonly historicoFiltrado = computed(() =>
@@ -106,7 +117,9 @@ export class ComissoesComponent implements OnInit {
   }
 
   formatarPercentual(v: number | null | undefined): string {
-    return v == null ? '—' : `${v.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 1 })}%`;
+    return v == null
+      ? '—'
+      : `${v.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 1 })}%`;
   }
 
   formatarData(iso: string | null): string {

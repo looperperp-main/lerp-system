@@ -155,6 +155,8 @@ Angular 21, standalone components (no NgModules). Pages in `src/app/pages/` (`lo
 
 ## Workflow Directives
 
+**Specs com Fable:** trabalho em specs (`spec/*.md`) deve ser feito com o modelo **Fable** enquanto ele estiver disponível. Se a sessão estiver em outro modelo e a tarefa for mexer em spec, sugerir ao usuário trocar com `/model Fable` antes de começar.
+
 **Constantes:** todo valor constante (strings de ação/auditoria, tipos de evento, mensagens reutilizáveis, códigos) deve ser declarado em `common/src/main/java/com/l/erp/common/util/Constants.java` e referenciado de lá — não usar literais "soltos" no código dos serviços.
 
 After every set of code changes, propose a short commit message in the format:

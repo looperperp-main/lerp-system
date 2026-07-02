@@ -1,0 +1,195 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1520 1180" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
+    </marker>
+    <marker id="arrk" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#ea580c"/>
+    </marker>
+  </defs>
+
+  <style>
+    .lane  { fill:#f8fafc; stroke:#e2e8f0; }
+    .laneT { font-size:15px; font-weight:700; fill:#0f172a; }
+    .sub   { fill:#1e3a8a; stroke:#2563eb; }
+    .ten   { fill:#14532d; stroke:#16a34a; }
+    .term  { fill:#7f1d1d; stroke:#b91c1c; }
+    .st    { fill:#ffffff; font-size:13px; font-weight:700; text-anchor:middle; }
+    .edge  { stroke:#334155; stroke-width:1.6; fill:none; }
+    .kedge { stroke:#ea580c; stroke-width:1.6; fill:none; stroke-dasharray:6 4; }
+    .lbl   { font-size:11px; fill:#334155; }
+    .klbl  { font-size:11px; fill:#c2410c; font-weight:600; }
+    .panel { fill:#ffffff; stroke:#cbd5e1; }
+    .ptitle{ font-size:14px; font-weight:700; }
+    .ptxt  { font-size:11.5px; fill:#334155; }
+    .start { fill:#0f172a; }
+  </style>
+
+  <text x="40" y="34" font-size="22" font-weight="800" fill="#0f172a">Syax — Máquina de estados: Onboarding + Payment-service</text>
+  <text x="40" y="56" font-size="12.5" fill="#64748b">Tenant (auth) e Subscription (billing) sincronizados por eventos Kafka; Redis para cache write-through, idempotência e lock. Particionamento por chave = tenantId (ordem por tenant).</text>
+
+  <!-- ============ BILLING LANE ============ -->
+  <rect class="lane" x="30" y="80" width="1080" height="240" rx="10"/>
+  <text class="laneT" x="48" y="104">BILLING · subscription.status</text>
+
+  <rect class="sub" x="55"  y="150" width="180" height="58" rx="9"/>
+  <text class="st" x="145" y="184">AGUARDANDO_PAGAMENTO</text>
+
+  <rect class="sub" x="330" y="150" width="120" height="58" rx="9"/>
+  <text class="st" x="390" y="184">ATIVA</text>
+
+  <rect class="sub" x="540" y="150" width="120" height="58" rx="9"/>
+  <text class="st" x="600" y="184">SUSPENSO</text>
+
+  <rect class="sub" x="720" y="150" width="210" height="58" rx="9"/>
+  <text class="st" x="825" y="178">CANCELAMENTO</text>
+  <text class="st" x="825" y="194">_SOLICITADO</text>
+
+  <rect class="term" x="980" y="150" width="110" height="58" rx="9"/>
+  <text class="st" x="1035" y="184">CANCELADO</text>
+
+  <!-- billing edges -->
+  <path class="edge" d="M235,179 H330" marker-end="url(#arr)"/>
+  <text class="lbl" x="244" y="172">PAYMENT_RECEIVED</text>
+
+  <path class="edge" d="M450,179 H540" marker-end="url(#arr)"/>
+  <text class="lbl" x="455" y="172">DunningJob suspend_at≤now</text>
+
+  <!-- suspenso -> ativa (reativação, curva por cima) -->
+  <path class="edge" d="M600,150 C600,118 390,118 390,150" marker-end="url(#arr)"/>
+  <text class="lbl" x="430" y="116">PAYMENT_RECEIVED (reativa)</text>
+
+  <!-- ativa -> cancelamento_solicitado -->
+  <path class="edge" d="M450,196 C560,250 640,250 720,205" marker-end="url(#arr)"/>
+  <text class="lbl" x="470" y="250">POST /subscriptions/me/cancel</text>
+
+  <!-- cancelamento_solicitado -> cancelado -->
+  <path class="edge" d="M930,179 H980" marker-end="url(#arr)"/>
+  <text class="lbl" x="905" y="142">DunningJob next_due_date≤now</text>
+
+  <!-- suspenso -> cancelado (cancel_at) -->
+  <path class="edge" d="M660,179 C800,210 880,210 1010,208" marker-end="url(#arr)"/>
+  <text class="lbl" x="700" y="232">DunningJob cancel_at≤now (+ comissões PENDENTE→CANCELADO)</text>
+
+  <!-- ============ KAFKA BRIDGE ============ -->
+  <text class="klbl" x="48" y="360" font-size="13">KAFKA  (billing → auth · key = tenantId)</text>
+  <path class="kedge" d="M390,212 V470" marker-end="url(#arrk)"/>
+  <text class="klbl" x="398" y="345">billing.subscription.activated</text>
+  <path class="kedge" d="M600,212 V470" marker-end="url(#arrk)"/>
+  <text class="klbl" x="608" y="365">billing.subscription.suspended</text>
+  <path class="kedge" d="M1035,212 V470" marker-end="url(#arrk)"/>
+  <text class="klbl" x="900" y="385">billing.subscription.cancelled</text>
+
+  <!-- ============ AUTH LANE ============ -->
+  <rect class="lane" x="30" y="470" width="1080" height="290" rx="10"/>
+  <text class="laneT" x="48" y="494">AUTH · tenant.status  (dono do acesso/login)</text>
+
+  <circle class="start" cx="70" cy="560" r="8"/>
+  <rect class="ten" x="110" y="530" width="120" height="58" rx="9"/>
+  <text class="st" x="170" y="564">CONVIDADO</text>
+
+  <rect class="ten" x="320" y="530" width="120" height="58" rx="9"/>
+  <text class="st" x="380" y="564">TRIAL</text>
+
+  <rect class="ten" x="540" y="530" width="120" height="58" rx="9"/>
+  <text class="st" x="600" y="564">ATIVO</text>
+
+  <rect class="ten" x="760" y="530" width="120" height="58" rx="9"/>
+  <text class="st" x="820" y="564">SUSPENSO</text>
+
+  <rect class="term" x="960" y="530" width="120" height="58" rx="9"/>
+  <text class="st" x="1020" y="564">CANCELADO</text>
+
+  <rect class="term" x="320" y="670" width="120" height="50" rx="9"/>
+  <text class="st" x="380" y="700">PERDIDO</text>
+
+  <!-- auth edges -->
+  <path class="edge" d="M78,560 H110" marker-end="url(#arr)"/>
+  <text class="lbl" x="60" y="524">Fluxo A: convite parceiro</text>
+
+  <!-- start -> trial direct (fluxo B) -->
+  <path class="edge" d="M70,568 C70,640 300,640 360,590" marker-end="url(#arr)"/>
+  <text class="lbl" x="90" y="640">Fluxo B: POST /auth/criar-conta (grátis)</text>
+
+  <path class="edge" d="M230,559 H320" marker-end="url(#arr)"/>
+  <text class="lbl" x="232" y="552">POST /auth/ativar (token)</text>
+
+  <path class="edge" d="M440,559 H540" marker-end="url(#arr)"/>
+  <text class="lbl" x="445" y="552">consume billing.subscription.activated</text>
+
+  <!-- ativo <-> suspenso -->
+  <path class="edge" d="M660,552 H760" marker-end="url(#arr)"/>
+  <text class="lbl" x="665" y="545">consume billing.subscription.suspended</text>
+  <path class="edge" d="M760,575 H660" marker-end="url(#arr)"/>
+  <text class="lbl" x="665" y="592">consume billing.subscription.activated</text>
+
+  <!-- suspenso/ativo -> cancelado -->
+  <path class="edge" d="M880,559 H960" marker-end="url(#arr)"/>
+  <text class="lbl" x="884" y="552">consume billing.subscription.cancelled</text>
+  <path class="edge" d="M600,588 C600,720 900,720 1010,590" marker-end="url(#arr)"/>
+  <text class="lbl" x="640" y="736">consume billing.subscription.cancelled</text>
+
+  <!-- trial -> perdido -->
+  <path class="edge" d="M380,588 V670" marker-end="url(#arr)"/>
+  <text class="lbl" x="388" y="635">3 follow-ups (TrialScheduler)</text>
+
+  <!-- ============ REDIS PANEL ============ -->
+  <rect class="panel" x="1130" y="80" width="370" height="240" rx="10"/>
+  <text class="ptitle" x="1150" y="108" fill="#b91c1c">REDIS</text>
+  <text class="ptxt" x="1150" y="134" font-weight="700">TenantStatusCacheService (write-through)</text>
+  <text class="ptxt" x="1150" y="152">key por tenantId · TTL 300s (config verificada)</text>
+  <text class="ptxt" x="1150" y="168">put (nunca evict) em ATIVA/SUSPENSO/CANCELADO</text>
+  <text class="ptxt" x="1150" y="192" font-weight="700">WebhookIdempotencyService (Lua)</text>
+  <text class="ptxt" x="1150" y="210">key: event.id do Asaas → tryAcquire/markDone/release</text>
+  <text class="ptxt" x="1150" y="226">protege reprocesso (WebhookRecoveryJob)</text>
+  <text class="ptxt" x="1150" y="250" font-weight="700">DistributedLockService (lock por job)</text>
+  <text class="ptxt" x="1150" y="268">syax:billing:lock:{payout|dunning|</text>
+  <text class="ptxt" x="1150" y="284">webhook-recovery|reconciliation}</text>
+  <text class="ptxt" x="1150" y="304">execução única multi-instância</text>
+
+  <!-- ============ KAFKA TOPICS PANEL ============ -->
+  <rect class="panel" x="1130" y="340" width="370" height="420" rx="10"/>
+  <text class="ptitle" x="1150" y="362" fill="#c2410c">KAFKA · tópicos (key) → consumer</text>
+  <text class="ptxt" x="1150" y="382" font-weight="700">billing →</text>
+  <text class="ptxt" x="1150" y="397">• billing.subscription.activated (tenantId) → auth, partner</text>
+  <text class="ptxt" x="1150" y="411">• billing.subscription.suspended (tenantId) → auth</text>
+  <text class="ptxt" x="1150" y="425">• billing.subscription.cancelled (tenantId) → auth</text>
+  <text class="ptxt" x="1150" y="443" font-weight="700">partner →</text>
+  <text class="ptxt" x="1150" y="458">• partner.invite.requested (partnerId) → auth</text>
+  <text class="ptxt" x="1150" y="472">• partner.approved (partnerId) → auth</text>
+  <text class="ptxt" x="1150" y="486">• partner.commission.calculated (partnerId) → billing</text>
+  <text class="ptxt" x="1150" y="500">• partner.email.notification (email) → auth</text>
+  <text class="ptxt" x="1150" y="518" font-weight="700">auth →</text>
+  <text class="ptxt" x="1150" y="533">• partner.tenant.activated (referralId) → partner</text>
+  <text class="ptxt" x="1150" y="547">• partner.invite.processed (referralId) → partner</text>
+  <text class="ptxt" x="1150" y="561">• trial.login (tenantId) → partner</text>
+  <text class="ptxt" x="1150" y="575">• user-welcome-email-topic (email) → auth</text>
+  <text class="ptxt" x="1150" y="593" font-weight="700">cadastro → · audit · request-reply</text>
+  <text class="ptxt" x="1150" y="608">• trial.feature.used → auth, partner</text>
+  <text class="ptxt" x="1150" y="622">• audit.events (actorId) → auth (AuditConsumer)</text>
+  <text class="ptxt" x="1150" y="636">• partner.extrato.request (partnerId) → billing,</text>
+  <text class="ptxt" x="1150" y="650">  reply em partner.extrato.reply (ReplyingKafka)</text>
+  <text class="ptxt" x="1150" y="670" font-weight="700">erro / particionamento</text>
+  <text class="ptxt" x="1150" y="685">• DLT por consumer: &lt;topic&gt;.DLT (DeadLetter…Recoverer)</text>
+  <text class="ptxt" x="1150" y="699">• key fixa ⇒ ordem por chave (tenantId/partnerId)</text>
+  <text class="ptxt" x="1150" y="717" fill="#b91c1c">⚠ Partições: SEM NewTopic/KAFKA_CREATE_TOPICS →</text>
+  <text class="ptxt" x="1150" y="731" fill="#b91c1c">auto-create no default do broker (provável 1).</text>
+  <text class="ptxt" x="1150" y="745" fill="#b91c1c">replication=1 (compose). p/ escalar: definir partições.</text>
+
+  <!-- ============ ASAAS / WEBHOOK SOURCE ============ -->
+  <rect class="panel" x="30" y="800" width="1470" height="170" rx="10"/>
+  <text class="ptitle" x="50" y="828" fill="#0f172a">ASAAS (webhooks de entrada → billing /api/v1/webhooks/asaas) e gatilhos</text>
+  <text class="ptxt" x="50" y="852">• PAYMENT_RECEIVED → ATIVA + zera dunning + write-through cache + publica activated + (se parceiro) gera comissão PENDENTE</text>
+  <text class="ptxt" x="50" y="870">• PAYMENT_OVERDUE → grava suspend_at=now+5d, cancel_at=now+7d (não muda status; DunningJob age depois)</text>
+  <text class="ptxt" x="50" y="888">• PAYMENT_DELETED → comissão associada → CANCELADO</text>
+  <text class="ptxt" x="50" y="906">• SUBSCRIPTION_INACTIVATED → só metadado asaas_inactivated_at (transição é do DunningJob)</text>
+  <text class="ptxt" x="50" y="924">• TRANSFER_COMPLETED → comissões do transfer → PAGO; TRANSFER_FAILED → volta PENDENTE + limpa asaas_transfer_id</text>
+  <text class="ptxt" x="50" y="946">• Jobs: DunningJob (diário) · CommissionPayoutJob (D+1 mês) · WebhookRecoveryJob (15min) · ReconciliationJob (30min)  — todos com lock Redis</text>
+
+  <!-- legend -->
+  <rect class="sub" x="40" y="1000" width="22" height="14" rx="3"/><text class="ptxt" x="70" y="1012">billing subscription</text>
+  <rect class="ten" x="220" y="1000" width="22" height="14" rx="3"/><text class="ptxt" x="250" y="1012">auth tenant</text>
+  <rect class="term" x="360" y="1000" width="22" height="14" rx="3"/><text class="ptxt" x="390" y="1012">estado terminal</text>
+  <line x1="520" y1="1007" x2="560" y2="1007" class="kedge"/><text class="ptxt" x="568" y="1012">evento Kafka</text>
+  <line x1="700" y1="1007" x2="740" y2="1007" class="edge" marker-end="url(#arr)"/><text class="ptxt" x="748" y="1012">transição (webhook / job / API)</text>
+</svg>
