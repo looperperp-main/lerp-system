@@ -2,6 +2,7 @@ package com.l.erp.cadastroservice.api.controllers;
 
 import com.l.erp.cadastroservice.api.dto.GrupoClienteDTO;
 import com.l.erp.cadastroservice.services.GrupoClienteService;
+import com.l.erp.common.exception.custom.BusinessException;
 import com.l.erp.common.util.Constants;
 import com.l.erp.cadastroservice.util.SecurityUtils;
 import jakarta.validation.Valid;
@@ -44,15 +45,15 @@ public class GrupoClienteController {
     public ResponseEntity<GrupoClienteDTO> findById(@PathVariable UUID id) {
         logger.info("Buscando grupo de cliente por ID: {}", id);
         Optional<Long> tenantId = SecurityUtils.getCurrentTenantId();
-        return ResponseEntity.ok(service.findById(id, tenantId.orElseThrow(() -> new RuntimeException(Constants.USUARIO_UUID_NAO_ENCONTRADO))));
+        return ResponseEntity.ok(service.findById(id, tenantId.orElseThrow(() -> new BusinessException(Constants.USUARIO_UUID_NAO_ENCONTRADO, HttpStatus.UNAUTHORIZED))));
     }
 
     @PostMapping
     public ResponseEntity<GrupoClienteDTO> save(@RequestBody @Valid GrupoClienteDTO dto) {
         logger.info("Criando grupo de cliente: {}", dto);
 
-        Long tenantID = SecurityUtils.getCurrentTenantId().orElseThrow(() -> new RuntimeException(Constants.USUARIO_UUID_NAO_ENCONTRADO));
-        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new RuntimeException(Constants.USUARIO_UUID_NAO_ENCONTRADO));
+        Long tenantID = SecurityUtils.getCurrentTenantId().orElseThrow(() -> new BusinessException(Constants.USUARIO_UUID_NAO_ENCONTRADO, HttpStatus.UNAUTHORIZED));
+        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new BusinessException(Constants.USUARIO_UUID_NAO_ENCONTRADO, HttpStatus.UNAUTHORIZED));
         GrupoClienteDTO salvo = service.save(dto, tenantID, userId);
         return ResponseEntity.status(HttpStatus.CREATED).body(salvo);
     }
@@ -61,8 +62,8 @@ public class GrupoClienteController {
     public ResponseEntity<GrupoClienteDTO> update(@PathVariable UUID id, @RequestBody @Valid GrupoClienteDTO dto) {
         logger.info("Atualizando grupo de cliente: {}", dto);
 
-        Long tenantID = SecurityUtils.getCurrentTenantId().orElseThrow(() -> new RuntimeException(Constants.USUARIO_UUID_NAO_ENCONTRADO));
-        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new RuntimeException(Constants.USUARIO_UUID_NAO_ENCONTRADO));
+        Long tenantID = SecurityUtils.getCurrentTenantId().orElseThrow(() -> new BusinessException(Constants.USUARIO_UUID_NAO_ENCONTRADO, HttpStatus.UNAUTHORIZED));
+        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new BusinessException(Constants.USUARIO_UUID_NAO_ENCONTRADO, HttpStatus.UNAUTHORIZED));
         GrupoClienteDTO salvo = service.update(id, dto, tenantID, userId);
         return ResponseEntity.ok(salvo);
     }

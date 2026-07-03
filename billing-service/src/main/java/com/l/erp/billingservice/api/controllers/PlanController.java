@@ -4,6 +4,7 @@ import com.l.erp.billingservice.api.dto.PlanRequest;
 import com.l.erp.billingservice.api.dto.PlanResponse;
 import com.l.erp.billingservice.api.mappers.PlanAssembler;
 import com.l.erp.billingservice.domain.Plan;
+import com.l.erp.common.util.Constants;
 import com.l.erp.billingservice.services.PlanService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
@@ -56,8 +57,8 @@ public class PlanController {
 
     @PostMapping
     public ResponseEntity<PlanResponse> criar(
-            @RequestHeader("X-User-Id") String userId,
-            @RequestHeader("X-Tenant-Id") String tenantId,
+            @RequestHeader(Constants.HEADER_USER_ID) String userId,
+            @RequestHeader(Constants.HEADER_TENANT_ID) String tenantId,
             @RequestBody @Valid PlanRequest req) {
         PlanResponse response = assembler.toModel(planService.createPlan(req, userId, tenantId));
         return ResponseEntity.created(response.getRequiredLink(IanaLinkRelations.SELF).toUri()).body(response);
@@ -66,8 +67,8 @@ public class PlanController {
     @PutMapping("/{id}")
     public ResponseEntity<PlanResponse> atualizar(
             @PathVariable UUID id,
-            @RequestHeader("X-User-Id") String userId,
-            @RequestHeader("X-Tenant-Id") String tenantId,
+            @RequestHeader(Constants.HEADER_USER_ID) String userId,
+            @RequestHeader(Constants.HEADER_TENANT_ID) String tenantId,
             @RequestBody @Valid PlanRequest req) {
         return ResponseEntity.ok(assembler.toModel(planService.updatePlan(id, req, userId, tenantId)));
     }
@@ -75,8 +76,8 @@ public class PlanController {
     @PatchMapping("/{id}/status")
     public ResponseEntity<PlanResponse> toggleStatus(
             @PathVariable UUID id,
-            @RequestHeader("X-User-Id") String userId,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(Constants.HEADER_USER_ID) String userId,
+            @RequestHeader(Constants.HEADER_TENANT_ID) String tenantId) {
         return ResponseEntity.ok(assembler.toModel(planService.toggleActive(id, userId, tenantId)));
     }
 }

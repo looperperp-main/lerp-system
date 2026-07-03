@@ -5,9 +5,11 @@ import com.l.erp.cadastroservice.api.dto.EnderecoResponseDTO;
 import com.l.erp.cadastroservice.api.mappers.EnderecoAssembler;
 import com.l.erp.cadastroservice.domain.Endereco;
 import com.l.erp.cadastroservice.services.EnderecoService;
+import com.l.erp.common.exception.custom.BusinessException;
 import com.l.erp.common.util.Constants;
 import jakarta.validation.Valid;
 import org.springframework.hateoas.CollectionModel;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -37,7 +39,7 @@ public class EnderecoController {
 
     @GetMapping
     public ResponseEntity<CollectionModel<EnderecoResponseDTO>> listarPorPessoa(@PathVariable UUID pessoaId) {
-        Long tenantId = getCurrentTenantId().orElseThrow(() -> new RuntimeException(Constants.TENANT_NOT_FOUND));
+        Long tenantId = getCurrentTenantId().orElseThrow(() -> new BusinessException(Constants.TENANT_NOT_FOUND, HttpStatus.UNAUTHORIZED));
 
         List<Endereco> enderecos = enderecoService.findAllByPessoa(pessoaId, tenantId);
         CollectionModel<EnderecoResponseDTO> response = assembler.toCollectionModel(enderecos);
@@ -47,7 +49,7 @@ public class EnderecoController {
 
     @GetMapping("/{id}")
     public ResponseEntity<EnderecoResponseDTO> findById(@PathVariable UUID pessoaId, @PathVariable UUID id) {
-        Long tenantId = getCurrentTenantId().orElseThrow(() -> new RuntimeException(Constants.TENANT_NOT_FOUND));
+        Long tenantId = getCurrentTenantId().orElseThrow(() -> new BusinessException(Constants.TENANT_NOT_FOUND, HttpStatus.UNAUTHORIZED));
 
         Endereco endereco = enderecoService.findById(id, pessoaId, tenantId);
         return ResponseEntity.ok(assembler.toModel(endereco));
@@ -58,8 +60,8 @@ public class EnderecoController {
             @PathVariable UUID pessoaId,
             @Valid @RequestBody EnderecoRequestDTO dto) {
 
-        Long tenantId = getCurrentTenantId().orElseThrow(() -> new RuntimeException(Constants.TENANT_NOT_FOUND));
-        UUID userId = getCurrentUserId().orElseThrow(() -> new RuntimeException(Constants.USER_NOT_FOUND));
+        Long tenantId = getCurrentTenantId().orElseThrow(() -> new BusinessException(Constants.TENANT_NOT_FOUND, HttpStatus.UNAUTHORIZED));
+        UUID userId = getCurrentUserId().orElseThrow(() -> new BusinessException(Constants.USER_NOT_FOUND, HttpStatus.UNAUTHORIZED));
 
         Endereco salvo = enderecoService.create(pessoaId, dto, tenantId, userId);
         EnderecoResponseDTO response = assembler.toModel(salvo);
@@ -75,8 +77,8 @@ public class EnderecoController {
             @PathVariable UUID id,
             @Valid @RequestBody EnderecoRequestDTO dto) {
 
-        Long tenantId = getCurrentTenantId().orElseThrow(() -> new RuntimeException(Constants.TENANT_NOT_FOUND));
-        UUID userId = getCurrentUserId().orElseThrow(() -> new RuntimeException(Constants.USER_NOT_FOUND));
+        Long tenantId = getCurrentTenantId().orElseThrow(() -> new BusinessException(Constants.TENANT_NOT_FOUND, HttpStatus.UNAUTHORIZED));
+        UUID userId = getCurrentUserId().orElseThrow(() -> new BusinessException(Constants.USER_NOT_FOUND, HttpStatus.UNAUTHORIZED));
 
         Endereco atualizado = enderecoService.update(id, pessoaId, dto, tenantId, userId);
         return ResponseEntity.ok(assembler.toModel(atualizado));

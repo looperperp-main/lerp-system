@@ -1,6 +1,7 @@
 package com.l.erp.billingservice.api.controllers;
 
 import com.l.erp.billingservice.api.dto.CancelSubscriptionResponse;
+import com.l.erp.common.util.Constants;
 import com.l.erp.billingservice.api.dto.SubscriptionAdminDTO;
 import com.l.erp.billingservice.repository.SubscriptionRepository;
 import com.l.erp.billingservice.services.SubscriptionService;
@@ -36,7 +37,7 @@ public class SubscriptionController {
 
     /** Cancelamento manual da assinatura do tenant logado (gateway injeta X-Tenant-Id). */
     @PostMapping("/me/cancel")
-    public ResponseEntity<CancelSubscriptionResponse> cancelar(@RequestHeader("X-Tenant-Id") Long tenantId) {
+    public ResponseEntity<CancelSubscriptionResponse> cancelar(@RequestHeader(Constants.HEADER_TENANT_ID) Long tenantId) {
         return ResponseEntity.ok(subscriptionService.cancelForTenant(tenantId));
     }
 }

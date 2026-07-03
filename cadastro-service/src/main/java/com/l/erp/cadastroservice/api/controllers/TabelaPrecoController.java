@@ -5,6 +5,7 @@ import com.l.erp.cadastroservice.api.dto.TabelaPrecoResponseDTO;
 import com.l.erp.cadastroservice.api.mappers.TabelaPrecoAssembler;
 import com.l.erp.cadastroservice.domain.TabelaPreco;
 import com.l.erp.cadastroservice.services.TabelaPrecoService;
+import com.l.erp.common.exception.custom.BusinessException;
 import com.l.erp.common.util.Constants;
 import com.l.erp.cadastroservice.util.SecurityUtils;
 import jakarta.validation.Valid;
@@ -14,6 +15,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PagedResourcesAssembler;
 import org.springframework.hateoas.PagedModel;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -55,7 +57,7 @@ public class TabelaPrecoController {
     @PostMapping
     public ResponseEntity<TabelaPrecoResponseDTO> save(@RequestBody @Valid TabelaPrecoDTO dto) {
         logger.info("Criando Tabela de Preço: {}", dto.nome());
-        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new RuntimeException(Constants.USER_NOT_FOUND));
+        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new BusinessException(Constants.USER_NOT_FOUND, HttpStatus.UNAUTHORIZED));
 
         TabelaPreco salvo = service.save(dto, userId);
         TabelaPrecoResponseDTO response = assembler.toModel(salvo);
@@ -67,7 +69,7 @@ public class TabelaPrecoController {
     @PutMapping("/{id}")
     public ResponseEntity<TabelaPrecoResponseDTO> update(@PathVariable UUID id, @RequestBody @Valid TabelaPrecoDTO dto) {
         logger.info("Atualizando Tabela de Preço: {}", id);
-        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new RuntimeException(Constants.USER_NOT_FOUND));
+        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new BusinessException(Constants.USER_NOT_FOUND, HttpStatus.UNAUTHORIZED));
 
         TabelaPreco salvo = service.update(id, dto, userId);
         TabelaPrecoResponseDTO response = assembler.toModel(salvo);
@@ -78,7 +80,7 @@ public class TabelaPrecoController {
     @PatchMapping("/{id}/status")
     public ResponseEntity<Void> updateStatus(@PathVariable UUID id) {
         logger.info("Alterando status da Tabela de Preço: {}", id);
-        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new RuntimeException(Constants.USER_NOT_FOUND));
+        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new BusinessException(Constants.USER_NOT_FOUND, HttpStatus.UNAUTHORIZED));
 
         service.updateStatus(id, userId);
 

@@ -489,3 +489,148 @@
   text-align: center;
   font-family: 'Inter', sans-serif;
 }
+
+// ── Empty State (primeiro acesso, zero clientes) ──
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 64px 24px;
+  max-width: 760px;
+  margin: 0 auto;
+  font-family: 'Inter', sans-serif;
+}
+
+.empty-state__logo {
+  width: 56px;
+  height: 56px;
+  margin-bottom: 24px;
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+
+  svg {
+    width: 26px;
+    height: 26px;
+  }
+}
+
+.empty-state__title {
+  font-size: 26px;
+  font-weight: 700;
+  color: #f5f5f5;
+  margin: 0 0 12px;
+}
+
+.empty-state__subtitle {
+  font-size: 14px;
+  color: #a8a090;
+  line-height: 1.6;
+  max-width: 520px;
+  margin: 0 0 36px;
+}
+
+.empty-state__steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  width: 100%;
+  margin-bottom: 32px;
+
+  @media (max-width: 720px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.empty-step {
+  background-color: #1A1614;
+  border: 1px solid #222222;
+  border-radius: 12px;
+  padding: 18px;
+  text-align: left;
+}
+
+.empty-step__num {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #f97316;
+  font-family: 'JetBrains Mono', monospace;
+  margin-bottom: 10px;
+}
+
+.empty-step__title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #f5f5f5;
+  margin: 0 0 6px;
+}
+
+.empty-step__desc {
+  font-size: 12px;
+  color: #a8a090;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.empty-state__actions {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+
+  @media (max-width: 560px) {
+    flex-direction: column;
+    width: 100%;
+  }
+}
+
+.empty-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 20px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  border: 1px solid transparent;
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  &.empty-btn--primary {
+    background: linear-gradient(135deg, #f97316, #ea580c);
+    color: #fff;
+
+    &:hover {
+      filter: brightness(1.08);
+    }
+  }
+
+  &.empty-btn--secondary {
+    background-color: #1A1614;
+    border-color: #2a2521;
+    color: #f5f5f5;
+
+    &:hover {
+      border-color: #3a332c;
+    }
+  }
+}
+
+.empty-state__code {
+  font-size: 12px;
+  color: #6b7280;
+  font-family: 'JetBrains Mono', monospace;
+
+  strong {
+    color: #f97316;
+  }
+}

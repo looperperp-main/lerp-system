@@ -1,5 +1,6 @@
 package com.l.erp.billingservice.util;
 
+import com.l.erp.common.util.Constants;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -13,11 +14,11 @@ public final class SecurityUtils {
     private SecurityUtils() {}
 
     public static Optional<String> getCurrentUserSub() {
-        return getHeader("X-User-Id");
+        return getHeader(Constants.HEADER_USER_ID);
     }
 
     public static Optional<UUID> getCurrentUserId() {
-        return getHeader("X-User-Id").map(UUID::fromString);
+        return getHeader(Constants.HEADER_USER_ID).map(UUID::fromString);
     }
 
     public static UUID getCorrelationIdFromRequest(Logger log) {

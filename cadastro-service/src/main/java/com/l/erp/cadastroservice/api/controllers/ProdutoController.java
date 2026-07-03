@@ -5,6 +5,7 @@ import com.l.erp.cadastroservice.api.dto.ProdutoResponseDTO;
 import com.l.erp.cadastroservice.api.mappers.ProdutoAssembler;
 import com.l.erp.cadastroservice.domain.Produto;
 import com.l.erp.cadastroservice.services.ProdutoService;
+import com.l.erp.common.exception.custom.BusinessException;
 import com.l.erp.common.util.Constants;
 import com.l.erp.cadastroservice.util.SecurityUtils;
 import jakarta.validation.Valid;
@@ -12,6 +13,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PagedResourcesAssembler;
 import org.springframework.hateoas.PagedModel;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -42,13 +44,13 @@ public class ProdutoController {
     @GetMapping
     public ResponseEntity<PagedModel<ProdutoResponseDTO>> findAll(Pageable pageable, PagedResourcesAssembler<Produto> pagedResourcesAssembler) {
         Optional<Long> tenantId = SecurityUtils.getCurrentTenantId();
-        Page<Produto> produtos = service.findAll(tenantId.orElseThrow(() -> new RuntimeException(Constants.TENANT_NOT_FOUND)), pageable);
+        Page<Produto> produtos = service.findAll(tenantId.orElseThrow(() -> new BusinessException(Constants.TENANT_NOT_FOUND, HttpStatus.UNAUTHORIZED)), pageable);
         return ResponseEntity.ok(pagedResourcesAssembler.toModel(produtos, assembler));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<ProdutoResponseDTO> findById(@PathVariable UUID id) {
-        Long tenantId = SecurityUtils.getCurrentTenantId().orElseThrow(() -> new RuntimeException(Constants.TENANT_NOT_FOUND));
+        Long tenantId = SecurityUtils.getCurrentTenantId().orElseThrow(() -> new BusinessException(Constants.TENANT_NOT_FOUND, HttpStatus.UNAUTHORIZED));
         Produto produto = service.findById(id, tenantId);
         return ResponseEntity.ok(assembler.toModel(produto));
     }
@@ -73,14 +75,14 @@ public class ProdutoController {
     public ResponseEntity<ProdutoResponseDTO> update(@PathVariable UUID id, @Valid @RequestBody ProdutoDTO dto) {
         Optional<Long> tenantId = SecurityUtils.getCurrentTenantId();
         UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new RuntimeException("User Id não encontrado!"));
-        Produto updated = service.update(id, userId, dto,tenantId.orElseThrow(() -> new RuntimeException(Constants.TENANT_NOT_FOUND)));
+        Produto updated = service.update(id, userId, dto,tenantId.orElseThrow(() -> new BusinessException(Constants.TENANT_NOT_FOUND, HttpStatus.UNAUTHORIZED)));
         return ResponseEntity.ok(assembler.toModel(updated));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new RuntimeException("User Id não encontrado!"));
-        Long tenantId = SecurityUtils.getCurrentTenantId().orElseThrow(() -> new RuntimeException(Constants.TENANT_NOT_FOUND));
+        Long tenantId = SecurityUtils.getCurrentTenantId().orElseThrow(() -> new BusinessException(Constants.TENANT_NOT_FOUND, HttpStatus.UNAUTHORIZED));
         service.delete(id, userId, tenantId);
         return ResponseEntity.noContent().build();
     }

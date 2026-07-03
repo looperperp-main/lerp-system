@@ -1,6 +1,7 @@
 package com.l.erp.billingservice.api.controllers;
 
 import com.l.erp.billingservice.domain.WebhookLog;
+import com.l.erp.common.util.Constants;
 import com.l.erp.billingservice.infra.asaas.dto.AsaasWebhookPayload;
 import com.l.erp.billingservice.infra.exception.WebhookAuthException;
 import com.l.erp.billingservice.services.WebhookLogService;
@@ -44,7 +45,7 @@ public class WebhookController {
 
     @PostMapping("/asaas")
     public ResponseEntity<Void> receberWebhook(
-            @RequestHeader(value = "asaas-access-token", required = false) String token,
+            @RequestHeader(value = Constants.HEADER_ASAAS_ACCESS_TOKEN, required = false) String token,
             @RequestBody String rawPayload) {
 
         // 1. Validar token — único caso de resposta não-2xx

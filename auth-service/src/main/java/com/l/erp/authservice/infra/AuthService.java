@@ -33,6 +33,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -165,7 +166,7 @@ public class AuthService {
                 Constants.SUCCESS, null, null);
 
         boolean isOwner = ownerRepo.existsByUser_IdAndEnabledTrue(user.getId());
-        List<String> roles = isOwner ? List.of(Roles.APP_OWNER,Roles.TENANT_OWNER) : List.of("ROLE_USER");//TODO: get roles from database
+        List<String> roles = resolveRoles(user.getId(), isOwner);
 
         String jwt = tokenService.generateToken(user, roles, isOwner, getPermissions(user.getId()));
 
@@ -290,7 +291,7 @@ public class AuthService {
             return tokenService.generateTenantUserToken(user, permissions, user.getTenant());
         }
         boolean isOwner = ownerRepo.existsByUser_IdAndEnabledTrue(user.getId());
-        List<String> roles = isOwner ? List.of(Roles.APP_OWNER, Roles.TENANT_OWNER) : List.of("ROLE_USER");
+        List<String> roles = resolveRoles(user.getId(), isOwner);
         return tokenService.generateToken(user, roles, isOwner, getPermissions(user.getId()));
     }
 
@@ -310,6 +311,22 @@ public class AuthService {
                 .map(rp -> rp.getPermission().getCode()) // Pega o campo "TENANT_INSERT", "TENANT_UPDATE"
                 .distinct()
                 .toList();
+    }
+
+    /**
+     * Roles reais do usuário (tabela user_role), não um binário owner/não-owner.
+     * isOwner entra só como flag adicional (APP_OWNER), pois hoje é global (owner_marker
+     * único na instalação) e não substitui a role de tenant (ex.: PROPRIETARIO).
+     */
+    private List<String> resolveRoles(UUID userId, boolean isOwner) {
+        List<String> roles = new ArrayList<>(userRoleRepository.findAllByUserId(userId).stream()
+                .map(ur -> ur.getRole().getName())
+                .distinct()
+                .toList());
+        if (isOwner && !roles.contains(Roles.APP_OWNER)) {
+            roles.add(Roles.APP_OWNER);
+        }
+        return roles;
     }
 
     private boolean isUserLocked(UserAccount user) {

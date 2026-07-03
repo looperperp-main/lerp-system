@@ -1,5 +1,6 @@
 package com.l.erp.billingservice.infra.filter;
 
+import com.l.erp.common.util.Constants;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -46,7 +47,7 @@ public class InternalRequestFilter extends OncePerRequestFilter {
             return;
         }
 
-        String userId = request.getHeader("X-User-Id");
+        String userId = request.getHeader(Constants.HEADER_USER_ID);
         if (userId == null) {
             response.setStatus(HttpStatus.UNAUTHORIZED.value());
             response.setContentType("application/json");
@@ -57,7 +58,7 @@ public class InternalRequestFilter extends OncePerRequestFilter {
         // Popula o SecurityContext com as authorities injetadas pelo gateway (X-Authorities, header
         // protegido contra forja). Habilita @PreAuthorize/@Secured nos endpoints (ex.: REPASSE_EXECUTE).
         SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken(userId, null, parseAuthorities(request.getHeader("X-Authorities"))));
+                new UsernamePasswordAuthenticationToken(userId, null, parseAuthorities(request.getHeader(Constants.HEADER_AUTHORITIES))));
 
         chain.doFilter(request, response);
     }

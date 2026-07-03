@@ -6,6 +6,7 @@ import com.l.erp.cadastroservice.api.mappers.ClienteAssembler;
 import com.l.erp.cadastroservice.domain.Cliente;
 import com.l.erp.cadastroservice.services.ClienteService;
 import com.l.erp.cadastroservice.util.SecurityUtils;
+import com.l.erp.common.exception.custom.BusinessException;
 import com.l.erp.common.util.Constants;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -14,6 +15,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PagedResourcesAssembler;
 import org.springframework.hateoas.PagedModel;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -54,7 +56,7 @@ public class ClienteController {
         Optional<Long> tenantId = SecurityUtils.getCurrentTenantId();
 
         Page<Cliente> clientesPage = service.getAllClientes(
-                tenantId.orElseThrow(() -> new RuntimeException(Constants.TENANT_NOT_FOUND)), pageable);
+                tenantId.orElseThrow(() -> new BusinessException(Constants.TENANT_NOT_FOUND, HttpStatus.UNAUTHORIZED)), pageable);
 
         return ResponseEntity.ok(pagedResourcesAssembler.toModel(clientesPage, assembler));
     }
@@ -64,7 +66,7 @@ public class ClienteController {
         logger.info("Buscando Cliente por ID: {}", id);
         Optional<Long> tenantId = SecurityUtils.getCurrentTenantId();
 
-        Cliente dto = service.findById(id, tenantId.orElseThrow(() -> new RuntimeException(Constants.TENANT_NOT_FOUND)));
+        Cliente dto = service.findById(id, tenantId.orElseThrow(() -> new BusinessException(Constants.TENANT_NOT_FOUND, HttpStatus.UNAUTHORIZED)));
 
         return ResponseEntity.ok(assembler.toModel(dto));
     }
@@ -72,8 +74,8 @@ public class ClienteController {
     @PostMapping
     public ResponseEntity<ClienteResponseDTO> save(@RequestBody @Valid ClienteDTO dto) {
         logger.info("Criando Cliente vinculado a Pessoa ID: {}", dto.pessoaId());
-        Long tenantId = SecurityUtils.getCurrentTenantId().orElseThrow(() -> new RuntimeException(Constants.TENANT_NOT_FOUND));
-        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new RuntimeException(Constants.USER_NOT_FOUND));
+        Long tenantId = SecurityUtils.getCurrentTenantId().orElseThrow(() -> new BusinessException(Constants.TENANT_NOT_FOUND, HttpStatus.UNAUTHORIZED));
+        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new BusinessException(Constants.USER_NOT_FOUND, HttpStatus.UNAUTHORIZED));
 
         Cliente salvo = service.save(dto, tenantId, userId);
         ClienteResponseDTO response = assembler.toModel(salvo);
@@ -85,8 +87,8 @@ public class ClienteController {
     @PutMapping("/{id}")
     public ResponseEntity<ClienteResponseDTO> update(@PathVariable UUID id, @RequestBody @Valid ClienteDTO dto) {
         logger.info("Atualizando Cliente ID: {}", id);
-        Long tenantId = SecurityUtils.getCurrentTenantId().orElseThrow(() -> new RuntimeException(Constants.TENANT_NOT_FOUND));
-        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new RuntimeException(Constants.USER_NOT_FOUND));
+        Long tenantId = SecurityUtils.getCurrentTenantId().orElseThrow(() -> new BusinessException(Constants.TENANT_NOT_FOUND, HttpStatus.UNAUTHORIZED));
+        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new BusinessException(Constants.USER_NOT_FOUND, HttpStatus.UNAUTHORIZED));
 
         Cliente salvo = service.update(id, dto, tenantId, userId);
         ClienteResponseDTO response = assembler.toModel(salvo);
@@ -97,8 +99,8 @@ public class ClienteController {
     @PatchMapping("/{id}/status")
     public ResponseEntity<Void> updateStatus(@PathVariable UUID id) {
         logger.info("Atualizando status do Cliente ID: {}", id);
-        Long tenantId = SecurityUtils.getCurrentTenantId().orElseThrow(() -> new RuntimeException(Constants.TENANT_NOT_FOUND));
-        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new RuntimeException(Constants.USER_NOT_FOUND));
+        Long tenantId = SecurityUtils.getCurrentTenantId().orElseThrow(() -> new BusinessException(Constants.TENANT_NOT_FOUND, HttpStatus.UNAUTHORIZED));
+        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new BusinessException(Constants.USER_NOT_FOUND, HttpStatus.UNAUTHORIZED));
 
         service.updateStatus(id, tenantId, userId);
 
@@ -108,8 +110,8 @@ public class ClienteController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         logger.info("Deletando Cliente ID: {}", id);
-        Long tenantId = SecurityUtils.getCurrentTenantId().orElseThrow(() -> new RuntimeException(Constants.TENANT_NOT_FOUND));
-        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new RuntimeException(Constants.USER_NOT_FOUND));
+        Long tenantId = SecurityUtils.getCurrentTenantId().orElseThrow(() -> new BusinessException(Constants.TENANT_NOT_FOUND, HttpStatus.UNAUTHORIZED));
+        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new BusinessException(Constants.USER_NOT_FOUND, HttpStatus.UNAUTHORIZED));
 
         service.delete(id, tenantId, userId);
 

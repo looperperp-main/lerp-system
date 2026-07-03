@@ -3,6 +3,7 @@ package com.l.erp.billingservice.api.controllers;
 import com.l.erp.billingservice.api.dto.CheckoutRequest;
 import com.l.erp.billingservice.api.dto.CheckoutResponse;
 import com.l.erp.billingservice.services.CheckoutService;
+import com.l.erp.common.util.Constants;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,7 +20,7 @@ public class CheckoutController {
 
     @PostMapping
     public ResponseEntity<CheckoutResponse> checkout(
-            @RequestHeader("X-Tenant-Id") Long tenantId,
+            @RequestHeader(Constants.HEADER_TENANT_ID) Long tenantId,
             @RequestBody @Valid CheckoutRequest req) {
         return ResponseEntity.ok(checkoutService.createCheckout(tenantId, req));
     }

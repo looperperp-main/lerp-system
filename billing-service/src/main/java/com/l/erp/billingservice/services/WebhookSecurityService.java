@@ -19,9 +19,10 @@ public class WebhookSecurityService {
     private final byte[] expectedToken;
 
     public WebhookSecurityService(@Value("${asaas.webhook-token}") String expectedToken) {
-        this.expectedToken = expectedToken == null
-                ? new byte[0]
-                : expectedToken.getBytes(StandardCharsets.UTF_8);
+        if (expectedToken == null || expectedToken.isBlank()) {
+            throw new IllegalStateException("asaas.webhook-token não pode ser nulo ou vazio");
+        }
+        this.expectedToken = expectedToken.getBytes(StandardCharsets.UTF_8);
     }
 
     /**

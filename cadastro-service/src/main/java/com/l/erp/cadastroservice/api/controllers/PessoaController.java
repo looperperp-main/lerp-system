@@ -5,12 +5,14 @@ import com.l.erp.cadastroservice.api.dto.PessoaResponseDTO;
 import com.l.erp.cadastroservice.api.mappers.PessoaAssembler;
 import com.l.erp.cadastroservice.domain.Pessoa;
 import com.l.erp.cadastroservice.services.PessoaService;
+import com.l.erp.common.exception.custom.BusinessException;
 import com.l.erp.common.util.Constants;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PagedResourcesAssembler;
 import org.springframework.hateoas.PagedModel;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -49,7 +51,7 @@ public class PessoaController {
     @GetMapping
     public ResponseEntity<PagedModel<PessoaResponseDTO>> findAll(Pageable pageable, PagedResourcesAssembler<Pessoa> pagedResourcesAssembler) {
         Optional<Long> tenantId = getCurrentTenantId();
-        Page<Pessoa> pessoas = pessoaService.findAllByTenant(tenantId.orElseThrow(() -> new RuntimeException(Constants.TENANT_NOT_FOUND)), pageable);
+        Page<Pessoa> pessoas = pessoaService.findAllByTenant(tenantId.orElseThrow(() -> new BusinessException(Constants.TENANT_NOT_FOUND, HttpStatus.UNAUTHORIZED)), pageable);
         return ResponseEntity.ok(pagedResourcesAssembler.toModel(pessoas, assembler));
     }
 
@@ -63,7 +65,7 @@ public class PessoaController {
     @GetMapping("/{id}")
     public ResponseEntity<PessoaResponseDTO> findById(@PathVariable UUID id) {
         Optional<Long> tenantId = getCurrentTenantId();
-        Pessoa pessoa = pessoaService.findByIdAndTenant(id, tenantId.orElseThrow(() -> new RuntimeException(Constants.TENANT_NOT_FOUND)));
+        Pessoa pessoa = pessoaService.findByIdAndTenant(id, tenantId.orElseThrow(() -> new BusinessException(Constants.TENANT_NOT_FOUND, HttpStatus.UNAUTHORIZED)));
         return ResponseEntity.ok(assembler.toModel(pessoa));
     }
 
@@ -79,7 +81,7 @@ public class PessoaController {
         Optional<Long> tenantId = getCurrentTenantId();
         Optional<UUID> userId = getCurrentUserId();
 
-        Pessoa salva = pessoaService.create(request, tenantId.orElseThrow(() -> new RuntimeException(Constants.TENANT_NOT_FOUND)), userId.orElseThrow(() -> new RuntimeException(Constants.USER_NOT_FOUND)));
+        Pessoa salva = pessoaService.create(request, tenantId.orElseThrow(() -> new BusinessException(Constants.TENANT_NOT_FOUND, HttpStatus.UNAUTHORIZED)), userId.orElseThrow(() -> new BusinessException(Constants.USER_NOT_FOUND, HttpStatus.UNAUTHORIZED)));
         PessoaResponseDTO response = assembler.toModel(salva);
 
         return ResponseEntity
@@ -100,7 +102,7 @@ public class PessoaController {
         Optional<Long> tenantId = getCurrentTenantId();
         Optional<UUID> userId = getCurrentUserId();
 
-        Pessoa salva = pessoaService.update(id, dto, tenantId.orElseThrow(() -> new RuntimeException(Constants.TENANT_NOT_FOUND)), userId.orElseThrow(() -> new RuntimeException(Constants.USER_NOT_FOUND)));
+        Pessoa salva = pessoaService.update(id, dto, tenantId.orElseThrow(() -> new BusinessException(Constants.TENANT_NOT_FOUND, HttpStatus.UNAUTHORIZED)), userId.orElseThrow(() -> new BusinessException(Constants.USER_NOT_FOUND, HttpStatus.UNAUTHORIZED)));
         PessoaResponseDTO response = assembler.toModel(salva);
 
         return ResponseEntity

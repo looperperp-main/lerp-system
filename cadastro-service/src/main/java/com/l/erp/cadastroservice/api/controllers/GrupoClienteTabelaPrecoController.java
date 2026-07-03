@@ -5,11 +5,13 @@ import com.l.erp.cadastroservice.api.dto.GrupoClienteTabelaPrecoResponseDTO;
 import com.l.erp.cadastroservice.api.mappers.GrupoClienteTabelaPrecoAssembler;
 import com.l.erp.cadastroservice.domain.TabelaPrecoGrupoCliente;
 import com.l.erp.cadastroservice.services.GrupoClienteTabelaPrecoService;
+import com.l.erp.common.exception.custom.BusinessException;
 import com.l.erp.common.util.Constants;
 import com.l.erp.cadastroservice.util.SecurityUtils;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.hateoas.CollectionModel;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -31,7 +33,7 @@ public class GrupoClienteTabelaPrecoController {
     public ResponseEntity<CollectionModel<GrupoClienteTabelaPrecoResponseDTO>> getAssociacoes(
             @PathVariable UUID grupoClienteId) {
         Long tenantId = SecurityUtils.getCurrentTenantId()
-                .orElseThrow(() -> new RuntimeException(Constants.USUARIO_UUID_NAO_ENCONTRADO));
+                .orElseThrow(() -> new BusinessException(Constants.USUARIO_UUID_NAO_ENCONTRADO, HttpStatus.UNAUTHORIZED));
         List<TabelaPrecoGrupoCliente> associacoes = service.getAssociacoes(grupoClienteId, tenantId);
         CollectionModel<GrupoClienteTabelaPrecoResponseDTO> response = assembler.toCollectionModel(associacoes);
 
@@ -45,9 +47,9 @@ public class GrupoClienteTabelaPrecoController {
     public ResponseEntity<Void> sincronizarAssociacoes(
             @PathVariable UUID grupoClienteId,
             @Valid @RequestBody GrupoClienteTabelaPrecoRequestDTO request) {
-        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new RuntimeException(Constants.USER_NOT_FOUND));
+        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new BusinessException(Constants.USER_NOT_FOUND, HttpStatus.UNAUTHORIZED));
         Long tenantId = SecurityUtils.getCurrentTenantId()
-                .orElseThrow(() -> new RuntimeException(Constants.USUARIO_UUID_NAO_ENCONTRADO));
+                .orElseThrow(() -> new BusinessException(Constants.USUARIO_UUID_NAO_ENCONTRADO, HttpStatus.UNAUTHORIZED));
         // Passamos os ids que vieram no record (request.tabelaPrecoIds())
         service.sincronizarAssociacoes(grupoClienteId, request.tabelaPrecoIds(), tenantId, userId);
         return ResponseEntity.noContent().build();

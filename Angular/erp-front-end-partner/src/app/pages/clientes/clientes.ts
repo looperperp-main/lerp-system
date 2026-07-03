@@ -100,7 +100,7 @@ export class Clientes implements OnInit {
     const status = this.statusFiltro();
     const eng = this.engajamentoFiltro();
 
-    return this.todosClientes().filter(c => {
+    return this.todosClientes().filter((c) => {
       const matchBusca = !busca || c.nome.toLowerCase().includes(busca) || c.cnpj.includes(busca);
       const matchStatus = status === 'TODOS' || c.status === status;
       const matchEng =
@@ -114,12 +114,10 @@ export class Clientes implements OnInit {
 
   ngOnInit(): void {
     this.carregar();
-    this.cadastrarModal.inviteSent$
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(() => {
-        this.carregar();
-        this.mostrarNotificacao('Convite enviado com sucesso!');
-      });
+    this.cadastrarModal.inviteSent$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      this.carregar();
+      this.mostrarNotificacao('Convite enviado com sucesso!');
+    });
   }
 
   private mostrarNotificacao(msg: string): void {
@@ -132,8 +130,8 @@ export class Clientes implements OnInit {
     this.carregando.set(true);
     this.erro.set('');
     this.conviteService.listar().subscribe({
-      next: page => {
-        this.todosClientes.set(page.content.map(c => this.mapear(c)));
+      next: (page) => {
+        this.todosClientes.set(page.content.map((c) => this.mapear(c)));
         this.totalClientes = page.totalElements;
         this.carregando.set(false);
       },
@@ -175,7 +173,9 @@ export class Clientes implements OnInit {
       engajamento: null,
       trialExpira: c.trialExpiresAt
         ? this.formatarData(c.trialExpiresAt)
-        : (c.status === 'CONVIDADO' && c.tokenExpiresAt ? this.formatarData(c.tokenExpiresAt) : null),
+        : c.status === 'CONVIDADO' && c.tokenExpiresAt
+          ? this.formatarData(c.tokenExpiresAt)
+          : null,
       plano: this.mapearPlano(c.planoSugerido),
       acoes: ACOES_MAP[c.status],
     };

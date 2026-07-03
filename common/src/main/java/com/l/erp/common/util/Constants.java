@@ -277,4 +277,13 @@ public class Constants {
     public static final String AUTH_SERVICE_NAME = "auth-service";
     public static final String TOPIC_SUBSCRIPTION_ACTIVATED = "billing.subscription.activated";
     public static final String AUTH_SERVICE_GROUP = "auth-service-group";
+
+    // Headers de identidade injetados pelo gateway (gateway/SecurityFilter não depende de common)
+    public static final String HEADER_USER_ID = "X-User-Id";
+    public static final String HEADER_USER_EMAIL = "X-User-Email";
+    public static final String HEADER_TENANT_ID = "X-Tenant-Id";
+    public static final String HEADER_IS_OWNER = "X-Is-Owner";
+    public static final String HEADER_PARTNER_ID = "X-Partner-Id";
+    public static final String HEADER_AUTHORITIES = "X-Authorities";
+    public static final String HEADER_ASAAS_ACCESS_TOKEN = "asaas-access-token";
 }

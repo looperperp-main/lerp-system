@@ -5,9 +5,11 @@ import com.l.erp.cadastroservice.api.dto.ContatoResponseDTO;
 import com.l.erp.cadastroservice.api.mappers.ContatoAssembler;
 import com.l.erp.cadastroservice.domain.Contato;
 import com.l.erp.cadastroservice.services.ContatoService;
+import com.l.erp.common.exception.custom.BusinessException;
 import com.l.erp.common.util.Constants;
 import jakarta.validation.Valid;
 import org.springframework.hateoas.CollectionModel;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -37,7 +39,7 @@ public class ContatoController {
 
     @GetMapping
     public ResponseEntity<CollectionModel<ContatoResponseDTO>> listarPorPessoa(@PathVariable UUID pessoaId) {
-        Long tenantId = getCurrentTenantId().orElseThrow(() -> new RuntimeException(Constants.TENANT_NOT_FOUND));
+        Long tenantId = getCurrentTenantId().orElseThrow(() -> new BusinessException(Constants.TENANT_NOT_FOUND, HttpStatus.UNAUTHORIZED));
 
         List<Contato> contatos = contatoService.findAllByPessoa(pessoaId, tenantId);
         CollectionModel<ContatoResponseDTO> response = assembler.toCollectionModel(contatos);
@@ -47,7 +49,7 @@ public class ContatoController {
 
     @GetMapping("/{id}")
     public ResponseEntity<ContatoResponseDTO> findById(@PathVariable UUID pessoaId, @PathVariable UUID id) {
-        Long tenantId = getCurrentTenantId().orElseThrow(() -> new RuntimeException(Constants.TENANT_NOT_FOUND));
+        Long tenantId = getCurrentTenantId().orElseThrow(() -> new BusinessException(Constants.TENANT_NOT_FOUND, HttpStatus.UNAUTHORIZED));
 
         Contato contato = contatoService.findById(id, pessoaId, tenantId);
         return ResponseEntity.ok(assembler.toModel(contato));
@@ -58,8 +60,8 @@ public class ContatoController {
             @PathVariable UUID pessoaId,
             @Valid @RequestBody ContatoRequestDTO dto) {
 
-        Long tenantId = getCurrentTenantId().orElseThrow(() -> new RuntimeException(Constants.TENANT_NOT_FOUND));
-        UUID userId = getCurrentUserId().orElseThrow(() -> new RuntimeException(Constants.USER_NOT_FOUND));
+        Long tenantId = getCurrentTenantId().orElseThrow(() -> new BusinessException(Constants.TENANT_NOT_FOUND, HttpStatus.UNAUTHORIZED));
+        UUID userId = getCurrentUserId().orElseThrow(() -> new BusinessException(Constants.USER_NOT_FOUND, HttpStatus.UNAUTHORIZED));
 
         Contato salvo = contatoService.create(pessoaId, dto, tenantId, userId);
         ContatoResponseDTO response = assembler.toModel(salvo);
@@ -75,8 +77,8 @@ public class ContatoController {
             @PathVariable UUID id,
             @Valid @RequestBody ContatoRequestDTO dto) {
 
-        Long tenantId = getCurrentTenantId().orElseThrow(() -> new RuntimeException(Constants.TENANT_NOT_FOUND));
-        UUID userId = getCurrentUserId().orElseThrow(() -> new RuntimeException(Constants.USER_NOT_FOUND));
+        Long tenantId = getCurrentTenantId().orElseThrow(() -> new BusinessException(Constants.TENANT_NOT_FOUND, HttpStatus.UNAUTHORIZED));
+        UUID userId = getCurrentUserId().orElseThrow(() -> new BusinessException(Constants.USER_NOT_FOUND, HttpStatus.UNAUTHORIZED));
 
         Contato atualizado = contatoService.update(id, pessoaId, dto, tenantId, userId);
         return ResponseEntity.ok(assembler.toModel(atualizado));

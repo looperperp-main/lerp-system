@@ -1,6 +1,7 @@
 package com.l.erp.authservice.api.controllers;
 
 import com.l.erp.authservice.api.dto.PermissionDTO;
+import com.l.erp.common.util.Constants;
 import com.l.erp.authservice.api.dto.RoleDTO;
 import com.l.erp.authservice.api.dto.RolePermissionRequestDTO;
 import com.l.erp.authservice.api.dto.UserAccountDTO;
@@ -67,7 +68,7 @@ public class TenantSecurityController {
 
     @PostMapping("/roles/search")
     @PreAuthorize("hasAuthority('ROLE_READ')")
-    public ResponseEntity<Page<RoleDTO>> searchRoles(@RequestHeader("X-Tenant-Id") Long tenantId,
+    public ResponseEntity<Page<RoleDTO>> searchRoles(@RequestHeader(Constants.HEADER_TENANT_ID) Long tenantId,
                                                      @RequestBody RoleSearchFilterDTO filter,
                                                      @PageableDefault(size = 10, sort = "name") Pageable pageable) {
         return ResponseEntity.ok(rolesService.searchRolesByTenant(filter, pageable, tenantId));
@@ -75,13 +76,13 @@ public class TenantSecurityController {
 
     @GetMapping("/roles")
     @PreAuthorize("hasAuthority('ROLE_READ')")
-    public ResponseEntity<List<RoleDTO>> listRoles(@RequestHeader("X-Tenant-Id") Long tenantId) {
+    public ResponseEntity<List<RoleDTO>> listRoles(@RequestHeader(Constants.HEADER_TENANT_ID) Long tenantId) {
         return ResponseEntity.ok(rolesService.getRolesByTenant(tenantId));
     }
 
     @PostMapping("/roles")
     @PreAuthorize("hasAuthority('ROLE_INSERT')")
-    public ResponseEntity<RoleDTO> createRole(@RequestHeader("X-Tenant-Id") Long tenantId,
+    public ResponseEntity<RoleDTO> createRole(@RequestHeader(Constants.HEADER_TENANT_ID) Long tenantId,
                                               @Valid @RequestBody RoleDTO roleDTO) {
         RoleDTO created = rolesService.createRoleForTenant(roleDTO, tenantId);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
@@ -89,7 +90,7 @@ public class TenantSecurityController {
 
     @DeleteMapping("/roles/{roleId}")
     @PreAuthorize("hasAuthority('ROLE_DELETE')")
-    public ResponseEntity<Void> deleteRole(@RequestHeader("X-Tenant-Id") Long tenantId,
+    public ResponseEntity<Void> deleteRole(@RequestHeader(Constants.HEADER_TENANT_ID) Long tenantId,
                                            @PathVariable UUID roleId) {
         rolesService.deleteRoleForTenant(roleId, tenantId);
         return ResponseEntity.noContent().build();
@@ -97,14 +98,14 @@ public class TenantSecurityController {
 
     @GetMapping("/roles/{roleId}/permissions")
     @PreAuthorize("hasAuthority('PERMISSION_READ')")
-    public ResponseEntity<List<PermissionDTO>> getRolePermissions(@RequestHeader("X-Tenant-Id") Long tenantId,
+    public ResponseEntity<List<PermissionDTO>> getRolePermissions(@RequestHeader(Constants.HEADER_TENANT_ID) Long tenantId,
                                                                   @PathVariable UUID roleId) {
         return ResponseEntity.ok(rolesService.getPermissionsByRoleForTenant(roleId, tenantId));
     }
 
     @PostMapping("/roles/{roleId}/permissions")
     @PreAuthorize("hasAuthority('PERMISSION_UPDATE')")
-    public ResponseEntity<Void> assignPermissions(@RequestHeader("X-Tenant-Id") Long tenantId,
+    public ResponseEntity<Void> assignPermissions(@RequestHeader(Constants.HEADER_TENANT_ID) Long tenantId,
                                                   @PathVariable UUID roleId,
                                                   @Valid @RequestBody RolePermissionRequestDTO request) {
         if (!roleId.equals(request.roleId())) {
@@ -116,7 +117,7 @@ public class TenantSecurityController {
 
     @DeleteMapping("/roles/{roleId}/permissions/{permissionId}")
     @PreAuthorize("hasAuthority('PERMISSION_UPDATE')")
-    public ResponseEntity<Void> removePermission(@RequestHeader("X-Tenant-Id") Long tenantId,
+    public ResponseEntity<Void> removePermission(@RequestHeader(Constants.HEADER_TENANT_ID) Long tenantId,
                                                  @PathVariable UUID roleId,
                                                  @PathVariable UUID permissionId) {
         rolesService.removePermissionFromRoleForTenant(roleId, permissionId, tenantId);
@@ -135,7 +136,7 @@ public class TenantSecurityController {
 
     @PostMapping("/users/search")
     @PreAuthorize("hasAuthority('USER_READ')")
-    public ResponseEntity<Page<UserAccountPageDTO>> searchUsers(@RequestHeader("X-Tenant-Id") Long tenantId,
+    public ResponseEntity<Page<UserAccountPageDTO>> searchUsers(@RequestHeader(Constants.HEADER_TENANT_ID) Long tenantId,
                                                                 @RequestBody UserSearchFilterDTO filter,
                                                                 @PageableDefault(size = 10, sort = "displayName") Pageable pageable) {
         return ResponseEntity.ok(userService.searchAccountsForTenant(filter, pageable, tenantId));
@@ -143,7 +144,7 @@ public class TenantSecurityController {
 
     @PostMapping("/users")
     @PreAuthorize("hasAuthority('USER_INSERT')")
-    public ResponseEntity<UserAccountDTO> createUser(@RequestHeader("X-Tenant-Id") Long tenantId,
+    public ResponseEntity<UserAccountDTO> createUser(@RequestHeader(Constants.HEADER_TENANT_ID) Long tenantId,
                                                      @Valid @RequestBody UserAccountDTO userDTO) {
         UserAccountDTO created = userService.createUserForTenant(userDTO, tenantId);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
@@ -151,7 +152,7 @@ public class TenantSecurityController {
 
     @PutMapping("/users/{userId}")
     @PreAuthorize("hasAuthority('USER_UPDATE')")
-    public ResponseEntity<UserAccountDTO> updateUser(@RequestHeader("X-Tenant-Id") Long tenantId,
+    public ResponseEntity<UserAccountDTO> updateUser(@RequestHeader(Constants.HEADER_TENANT_ID) Long tenantId,
                                                      @PathVariable UUID userId,
                                                      @Valid @RequestBody UserAccountDTO userDTO) {
         return ResponseEntity.ok(userService.updateUserForTenant(userId, userDTO, tenantId));
@@ -159,7 +160,7 @@ public class TenantSecurityController {
 
     @PatchMapping("/users/{userId}/status")
     @PreAuthorize("hasAuthority('USER_STATUS')")
-    public ResponseEntity<Void> updateUserStatus(@RequestHeader("X-Tenant-Id") Long tenantId,
+    public ResponseEntity<Void> updateUserStatus(@RequestHeader(Constants.HEADER_TENANT_ID) Long tenantId,
                                                  @PathVariable UUID userId) {
         userService.updateUserStatusForTenant(userId, tenantId);
         return ResponseEntity.noContent().build();
@@ -167,14 +168,14 @@ public class TenantSecurityController {
 
     @GetMapping("/users/{userId}/roles")
     @PreAuthorize("hasAuthority('USER_READ')")
-    public ResponseEntity<List<RoleDTO>> getUserRoles(@RequestHeader("X-Tenant-Id") Long tenantId,
+    public ResponseEntity<List<RoleDTO>> getUserRoles(@RequestHeader(Constants.HEADER_TENANT_ID) Long tenantId,
                                                       @PathVariable UUID userId) {
         return ResponseEntity.ok(attributionsService.getRolesByUserForTenant(userId, tenantId));
     }
 
     @PostMapping("/users/{userId}/roles")
     @PreAuthorize("hasAuthority('USER_UPDATE')")
-    public ResponseEntity<Void> assignRoles(@RequestHeader("X-Tenant-Id") Long tenantId,
+    public ResponseEntity<Void> assignRoles(@RequestHeader(Constants.HEADER_TENANT_ID) Long tenantId,
                                             @PathVariable UUID userId,
                                             @Valid @RequestBody UserRoleRequestDTO request) {
         if (!userId.equals(request.userId())) {
@@ -186,7 +187,7 @@ public class TenantSecurityController {
 
     @DeleteMapping("/users/{userId}/roles/{roleId}")
     @PreAuthorize("hasAuthority('USER_UPDATE')")
-    public ResponseEntity<Void> removeRole(@RequestHeader("X-Tenant-Id") Long tenantId,
+    public ResponseEntity<Void> removeRole(@RequestHeader(Constants.HEADER_TENANT_ID) Long tenantId,
                                            @PathVariable UUID userId,
                                            @PathVariable UUID roleId) {
         attributionsService.removeRoleFromUserForTenant(userId, roleId, tenantId);

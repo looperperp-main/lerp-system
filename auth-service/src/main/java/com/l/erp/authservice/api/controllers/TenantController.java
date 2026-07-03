@@ -2,6 +2,7 @@ package com.l.erp.authservice.api.controllers;
 
 import com.l.erp.authservice.api.dto.TenantDTO;
 import com.l.erp.authservice.api.dto.TenantProfileDTO;
+import com.l.erp.common.util.Constants;
 import com.l.erp.authservice.services.TenantService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -36,7 +37,7 @@ public class TenantController {
 
     /** Perfil do próprio tenant logado — usado pelo portal (prefill do checkout + banner de trial). */
     @GetMapping("/tenant/me")
-    public ResponseEntity<TenantProfileDTO> getMyTenant(@RequestHeader("X-Tenant-Id") Long tenantId) {
+    public ResponseEntity<TenantProfileDTO> getMyTenant(@RequestHeader(Constants.HEADER_TENANT_ID) Long tenantId) {
         return ResponseEntity.ok(tenantService.getTenantProfile(tenantId));
     }
 

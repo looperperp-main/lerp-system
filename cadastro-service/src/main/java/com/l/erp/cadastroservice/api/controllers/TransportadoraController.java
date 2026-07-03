@@ -6,6 +6,7 @@ import com.l.erp.cadastroservice.api.mappers.TransportadoraAssembler;
 import com.l.erp.cadastroservice.domain.Transportadora;
 import com.l.erp.cadastroservice.services.TransportadoraService;
 import com.l.erp.cadastroservice.util.SecurityUtils;
+import com.l.erp.common.exception.custom.BusinessException;
 import com.l.erp.common.util.Constants;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -14,6 +15,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PagedResourcesAssembler;
 import org.springframework.hateoas.PagedModel;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -48,7 +50,7 @@ public class TransportadoraController {
     @PostMapping
     public ResponseEntity<TransportadoraResponseDTO> save(@RequestBody @Valid TransportadoraDTO dto) {
         logger.info("Criando Transportadora: {}", dto);
-        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new RuntimeException(Constants.USER_NOT_FOUND));
+        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new BusinessException(Constants.USER_NOT_FOUND, HttpStatus.UNAUTHORIZED));
 
         Transportadora salvo = service.save(dto, userId);
         TransportadoraResponseDTO response = assembler.toModel(salvo);
@@ -60,7 +62,7 @@ public class TransportadoraController {
     @PutMapping("/{id}")
     public ResponseEntity<TransportadoraResponseDTO> update(@PathVariable UUID id, @RequestBody @Valid TransportadoraDTO dto) {
         logger.info("Atualizando Transportadora: {}", dto);
-        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new RuntimeException(Constants.USER_NOT_FOUND));
+        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new BusinessException(Constants.USER_NOT_FOUND, HttpStatus.UNAUTHORIZED));
 
         Transportadora salvo = service.update(id, dto, userId);
         TransportadoraResponseDTO response = assembler.toModel(salvo);
@@ -71,7 +73,7 @@ public class TransportadoraController {
     @PatchMapping("/{id}/status")
     public ResponseEntity<Void> updateStatus(@PathVariable UUID id) {
         logger.info("Alterando status da Transportadora por ID: {}", id);
-        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new RuntimeException(Constants.USER_NOT_FOUND));
+        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new BusinessException(Constants.USER_NOT_FOUND, HttpStatus.UNAUTHORIZED));
 
         service.updateStatus(id, userId);
 

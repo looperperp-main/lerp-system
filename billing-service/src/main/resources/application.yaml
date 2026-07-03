@@ -37,9 +37,9 @@ spring:
       auto-offset-reset: earliest
 
 asaas:
-  api-key: ${ASAAS_API_KEY:$aact_sandbox_key}
+  api-key: ${ASAAS_API_KEY}
   base-url: ${ASAAS_BASE_URL:https://sandbox.asaas.com/api/v3}
-  webhook-token: ${ASAAS_WEBHOOK_TOKEN:changeme-webhook-token}
+  webhook-token: ${ASAAS_WEBHOOK_TOKEN}
   max-retry-attempts: ${ASAAS_MAX_RETRY_ATTEMPTS:3}
 
 billing:

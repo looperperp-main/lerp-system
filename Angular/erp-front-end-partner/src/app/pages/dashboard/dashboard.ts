@@ -7,6 +7,8 @@ import {
 } from '../../services/dashboard.service';
 import { ConviteService, ConviteDTO } from '../../services/convite.service';
 import { ClienteDetailPanelComponent } from '../../components/cliente-detail-panel/cliente-detail-panel';
+import { PartnerSessionService } from '../../services/partner-session.service';
+import { CadastrarClienteModalService } from '../../services/cadastrar-cliente-modal.service';
 
 @Component({
   selector: 'app-dashboard',
@@ -18,9 +20,20 @@ import { ClienteDetailPanelComponent } from '../../components/cliente-detail-pan
 export class DashboardComponent implements OnInit {
   private readonly dashboardService = inject(DashboardService);
   private readonly conviteService = inject(ConviteService);
+  private readonly partnerSession = inject(PartnerSessionService);
+  private readonly cadastrarClienteModal = inject(CadastrarClienteModalService);
 
   // Lista real de convites — fonte da verdade do funil (mesma da tela /clientes).
   private readonly convites = signal<ConviteDTO[]>([]);
+  private readonly convitesCarregados = signal(false);
+
+  readonly primeiroNome = computed(() => (this.partnerSession.info()?.name ?? '').split(' ')[0]);
+  readonly referralCode = computed(() => this.partnerSession.info()?.referralCode ?? '');
+  readonly referralLink = computed(() => `syax.com.br/r/${this.referralCode()}`);
+
+  readonly semClientes = computed(() => this.convitesCarregados() && this.convites().length === 0);
+
+  readonly linkCopiado = signal(false);
 
   readonly carregando = signal(true);
   readonly atualizando = signal(false);
@@ -58,8 +71,22 @@ export class DashboardComponent implements OnInit {
 
   ngOnInit(): void {
     // 1ª visita carrega; visitas seguintes reusam o cache de sessão (sem mostrar "Carregando").
+    this.partnerSession.load();
     this.carregarDashboard(false);
-    this.conviteService.listar().subscribe((page) => this.convites.set(page.content));
+    this.conviteService.listar().subscribe((page) => {
+      this.convites.set(page.content);
+      this.convitesCarregados.set(true);
+    });
+  }
+
+  abrirCadastroCliente(): void {
+    this.cadastrarClienteModal.open();
+  }
+
+  copiarLink(): void {
+    navigator.clipboard.writeText(`https://${this.referralLink()}`);
+    this.linkCopiado.set(true);
+    setTimeout(() => this.linkCopiado.set(false), 2000);
   }
 
   /** Refresh manual (botão pi-sync no card de Clientes Ativos) — força nova busca. */

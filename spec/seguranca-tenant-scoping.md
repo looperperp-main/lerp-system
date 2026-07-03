@@ -2,6 +2,12 @@
 
 **Status:** PLANEJADO (não iniciado) · **Data:** 2026-06-25 · **Serviços:** `cadastro-service` (M8, foco) · `auth-service` (M7) · `gateway` (defense-in-depth)
 
+> **Status atualizado (2026-07-03, verificado via grep no código):**
+> - **M8: ✅ IMPLEMENTADO** — os 4 services usam `findByIdAndTenantId`; delete do Produto via `deleteByIdAndTenantId`; referências filhas escopadas. Pendente confirmar só o passo 5 (testes cross-tenant → 404 por entidade).
+> - **M7: 🟡 PARCIAL, premissa mudou** — em vez de `scope` no `owner_marker`, o `auth-schema-013` limita a instalação a **um único** owner_marker ativo (superuser da plataforma); o portal do tenant ganhou `UserService.*ForTenant` + `assertUserInTenant` (IDOR-safe). Pendente: `AuthService.java:168` (e a mesma lógica duplicada em `:293`, `generateJwtForUser`) ainda concede `List.of(APP_OWNER, TENANT_OWNER)` juntos para owner, `List.of("ROLE_USER")` fixo para não-owner — TODO intacto (`//TODO: get roles from database`); a claim `authorities` **é** buscada de verdade (`getPermissions` via `user_role`→`role_permission`), só a claim `roles` ignora essa mesma tabela. Detalhado em `spec/auditoria.md` §4.11. Falta também verificar escopo em `RolesService`/`AttributionsService`.
+> - **Defense-in-depth gateway: ✅ IMPLEMENTADO** — `PROTECTED_HEADERS` + strip case-insensitive no wrapper do `SecurityFilter`. Gap residual: strip só roda no caminho autenticado (ver `spec/auditoria.md` §4.4).
+> - Contexto vencido: "downstream rodam permitAll" — billing e partner agora têm `InternalRequestFilter`; só o cadastro segue `permitAll` puro (ver `spec/auditoria.md` §4.1).
+
 **Decisões fechadas:** padronizar acesso por-id em **`findByIdAndTenantId(id, tenantId)`** (escopo na query, não carrega registro de outro tenant) · `orElseThrow` → **404 NOT_FOUND** (não 403, para não vazar existência) · M7 aguarda a definição final das roles antes de implementar.
 
 ---
@@ -19,6 +25,8 @@ O header `X-Tenant-Id` em si é confiável: o `gateway/SecurityFilter` injeta vi
 ---
 
 ## M8 — `cadastro-service` (foco)
+
+> ✅ **RESOLVIDO (confirmado 2026-07-03):** os 4 services abaixo foram corrigidos — `findByIdAndTenantId` em read/update/updateStatus, `deleteByIdAndTenantId` no delete do Produto e referências filhas (categoria/fornecedor/tabela de preço) escopadas por tenant.
 
 ### Vulneráveis (sem guard de tenant — corrigir)
 | Service | Operações | Observação |
@@ -49,6 +57,8 @@ IDOR cross-tenant no CRUD de usuários/roles + níveis de owner conflados. Endpo
 
 > Field injection para virar owner é **impossível**: owner vem da tabela `owner_marker`, nunca do body; nenhum endpoint grava nela; o PUT enumera campos.
 
+> 🟡 **PARCIAL (2026-07-03):** passo 1 foi resolvido de outra forma — `auth-schema-013` garante no DB **um único** `owner_marker` ativo na instalação (superuser da plataforma), eliminando o cenário de owner_marker por-tenant. Passos 3–4 aplicados ao CRUD de usuários do portal do tenant (`UserService.updateUserForTenant`/`updateUserStatusForTenant` + `assertUserInTenant`). Pendentes: passo 2 (`AuthService.java:168` e `:293` seguem com `List.of(APP_OWNER, TENANT_OWNER)` para owner / `"ROLE_USER"` fixo para não-owner — a claim `roles` nunca reflete a role real da tabela `user_role`, diferente da claim `authorities` que já é correta; análise completa em `spec/auditoria.md` §4.11), escopo em `RolesService`/`AttributionsService` e passo 5 (testes).
+
 ### Passos (depois de definir as roles)
 1. Distinguir owner **GLOBAL** (staff Syax → `APP_OWNER`) de **TENANT** (dono empresa → `TENANT_OWNER`), ex.: campo `scope` no `owner_marker`.
 2. `AuthService` (`login` + `generateJwtForUser`): derivar a role do tipo de marker, em vez de `List.of(APP_OWNER, TENANT_OWNER)`. Resolve o `//TODO: get roles from database`.
@@ -61,6 +71,8 @@ IDOR cross-tenant no CRUD de usuários/roles + níveis de owner conflados. Endpo
 ## Defense-in-depth — `gateway`
 
 Stripar explicitamente os headers de entrada `X-Tenant-Id` / `X-User-Id` / `X-Is-Owner` / `X-Partner-Id` do request do cliente **antes** de injetar os valores derivados do JWT no `SecurityFilter` — em vez de depender só da semântica do wrapper (`getHeader/getHeaders`). Reduz risco se algum caminho de proxy ler headers fora do wrapper.
+
+> ✅ **RESOLVIDO (confirmado 2026-07-03):** `SecurityFilter` tem `PROTECTED_HEADERS` (inclui também `X-User-Email` e `X-Authorities`) com mascaramento case-insensitive em `getHeader`/`getHeaders`/`getHeaderNames`. Gap residual: o strip só roda no caminho autenticado; em `PUBLIC_PATHS` a request original segue com headers forjados — ver `spec/auditoria.md` §4.4.
 
 ---
 

@@ -35,7 +35,13 @@ public class SecurityFilter extends OncePerRequestFilter {
     private static final Set<String> PUBLIC_PATHS = Set.of(
             "/auth/login", "/auth/tenant/login", "/auth/partner/login", "/auth/refresh", "/auth/logout",
             "/auth/ativar", "/auth/criar-conta", "/auth/tenant/esqueci-senha", "/auth/redefinir-senha",
-            "/partner/api/v1/partners/cnpj", "/billing/api/v1/webhooks/asaas"
+            "/billing/api/v1/webhooks/asaas"
+    );
+
+    // Prefixos públicos onde o subpath é intencional (ex.: consulta de CNPJ por valor variável).
+    // Usa "/" terminal explícito para não casar rotas futuras que apenas compartilhem o prefixo (ver 4.5).
+    private static final Set<String> PUBLIC_PREFIXES = Set.of(
+            "/partner/api/v1/partners/cnpj/"
     );
 
     // Method-specific exact-match public paths (avoids startsWith subpath leakage)
@@ -69,14 +75,14 @@ public class SecurityFilter extends OncePerRequestFilter {
             return;
         }
 
-        if (PUBLIC_PATHS.stream().anyMatch(path::startsWith)) {
-            filterChain.doFilter(request, response);
+        if (PUBLIC_PATHS.contains(path) || PUBLIC_PREFIXES.stream().anyMatch(path::startsWith)) {
+            filterChain.doFilter(getWrappedRequest(request, Map.of()), response);
             return;
         }
 
         Set<String> publicPathsForMethod = PUBLIC_METHOD_PATHS.get(request.getMethod().toUpperCase());
         if (publicPathsForMethod != null && publicPathsForMethod.contains(path)) {
-            filterChain.doFilter(request, response);
+            filterChain.doFilter(getWrappedRequest(request, Map.of()), response);
             return;
         }
 
@@ -172,8 +178,18 @@ public class SecurityFilter extends OncePerRequestFilter {
      * Defense-in-depth: mesmo que algum caminho de proxy leia o header fora do wrapper, o
      * valor forjado pelo cliente já foi descartado aqui.
      */
+    // Nomes de header (case original) — gateway não depende do módulo common, então os nomes
+    // ficam centralizados só aqui (evita duplicar a mesma string entre getExtraHeaders/PROTECTED_HEADERS).
+    private static final String HEADER_USER_ID = "X-User-Id";
+    private static final String HEADER_USER_EMAIL = "X-User-Email";
+    private static final String HEADER_TENANT_ID = "X-Tenant-Id";
+    private static final String HEADER_IS_OWNER = "X-Is-Owner";
+    private static final String HEADER_PARTNER_ID = "X-Partner-Id";
+    private static final String HEADER_AUTHORITIES = "X-Authorities";
+
     private static final Set<String> PROTECTED_HEADERS = Set.of(
-            "x-user-id", "x-user-email", "x-tenant-id", "x-is-owner", "x-partner-id", "x-authorities"
+            HEADER_USER_ID.toLowerCase(), HEADER_USER_EMAIL.toLowerCase(), HEADER_TENANT_ID.toLowerCase(),
+            HEADER_IS_OWNER.toLowerCase(), HEADER_PARTNER_ID.toLowerCase(), HEADER_AUTHORITIES.toLowerCase()
     );
 
     private static boolean isProtected(String name) {
@@ -263,20 +279,20 @@ public class SecurityFilter extends OncePerRequestFilter {
         String partnerId = decodedJWT.getClaim("partnerId").asString();
         String userEmail = decodedJWT.getClaim("userEmail").asString();
         Map<String, String> extraHeaders = new HashMap<>();
-        extraHeaders.put("X-User-Id", decodedJWT.getSubject());
-        extraHeaders.put("X-User-Email", userEmail != null ? userEmail : "");
+        extraHeaders.put(HEADER_USER_ID, decodedJWT.getSubject());
+        extraHeaders.put(HEADER_USER_EMAIL, userEmail != null ? userEmail : "");
         if ("PARTNER".equals(loginType)) {
-            extraHeaders.put("X-Partner-Id", partnerId != null ? partnerId : "");
+            extraHeaders.put(HEADER_PARTNER_ID, partnerId != null ? partnerId : "");
         } else {
-            extraHeaders.put("X-Tenant-Id", tenantId);
-            extraHeaders.put("X-Is-Owner", String.valueOf(isOwner));
+            extraHeaders.put(HEADER_TENANT_ID, tenantId);
+            extraHeaders.put(HEADER_IS_OWNER, String.valueOf(isOwner));
         }
         // Roles + permissões (authorities) para os serviços downstream autorizarem por permissão
         // (ex.: billing exige REPASSE_EXECUTE). Header protegido contra forja pelo wrapper.
         String authorities = grantedAuthorities.stream()
                 .map(SimpleGrantedAuthority::getAuthority)
                 .collect(java.util.stream.Collectors.joining(","));
-        extraHeaders.put("X-Authorities", authorities);
+        extraHeaders.put(HEADER_AUTHORITIES, authorities);
         return extraHeaders;
     }
 

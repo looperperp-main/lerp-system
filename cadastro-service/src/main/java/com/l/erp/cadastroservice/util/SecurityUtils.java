@@ -1,7 +1,9 @@
 package com.l.erp.cadastroservice.util;
 
 import com.l.erp.cadastroservice.api.dto.CurrentUser;
+import com.l.erp.common.exception.custom.BusinessException;
 import com.l.erp.common.util.Constants;
+import org.springframework.http.HttpStatus;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -15,19 +17,19 @@ public final class SecurityUtils {
     private SecurityUtils() {}
 
     public static Optional<UUID> getCurrentUserId() {
-        return getHeader("X-User-Id").map(UUID::fromString);
+        return getHeader(Constants.HEADER_USER_ID).map(UUID::fromString);
     }
 
     public static Optional<Long> getCurrentTenantId() {
-        return getHeader("X-Tenant-Id").map(Long::valueOf);
+        return getHeader(Constants.HEADER_TENANT_ID).map(Long::valueOf);
     }
 
     public static Optional<String> getCurrentUserEmail() {
-        return getHeader("X-User-Email");
+        return getHeader(Constants.HEADER_USER_EMAIL);
     }
 
     public static CurrentUser getCurrentUserInfo() {
-        UUID userId = getCurrentUserId().orElseThrow(() -> new RuntimeException(Constants.USUARIO_NAO_AUTENTICADO));
+        UUID userId = getCurrentUserId().orElseThrow(() -> new BusinessException(Constants.USUARIO_NAO_AUTENTICADO, HttpStatus.UNAUTHORIZED));
         String email = getCurrentUserEmail().orElse("user-" + userId);
         return new CurrentUser(userId, email);
     }

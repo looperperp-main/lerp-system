@@ -5,6 +5,7 @@ import com.l.erp.cadastroservice.api.dto.ProdutoCategoriaResponseDTO;
 import com.l.erp.cadastroservice.api.mappers.ProdutoCategoriaAssembler;
 import com.l.erp.cadastroservice.domain.ProdutoCategoria;
 import com.l.erp.cadastroservice.services.ProdutoCategoriaService;
+import com.l.erp.common.exception.custom.BusinessException;
 import com.l.erp.common.util.Constants;
 import com.l.erp.cadastroservice.util.SecurityUtils;
 import jakarta.validation.Valid;
@@ -14,6 +15,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PagedResourcesAssembler;
 import org.springframework.hateoas.PagedModel;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -45,7 +47,7 @@ public class ProdutoCategoriaController {
         Optional<Long> tenantId = SecurityUtils.getCurrentTenantId();
 
         Page<ProdutoCategoria> vendedoresPage = service.getAllProdCategorias(
-                tenantId.orElseThrow(() -> new RuntimeException(Constants.TENANT_NOT_FOUND)), pageable);
+                tenantId.orElseThrow(() -> new BusinessException(Constants.TENANT_NOT_FOUND, HttpStatus.UNAUTHORIZED)), pageable);
 
 
         return ResponseEntity.ok(pagedResourcesAssembler.toModel(vendedoresPage, assembler));
@@ -57,7 +59,7 @@ public class ProdutoCategoriaController {
         Optional<Long> tenantId = SecurityUtils.getCurrentTenantId();
 
         Page<ProdutoCategoria> vendedoresPage = service.getAllProdCategoriasEnabled(
-                tenantId.orElseThrow(() -> new RuntimeException(Constants.TENANT_NOT_FOUND)), pageable);
+                tenantId.orElseThrow(() -> new BusinessException(Constants.TENANT_NOT_FOUND, HttpStatus.UNAUTHORIZED)), pageable);
 
 
         return ResponseEntity.ok(pagedResourcesAssembler.toModel(vendedoresPage, assembler));
@@ -68,7 +70,7 @@ public class ProdutoCategoriaController {
         logger.info("Buscando Categoria de Produto por ID: {}", id);
         Optional<Long> tenantId = SecurityUtils.getCurrentTenantId();
 
-        ProdutoCategoria dto = service.findById(id, tenantId.orElseThrow(() -> new RuntimeException(Constants.TENANT_NOT_FOUND)));
+        ProdutoCategoria dto = service.findById(id, tenantId.orElseThrow(() -> new BusinessException(Constants.TENANT_NOT_FOUND, HttpStatus.UNAUTHORIZED)));
 
         return ResponseEntity.ok(assembler.toModel(dto));
     }
@@ -76,7 +78,7 @@ public class ProdutoCategoriaController {
     @PostMapping
     public ResponseEntity<ProdutoCategoriaResponseDTO> save(@RequestBody @Valid ProdutoCategoriaDTO dto) {
         logger.info("Criando Categoria de Produto: {}", dto);
-        Long tenantId = SecurityUtils.getCurrentTenantId().orElseThrow(() -> new RuntimeException(Constants.TENANT_NOT_FOUND));
+        Long tenantId = SecurityUtils.getCurrentTenantId().orElseThrow(() -> new BusinessException(Constants.TENANT_NOT_FOUND, HttpStatus.UNAUTHORIZED));
         UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new RuntimeException("User Id não encontrado!"));
 
         ProdutoCategoria salvo = service.save(dto, tenantId, userId);
@@ -89,7 +91,7 @@ public class ProdutoCategoriaController {
     @PutMapping("/{id}")
     public ResponseEntity<ProdutoCategoriaResponseDTO> update(@PathVariable UUID id, @RequestBody @Valid ProdutoCategoriaDTO dto) {
         logger.info("Atualizando Categoria de Produto: {}", dto);
-        Long tenantId = SecurityUtils.getCurrentTenantId().orElseThrow(() -> new RuntimeException(Constants.TENANT_NOT_FOUND));
+        Long tenantId = SecurityUtils.getCurrentTenantId().orElseThrow(() -> new BusinessException(Constants.TENANT_NOT_FOUND, HttpStatus.UNAUTHORIZED));
         UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new RuntimeException("User Id não encontrado!"));
 
         ProdutoCategoria salvo = service.update(id, dto, tenantId, userId);
@@ -101,8 +103,8 @@ public class ProdutoCategoriaController {
     @PatchMapping("/{id}/status")
     public ResponseEntity<Void> updateStatus(@PathVariable UUID id) {
         logger.info("Atualizando status da Categoria do Produto ID: {}", id);
-        Long tenantId = SecurityUtils.getCurrentTenantId().orElseThrow(() -> new RuntimeException(Constants.TENANT_NOT_FOUND));
-        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new RuntimeException(Constants.USER_NOT_FOUND));
+        Long tenantId = SecurityUtils.getCurrentTenantId().orElseThrow(() -> new BusinessException(Constants.TENANT_NOT_FOUND, HttpStatus.UNAUTHORIZED));
+        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new BusinessException(Constants.USER_NOT_FOUND, HttpStatus.UNAUTHORIZED));
 
         service.updateStatus(id, tenantId, userId);
 

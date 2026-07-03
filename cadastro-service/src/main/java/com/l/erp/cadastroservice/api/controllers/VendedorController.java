@@ -5,6 +5,7 @@ import com.l.erp.cadastroservice.api.dto.VendedorResponseDTO;
 import com.l.erp.cadastroservice.api.mappers.VendedorAssembler;
 import com.l.erp.cadastroservice.domain.Vendedor;
 import com.l.erp.cadastroservice.services.VendedorService;
+import com.l.erp.common.exception.custom.BusinessException;
 import com.l.erp.common.util.Constants;
 import com.l.erp.cadastroservice.util.SecurityUtils;
 import jakarta.validation.Valid;
@@ -14,6 +15,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PagedResourcesAssembler;
 import org.springframework.hateoas.PagedModel;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -51,7 +53,7 @@ public class VendedorController {
         Optional<Long> tenantId = SecurityUtils.getCurrentTenantId();
 
         Page<Vendedor> vendedoresPage = service.getAllVendedores(
-                tenantId.orElseThrow(() -> new RuntimeException(Constants.TENANT_NOT_FOUND)), pageable);
+                tenantId.orElseThrow(() -> new BusinessException(Constants.TENANT_NOT_FOUND, HttpStatus.UNAUTHORIZED)), pageable);
 
 
         return ResponseEntity.ok(pagedResourcesAssembler.toModel(vendedoresPage, assembler));
@@ -62,7 +64,7 @@ public class VendedorController {
         logger.info("Buscando Vendedor por ID: {}", id);
         Optional<Long> tenantId = SecurityUtils.getCurrentTenantId();
 
-        Vendedor dto = service.findById(id, tenantId.orElseThrow(() -> new RuntimeException(Constants.TENANT_NOT_FOUND)));
+        Vendedor dto = service.findById(id, tenantId.orElseThrow(() -> new BusinessException(Constants.TENANT_NOT_FOUND, HttpStatus.UNAUTHORIZED)));
 
         return ResponseEntity.ok(assembler.toModel(dto));
     }
@@ -70,7 +72,7 @@ public class VendedorController {
     @PostMapping
     public ResponseEntity<VendedorResponseDTO> save(@RequestBody @Valid VendedorDTO dto) {
         logger.info("Criando Vendedor: {}", dto);
-        Long tenantId = SecurityUtils.getCurrentTenantId().orElseThrow(() -> new RuntimeException(Constants.TENANT_NOT_FOUND));
+        Long tenantId = SecurityUtils.getCurrentTenantId().orElseThrow(() -> new BusinessException(Constants.TENANT_NOT_FOUND, HttpStatus.UNAUTHORIZED));
         UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new RuntimeException("User Id não encontrado!"));
 
         Vendedor salvo = service.save(dto, tenantId, userId);
@@ -83,7 +85,7 @@ public class VendedorController {
     @PutMapping("/{id}")
     public ResponseEntity<VendedorResponseDTO> update(@PathVariable UUID id, @RequestBody @Valid VendedorDTO dto) {
         logger.info("Atualizando Vendedor: {}", dto);
-        Long tenantId = SecurityUtils.getCurrentTenantId().orElseThrow(() -> new RuntimeException(Constants.TENANT_NOT_FOUND));
+        Long tenantId = SecurityUtils.getCurrentTenantId().orElseThrow(() -> new BusinessException(Constants.TENANT_NOT_FOUND, HttpStatus.UNAUTHORIZED));
         UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new RuntimeException("User Id não encontrado!"));
 
         Vendedor salvo = service.update(id, dto, tenantId, userId);

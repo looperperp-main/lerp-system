@@ -6,11 +6,13 @@ import com.l.erp.cadastroservice.api.mappers.CondicaoPagamentoParcelaAssembler;
 import com.l.erp.cadastroservice.domain.CondicaoPagamentoParcela;
 import com.l.erp.cadastroservice.services.CondicaoPagamentoParcelaService;
 import com.l.erp.cadastroservice.util.SecurityUtils;
+import com.l.erp.common.exception.custom.BusinessException;
 import com.l.erp.common.util.Constants;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.hateoas.CollectionModel;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -38,7 +40,7 @@ public class CondicaoPagamentoParcelaController {
     @GetMapping
     public ResponseEntity<CollectionModel<CondicaoPagamentoParcelaResponseDTO>> getParcelasByCondicaoId(@PathVariable UUID condicaoPagamentoId) {
         logger.info("Listando parcelas para a condição ID: {}", condicaoPagamentoId);
-        Long tenantId = SecurityUtils.getCurrentTenantId().orElseThrow(() -> new RuntimeException(Constants.USUARIO_UUID_NAO_ENCONTRADO));
+        Long tenantId = SecurityUtils.getCurrentTenantId().orElseThrow(() -> new BusinessException(Constants.USUARIO_UUID_NAO_ENCONTRADO, HttpStatus.UNAUTHORIZED));
 
         List<CondicaoPagamentoParcela> parcelas = service.findByCondicaoPagamentoId(condicaoPagamentoId, tenantId);
         return ResponseEntity.ok(assembler.toCollectionModel(parcelas));
@@ -50,8 +52,8 @@ public class CondicaoPagamentoParcelaController {
             @RequestBody @Valid List<CondicaoPagamentoParcelaRequestDTO> dtos) {
 
         logger.info("Atualizando parcelas para a condição ID: {}", condicaoPagamentoId);
-        Long tenantId = SecurityUtils.getCurrentTenantId().orElseThrow(() -> new RuntimeException(Constants.USUARIO_UUID_NAO_ENCONTRADO));
-        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new RuntimeException(Constants.USUARIO_UUID_NAO_ENCONTRADO));
+        Long tenantId = SecurityUtils.getCurrentTenantId().orElseThrow(() -> new BusinessException(Constants.USUARIO_UUID_NAO_ENCONTRADO, HttpStatus.UNAUTHORIZED));
+        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new BusinessException(Constants.USUARIO_UUID_NAO_ENCONTRADO, HttpStatus.UNAUTHORIZED));
 
         List<CondicaoPagamentoParcela> saved = service.saveAll(condicaoPagamentoId, dtos, tenantId, userId);
         return ResponseEntity.ok(assembler.toCollectionModel(saved));

@@ -4,6 +4,12 @@
 
 **Decisões fechadas:** convenção de code = `DOMINIO_ACAO` · ações padrão **READ / INSERT / UPDATE / DELETE / STATUS** · permissões são **globais** (tabela `auth.permission` não tem `tenant_id`; o vínculo por tenant é em `role_permission`).
 
+> **Status atualizado (2026-07-03, verificado no código):**
+> - O seed evoluiu além do `auth-schema-009`: **`auth-schema-010`** adicionou a coluna **`scope`** em `auth.permission` (TENANT = atribuível pelo portal do tenant vs plataforma) + novas permissões; **`auth-schema-012`** semeou permissões `ROLE_*` adicionais com `scope=TENANT`. A decisão "permissões são globais" continua valendo para o catálogo, mas agora há dimensão de escopo — a matriz abaixo não reflete os seeds 010/012.
+> - **`@PreAuthorize(hasAuthority(...))` JÁ APLICADO no auth-service** (`RoleController`, `PermissionController`, `AttributionsController`). No **cadastro-service** segue sem nenhuma anotação de autorização (nem `@Secured` nem `@PreAuthorize`) — passo 2 dos próximos passos está metade feito.
+> - Roles padrão por tenant: **parcialmente implementado** — na criação/ativação do tenant (`AuthService.ativarConta` e `criarContaGratis`), o `TenantOwnerBootstrapService.bootstrapOwner` cria a role **PROPRIETARIO** do tenant com as permissões dos domínios de segurança (`PERMISSION`, `USER`, `ROLE`) e a atribui ao usuário owner. As demais roles padrão (VENDAS, ESTOQUE, etc.) continuam a decidir.
+> - **Claim `roles` do JWT: ✅ RESOLVIDO (2026-07-03)** — antes era hardcoded (`isOwner ? [APP_OWNER, TENANT_OWNER] : ["ROLE_USER"]`, TODO intacto), ignorando a tabela `user_role` mesmo com a role **PROPRIETARIO** já atribuída de verdade pelo bootstrap acima. Agora `AuthService.resolveRoles(userId, isOwner)` busca as roles reais via `userRoleRepository.findAllByUserId(...).map(ur -> ur.getRole().getName())`; `isOwner` virou só uma flag adicional (`APP_OWNER`), não substitui mais a role real. Detalhe completo em `spec/auditoria.md` §4.11 e `spec/seguranca-tenant-scoping.md` (M7).
+
 ---
 
 ## Convenção
@@ -50,11 +56,11 @@ Implementado em `liquibase-service/.../auth/auth-schema-009.yaml`:
 1. `auth.permission` (catálogo global) → `auth.role_permission` (liga role ↔ permission, com `tenant_id`) → `auth.user_role` (liga user ↔ role).
 2. No login, `AuthService.getPermissions(userId)` coleta os `permission.code` via user_role→role_permission e injeta como claim **`authorities`** no JWT (`TokenService`).
 3. O gateway lê `authorities` e popula os `GrantedAuthority`. **Hoje os controllers usam `@Secured(ROLE_*)`** — para autorização granular por permissão será preciso `@PreAuthorize("hasAuthority('CLIENTE_INSERT')")` nos endpoints (ainda NÃO aplicado).
+   > **Atualização 2026-07-03:** aplicado no **auth-service** (Role/Permission/Attributions controllers, e o gateway propaga `authorities` via header `X-Authorities`); pendente apenas no **cadastro-service**.
 
 ## Próximos passos (roles — a decidir)
 
-1. Definir o conjunto de **roles padrão por tenant** (ex.: `ADMIN`, `VENDAS`, `ESTOQUE`, `FINANCEIRO`, `SOMENTE_LEITURA`) e o mapa role→permissions.
-   - Pergunta em aberto: roles padrão são **semeadas por tenant** na criação do tenant, ou um catálogo global clonado? (relacionado a M7 em `spec/seguranca-tenant-scoping.md` — separar owner GLOBAL vs TENANT).
-2. Trocar `@Secured(ROLE_*)` por `@PreAuthorize(hasAuthority(...))` nos controllers de cadastro (e auth) conforme a matriz.
-3. Tela de gestão no front-admin já existe (role-permissions / user-roles) — validar contra o catálogo novo.
-4. Verificar `TENANT` precisa de `STATUS` quando houver endpoint de ativar/inativar tenant.
+1. **PARCIAL** — Role **PROPRIETARIO** já é criada por tenant na ativação/criação de conta (`TenantOwnerBootstrapService.bootstrapOwner`), com as permissões de segurança (`PERMISSION`, `USER`, `ROLE`) e vínculo ao owner. Falta definir as demais roles padrão (ex.: `VENDAS`, `ESTOQUE`, `FINANCEIRO`, `SOMENTE_LEITURA`) e o mapa role→permissions.
+2. **EM ANDAMENTO** — Trocar `@Secured(ROLE_*)` por `@PreAuthorize(hasAuthority(...))`: feito no auth-service; cadastro-service em andamento.
+3. **FUNCIONANDO** — Tela de gestão no front-admin (role-permissions / user-roles) validada contra o catálogo novo.
+4. **NÃO IMPLEMENTADO** (verificado 2026-07-03) — Já existe `PATCH /tenants/{tenantId}/status` no `TenantController`, mas ele usa `@PreAuthorize(hasAuthority('TENANT_DELETE'))`; a permissão `TENANT_STATUS` não existe em nenhum seed do liquibase-service. Pendente: semear `TENANT_STATUS` e trocar a authority do endpoint.
