@@ -1,5 +1,18 @@
-import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, inject, signal } from '@angular/core';
-import { AssinaturaResumoDTO, DashboardService, ClienteDetalheResponse } from '../../services/dashboard.service';
+import {
+  Component,
+  EventEmitter,
+  Input,
+  OnChanges,
+  Output,
+  SimpleChanges,
+  inject,
+  signal,
+} from '@angular/core';
+import {
+  AssinaturaResumoDTO,
+  DashboardService,
+  ClienteDetalheResponse,
+} from '../../services/dashboard.service';
 import { Cliente } from '../../pages/clientes/clientes';
 
 @Component({
@@ -72,7 +85,10 @@ export class ClienteDrawer implements OnChanges {
   iniciarFollowup(): void {
     const referralId = this.cliente?.id;
     if (!referralId) return;
-    const mensagem = window.prompt('Mensagem de follow-up:', 'Vi que você ainda não usou algumas funcionalidades, posso ajudar?');
+    const mensagem = window.prompt(
+      'Mensagem de follow-up:',
+      'Vi que você ainda não usou algumas funcionalidades, posso ajudar?',
+    );
     if (!mensagem) return;
     this.dashboardService.iniciarFollowup(referralId, mensagem).subscribe({
       next: () => this.followupEnviado.set(true),

@@ -25,6 +25,7 @@
         <span class="plano-badge" [class]="'plano-badge--' + cliente.plano.toLowerCase()">Plano {{ cliente.plano }}</span>
       }
     </div>
+    <div class="drawer__divider"></div>
 
     @if (mode === 'engajamento') {
       @if (carregando()) {
@@ -44,6 +45,7 @@
             <span class="stat-box__label">Últ. acesso</span>
           </div>
         </div>
+        <div class="drawer__divider"></div>
 
         <h3 class="section-title">Features acessadas</h3>
         <div class="feature-list">
@@ -122,6 +124,7 @@
           <span class="stat-box__label">Engajamento</span>
         </div>
       </div>
+      <div class="drawer__divider"></div>
 
       <h3 class="section-title">Plano &amp; pagamento</h3>
       <div class="info-list">
@@ -140,6 +143,7 @@
           </span>
         </div>
       </div>
+      <div class="drawer__divider"></div>
 
       <h3 class="section-title">Comissão gerada</h3>
       <div class="info-list">
@@ -156,6 +160,7 @@
           <strong class="info-row__valor">{{ formatarMoeda(a?.ultimoRepasseValor) }}</strong>
         </div>
       </div>
+      <div class="drawer__divider"></div>
 
       <p class="drawer__aviso">Lista de faturas detalhada ainda não está disponível no portal do parceiro.</p>
 

@@ -14,7 +14,7 @@ import java.lang.annotation.Target;
 @Constraint(validatedBy = NoHtmlValidator.class)
 @Documented
 public @interface NoHtml {
-    String message() default "O campo não pode conter HTML";
+    String message() default "O campo não pode conter tags HTML (ex.: <script>, <img>)";
     Class<?>[] groups() default {};
     Class<? extends Payload>[] payload() default {};
 }
