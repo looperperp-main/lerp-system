@@ -84,7 +84,8 @@ export class ClienteDrawer implements OnChanges {
   // ponytail: sem UI de composição de mensagem ainda — usa prompt nativo. Troca por modal se o fluxo crescer.
   iniciarFollowup(): void {
     const referralId = this.cliente?.id;
-    if (!referralId) return;
+    // Backend só aceita em status FOLLOWUP (PartnerService.iniciarFollowup lança 422 senão).
+    if (!referralId || this.cliente?.status !== 'FOLLOWUP') return;
     const mensagem = window.prompt(
       'Mensagem de follow-up:',
       'Vi que você ainda não usou algumas funcionalidades, posso ajudar?',

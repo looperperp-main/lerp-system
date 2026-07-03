@@ -7,7 +7,7 @@ export interface ConviteDTO {
   cnpj: string;
   razaoSocial: string;
   emailContato: string;
-  status: 'CONVIDADO' | 'TRIAL' | 'ATIVADO' | 'CONVERTIDO' | 'PERDIDO';
+  status: 'CONVIDADO' | 'TRIAL' | 'FOLLOWUP' | 'ATIVADO' | 'CONVERTIDO' | 'PERDIDO';
   followupAttempts: number;
   invitedAt: string;
   tokenExpiresAt: string | null;

@@ -5,7 +5,7 @@ import { CadastrarClienteModalService } from '../../services/cadastrar-cliente-m
 import { ConviteService, ConviteDTO } from '../../services/convite.service';
 import { ClienteDrawer } from '../../components/cliente-drawer/cliente-drawer';
 
-export type ClienteStatus = 'ATIVO' | 'TRIAL' | 'CONVIDADO' | 'PERDIDO';
+export type ClienteStatus = 'ATIVO' | 'TRIAL' | 'FOLLOWUP' | 'CONVIDADO' | 'PERDIDO';
 export type ClientePlano = 'Anual' | 'Mensal' | null;
 export type ClienteAcao = 'documento' | 'atividade' | 'mensagem' | 'email' | 'reengajar';
 
@@ -23,6 +23,7 @@ export interface Cliente {
 const STATUS_MAP: Record<ConviteDTO['status'], ClienteStatus> = {
   CONVIDADO: 'CONVIDADO',
   TRIAL: 'TRIAL',
+  FOLLOWUP: 'FOLLOWUP',
   ATIVADO: 'ATIVO',
   CONVERTIDO: 'ATIVO',
   PERDIDO: 'PERDIDO',
@@ -31,13 +32,17 @@ const STATUS_MAP: Record<ConviteDTO['status'], ClienteStatus> = {
 const STATUS_LABEL: Record<ClienteStatus, string> = {
   CONVIDADO: 'Aguardando ativação',
   TRIAL: 'Trial',
+  FOLLOWUP: 'Follow-up',
   ATIVO: 'Ativo',
   PERDIDO: 'Perdido',
 };
 
+// TRIAL só permite ver engajamento — o backend só aceita iniciar follow-up quando o
+// TrialScheduler já promoveu o referral pra FOLLOWUP (PartnerService.iniciarFollowup, 422 senão).
 const ACOES_MAP: Record<ConviteDTO['status'], ClienteAcao[]> = {
   CONVIDADO: ['email'],
-  TRIAL: ['atividade', 'mensagem'],
+  TRIAL: ['atividade'],
+  FOLLOWUP: ['atividade', 'mensagem'],
   ATIVADO: ['documento'],
   CONVERTIDO: ['documento'],
   PERDIDO: ['reengajar'],

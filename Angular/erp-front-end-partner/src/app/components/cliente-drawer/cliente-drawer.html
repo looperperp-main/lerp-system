@@ -89,8 +89,16 @@
           </div>
         }
 
+        @if (cliente.status !== 'FOLLOWUP') {
+          <p class="drawer__aviso">
+            Follow-up fica disponível quando o cliente entrar na fase de reengajamento (status Follow-up).
+          </p>
+        }
+
         <div class="drawer__footer">
-          <button class="btn-primary" type="button" [disabled]="followupEnviado()" (click)="iniciarFollowup()">
+          <button class="btn-primary" type="button"
+                  [disabled]="cliente.status !== 'FOLLOWUP' || followupEnviado()"
+                  (click)="iniciarFollowup()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
             </svg>

@@ -128,7 +128,7 @@
                 @for (acao of c.acoes; track acao) {
                   <button
                     class="acao-btn" [class]="'acao-btn--' + acao" [title]="acaoTooltip[acao]"
-                    (click)="acao === 'email' ? reenviarConvite(c.id) : acao === 'atividade' ? openEngagement(c) : acao === 'documento' ? openAssinatura(c) : null"
+                    (click)="acao === 'email' ? reenviarConvite(c.id) : (acao === 'atividade' || acao === 'mensagem') ? openEngagement(c) : acao === 'documento' ? openAssinatura(c) : null"
                   >
                     @switch (acao) {
                       @case ('documento') {
