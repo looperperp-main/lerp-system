@@ -4,6 +4,7 @@ import com.l.erp.billingservice.api.dto.CancelSubscriptionResponse;
 import com.l.erp.billingservice.domain.Subscription;
 import com.l.erp.billingservice.domain.SubscriptionStatus;
 import com.l.erp.billingservice.infra.asaas.AsaasGateway;
+import com.l.erp.billingservice.repository.CommissionRepository;
 import com.l.erp.billingservice.repository.SubscriptionRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,6 +23,7 @@ import static org.mockito.Mockito.*;
 class SubscriptionServiceTest {
 
     @Mock SubscriptionRepository subscriptionRepository;
+    @Mock CommissionRepository commissionRepository;
     @Mock AsaasGateway asaasGateway;
 
     private Subscription sub(String status, String asaasId) {
@@ -35,7 +37,7 @@ class SubscriptionServiceTest {
 
     @Test
     void cancela_chamaAsaas_eMarcaCancelamentoSolicitado() {
-        SubscriptionService service = new SubscriptionService(subscriptionRepository, asaasGateway);
+        SubscriptionService service = new SubscriptionService(subscriptionRepository, commissionRepository, asaasGateway);
         Subscription s = sub(SubscriptionStatus.ATIVA, "sub_1");
         when(subscriptionRepository.findByTenantId(1L)).thenReturn(List.of(s));
 
@@ -49,7 +51,7 @@ class SubscriptionServiceTest {
 
     @Test
     void idempotente_jaCancelando_naoChamaAsaas() {
-        SubscriptionService service = new SubscriptionService(subscriptionRepository, asaasGateway);
+        SubscriptionService service = new SubscriptionService(subscriptionRepository, commissionRepository, asaasGateway);
         Subscription s = sub(SubscriptionStatus.CANCELAMENTO_SOLICITADO, "sub_1");
         when(subscriptionRepository.findByTenantId(1L)).thenReturn(List.of(s));
 
@@ -61,7 +63,7 @@ class SubscriptionServiceTest {
 
     @Test
     void semAssinaturaCancelavel_404() {
-        SubscriptionService service = new SubscriptionService(subscriptionRepository, asaasGateway);
+        SubscriptionService service = new SubscriptionService(subscriptionRepository, commissionRepository, asaasGateway);
         when(subscriptionRepository.findByTenantId(1L)).thenReturn(List.of());
 
         assertThatThrownBy(() -> service.cancelForTenant(1L))

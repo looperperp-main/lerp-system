@@ -1,8 +1,8 @@
-import {HttpErrorResponse, HttpInterceptorFn} from '@angular/common/http';
-import {inject, PLATFORM_ID} from '@angular/core';
-import {isPlatformBrowser} from '@angular/common';
-import {catchError, throwError} from 'rxjs';
-import {Router} from '@angular/router';
+import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
+import { inject, PLATFORM_ID } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
+import { catchError, throwError } from 'rxjs';
+import { Router } from '@angular/router';
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const platformId = inject(PLATFORM_ID);
@@ -21,19 +21,21 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
     if (token) {
       const clonedReq = req.clone({
         setHeaders: {
-          Authorization: `Bearer ${token}`
-        }
+          Authorization: `Bearer ${token}`,
+        },
       });
 
       return next(clonedReq).pipe(
         catchError((error: HttpErrorResponse) => {
-          // Token expirado ou inválido
-          if (error.status === 401 || error.status === 403) {
+          // 401 = sessão inválida/expirada -> desloga. 403 = autenticado mas sem
+          // permissão para ESSE recurso específico -> não deve derrubar a sessão
+          // (senão um 403 num endpoint quebra outras chamadas em paralelo na mesma tela).
+          if (error.status === 401) {
             sessionStorage.clear();
             router.navigate(['/login']);
           }
           return throwError(() => error);
-        })
+        }),
       );
     }
   }

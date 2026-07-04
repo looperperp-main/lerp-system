@@ -23,6 +23,7 @@ import com.l.erp.authservice.repositorios.TenantRepository;
 import com.l.erp.authservice.repositorios.UserAccountRepository;
 import com.l.erp.authservice.repositorios.UserRoleRepository;
 import com.l.erp.authservice.services.audit.AuditService;
+import com.l.erp.authservice.services.TenantOwnerBootstrapService;
 import com.l.erp.authservice.services.TrialEngagementService;
 import com.l.erp.authservice.util.PasswordValidatorUtil;
 import org.junit.jupiter.api.Test;
@@ -100,6 +101,9 @@ class AuthControllerTest {
 
     @MockitoBean
     private TrialEngagementService trialEngagementService;
+
+    @MockitoBean
+    private TenantOwnerBootstrapService tenantOwnerBootstrapService;
 
     @Test
     void shouldLoginSuccess() throws Exception {
