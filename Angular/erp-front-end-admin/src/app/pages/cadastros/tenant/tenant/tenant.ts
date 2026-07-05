@@ -18,6 +18,7 @@ import { CnpjPipe } from '../../../../util/pipe/cnpj.pipe';
 import { HtmlDecodePipe } from '../../../../util/pipe/html-decode.pipe';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Tooltip } from 'primeng/tooltip';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-tenant',
@@ -85,7 +86,14 @@ export class Tenant {
     private messageService: MessageService,
     private confirmationService: ConfirmationService,
     private tenantService: TenantService,
+    private router: Router,
   ) {}
+
+  verDetalhe(tenant: TenantModel) {
+    if (tenant.id) {
+      this.router.navigate(['/admin/cadastros/tenants', tenant.id]);
+    }
+  }
 
   ngOnInit() {
     // Carregamento feito via lazy load do datatable (onLazyLoad)

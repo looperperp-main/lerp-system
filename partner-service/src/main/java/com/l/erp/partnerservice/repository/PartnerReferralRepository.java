@@ -26,6 +26,11 @@ public interface PartnerReferralRepository extends JpaRepository<PartnerReferral
     // Busca por tenantId (para login tracking)
     Optional<PartnerReferral> findByTenantIdAndStatusIn(Long tenantId, List<String> statuses);
 
+    // Origem de um tenant (Visão 360): indicações do tenant + contador, mais recente primeiro
+    @org.springframework.data.jpa.repository.Query(
+            "SELECT r FROM PartnerReferral r JOIN FETCH r.partner WHERE r.tenantId = :tenantId ORDER BY r.invitedAt DESC")
+    List<PartnerReferral> findByTenantIdWithPartner(@org.springframework.data.repository.query.Param("tenantId") Long tenantId);
+
     // Contagens para dashboard
     long countByPartner_IdAndStatus(UUID partnerId, String status);
     long countByPartner_IdAndStatusIn(UUID partnerId, List<String> statuses);

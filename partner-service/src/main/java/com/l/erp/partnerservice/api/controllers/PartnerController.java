@@ -73,6 +73,12 @@ public class PartnerController {
         return ResponseEntity.ok(service.listIndicacoesPorContador());
     }
 
+    @GetMapping("/referrals/by-tenant/{tenantId}")
+    public ResponseEntity<com.l.erp.partnerservice.api.dto.OrigemTenantDTO> origemPorTenant(@PathVariable Long tenantId) {
+        logger.info("Consultando origem (indicação) do tenant {}", tenantId);
+        return ResponseEntity.of(service.getOrigemPorTenant(tenantId));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<PartnerResponseDTO> findById(@PathVariable UUID id) {
         logger.info("Buscando parceiro por ID: {}", id);

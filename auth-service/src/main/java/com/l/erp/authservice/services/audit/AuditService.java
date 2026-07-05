@@ -104,4 +104,15 @@ public class AuditService {
     public Page<AuditLogDTO> getAuditLogs(Pageable pageable) {
         return auditRepository.findAll(pageable).map(auditMapper::toAuditLogDTO);
     }
+
+    /**
+     * Logs de auditoria filtrados por alvo (Visão 360 do tenant).
+     * @param targetType tipo do alvo (ex.: USER); opcional
+     * @param targetId id do alvo; opcional
+     * @param pageable paginável
+     * @return página filtrada
+     */
+    public Page<AuditLogDTO> getAuditLogs(String targetType, UUID targetId, Pageable pageable) {
+        return auditRepository.findByTarget(targetType, targetId, pageable).map(auditMapper::toAuditLogDTO);
+    }
 }

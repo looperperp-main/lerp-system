@@ -12,7 +12,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.annotation.Secured;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/auth")
@@ -28,8 +31,14 @@ public class AuditController {
 
     @GetMapping("/audits")
     @Secured(Roles.APP_OWNER)
-    public ResponseEntity<Page<AuditLogDTO>> getAudits(@PageableDefault(size = 25) Pageable pageable) {
-        log.debug("REST request to get all audits");
-        return ResponseEntity.ok(auditService.getAuditLogs(pageable));
+    public ResponseEntity<Page<AuditLogDTO>> getAudits(
+            @RequestParam(required = false) String targetType,
+            @RequestParam(required = false) UUID targetId,
+            @PageableDefault(size = 25) Pageable pageable) {
+        log.debug("REST request to get audits (targetType={}, targetId={})", targetType, targetId);
+        if (targetType == null && targetId == null) {
+            return ResponseEntity.ok(auditService.getAuditLogs(pageable));
+        }
+        return ResponseEntity.ok(auditService.getAuditLogs(targetType, targetId, pageable));
     }
 }

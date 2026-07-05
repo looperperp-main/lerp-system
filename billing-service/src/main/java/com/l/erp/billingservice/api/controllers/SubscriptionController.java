@@ -30,8 +30,13 @@ public class SubscriptionController {
     }
 
     @GetMapping
-    public ResponseEntity<Page<SubscriptionAdminDTO>> listar(Pageable pageable) {
-        return ResponseEntity.ok(subscriptionRepository.findAll(pageable).map(s -> new SubscriptionAdminDTO(
+    public ResponseEntity<Page<SubscriptionAdminDTO>> listar(
+            @org.springframework.web.bind.annotation.RequestParam(required = false) Long tenantId,
+            Pageable pageable) {
+        Page<com.l.erp.billingservice.domain.Subscription> page = (tenantId != null)
+                ? subscriptionRepository.findByTenantId(tenantId, pageable)
+                : subscriptionRepository.findAll(pageable);
+        return ResponseEntity.ok(page.map(s -> new SubscriptionAdminDTO(
                 s.getId(), s.getTenantId(), s.getPlanType(), s.getBillingCycle(), s.getValue(),
                 s.getStatus(), s.getAsaasSubscriptionId(), s.getNextDueDate(), s.getCreatedAt())));
     }

@@ -3,6 +3,7 @@ import { Login } from './pages/login/login';
 import { AdminLayout } from './components/admin-layout/admin-layout';
 import { Home } from './pages/admin/home/home';
 import { Tenant } from './pages/cadastros/tenant/tenant/tenant';
+import { TenantDetail } from './pages/cadastros/tenant/tenant-detail/tenant-detail';
 import { Audit } from './pages/admin/audit/audit';
 import { Users } from './pages/cadastros/tenant/users/users';
 import { Roles } from './pages/cadastros/roles/roles/roles';
@@ -31,6 +32,7 @@ export const routes: Routes = [
       { path: '', redirectTo: 'home', pathMatch: 'full' },
       { path: 'home', component: Home },
       { path: 'cadastros/tenants', component: Tenant },
+      { path: 'cadastros/tenants/:id', component: TenantDetail },
       { path: 'cadastros/users', component: Users },
       { path: 'cadastros/roles', component: Roles },
       { path: 'cadastros/permission', component: Permission },

@@ -129,7 +129,8 @@
 
         <!-- Corpo da Tabela -->
         <ng-template pTemplate="body" let-rowData let-columns="columns">
-          <tr class="hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-colors">
+          <tr class="hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-colors cursor-pointer"
+              (click)="verDetalhe(rowData)">
             <td *ngFor="let col of columns" class="py-3 text-gray-600">
 
               <!-- Coluna Status Customizada -->
@@ -156,9 +157,19 @@
                   <button
                     pButton
                     pRipple
+                    icon="pi pi-eye"
+                    class="p-button-rounded p-button-text p-button-secondary p-button-sm w-8 h-8"
+                    (click)="$event.stopPropagation(); verDetalhe(rowData)"
+                    pTooltip="Visão 360"
+                    tooltipPosition="top">
+                  </button>
+
+                  <button
+                    pButton
+                    pRipple
                     icon="pi pi-pencil"
                     class="p-button-rounded p-button-text p-button-info p-button-sm w-8 h-8"
-                    (click)="editTenant(rowData)"
+                    (click)="$event.stopPropagation(); editTenant(rowData)"
                     pTooltip="Editar"
                     tooltipPosition="top">
                   </button>
@@ -172,7 +183,7 @@
                     [class]="'p-button-rounded p-button-text p-button-sm w-8 h-8 ' + (rowData.status === 'ATIVO' ? 'p-button-warning' : 'p-button-success')"
                     pTooltip="Alterar Status"
                     tooltipPosition="top"
-                    (click)="toggleTenantStatus(rowData)">
+                    (click)="$event.stopPropagation(); toggleTenantStatus(rowData)">
                   </button>
 
                   <button
@@ -181,7 +192,7 @@
                     pRipple
                     icon="pi pi-trash"
                     class="p-button-rounded p-button-text p-button-danger p-button-sm w-8 h-8"
-                    (click)="deleteTenant(rowData)"
+                    (click)="$event.stopPropagation(); deleteTenant(rowData)"
                     pTooltip="Cancelar"
                     tooltipPosition="top">
                   </button>

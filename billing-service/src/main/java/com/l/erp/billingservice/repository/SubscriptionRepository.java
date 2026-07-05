@@ -23,6 +23,9 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, UUID
     /** Assinaturas de um tenant (cancelamento self-service). */
     List<Subscription> findByTenantId(Long tenantId);
 
+    /** Assinaturas de um tenant, paginado (listagem admin filtrada — Visão 360). */
+    org.springframework.data.domain.Page<Subscription> findByTenantId(Long tenantId, org.springframework.data.domain.Pageable pageable);
+
     /** Cancelamento solicitado cujo período pago já venceu — finalizar para CANCELADO. */
     List<Subscription> findByStatusAndNextDueDateLessThanEqual(String status, OffsetDateTime now);
 

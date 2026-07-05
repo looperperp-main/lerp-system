@@ -267,6 +267,22 @@ public class PartnerService {
                 .toList();
     }
 
+    /**
+     * Origem de um tenant (Visão 360): o contador que o indicou e o estado da indicação.
+     * Vazio se o tenant não veio de indicação (cadastro direto).
+     */
+    @Transactional(readOnly = true)
+    public java.util.Optional<com.l.erp.partnerservice.api.dto.OrigemTenantDTO> getOrigemPorTenant(Long tenantId) {
+        return referralRepository.findByTenantIdWithPartner(tenantId).stream()
+                .findFirst()
+                .map(r -> {
+                    Partner c = r.getPartner();
+                    return new com.l.erp.partnerservice.api.dto.OrigemTenantDTO(
+                            c.getName(), c.getCrc(), c.getReferralCode(), c.getCommissionRate(),
+                            r.getStatus(), r.getInvitedAt(), r.getActivatedAt(), r.getConvertedAt());
+                });
+    }
+
     @Transactional
     public Partner inactivate(UUID id, String inactivatedBy) {
         logger.info("Inativando parceiro {}", id);
