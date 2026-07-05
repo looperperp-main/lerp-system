@@ -129,7 +129,7 @@ class RoleControllerTest {
         when(roleRepository.findWithFilters(any(), any(Pageable.class))).thenReturn(page);
         when(roleMapper.toRoleDTO(any(Role.class))).thenReturn(dto);
 
-        RoleSearchFilterDTO filter = new RoleSearchFilterDTO("EDITOR");
+        RoleSearchFilterDTO filter = new RoleSearchFilterDTO("EDITOR", null);
 
         mockMvc.perform(post("/auth/roles/search")
                         .contentType(MediaType.APPLICATION_JSON)

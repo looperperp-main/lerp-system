@@ -8,6 +8,64 @@
     </div>
   </div>
 
+  <!-- Resumo por competência (item 4) -->
+  <div class="content-card mb-4">
+    <div class="content-toolbar mb-4">
+      <h3 class="content-toolbar-title">Resumo de comissões</h3>
+      <div class="content-toolbar-actions flex items-center gap-2">
+        <input
+          type="month"
+          [(ngModel)]="competencia"
+          (change)="carregarSummary()"
+          class="border border-gray-300 rounded-md p-2 text-sm" />
+        <button pButton pRipple icon="pi pi-refresh" label="Atualizar"
+                class="p-button-sm p-button-outlined" (click)="carregarSummary()"></button>
+      </div>
+    </div>
+
+    @if (carregandoSummary()) {
+      <div class="text-center py-4 text-gray-400"><i class="pi pi-spin pi-spinner"></i> Carregando…</div>
+    } @else if (summary(); as s) {
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="rounded-xl border border-gray-100 p-4 bg-orange-50">
+          <p class="text-xs uppercase text-gray-500 font-semibold">A pagar (competência)</p>
+          <p class="text-2xl font-bold text-orange-700 mt-1">{{ s.totalPendente | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}</p>
+        </div>
+        <div class="rounded-xl border border-gray-100 p-4 bg-green-50">
+          <p class="text-xs uppercase text-gray-500 font-semibold">Pago (competência)</p>
+          <p class="text-2xl font-bold text-green-700 mt-1">{{ s.totalPago | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}</p>
+        </div>
+        <div class="rounded-xl border border-gray-100 p-4 bg-blue-50">
+          <p class="text-xs uppercase text-gray-500 font-semibold">Parceiros a pagar</p>
+          <p class="text-2xl font-bold text-blue-700 mt-1">{{ s.parceirosAPagar }}</p>
+        </div>
+      </div>
+
+      @if (s.porParceiro.length) {
+        <table class="w-full text-sm mt-4">
+          <thead>
+            <tr>
+              <th class="text-left text-xs uppercase text-gray-400 font-semibold pb-2">Parceiro</th>
+              <th class="text-left text-xs uppercase text-gray-400 font-semibold pb-2">Pendente</th>
+              <th class="text-left text-xs uppercase text-gray-400 font-semibold pb-2">Pago</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (p of s.porParceiro; track p.partnerId) {
+              <tr class="border-t border-gray-100">
+                <td class="py-2 text-gray-500 text-xs">{{ p.partnerId }}</td>
+                <td class="py-2 text-gray-700">{{ p.pendente | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}</td>
+                <td class="py-2 text-gray-700">{{ p.pago | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      } @else {
+        <p class="text-gray-500 text-sm mt-4">Nenhuma comissão nesta competência.</p>
+      }
+    }
+  </div>
+
   <div class="content-card">
     <div class="content-toolbar">
       <h3 class="content-toolbar-title">Ações</h3>

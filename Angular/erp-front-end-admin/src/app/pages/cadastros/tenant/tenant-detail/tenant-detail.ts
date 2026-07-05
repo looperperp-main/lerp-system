@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule, CurrencyPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpParams } from '@angular/common/http';
@@ -84,6 +84,8 @@ export class TenantDetail implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly messageService = inject(MessageService);
+  // App é zoneless: mutação de campo comum em callback async não dispara CD sozinha.
+  private readonly cdr = inject(ChangeDetectorRef);
 
   private readonly authBase = `${environment.apiUrl}/auth`;
   private readonly billingBase = `${environment.apiUrl}/billing/api/v1/subscriptions`;
@@ -245,9 +247,11 @@ export class TenantDetail implements OnInit {
         next: (data) => {
           this.cobrancas[row.id] = data ?? [];
           this.cobrancasLoading[row.id] = false;
+          this.cdr.markForCheck();
         },
         error: () => {
           this.cobrancasLoading[row.id] = false;
+          this.cdr.markForCheck();
           this.messageService.add({
             severity: 'error',
             summary: 'Erro',
@@ -263,6 +267,7 @@ export class TenantDetail implements OnInit {
     this.http.post<any>(`${this.billingBase}/${row.id}/reprocess`, {}).subscribe({
       next: (res) => {
         this.reprocessLoading[row.id] = false;
+        this.cdr.markForCheck();
         this.messageService.add({
           severity: res.ativada ? 'success' : 'info',
           summary: res.ativada ? 'Ativada' : 'Sem mudança',
@@ -277,6 +282,7 @@ export class TenantDetail implements OnInit {
       },
       error: (err) => {
         this.reprocessLoading[row.id] = false;
+        this.cdr.markForCheck();
         this.messageService.add({
           severity: 'error',
           summary: 'Erro',
@@ -314,6 +320,7 @@ export class TenantDetail implements OnInit {
       },
       error: (err) => {
         this.cancelLoading = false;
+        this.cdr.markForCheck();
         this.messageService.add({
           severity: 'error',
           summary: 'Erro',

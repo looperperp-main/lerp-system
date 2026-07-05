@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, inject, signal } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { TableModule } from 'primeng/table';
@@ -41,6 +41,8 @@ export class Subscription implements OnInit {
   private readonly http = inject(HttpClient);
   private readonly messageService = inject(MessageService);
   private readonly base = `${environment.apiUrl}/billing/api/v1/subscriptions`;
+  // App é zoneless: mutação de campo comum em callback async não dispara CD sozinha.
+  private readonly cdr = inject(ChangeDetectorRef);
 
   readonly carregando = signal(true);
   readonly rows = signal<SubscriptionRow[]>([]);
@@ -83,9 +85,11 @@ export class Subscription implements OnInit {
         next: (data) => {
           this.cobrancas[row.id] = data ?? [];
           this.cobrancasLoading[row.id] = false;
+          this.cdr.markForCheck();
         },
         error: () => {
           this.cobrancasLoading[row.id] = false;
+          this.cdr.markForCheck();
           this.messageService.add({
             severity: 'error',
             summary: 'Erro',
@@ -101,6 +105,7 @@ export class Subscription implements OnInit {
     this.http.post<any>(`${this.base}/${row.id}/reprocess`, {}).subscribe({
       next: (res) => {
         this.reprocessLoading[row.id] = false;
+        this.cdr.markForCheck();
         this.messageService.add({
           severity: res.ativada ? 'success' : 'info',
           summary: res.ativada ? 'Ativada' : 'Sem mudança',
@@ -115,6 +120,7 @@ export class Subscription implements OnInit {
       },
       error: (err) => {
         this.reprocessLoading[row.id] = false;
+        this.cdr.markForCheck();
         this.messageService.add({
           severity: 'error',
           summary: 'Erro',
@@ -152,6 +158,7 @@ export class Subscription implements OnInit {
       },
       error: (err) => {
         this.cancelLoading = false;
+        this.cdr.markForCheck();
         this.messageService.add({
           severity: 'error',
           summary: 'Erro',

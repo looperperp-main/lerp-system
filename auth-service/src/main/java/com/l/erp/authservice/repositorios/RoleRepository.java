@@ -33,7 +33,8 @@ public interface RoleRepository extends JpaRepository<Role, UUID> {
     boolean existsByRoleId(@Param("roleId") UUID roleId);
 
     @Query("SELECT r FROM Role r " +
-            "WHERE (:#{#filter.name} IS NULL OR LOWER(r.name) LIKE LOWER(CONCAT('%', :#{#filter.name}, '%')))")
+            "WHERE (:#{#filter.name} IS NULL OR LOWER(r.name) LIKE LOWER(CONCAT('%', :#{#filter.name}, '%'))) " +
+            "AND (:#{#filter.tenantId} IS NULL OR r.tenant.id = :#{#filter.tenantId})")
     Page<Role> findWithFilters(@Param("filter") RoleSearchFilterDTO filter, Pageable pageable);
 
 }

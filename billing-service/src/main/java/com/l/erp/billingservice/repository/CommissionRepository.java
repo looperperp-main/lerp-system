@@ -38,4 +38,12 @@ public interface CommissionRepository extends JpaRepository<Commission, UUID> {
 
     @Query("SELECT COALESCE(SUM(c.amount), 0) FROM Commission c WHERE c.partnerId = :partnerId AND c.status = 'PAGO'")
     BigDecimal sumPagoByPartner(@Param("partnerId") UUID partnerId);
+
+    /**
+     * Agregação por parceiro+status num período (competência) — resumo admin (item 4).
+     * Cada linha: [partnerId(UUID), status(String), SUM(amount)(BigDecimal), COUNT(Long)].
+     */
+    @Query("SELECT c.partnerId, c.status, COALESCE(SUM(c.amount), 0), COUNT(c) " +
+           "FROM Commission c WHERE c.period = :period GROUP BY c.partnerId, c.status")
+    List<Object[]> summarizeByPeriod(@Param("period") String period);
 }

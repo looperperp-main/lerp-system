@@ -1,6 +1,7 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
+import { FormsModule } from '@angular/forms';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { MessageService } from 'primeng/api';
 import { ToastModule } from 'primeng/toast';
 import { environment } from '../../../../environments/environment';
@@ -8,6 +9,14 @@ import { ButtonDirective } from 'primeng/button';
 import { Ripple } from 'primeng/ripple';
 import { TableModule } from 'primeng/table';
 import { ColumnConfig } from '../../../components/table/data-table';
+
+interface CommissionSummary {
+  competencia: string;
+  totalPendente: number;
+  totalPago: number;
+  parceirosAPagar: number;
+  porParceiro: { partnerId: string; pendente: number; pago: number }[];
+}
 
 interface CommissionRow {
   id: string;
@@ -24,7 +33,7 @@ interface CommissionRow {
 @Component({
   selector: 'app-invoices',
   standalone: true,
-  imports: [CurrencyPipe, DatePipe, ToastModule, ButtonDirective, Ripple, TableModule],
+  imports: [CurrencyPipe, DatePipe, FormsModule, ToastModule, ButtonDirective, Ripple, TableModule],
   providers: [MessageService],
   templateUrl: './invoices.html',
   styleUrl: './invoices.scss',
@@ -38,6 +47,11 @@ export class Invoices implements OnInit {
   readonly processando = signal(false);
   readonly rows = signal<CommissionRow[]>([]);
 
+  // Resumo por competência (item 4). Default: mês atual (yyyy-MM).
+  competencia = new Date().toISOString().slice(0, 7);
+  readonly summary = signal<CommissionSummary | null>(null);
+  readonly carregandoSummary = signal(true);
+
   cols: ColumnConfig[] = [
     { field: 'partnerId', header: 'Parceiro', type: 'text' },
     { field: 'tenantId', header: 'Tenant', type: 'text' },
@@ -50,6 +64,19 @@ export class Invoices implements OnInit {
 
   ngOnInit(): void {
     this.carregar();
+    this.carregarSummary();
+  }
+
+  carregarSummary(): void {
+    this.carregandoSummary.set(true);
+    const params = new HttpParams().set('competencia', this.competencia);
+    this.http.get<CommissionSummary>(`${this.base}/summary`, { params }).subscribe({
+      next: (res) => {
+        this.summary.set(res);
+        this.carregandoSummary.set(false);
+      },
+      error: () => this.carregandoSummary.set(false),
+    });
   }
 
   carregar(): void {

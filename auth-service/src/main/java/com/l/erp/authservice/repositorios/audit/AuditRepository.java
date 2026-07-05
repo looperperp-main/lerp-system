@@ -7,9 +7,13 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.UUID;
 
 public interface AuditRepository extends JpaRepository<AuditLog, Long> {
+
+    /** Todos os eventos de uma operação (rastreador por correlationId — diagnóstico). */
+    List<AuditLog> findByCorrelationIdOrderByEventDateAsc(UUID correlationId);
 
     /** Auditoria filtrada por alvo (Visão 360 do tenant); ambos os filtros são opcionais. */
     @Query("""

@@ -130,6 +130,19 @@
       </div>
     </header>
 
+    <!-- Breadcrumb -->
+    <nav *ngIf="crumbs().length" aria-label="Breadcrumb"
+         class="px-4 lg:px-8 pb-3 flex items-center flex-wrap gap-1 text-sm text-gray-400">
+      <a routerLink="/admin/home" class="hover:text-orange-500 transition-colors">
+        <i class="pi pi-home text-xs"></i>
+      </a>
+      <ng-container *ngFor="let c of crumbs(); let last = last">
+        <i class="pi pi-angle-right text-[10px] text-gray-300"></i>
+        <span *ngIf="last" class="font-medium text-gray-700">{{ c.label }}</span>
+        <a *ngIf="!last" [routerLink]="c.link" class="hover:text-orange-500 transition-colors">{{ c.label }}</a>
+      </ng-container>
+    </nav>
+
     <!-- Scrollable Content -->
     <main class="flex-1 overflow-x-hidden overflow-y-auto bg-[#FDFBF7] px-4 lg:px-8 pb-8">
       <router-outlet></router-outlet>

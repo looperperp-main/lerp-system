@@ -13,6 +13,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -114,5 +115,12 @@ public class AuditService {
      */
     public Page<AuditLogDTO> getAuditLogs(String targetType, UUID targetId, Pageable pageable) {
         return auditRepository.findByTarget(targetType, targetId, pageable).map(auditMapper::toAuditLogDTO);
+    }
+
+    /** Linha do tempo de uma operação (rastreador por correlationId — diagnóstico). */
+    public List<AuditLogDTO> getAuditTrace(UUID correlationId) {
+        return auditRepository.findByCorrelationIdOrderByEventDateAsc(correlationId).stream()
+                .map(auditMapper::toAuditLogDTO)
+                .toList();
     }
 }

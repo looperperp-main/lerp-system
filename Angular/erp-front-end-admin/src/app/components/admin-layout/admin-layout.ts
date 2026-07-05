@@ -1,10 +1,10 @@
-import {Component} from '@angular/core';
-import {Router, RouterModule, RouterOutlet} from '@angular/router';
-import {CommonModule} from '@angular/common';
-import {LogoutService} from '../../pages/login/service/logout';
-import {ToastrService} from 'ngx-toastr';
-import {MenuItem} from 'primeng/api';
-import {InputTextModule} from 'primeng/inputtext';
+import { Component, signal } from '@angular/core';
+import { NavigationEnd, Router, RouterModule, RouterOutlet } from '@angular/router';
+import { CommonModule } from '@angular/common';
+import { LogoutService } from '../../pages/login/service/logout';
+import { ToastrService } from 'ngx-toastr';
+import { MenuItem } from 'primeng/api';
+import { InputTextModule } from 'primeng/inputtext';
 
 @Component({
   selector: 'app-admin-layout',
@@ -23,50 +23,129 @@ export class AdminLayout {
   user = {
     name: this.userEmail,
     role: 'Admin',
-    avatar: 'https://primefaces.org/cdn/primeng/images/demo/avatar/amyelsner.png' // Placeholder
+    avatar: 'https://primefaces.org/cdn/primeng/images/demo/avatar/amyelsner.png', // Placeholder
   };
 
   menuItems: MenuItem[] = [
     { label: 'Overview', icon: 'pi pi-home', routerLink: '/admin/home' },
-    { label: 'Cadastros', icon: 'pi pi-folder', path: '/admin/cadastros',items: [
-      { label: 'Usuários', icon: 'pi pi-user', routerLink: '/admin/cadastros/users' },
-      { label: 'Tenants', icon: 'pi pi-user', routerLink: '/admin/cadastros/tenants' },
-      { label: 'Roles', icon: 'pi pi-id-card', routerLink: '/admin/cadastros/roles' },
-      { label: 'Permissões', icon: 'pi pi-shield', routerLink: '/admin/cadastros/permission' }
-      ] },
-    { label: 'Segurança', icon: 'pi pi-server', routerLink: '/admin/security', items: [
-      { label: 'Configurar Roles', icon: 'pi pi-sitemap', routerLink: '/admin/security/role-permissions' },
-      { label: 'Atribuir Acessos', icon: 'pi pi-key', routerLink: '/admin/security/user-roles' }
-    ] },
-    { label: 'Parceiros', icon: 'pi pi-star', routerLink: '/admin/parceiros', items: [
-        { label: 'Contadores', icon: 'pi pi-calculator', routerLink: '/admin/parceiros/contadores' },
+    {
+      label: 'Cadastros',
+      icon: 'pi pi-folder',
+      path: '/admin/cadastros',
+      items: [
+        { label: 'Usuários', icon: 'pi pi-user', routerLink: '/admin/cadastros/users' },
+        { label: 'Tenants', icon: 'pi pi-user', routerLink: '/admin/cadastros/tenants' },
+        { label: 'Roles', icon: 'pi pi-id-card', routerLink: '/admin/cadastros/roles' },
+        { label: 'Permissões', icon: 'pi pi-shield', routerLink: '/admin/cadastros/permission' },
+      ],
+    },
+    {
+      label: 'Segurança',
+      icon: 'pi pi-server',
+      routerLink: '/admin/security',
+      items: [
+        {
+          label: 'Configurar Roles',
+          icon: 'pi pi-sitemap',
+          routerLink: '/admin/security/role-permissions',
+        },
+        { label: 'Atribuir Acessos', icon: 'pi pi-key', routerLink: '/admin/security/user-roles' },
+      ],
+    },
+    {
+      label: 'Parceiros',
+      icon: 'pi pi-star',
+      routerLink: '/admin/parceiros',
+      items: [
+        {
+          label: 'Contadores',
+          icon: 'pi pi-calculator',
+          routerLink: '/admin/parceiros/contadores',
+        },
         //{ label: 'Comissões', icon: 'pi pi-percentage', routerLink: '/admin/parceiros/comissoes' },
         //{ label: 'Indicações', icon: 'pi pi-bullhorn', routerLink: '/admin/parceiros/indicacoes' }
-        { label: 'Indicações', icon: 'pi pi-megaphone', routerLink: '/admin/parceiros/indicacoes' }
-      ] },
+        { label: 'Indicações', icon: 'pi pi-megaphone', routerLink: '/admin/parceiros/indicacoes' },
+      ],
+    },
     { label: 'Auditoria', icon: 'pi pi-eye', routerLink: '/admin/audit' },
     { label: 'Fila Interna', icon: 'pi pi-inbox', routerLink: '/admin/fila-interna' },
-    { label: 'Subscrições', icon: 'pi pi-barcode', path: '/admin/subscriptions',items: [
+    {
+      label: 'Subscrições',
+      icon: 'pi pi-barcode',
+      path: '/admin/subscriptions',
+      items: [
         { label: 'Planos', icon: 'pi pi-book', routerLink: '/admin/cadastros/plans' },
         { label: 'Assinaturas', icon: 'pi pi-wallet', routerLink: '/admin/cadastros/subscription' },
         { label: 'Pagamentos', icon: 'pi pi-receipt', routerLink: '/admin/cadastros/invoices' },
-      ] },
+      ],
+    },
+    {
+      label: 'Diagnóstico',
+      icon: 'pi pi-wrench',
+      path: '/admin/diagnostico',
+      items: [
+        { label: 'Rastreador', icon: 'pi pi-sitemap', routerLink: '/admin/diagnostico/rastreador' },
+        { label: 'Saúde dos Serviços', icon: 'pi pi-heart', routerLink: '/admin/diagnostico/saude' },
+      ],
+    },
     { label: 'Relatórios', icon: 'pi pi-chart-bar', routerLink: '/admin/relatorios' },
-    { label: 'Configurações', icon: 'pi pi-cog', routerLink: '/admin/config' }
+    { label: 'Configurações', icon: 'pi pi-cog', routerLink: '/admin/config' },
   ];
 
   /*userMenuItems: MenuItem[] = [
     { label: 'Sair', icon: 'pi pi-sign-out', command: () => this.logout() }
   ];*/
 
-  constructor(private router: Router,
-              private logoutService: LogoutService,
-              private toastService: ToastrService) {
+  // Breadcrumb derivado da URL, reaproveitando os labels do menu.
+  readonly crumbs = signal<{ label: string; link: string }[]>([]);
+  private readonly labelBySegment = this.buildLabelMap(this.menuItems);
 
+  constructor(
+    private router: Router,
+    private logoutService: LogoutService,
+    private toastService: ToastrService,
+  ) {
     this.checkScreenSize();
     window.addEventListener('resize', () => {
       this.checkScreenSize();
     });
+
+    this.updateCrumbs(this.router.url);
+    this.router.events.subscribe((e) => {
+      if (e instanceof NavigationEnd) {
+        this.updateCrumbs(e.urlAfterRedirects);
+      }
+    });
+  }
+
+  /** Mapa segmento-de-rota → label, varrendo menuItems (e subitens) pelo routerLink/path. */
+  private buildLabelMap(items: any[]): Record<string, string> {
+    const map: Record<string, string> = {};
+    const walk = (list: any[]) => {
+      for (const it of list ?? []) {
+        const path: string | undefined = it.routerLink || it.path;
+        if (path) {
+          const seg = path.split('/').filter(Boolean).pop();
+          if (seg) map[seg] = it.label;
+        }
+        if (it.items) walk(it.items);
+      }
+    };
+    walk(items);
+    return map;
+  }
+
+  private updateCrumbs(url: string) {
+    // ponytail: segmento sem label no menu (ex.: id de tenant) cai no próprio texto.
+    const segments = url.split('?')[0].split('/').filter(Boolean); // ['admin','cadastros','subscription']
+    let path = '';
+    const crumbs: { label: string; link: string }[] = [];
+    for (const seg of segments) {
+      path += '/' + seg;
+      if (seg === 'admin') continue; // raiz não vira crumb clicável isolado
+      crumbs.push({ label: this.labelBySegment[seg] || seg, link: path });
+    }
+    this.crumbs.set(crumbs);
   }
 
   checkScreenSize() {
@@ -104,8 +183,7 @@ export class AdminLayout {
       error: () => {
         this.logoutError = 'Erro ao sair. Tente novamente.';
         this.toastService.error('Erro ao realizar logout');
-      }
+      },
     });
   }
-
 }

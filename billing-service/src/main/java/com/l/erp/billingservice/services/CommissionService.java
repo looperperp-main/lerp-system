@@ -1,6 +1,7 @@
 package com.l.erp.billingservice.services;
 
 import com.l.erp.billingservice.api.dto.ComissaoItemDTO;
+import com.l.erp.billingservice.api.dto.CommissionSummaryDTO;
 import com.l.erp.billingservice.api.dto.ExtratoComissoesDTO;
 import com.l.erp.billingservice.domain.Commission;
 import com.l.erp.billingservice.repository.CommissionRepository;
@@ -16,7 +17,9 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -59,6 +62,40 @@ public class CommissionService {
     /** Listagem admin (tela Pagamentos) — todas as comissões paginadas. */
     public org.springframework.data.domain.Page<Commission> listAll(org.springframework.data.domain.Pageable pageable) {
         return commissionRepository.findAll(pageable);
+    }
+
+    /**
+     * Resumo agregado de comissões de uma competência (item 4). Sem competência → mês atual.
+     * PENDENTE e EM_TRANSFERENCIA contam como "a pagar"; PAGO como pago.
+     */
+    @Transactional(readOnly = true)
+    public CommissionSummaryDTO getSummary(String competencia) {
+        String period = (competencia != null && !competencia.isBlank()) ? competencia : YearMonth.now().toString();
+
+        Map<UUID, BigDecimal[]> porParceiro = new LinkedHashMap<>(); // [0]=pendente, [1]=pago
+        BigDecimal totalPendente = BigDecimal.ZERO;
+        BigDecimal totalPago = BigDecimal.ZERO;
+
+        for (Object[] r : commissionRepository.summarizeByPeriod(period)) {
+            UUID partnerId = (UUID) r[0];
+            String status = (String) r[1];
+            BigDecimal total = (BigDecimal) r[2];
+            BigDecimal[] acc = porParceiro.computeIfAbsent(partnerId, k -> new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO});
+            if ("PAGO".equals(status)) {
+                acc[1] = acc[1].add(total);
+                totalPago = totalPago.add(total);
+            } else { // PENDENTE, EM_TRANSFERENCIA
+                acc[0] = acc[0].add(total);
+                totalPendente = totalPendente.add(total);
+            }
+        }
+
+        List<CommissionSummaryDTO.PorParceiro> lista = porParceiro.entrySet().stream()
+                .map(e -> new CommissionSummaryDTO.PorParceiro(e.getKey(), e.getValue()[0], e.getValue()[1]))
+                .toList();
+        int parceirosAPagar = (int) lista.stream().filter(p -> p.pendente().signum() > 0).count();
+
+        return new CommissionSummaryDTO(period, totalPendente, totalPago, parceirosAPagar, lista);
     }
 
     @Transactional(readOnly = true)

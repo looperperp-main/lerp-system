@@ -1,6 +1,7 @@
 package com.l.erp.billingservice.api.controllers;
 
 import com.l.erp.billingservice.api.dto.CommissionAdminDTO;
+import com.l.erp.billingservice.api.dto.CommissionSummaryDTO;
 import com.l.erp.billingservice.api.dto.ExtratoComissoesDTO;
 import com.l.erp.billingservice.services.CommissionService;
 import org.springframework.data.domain.Page;
@@ -41,6 +42,13 @@ public class CommissionController {
         return ResponseEntity.ok(commissionService.listAll(pageable).map(c -> new CommissionAdminDTO(
                 c.getId(), c.getPartnerId(), c.getTenantId(), c.getAmount(), c.getPeriod(),
                 c.getStatus(), c.getAsaasTransferId(), c.getCalculatedAt(), c.getPaidAt())));
+    }
+
+    /** Resumo agregado de comissões por competência (item 4). Sem competência → mês atual. */
+    @GetMapping("/summary")
+    public ResponseEntity<CommissionSummaryDTO> getSummary(
+            @RequestParam(required = false) String competencia) {
+        return ResponseEntity.ok(commissionService.getSummary(competencia));
     }
 
     // Endpoint interno — chamado pelo partner-service via HTTP direto (porta 8088)

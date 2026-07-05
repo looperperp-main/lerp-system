@@ -11,10 +11,12 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.annotation.Secured;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -40,5 +42,13 @@ public class AuditController {
             return ResponseEntity.ok(auditService.getAuditLogs(pageable));
         }
         return ResponseEntity.ok(auditService.getAuditLogs(targetType, targetId, pageable));
+    }
+
+    /** Rastreador: linha do tempo de uma operação por correlationId (diagnóstico). */
+    @GetMapping("/audits/trace/{correlationId}")
+    @Secured(Roles.APP_OWNER)
+    public ResponseEntity<List<AuditLogDTO>> getTrace(@PathVariable UUID correlationId) {
+        log.debug("REST request to trace correlationId={}", correlationId);
+        return ResponseEntity.ok(auditService.getAuditTrace(correlationId));
     }
 }

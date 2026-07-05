@@ -1,24 +1,35 @@
-import {Component, OnInit, signal} from '@angular/core';
-import {CommonModule} from '@angular/common';
-import {ToastModule} from 'primeng/toast';
-import {TableModule} from 'primeng/table';
-import {ButtonModule} from 'primeng/button';
-import {TooltipModule} from 'primeng/tooltip';
-import {MessageService} from 'primeng/api';
+import { Component, OnInit, computed, signal } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { ToastModule } from 'primeng/toast';
+import { TableModule } from 'primeng/table';
+import { ButtonModule } from 'primeng/button';
+import { TooltipModule } from 'primeng/tooltip';
+import { MessageService } from 'primeng/api';
 
-import {ColumnConfig} from '../../../../components/table/data-table';
-import {HttpErrorResponse} from '@angular/common/http';
-import {RolePermissionsForm} from './role-permission-form/role-permission-form';
-import {RoleModel} from '../../../cadastros/roles/roles/role.model';
-import {RoleService} from '../../../cadastros/roles/roles/role.service';
-import {PrimaryButtonComponent} from '../../../../components/primary-button/primary-button';
-import {FormsModule, ReactiveFormsModule} from '@angular/forms';
-import {Select} from 'primeng/select';
+import { ColumnConfig } from '../../../../components/table/data-table';
+import { HttpErrorResponse } from '@angular/common/http';
+import { RolePermissionsForm } from './role-permission-form/role-permission-form';
+import { RoleModel } from '../../../cadastros/roles/roles/role.model';
+import { RoleService } from '../../../cadastros/roles/roles/role.service';
+import { PrimaryButtonComponent } from '../../../../components/primary-button/primary-button';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { Select } from 'primeng/select';
 
 @Component({
   selector: 'app-role-permissions',
   standalone: true,
-  imports: [CommonModule, ToastModule, TableModule, ButtonModule, TooltipModule, RolePermissionsForm, PrimaryButtonComponent, ReactiveFormsModule, Select, FormsModule],
+  imports: [
+    CommonModule,
+    ToastModule,
+    TableModule,
+    ButtonModule,
+    TooltipModule,
+    RolePermissionsForm,
+    PrimaryButtonComponent,
+    ReactiveFormsModule,
+    Select,
+    FormsModule,
+  ],
   providers: [MessageService],
   templateUrl: './role-permissions.html',
   styleUrl: './role-permissions.scss',
@@ -36,18 +47,33 @@ export class RolePermissions implements OnInit {
   selectedRole!: RoleModel;
 
   filters = {
-    name: null as string | null
+    name: null as string | null,
+    tenantId: null as number | null,
   };
+
+  // Opções de tenant derivadas das roles do dropdown (evita nova chamada; cobre os tenants com roles).
+  tenantOptions = computed(() => {
+    const ids = [
+      ...new Set(
+        this.rolesList()
+          .map((r) => r.tenantId)
+          .filter((id) => id != null),
+      ),
+    ];
+    return ids
+      .sort((a, b) => (a as number) - (b as number))
+      .map((id) => ({ label: 'Tenant ' + id, value: id }));
+  });
 
   cols: ColumnConfig[] = [
     { field: 'name', header: 'Nome da Role', type: 'text' },
     { field: 'tenantId', header: 'Tenant ID', type: 'text' },
-    { field: 'actions', header: 'Configurar', type: 'actions' }
+    { field: 'actions', header: 'Configurar', type: 'actions' },
   ];
 
   constructor(
     private roleService: RoleService,
-    private messageService: MessageService
+    private messageService: MessageService,
   ) {}
 
   ngOnInit() {
@@ -60,7 +86,12 @@ export class RolePermissions implements OnInit {
       next: (res) => {
         this.rolesList.set(res.content || []);
       },
-      error: () => this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Falha ao carregar lista de Roles pro Dropdown' })
+      error: () =>
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Erro',
+          detail: 'Falha ao carregar lista de Roles pro Dropdown',
+        }),
     });
   }
 
@@ -86,7 +117,8 @@ export class RolePermissions implements OnInit {
     this.loading.set(true);
     // Usando endpoint de search em vez do getAll se o filtro estiver preenchido
     const payload = {
-      name: this.filters.name ? this.filters.name : null
+      name: this.filters.name ? this.filters.name : null,
+      tenantId: this.filters.tenantId ?? null,
     };
     this.roleService.searchRoles(page, size, payload, sortStr).subscribe({
       next: (response) => {
@@ -95,9 +127,13 @@ export class RolePermissions implements OnInit {
         this.loading.set(false);
       },
       error: (err: HttpErrorResponse) => {
-        this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao carregar Roles' });
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Erro',
+          detail: 'Erro ao carregar Roles',
+        });
         this.loading.set(false);
-      }
+      },
     });
   }
 
@@ -107,7 +143,7 @@ export class RolePermissions implements OnInit {
   }
 
   clearFilters() {
-    this.filters = { name: null };
+    this.filters = { name: null, tenantId: null };
     this.loadRoles(0, 10);
   }
 
