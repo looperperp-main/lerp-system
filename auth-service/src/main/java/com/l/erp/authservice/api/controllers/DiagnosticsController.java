@@ -5,12 +5,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cloud.client.ServiceInstance;
 import org.springframework.cloud.client.discovery.DiscoveryClient;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.annotation.Secured;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Comparator;
 import java.util.List;
@@ -62,5 +66,44 @@ public class DiagnosticsController {
             }
         }
         return new ServiceHealthDTO(serviceId, status, instances.size());
+    }
+
+    // ---- #3 Toggle de log level em runtime (proxy pro /actuator/loggers de cada serviço) ----
+
+    /** Loggers atuais de um serviço: {levels:[...], loggers:{nome:{configuredLevel,effectiveLevel}}}. */
+    @GetMapping("/loggers")
+    @Secured(Roles.APP_OWNER)
+    public ResponseEntity<Map<?, ?>> getLoggers(@RequestParam String service) {
+        Map<?, ?> body = restClient.get()
+                .uri(baseUri(service) + "/actuator/loggers")
+                .retrieve()
+                .body(Map.class);
+        return ResponseEntity.ok(body);
+    }
+
+    /** Sobe/baixa o nível de um pacote em runtime, sem redeploy. level=DEBUG|INFO|... ou vazio p/ resetar. */
+    @PostMapping("/loggers")
+    @Secured(Roles.APP_OWNER)
+    public ResponseEntity<Void> setLevel(@RequestParam String service,
+                                         @RequestParam String logger,
+                                         @RequestParam(required = false) String level) {
+        log.info("Log level em runtime: service={} logger={} level={}", service, logger, level);
+        restClient.post()
+                .uri(baseUri(service) + "/actuator/loggers/" + logger)
+                .header("Content-Type", "application/json")
+                .body(Map.of("configuredLevel", level == null ? "" : level))
+                .retrieve()
+                .toBodilessEntity();
+        return ResponseEntity.noContent().build();
+    }
+
+    /** Resolve a URI base da 1ª instância de um serviço no Eureka (404 se não registrado). */
+    private String baseUri(String serviceId) {
+        List<ServiceInstance> instances = discoveryClient.getInstances(serviceId);
+        if (instances.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Serviço não registrado: " + serviceId);
+        }
+        // ponytail: 1ª instância; réplicas só teriam o nível trocado numa delas.
+        return instances.get(0).getUri().toString();
     }
 }

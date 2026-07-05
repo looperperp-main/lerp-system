@@ -85,7 +85,12 @@ export class AdminLayout {
       path: '/admin/diagnostico',
       items: [
         { label: 'Rastreador', icon: 'pi pi-sitemap', routerLink: '/admin/diagnostico/rastreador' },
-        { label: 'Saúde dos Serviços', icon: 'pi pi-heart', routerLink: '/admin/diagnostico/saude' },
+        {
+          label: 'Saúde dos Serviços',
+          icon: 'pi pi-heart',
+          routerLink: '/admin/diagnostico/saude',
+        },
+        { label: 'Nível de Log', icon: 'pi pi-sliders-h', routerLink: '/admin/diagnostico/logs' },
       ],
     },
     { label: 'Relatórios', icon: 'pi pi-chart-bar', routerLink: '/admin/relatorios' },
