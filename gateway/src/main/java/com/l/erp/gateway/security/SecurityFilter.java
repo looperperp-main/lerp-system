@@ -46,7 +46,7 @@ public class SecurityFilter extends OncePerRequestFilter {
 
     // Method-specific exact-match public paths (avoids startsWith subpath leakage)
     private static final Map<String, Set<String>> PUBLIC_METHOD_PATHS = Map.of(
-            "POST", Set.of("/billing/api/v1/partners"),
+            "POST", Set.of("/billing/api/v1/partners", "/partner/api/v1/partners"),
             "GET", Set.of("/billing/api/v1/plans")
     );
 

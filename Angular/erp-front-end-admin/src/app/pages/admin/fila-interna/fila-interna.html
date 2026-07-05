@@ -38,10 +38,12 @@
         (onLazyLoad)="onLazyLoad($event)"
         [totalRecords]="totalRecords()"
         [paginator]="true"
-        [rows]="20"
+        [rows]="10"
         [showCurrentPageReport]="true"
         currentPageReportTemplate="Mostrando {first} até {last} de {totalRecords} registros"
+        [rowsPerPageOptions]="[10, 25, 50]"
         [tableStyle]="{ 'min-width': '60rem' }"
+        [paginatorDropdownAppendTo]="'body'"
         styleClass="p-datatable-sm text-sm">
 
         <ng-template pTemplate="header">

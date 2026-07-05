@@ -118,8 +118,11 @@ docs operacionais (pedido, NF-e,   → referenciam estabelecimento (ship-to / bi
 - `uq_estab_tenant_cnpj` UNIQUE `(tenant_id, cnpj_completo)`
 - índice parcial `uq_estab_matriz_pessoa` UNIQUE `(tenant_id, pessoa_id) WHERE is_matriz`
   (uma matriz por empresa)
-- índice parcial `uq_estab_proprio` UNIQUE `(tenant_id, pessoa_id) WHERE proprio`
-  (uma "própria empresa" por tenant — validar regra com onboarding)
+- índice parcial `uq_estab_proprio_matriz` UNIQUE `(tenant_id) WHERE proprio AND is_matriz`
+  (**regra decidida:** o tenant tem UMA própria empresa — uma matriz e as filiais dela.
+  Todos os estabelecimentos `proprio=true` de um tenant pertencem à mesma `pessoa`;
+  o índice garante a matriz única e o `EstabelecimentoService` valida que filial
+  `proprio=true` tem a mesma `pessoa_id` da matriz própria)
 - `idx_estab_pessoa_id` `(pessoa_id)`
 
 ### 4.2 Alterações em tabelas existentes
@@ -127,8 +130,8 @@ docs operacionais (pedido, NF-e,   → referenciam estabelecimento (ship-to / bi
 | Tabela | Mudança |
 |---|---|
 | `pessoa` | + `cnpj_raiz varchar(8)`; trocar uniques por índices parciais por `tipo`; **depois** dropar `ie` / `im` |
-| `endereco` | + `estabelecimento_id uuid` FK; rebind do endereço fiscal; soltar `pessoa_id` (nullable na transição) |
-| `contato` | + `estabelecimento_id uuid` FK (transição igual a `endereco`) |
+| `endereco` | + `estabelecimento_id uuid` FK; rebind do endereço fiscal de PJ. **`pessoa_id` NÃO é dropada** — PF não tem estabelecimento (decisão 5), então endereço de PF permanece em `pessoa`. Regra final: XOR — exatamente um de `pessoa_id` (PF) / `estabelecimento_id` (PJ) preenchido (CHECK) |
+| `contato` | + `estabelecimento_id uuid` FK — mesma regra XOR de `endereco` |
 | `deposito` | + `estabelecimento_id uuid` FK (estoque por filial — fase 2) |
 
 ---
@@ -141,10 +144,16 @@ Ordem dos changesets (idempotentes, reversíveis quando possível):
 2. **Backfill matriz**: para cada `pessoa` com `tipo='PJ'` → 1 estabelecimento
    `ordem='0001'`, `is_matriz=true`, `cnpj_completo = pessoa.documento`, `ie`/`im` copiados.
 3. Backfill `pessoa.cnpj_raiz = CnpjService.raiz(documento)` (PJ).
-4. Rebind `endereco.estabelecimento_id` / `contato.estabelecimento_id` para a matriz; manter
-   `pessoa_id` nullable durante a transição.
-5. Marcar `proprio=true` na matriz da `pessoa` da própria empresa do tenant
-   (novo passo no onboarding — ver §6).
+4. Rebind `endereco.estabelecimento_id` / `contato.estabelecimento_id` para a matriz —
+   **somente registros de pessoa PJ**; endereço/contato de PF permanece com `pessoa_id`
+   (PF não tem estabelecimento). Ao final, adicionar CHECK XOR (`pessoa_id` ⊕ `estabelecimento_id`).
+5. Marcar `proprio=true` na matriz da `pessoa` da própria empresa do tenant.
+   **Fonte do vínculo (regra decidida):** para tenants existentes não há vínculo gravado
+   tenant→pessoa; o backfill casa `raiz(tenant.cnpj) = pessoa.cnpj_raiz` dentro do mesmo
+   tenant (raiz via `CnpjService` — CNPJ alfanumérico ok) e marca a matriz dessa pessoa.
+   Se não existir `pessoa` com essa raiz, o backfill **cria** pessoa + estabelecimento
+   matriz (mesmo efeito da Fase 4 do onboarding). Tenants novos ganham o vínculo direto
+   no onboarding (§6).
 6. Swap das uniques de `pessoa` (índices parciais por `tipo`).
 7. Só então dropar `ie` / `im` de `pessoa`.
 
@@ -172,7 +181,7 @@ Ordem dos changesets (idempotentes, reversíveis quando possível):
 |---|---|
 | `domain/Estabelecimento.java` | NOVO — entity (`BaseTenantEntity`), FK `pessoa` |
 | `domain/Pessoa.java` | MODIFICADO — remover `ie`/`im`, adicionar `cnpjRaiz`, `@OneToMany estabelecimentos` |
-| `domain/Endereco.java` / `Contato.java` | MODIFICADO — FK `estabelecimento` |
+| `domain/Endereco.java` / `Contato.java` | MODIFICADO — FK `estabelecimento` (PJ) mantendo FK `pessoa` (PF) — XOR |
 | `repository/EstabelecimentoRepository.java` | NOVO — `findByTenantId`, `findByPessoaId`, `findByCnpjCompletoAndTenantId` |
 | `services/EstabelecimentoService.java` | NOVO — CRUD + regra "find-or-create matriz" |
 | `services/PessoaService.java` | MODIFICADO — dedup por `cnpj_raiz` (PJ) / `documento` (PF); find-or-return-existing |
@@ -201,7 +210,7 @@ Ordem dos changesets (idempotentes, reversíveis quando possível):
   dedup por `cnpj_raiz` (PJ) nesta mudança.
 - **Onboarding síncrono vs assíncrono** da pessoa própria do tenant — decidir (evento Kafka
   vs chamada direta) na Fase 4.
-- **Regra `uq_estab_proprio`** (uma própria empresa por tenant) — confirmar se o tenant pode ter
-  mais de uma empresa emitente (grupos com múltiplos CNPJ raiz).
+- ~~Regra `uq_estab_proprio`~~ **Resolvido:** uma própria empresa por tenant (uma matriz +
+  suas filiais, mesma `pessoa`). Grupo com múltiplas raízes de CNPJ = múltiplos tenants.
 - **Documentos antigos** (se houver dados) que assumem `endereco.pessoa_id` direto precisam do
   rebind antes de soltar a coluna.

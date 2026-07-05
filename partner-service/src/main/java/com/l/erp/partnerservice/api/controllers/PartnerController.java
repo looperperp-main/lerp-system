@@ -67,6 +67,12 @@ public class PartnerController {
         return ResponseEntity.ok(pagedResourcesAssembler.toModel(page, assembler));
     }
 
+    @GetMapping("/indicacoes")
+    public ResponseEntity<java.util.List<com.l.erp.partnerservice.api.dto.IndicacoesPorContadorDTO>> listIndicacoes() {
+        logger.info("Listando indicações agrupadas por contador");
+        return ResponseEntity.ok(service.listIndicacoesPorContador());
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<PartnerResponseDTO> findById(@PathVariable UUID id) {
         logger.info("Buscando parceiro por ID: {}", id);

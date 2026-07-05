@@ -75,6 +75,25 @@ public class PartnerApprovedConsumer {
         }
     }
 
+    @KafkaListener(topics = "partner.inactivated", groupId = "auth-service-group")
+    public void consumeInactivated(String payload) {
+        logger.info("Recebido evento partner.inactivated");
+        try {
+            Map<String, Object> data = objectMapper.readValue(payload, new TypeReference<>() {});
+            UUID partnerId = UUID.fromString((String) data.get("partnerId"));
+
+            userAccountRepository.findByPartnerId(partnerId).ifPresentOrElse(user -> {
+                user.setActive(false);
+                user.setLastUpdateDate(Instant.now());
+                user.setLastUpdatedBy(Constants.SYSTEM);
+                userAccountRepository.save(user);
+                logger.info("Usuário do parceiro {} desativado (login bloqueado)", partnerId);
+            }, () -> logger.warn("Nenhum usuário encontrado para o parceiro inativado {}", partnerId));
+        } catch (Exception e) {
+            logger.error("Falha ao processar evento partner.inactivated. Payload: {}", payload, e);
+        }
+    }
+
     private String generateTempPassword() {
         StringBuilder sb = new StringBuilder(12);
         for (int i = 0; i < 12; i++) {

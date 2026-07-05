@@ -16,7 +16,7 @@ public record TenantDTO(Long id,
                         @Pattern(regexp = "\\d{14}")
                         String cnpj,
                         @NotBlank
-                        @Pattern(regexp = "ATIVO|PENDENTE|SUSPENSO|CANCELADO")
+                        @Pattern(regexp = "ATIVO|TRIAL|CONVIDADO|PENDENTE|SUSPENSO|CANCELADO")
                         String status,
                         @NoHtml String slug,
                         @NoHtml String nomeFantasia,

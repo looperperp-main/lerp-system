@@ -288,6 +288,7 @@ Define o contrato dos eventos Kafka publicados pelo módulo fiscal e consumidos 
   "data_emissao": "2025-06-15",
 
   "fornecedor_id": 42,
+  "fornecedor_pessoa_id": "uuid-da-pessoa",
   "fornecedor_nome": "Fornecedor Exemplo Ltda",
   "fornecedor_cnpj": "12345678000195",
   "fornecedor_regime": "LUCRO_REAL",
@@ -333,7 +334,13 @@ public void onNfeEntradaAprovada(NfeEntradaAprovadaEvent event) {
 }
 ```
 
-**Ação:** criar N títulos a pagar com `origem = 'NF_ENTRADA'`, `origem_documento_id = nfe_chave`, `impostos = payload.impostos JSONB`.
+**Ação:** criar N títulos a pagar com `origem = 'NF_ENTRADA'`, `origem_documento_id = nfe_chave`, `pessoa_id = fornecedor_pessoa_id`, `impostos = payload.impostos JSONB`.
+
+> **`pessoa_id` desnormalizado (decisão registrada):** todo fluxo que cria título preenche
+> `titulo.pessoa_id` — eventos NF-e trazem `fornecedor_pessoa_id`/`cliente_pessoa_id` no payload;
+> lançamento manual, empréstimo, adiantamento, parcelamento e renegociação resolvem
+> cliente/fornecedor → `pessoa` na criação (parcelas/renegociações herdam do título de origem).
+> Nullable apenas para `terceiro_tipo IN ('FUNCIONARIO','OUTRO')`, que não têm party no cadastro.
 
 ---
 
@@ -341,7 +348,7 @@ public void onNfeEntradaAprovada(NfeEntradaAprovadaEvent event) {
 
 **Tópico:** `nfe.saida.autorizada`
 
-Mesma estrutura de F4.2, substituindo `fornecedor_*` por `cliente_*` e criando título a receber com `origem = 'NF_SAIDA'`.
+Mesma estrutura de F4.2, substituindo `fornecedor_*` por `cliente_*` (inclusive `cliente_pessoa_id`) e criando título a receber com `origem = 'NF_SAIDA'`.
 
 ---
 
@@ -424,13 +431,30 @@ kafka:
 > possibilidade de interferência entre tenants na mesma partição.
 > Fazer via `kafka-topics.sh --alter` sem downtime.
 
-**Idempotência:** o `event_id` (UUID) garante que um evento processado duas vezes não crie título duplicado. O consumer verifica `titulo.origem_documento_id = event.nfe_chave` antes de criar.
+**Idempotência:** chave = `event_id` (UUID do payload), persistida em tabela dedicada
+**na mesma transação** que cria os títulos — retry após crash parcial reprocessa o evento
+inteiro (a transação anterior deu rollback) e evento já processado é ignorado com segurança.
+Não usar `existsByOrigemDocumentoId` como chave: uma NF cria N títulos (parcelas) e um crash
+no meio deixaria parcelas faltando no retry.
+
+```sql
+financeiro.evento_processado
+─────────────────────────────────────────────
+event_id        UUID PK
+tenant_id       BIGINT NOT NULL
+topico          VARCHAR(60) NOT NULL
+processado_at   TIMESTAMPTZ NOT NULL
+```
 
 ```java
-// Verificação de idempotência antes de criar
-if (tituloRepository.existsByOrigemDocumentoId(event.getNfeChave())) {
-    log.warn("Evento já processado — ignorando. nfe_chave={}", event.getNfeChave());
-    return;
+@Transactional
+public void criarDaNfeEntrada(NfeEntradaAprovadaEvent event) {
+    // INSERT em evento_processado primeiro — PK duplicada = já processado
+    if (!eventoProcessadoRepository.registrar(event.getEventId(), TOPICO)) {
+        log.warn("Evento já processado — ignorando. event_id={}", event.getEventId());
+        return;
+    }
+    // ... cria os N títulos na MESMA transação
 }
 ```
 
@@ -1405,7 +1429,7 @@ tenant_id           BIGINT NOT NULL
 codigo              VARCHAR(20) NOT NULL
 descricao           VARCHAR(100) NOT NULL
 natureza            VARCHAR(10) NOT NULL  -- 'PAGAR' | 'RECEBER' | 'AMBOS'
-meio                VARCHAR(30) NOT NULL  -- 'DINHEIRO' | 'BOLETO' | 'CREDITO_CONTA' | 'PIX' | 'CARTAO' | 'CHEQUE' | 'ANTECIPACAO' | 'COMPENSACAO'
+meio                VARCHAR(30) NOT NULL  -- 'DINHEIRO' | 'BOLETO' | 'CREDITO_CONTA' | 'PIX' | 'CARTAO' | 'CHEQUE' | 'ANTECIPACAO' | 'COMPENSACAO' | 'RETENCAO' | 'SPLIT_PAYMENT' | 'RETENCAO' | 'SPLIT_PAYMENT'
 ativo               BOOLEAN DEFAULT TRUE
 created_at          TIMESTAMPTZ NOT NULL
 created_by          VARCHAR(100) NOT NULL
@@ -1501,7 +1525,11 @@ classificacao_id        BIGINT REFERENCES classificacao_financeira
 terceiro_tipo           VARCHAR(15) NOT NULL   -- 'FORNECEDOR' | 'CLIENTE' | 'FUNCIONARIO' | 'OUTRO'
 terceiro_id             BIGINT                 -- referência ao cadastro de terceiros (schema principal)
 terceiro_nome           VARCHAR(200) NOT NULL  -- desnormalizado para histórico
-terceiro_cnpj_cpf       VARCHAR(14)
+terceiro_cnpj_cpf       VARCHAR(14)            -- comporta CNPJ alfanumérico (NT 2026.004)
+pessoa_id               UUID                   -- desnormalizado de cadastros.pessoa (party) — preenchido
+                                               -- na criação do título resolvendo cliente/fornecedor → pessoa.
+                                               -- Usado por netting (§II.5), compensação (CO-01) e relatórios
+                                               -- por grupo. FK lógica, sem FK cross-schema.
 
 -- Datas
 data_emissao            DATE NOT NULL
@@ -1554,6 +1582,7 @@ motivo_cancelamento_id  BIGINT REFERENCES motivo
 INDEX idx_titulo_tenant_natureza      (tenant_id, natureza)
 INDEX idx_titulo_tenant_vencimento    (tenant_id, data_vencimento)
 INDEX idx_titulo_tenant_terceiro      (tenant_id, terceiro_tipo, terceiro_id)
+INDEX idx_titulo_tenant_pessoa        (tenant_id, pessoa_id) WHERE pessoa_id IS NOT NULL
 INDEX idx_titulo_tenant_status        (tenant_id, status_titulo, status_baixa)
 INDEX idx_titulo_associacao           (associacao_id) WHERE associacao_id IS NOT NULL
 ```
@@ -1591,13 +1620,15 @@ titulo_id           BIGINT NOT NULL REFERENCES titulo
 tenant_id           BIGINT NOT NULL
 tipo_baixa_id       BIGINT NOT NULL REFERENCES tipo_baixa
 data_baixa          DATE NOT NULL
-valor               NUMERIC(15,2) NOT NULL CHECK (valor > 0)
+valor               NUMERIC(15,2) NOT NULL CHECK (valor <> 0)
+                    -- valor NEGATIVO permitido SOMENTE quando origem = 'ESTORNO' (§4.6.1);
+                    -- CHECK complementar: (valor > 0 OR origem = 'ESTORNO')
 status              VARCHAR(15) NOT NULL DEFAULT 'PLANEJADA'  -- 'PLANEJADA' | 'REAL'
 conta_corrente_id   BIGINT                 -- referência à conta corrente usada
 observacao          VARCHAR(500)
 
 -- Rastreabilidade
-origem              VARCHAR(20) NOT NULL   -- 'MANUAL' | 'CNAB' | 'COMPENSACAO' | 'ADIANTAMENTO'
+origem              VARCHAR(20) NOT NULL   -- 'MANUAL' | 'CNAB' | 'COMPENSACAO' | 'ADIANTAMENTO' | 'ESTORNO'
 compensacao_id      BIGINT                 -- preenchido se origem = 'COMPENSACAO'
 adiantamento_id     BIGINT                 -- preenchido se origem = 'ADIANTAMENTO'
 
@@ -1692,7 +1723,7 @@ confirmada_by           VARCHAR(100)
 ```
 
 **Regra de negócio:**
-- `titulo_pagar.terceiro_id` = `titulo_receber.terceiro_id` (mesmo terceiro).
+- `titulo_pagar.pessoa_id` = `titulo_receber.pessoa_id` (mesma pessoa, não nulo — CO-01).
 - `valor_compensado` ≤ `titulo_pagar.valor_saldo` E ≤ `titulo_receber.valor_saldo`.
 - Compensação parcial: saldo remanescente permanece em aberto nos dois títulos.
 - Compensação total: ambos vão para status `BAIXADO`.
@@ -1895,7 +1926,8 @@ Compensação só pode ser cancelada enquanto as baixas associadas estiverem com
 ```
 
 **Fluxo:**
-1. Verificar `status_titulo = 'EM_ABERTO'`.
+1. Verificar `status_titulo` IN (`'EM_ABERTO'`, `'EMITIDO'`, `'DESCONTADO'`) — alinhado à
+   máquina de estados §II.2.1 (boleto emitido é baixado pelo retorno CNAB/PIX).
 2. Se `parametros.pagar_permite_data_baixa_anterior = FALSE`, validar `data_baixa >= data_atual` (bloqueia baixa retroativa). Independente do parâmetro, `data_baixa >= data_emissao` é sempre exigido.
 2b. Verificar `titulo.bloqueado = FALSE` — título em hold não aceita baixa.
 3. Processar ajustes embutidos na baixa (atualiza `titulo_ajuste` e recalcula `valor_liquido`).
@@ -1920,16 +1952,30 @@ Compensação só pode ser cancelada enquanto as baixas associadas estiverem com
 
 **Fluxo:**
 1. Verificar `titulo_baixa.status = 'REAL'` e que ainda não foi estornada.
-2. Criar novo registro `titulo_baixa` com `origem = 'ESTORNO'`, `valor` igual ao da baixa
-   original com sinal de reversão, vinculado via novo campo `baixa_estornada_id`.
+2. Criar novo registro `titulo_baixa` com `origem = 'ESTORNO'`, `status = 'REAL'` e
+   `valor` **negativo** (−valor da baixa original), vinculado via novo campo `baixa_estornada_id`.
 3. Reverter `titulo.valor_baixado` (recalcula `valor_saldo`).
 4. Se o título estava `BAIXADO` → volta para `EM_ABERTO`.
 5. Se a baixa gerou `conta_movimentacao`: criar movimentação inversa (`CONFIRMADO`,
-   `categoria = 'LANCAMENTO'`, histórico "Estorno baixa #id"). Nunca deletar a original.
+   `categoria = 'LANCAMENTO'`, **tipo oposto e valor positivo** — o sinal negativo existe
+   só em `titulo_baixa`; movimentação mantém `CHECK (valor > 0)`, histórico "Estorno baixa #id").
+   Nunca deletar a original.
 6. Registrar em `audit_log`. Baixa original ganha `estornada_at/by`.
 
 **Campos novos em `titulo_baixa`:** `baixa_estornada_id BIGINT`, `estornada_at TIMESTAMPTZ`,
 `estornada_by VARCHAR(100)`.
+
+**Impacto do valor negativo (decisão registrada — checar em toda query que agrega baixas):**
+- `CHECK (valor > 0)` de `titulo_baixa` vira `CHECK (valor <> 0)` + regra `valor > 0 OR origem = 'ESTORNO'` (§2.10).
+- `titulo.valor_baixado = SUM(baixas REAL)` — soma algébrica: o estorno reduz naturalmente. CP-10
+  (`valor <= valor_saldo`) **não se aplica** a baixas de estorno (validação pula quando `origem = 'ESTORNO'`).
+- Fluxo de caixa realizado (§III 5.1), totalizadores de listagem (§7.1), aging e KPIs (Módulo VI):
+  somam baixas algebricamente — estorno entra como redução do realizado na data do estorno
+  (não retroage à data da baixa original).
+- Conciliação automática (§III 4.4): match do estorno se dá pela movimentação inversa
+  (positiva, tipo oposto) — o matcher não precisa tratar valores negativos.
+- GL (roadmap §14): lançamento de reversão consome o evento da baixa de estorno.
+- Uma baixa de estorno não pode ser estornada (bloquear `origem = 'ESTORNO'` no endpoint).
 
 ---
 
@@ -2182,7 +2228,7 @@ qualquer etapa encerra a sequência; a carta manual (§5.3) continua disponível
 ```
 
 **Fluxo:**
-1. Validar mesmo `terceiro_id` nos dois títulos.
+1. Validar mesmo `pessoa_id` (não nulo) nos dois títulos (CO-01).
 2. Validar `valor_compensado <= min(titulo_pagar.valor_saldo, titulo_receber.valor_saldo)`.
 3. Criar registro em `compensacao` com `status = 'PENDENTE'`.
 4. Criar `titulo_baixa` em ambos os títulos com `status = 'PLANEJADA'` e `origem = 'COMPENSACAO'`.
@@ -2203,13 +2249,14 @@ Cron diário que identifica terceiros com títulos em aberto **nos dois lados**
 (PAGAR e RECEBER) e gera sugestões para o operador confirmar — nenhuma compensação
 é criada automaticamente:
 
-1. Agrupar títulos `EM_ABERTO` não bloqueados por `terceiro_id`.
-2. Terceiro com saldo em ambas as naturezas → criar sugestão (par de maior valor
+1. Agrupar títulos `EM_ABERTO` não bloqueados por **`titulo.pessoa_id`** (campo desnormalizado —
+   ver §2.8/F4.2; sem chamada ao cadastro-service e sem join cross-schema).
+2. Pessoa com saldo em ambas as naturezas → criar sugestão (par de maior valor
    compensável primeiro) e notificar na tela de compensação.
-3. Match por `pessoa_id` do cadastro: o mesmo CNPJ pode ter papel de cliente **e**
-   fornecedor apontando para a mesma `pessoa` (party model do cadastro-service —
-   dedup por `cnpj_raiz`, ver spec/estabelecimentos-filiais.md). É esse vínculo que
-   garante que o netting encontra os dois lados.
+3. O party model do cadastro (dedup por `cnpj_raiz`, ver spec/estabelecimentos-filiais.md)
+   garante que cliente e fornecedor do mesmo CNPJ apontam para a mesma `pessoa` — e o
+   `pessoa_id` gravado no título é o que permite ao netting encontrar os dois lados.
+   Títulos com `pessoa_id IS NULL` (FUNCIONARIO/OUTRO) ficam fora do netting.
 
 **Endpoint:** `GET /api/financeiro/compensacoes/sugestoes`
 
@@ -2289,33 +2336,23 @@ Mesmos filtros de §7.1 substituindo fornecedor por cliente.
 
 | # | Regra |
 |---|---|
-| CO-01 | Os dois títulos devem ser do mesmo terceiro |
+| CO-01 | Os dois títulos devem ser da mesma pessoa (`titulo.pessoa_id` igual e não nulo) |
 | CO-02 | `valor_compensado` ≤ menor saldo entre os dois títulos |
 | CO-03 | Compensação parcial mantém saldo em aberto nos dois títulos |
 | CO-04 | Cancelamento só é possível enquanto `status = 'PENDENTE'` |
-| CO-05 | Um título pode ter no máximo uma compensação ativa por vez |
+| CO-05 | Um título pode ter no máximo uma compensação PENDENTE por vez — enforçado por índices parciais únicos em `compensacao`: `(titulo_pagar_id) WHERE status = 'PENDENTE'` e `(titulo_receber_id) WHERE status = 'PENDENTE'` |
 
 ---
 
 ## II.8 Integrações Internas
 
-### 9.1 Integração com NF de Entrada (Contas a Pagar)
+### 9.1 Integração com NF de Entrada e Saída
 
-Ao aprovar uma Nota Fiscal de Entrada, o módulo de Documentos de Entrada invoca:
-
-```
-POST /api/financeiro/titulos/pagar (origem = 'NF_ENTRADA')
-```
-
-O `tipo_titulo` e a `forma_pagamento` são determinados pela parametrização do `tipo_operacao` da NF (ver `parametros.tipo_operacao`).
-
-### 9.2 Integração com NF de Saída (Contas a Receber)
-
-Ao emitir uma Nota Fiscal de Saída, o módulo de Documentos de Saída invoca:
-
-```
-POST /api/financeiro/titulos/receber (origem = 'NF_SAIDA')
-```
+**Via Kafka — contrato único em §F4** (decisão registrada: Kafka, não chamada síncrona).
+NF de entrada aprovada → `nfe.entrada.aprovada` → títulos a pagar (`origem = 'NF_ENTRADA'`);
+NF de saída autorizada → `nfe.saida.autorizada` → títulos a receber (`origem = 'NF_SAIDA'`).
+O `tipo_titulo` e a `forma_pagamento` são determinados pela parametrização do `tipo_operacao` da NF.
+Os endpoints `POST /api/financeiro/titulos/{pagar|receber}` existem apenas para lançamento manual.
 
 ### 9.3 Eventos publicados
 
@@ -3443,7 +3480,7 @@ DIAGRAMA 2 — P2P / O2C
 |---|---|---|
 | `tenant` | `cnpj`, `ie`, `ibge_codigo`, `uf`, `email`, `status` | `ibge_codigo` já está no formato IBGE correto — FK lógica para `aliq_ibs_municipio` |
 | `user_account` | `id UUID`, `tenant_id`, `email`, `active` | `id` é UUID — audit_log deve usar `user_id UUID`, não BIGINT |
-| `pessoa` | `documento` (só dígitos), `tipo` (PF/PJ) | `tipo` distingue B2C de B2B para IBS/CBS |
+| `pessoa` | `documento` (sem máscara; CNPJ pode ser alfanumérico — NT 2026.004), `tipo` (PF/PJ) | `tipo` distingue B2C de B2B para IBS/CBS |
 | `endereco` | `uf`, `ibge_codigo` | Já cobre destino IBS sem campo novo |
 | `produto` | `origem` (fiscal), `preco` | Base para IS e crédito IBS/CBS |
 | `produto_fornecedor` | `preco_custo` | Custo de entrada para crédito |
@@ -3501,7 +3538,7 @@ Exemplo: `vitor-financeiro-v1.001-feriado-bancario`
 | Arquivo | Operação | Descrição |
 |---|---|---|
 | `financeiro/v1/001-feriado-bancario.yaml` | `createTable` | Tabela `financeiro.feriado_bancario` com colunas: `id`, `data DATE`, `descricao`, `tipo` (NACIONAL/ESTADUAL/MUNICIPAL), `uf` nullable, `ibge_municipio` nullable. Unique em `(data, tipo, uf, ibge_municipio)`. Seed inline com os 12 feriados nacionais fixos (Confraternização, Tiradentes, Trabalho, Independência, N.Sra.Aparecida, Finados, Proclamação, Natal). Feriados móveis (Carnaval, Corpus Christi, Sexta Santa) calculados em código, não no seed. |
-| `financeiro/v1/002-audit-log.yaml` | `createTable` | Tabela `financeiro.audit_log` com colunas: `id`, `tenant_id`, `tabela varchar(50)`, `registro_id BIGINT`, `operacao varchar(10)` (INSERT/UPDATE/DELETE), `campos_antes JSONB`, `campos_depois JSONB`, `user_id UUID` (UUID — não BIGINT, pois `user_account.id` é UUID), `user_nome varchar(100)`, `ip_origem varchar(45)`, `created_at TIMESTAMPTZ`. Índices em `(tenant_id, tabela, registro_id)`, `(tenant_id, user_id)` e `(tenant_id, created_at)`. Sem FK — referência a `user_account` garantida pela aplicação. |
+| `financeiro/v1/002-audit-log.yaml` | `createTable` | Tabela `financeiro.audit_log` com colunas: `id`, `tenant_id`, `tabela varchar(50)`, `registro_id BIGINT`, `operacao varchar(10)` (INSERT/UPDATE/DELETE), `campos_antes JSONB`, `campos_depois JSONB`, `actor_user_id UUID` (UUID — não BIGINT, pois `user_account.id` é UUID; nome `actor_user_id` segue o padrão da audit_log principal — ver §F2), `user_nome varchar(100)`, `ip_origem varchar(45)`, `created_at TIMESTAMPTZ`. Índices em `(tenant_id, tabela, registro_id)`, `(tenant_id, actor_user_id)` e `(tenant_id, created_at)`. Sem FK — referência a `user_account` garantida pela aplicação. |
 | `financeiro/v1/003-centro-custo.yaml` | `createTable` | Tabelas `financeiro.centro_custo` (hierárquica com `centro_pai_id` self-reference, `aceita_rateio boolean`, `ativo boolean`) e `financeiro.centro_custo_rateio` + `financeiro.centro_custo_rateio_item` (percentual por CC, soma deve ser 100%). Índice em `(tenant_id, codigo)` unique. |
 | `financeiro/v1/004-addcol-centro-custo-referencias.yaml` | `addColumn` | Adiciona `centro_custo_id BIGINT nullable` em: `financeiro.titulo`, `financeiro.titulo_baixa`, `financeiro.conta_movimentacao`, `contabil.lancamento_partida`. Atenção: `titulo` e `titulo_baixa` ainda não existem neste ponto — esta migration deve vir **depois** das migrations que criam essas tabelas. Mover para após financeiro/v1/006. |
 
@@ -3606,7 +3643,7 @@ em homologação antes de ativar tenant em produção.
 | `contabil/v1/004-lancamento.yaml` | `createTable` | Tabela `contabil.lancamento` — lançamento contábil. Campos: `numero varchar(20)` (sequencial por período sem lacunas), `origem varchar(30)` (TITULO_BAIXA/MOVIMENTACAO/APURACAO_FISCAL/EMPRESTIMO/APLICACAO/MANUAL), `origem_id BIGINT` (rastreabilidade ao evento financeiro). Status: ATIVO/ESTORNADO. Unique em `(tenant_id, periodo_id, numero)`. |
 | `contabil/v1/005-lancamento-partida.yaml` | `createTable` | Tabela `contabil.lancamento_partida` — partidas do lançamento (débito/crédito). Campos: `estabelecimento_id UUID` (dimensão analítica — FK lógica), `centro_custo_id BIGINT` (FK lógica para `financeiro.centro_custo`), `historico varchar(200)`. Regra: soma de débitos = soma de créditos por lançamento — enforçada no `LancamentoService`, não no banco. |
 | `contabil/v1/006-mapeamento.yaml` | `createTable` | Tabela `contabil.mapeamento` — de/para entre entidades financeiras e contas contábeis. `tipo_origem`: CONTA_CORRENTE/TIPO_BAIXA/TIPO_AJUSTE/CLASSIFICACAO_FINANCEIRA/TRIBUTO/LINHA_DRE. Campo `linha_dre varchar(50)` permite configurar qual linha da DRE cada conta pertence (configurável — nunca hardcode, pois muda com a reforma tributária). Unique em `(tenant_id, tipo_origem, origem_id)`. |
-| `contabil/v1/007-plano-contas-template.yaml` | `createTable` + seed | Tabela `contabil.plano_contas_template` (global, sem `tenant_id`). Campos: `versao int`, `codigo varchar(30)`, `descricao`, `tipo`, `natureza`, `nivel`, `codigo_pai varchar(30)` (referência por código, não por id — necessário para a cópia no `TenantAtivacaoListener`), `aceita_lancamento boolean`, `retificadora boolean`, `ativo boolean`. Seed: `versao=1, ativo=true` somente após validação do contador. Até lá: `versao=0, ativo=false`. |
+| `contabil/v1/007-plano-contas-template.yaml` | `createTable` + seed | Tabela `contabil.plano_contas_template` (global, sem `tenant_id`). Campos: `versao int`, `codigo varchar(30)`, `descricao`, `tipo`, `natureza`, `nivel`, `codigo_pai varchar(30)` (referência por código, não por id — necessário para a cópia no `TenantAtivacaoListener`), `aceita_lancamento boolean`, `retificadora boolean`, `ativo boolean`. Seed direto: `versao=1, ativo=true` (sem bloqueio de contador — decisão §F6.6; revisão posterior vira `versao=2`). |
 | `contabil/v1/008-addcol-lancamento-centro-custo.yaml` | `addColumn` | Adiciona `centro_custo_id BIGINT nullable` em `contabil.lancamento_partida`. |
 
 ---
@@ -3639,14 +3676,16 @@ Novas entidades e colunas introduzidas pelas correções desta revisão — dist
 |---|---|---|
 | `fiscal/v1/026-parametro-fiscal.yaml` | 1 | `fiscal.parametro_fiscal` (chave/valor) + seeds de fallback e vencimento de guias (§1.9) |
 | `fiscal/v1/027-regra-local-prestacao.yaml` | 1 | `fiscal.regra_local_prestacao` (NBS → regra de local, §1.8-B) + seed exceções LC 214 |
-| `financeiro/v1/031-titulo-hold-estabelecimento.yaml` | 2 | addColumn em `titulo`: `bloqueado`, `motivo_bloqueio`, `estabelecimento_id UUID`; `origem_documento_id` como VARCHAR(50) |
-| `financeiro/v1/032-titulo-baixa-estorno.yaml` | 2 | addColumn em `titulo_baixa`: `baixa_estornada_id`, `estornada_at`, `estornada_by` (§4.6.1) |
+| `financeiro/v1/031-titulo-hold-estabelecimento.yaml` | 2 | addColumn em `titulo`: `bloqueado`, `motivo_bloqueio`, `estabelecimento_id UUID`, `pessoa_id UUID` + índice parcial `(tenant_id, pessoa_id)`; `origem_documento_id` como VARCHAR(50) |
+| `financeiro/v1/032-titulo-baixa-estorno.yaml` | 2 | addColumn em `titulo_baixa`: `baixa_estornada_id`, `estornada_at`, `estornada_by`; trocar `CHECK (valor > 0)` por `CHECK (valor <> 0)` + `CHECK (valor > 0 OR origem = 'ESTORNO')` (§4.6.1) |
 | `financeiro/v1/033-retencao.yaml` | 2 | `financeiro.titulo_retencao` + `financeiro.retencao_config` (§4.9) |
 | `financeiro/v1/034-parametros-multa-mora.yaml` | 2 | addColumn em `parametros`: `percentual_multa`, `percentual_mora_mes`, `sugerir_multa_mora` (§4.6.2) |
 | `financeiro/v1/035-approval.yaml` | 2 | `financeiro.approval_regra` + `financeiro.approval_request` (§F7) |
 | `financeiro/v1/036-dunning.yaml` | 2 | `financeiro.dunning_regua` + `financeiro.dunning_evento` + seed régua default D+1/7/15/30 (§5.3.1) |
 | `financeiro/v1/037-conta-mov-estabelecimento.yaml` | 3 | addColumn `estabelecimento_id UUID` em `conta_movimentacao` |
 | `financeiro/v1/038-pix-cobranca.yaml` | 4 | `financeiro.pix_cobranca` (§IV-PIX) |
+| `financeiro/v1/039-evento-processado.yaml` | 2 | `financeiro.evento_processado` — chave de idempotência dos consumers Kafka (§F4.5) |
+| `financeiro/v1/040-compensacao-unique-pendente.yaml` | 2 | índices parciais únicos em `compensacao` para CO-05 (`titulo_pagar_id` / `titulo_receber_id` WHERE status='PENDENTE') |
 | `fiscal/v1/028-apuracao-estabelecimento.yaml` | 6 | addColumn `estabelecimento_id UUID` nullable em `apuracao_mensal` (ICMS/ISS por estabelecimento; IBS/CBS consolidado = NULL) |
 
 ---
@@ -3750,7 +3789,7 @@ Três tabelas são grandes demais para seed inline no YAML. O Claude Code deve g
 | 6 | `id format` | `{autor}-{schema}-v1.{numero}-{descricao}` — ex: `vitor-financeiro-v1.009-titulo` |
 | 7 | Colunas geradas | `valor_liquido` e `valor_saldo` em `titulo` são `GENERATED ALWAYS AS ... STORED` — verificar suporte na versão do PostgreSQL |
 | 8 | Seeds de `cst_ibs_cbs` | Códigos baseados na NT 2025.002 — validar antes de rodar |
-| 9 | Seed `plano_contas_template` | Gerar com `ativo=false` até validação do contador |
+| 9 | Seed `plano_contas_template` | Seed direto `versao=1, ativo=true` — sem bloqueio de contador (§F6.6) |
 | 10 | `aliq_ibs_municipio` | Seed parcial com alíquota 2026 (0,1% total). Seed completo aguarda CGIBS |
 
 

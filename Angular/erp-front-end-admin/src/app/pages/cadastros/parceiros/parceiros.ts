@@ -1,21 +1,23 @@
-import {Component, signal} from '@angular/core';
-import {Toast} from "primeng/toast";
-import {ButtonDirective} from 'primeng/button';
-import {Ripple} from 'primeng/ripple';
-import {Tooltip} from 'primeng/tooltip';
-import {MessageService, PrimeTemplate} from 'primeng/api';
-import {CnpjPipe} from '../../../util/pipe/cnpj.pipe';
-import {DatePipe, NgForOf, NgIf} from '@angular/common';
-import {HtmlDecodePipe} from '../../../util/pipe/html-decode.pipe';
-import {TableModule} from 'primeng/table';
-import {ParceirosModel} from './parceiros.model';
-import {ColumnConfig} from '../../../components/table/data-table';
-import {ParceirosService} from './parceiros.service';
-import {Dialog} from 'primeng/dialog';
-import {Select} from 'primeng/select';
-import {Textarea} from 'primeng/textarea';
-import {FormsModule} from '@angular/forms';
-import {HttpErrorResponse} from '@angular/common/http';
+import { Component, signal } from '@angular/core';
+import { Toast } from 'primeng/toast';
+import { ButtonDirective } from 'primeng/button';
+import { Ripple } from 'primeng/ripple';
+import { Tooltip } from 'primeng/tooltip';
+import { MessageService, PrimeTemplate } from 'primeng/api';
+import { CnpjPipe } from '../../../util/pipe/cnpj.pipe';
+import { DatePipe, NgForOf, NgIf } from '@angular/common';
+import { HtmlDecodePipe } from '../../../util/pipe/html-decode.pipe';
+import { TableModule } from 'primeng/table';
+import { ParceirosModel } from './parceiros.model';
+import { ColumnConfig } from '../../../components/table/data-table';
+import { ParceirosService } from './parceiros.service';
+import { Dialog } from 'primeng/dialog';
+import { Select } from 'primeng/select';
+import { Textarea } from 'primeng/textarea';
+import { InputText } from 'primeng/inputtext';
+import { InputMask } from 'primeng/inputmask';
+import { FormsModule } from '@angular/forms';
+import { HttpErrorResponse } from '@angular/common/http';
 
 interface ReviewOption {
   label: string;
@@ -39,14 +41,15 @@ interface ReviewOption {
     Dialog,
     Select,
     Textarea,
-    FormsModule
+    InputText,
+    InputMask,
+    FormsModule,
   ],
   providers: [MessageService],
   templateUrl: './parceiros.html',
   styleUrl: './parceiros.scss',
 })
 export class Parceiros {
-
   parceiros = signal<ParceirosModel[]>([]);
   totalRecords = signal<number>(0);
   loading = signal<boolean>(true);
@@ -59,6 +62,12 @@ export class Parceiros {
   selectedAction: 'approve' | 'reject' | null = null;
   reviewNotes: string = '';
   reviewLoading: boolean = false;
+
+  editDialogVisible: boolean = false;
+  partnerToEdit: ParceirosModel | null = null;
+  editCommissionRate: number | null = null;
+  editSubmitted: boolean = false;
+  editLoading: boolean = false;
 
   inactivateDialogVisible: boolean = false;
   partnerToInactivate: ParceirosModel | null = null;
@@ -84,20 +93,26 @@ export class Parceiros {
     { field: 'updatedBy', header: 'Atualizado Por', type: 'text' },
     { field: 'reviewedBy', header: 'Revisado Por', type: 'text' },
     { field: 'reviewedAt', header: 'Data de Revisão', type: 'date' },
-    { field: 'actions', header: 'Ações', type: 'actions' }
+    { field: 'actions', header: 'Ações', type: 'actions' },
   ];
 
   constructor(
     private messageService: MessageService,
-    private partnerService: ParceirosService
+    private partnerService: ParceirosService,
   ) {}
 
   exportData() {
-    this.messageService.add({ severity: 'info', summary: 'Info', detail: 'Funcionalidade de exportação aqui' });
+    this.messageService.add({
+      severity: 'info',
+      summary: 'Info',
+      detail: 'Funcionalidade de exportação aqui',
+    });
   }
 
   loadPartners(event?: any) {
-    setTimeout(() => { this.loading.set(true); });
+    setTimeout(() => {
+      this.loading.set(true);
+    });
 
     if (event) {
       this.page = event.first / event.rows;
@@ -112,9 +127,13 @@ export class Parceiros {
         this.loading.set(false);
       },
       error: (err) => {
-        this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao buscar Parceiros.' });
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Erro',
+          detail: 'Erro ao buscar Parceiros.',
+        });
         this.loading.set(false);
-      }
+      },
     });
   }
 
@@ -132,6 +151,67 @@ export class Parceiros {
     this.reviewNotes = '';
   }
 
+  openEditDialog(partner: ParceirosModel) {
+    this.partnerToEdit = { ...partner };
+    this.editCommissionRate =
+      partner.commissionRate != null ? Number(partner.commissionRate) : null;
+    this.editSubmitted = false;
+    this.editDialogVisible = true;
+  }
+
+  closeEditDialog() {
+    this.editDialogVisible = false;
+    this.partnerToEdit = null;
+    this.editCommissionRate = null;
+    this.editSubmitted = false;
+  }
+
+  isCommissionValid(): boolean {
+    return (
+      this.editCommissionRate != null &&
+      this.editCommissionRate >= 0 &&
+      this.editCommissionRate <= 100
+    );
+  }
+
+  confirmEdit() {
+    this.editSubmitted = true;
+    if (!this.partnerToEdit?.id || !this.partnerToEdit.email || !this.isCommissionValid()) return;
+
+    this.editLoading = true;
+    const payload: ParceirosModel = {
+      name: this.partnerToEdit.name,
+      crc: this.partnerToEdit.crc,
+      cnpj: this.partnerToEdit.cnpj,
+      email: this.partnerToEdit.email,
+      phone: this.partnerToEdit.phone ? this.partnerToEdit.phone.replace(/\D/g, '') : undefined,
+      referralCode: this.partnerToEdit.referralCode,
+      commissionRate: String(this.editCommissionRate),
+    };
+
+    this.partnerService.update(this.partnerToEdit.id, payload).subscribe({
+      next: (updated) => {
+        this.parceiros.update((list) => list.map((p) => (p.id === updated.id ? updated : p)));
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Sucesso',
+          detail: 'Parceiro atualizado com sucesso.',
+          life: 3000,
+        });
+        this.editLoading = false;
+        this.closeEditDialog();
+      },
+      error: (err: HttpErrorResponse) => {
+        const detail =
+          err.status === 409
+            ? err.error?.message || 'Conflito de dados.'
+            : 'Falha ao atualizar parceiro.';
+        this.messageService.add({ severity: 'error', summary: 'Erro', detail, life: 5000 });
+        this.editLoading = false;
+      },
+    });
+  }
+
   openInactivateDialog(partner: ParceirosModel) {
     this.partnerToInactivate = { ...partner };
     this.inactivateDialogVisible = true;
@@ -147,15 +227,25 @@ export class Parceiros {
     this.inactivateLoading = true;
     this.partnerService.inactivate(this.partnerToInactivate.id).subscribe({
       next: (updated) => {
-        this.parceiros.update(list => list.map(p => p.id === updated.id ? updated : p));
-        this.messageService.add({ severity: 'warn', summary: 'Inativado', detail: 'Parceiro inativado com sucesso.', life: 3000 });
+        this.parceiros.update((list) => list.map((p) => (p.id === updated.id ? updated : p)));
+        this.messageService.add({
+          severity: 'warn',
+          summary: 'Inativado',
+          detail: 'Parceiro inativado com sucesso.',
+          life: 3000,
+        });
         this.inactivateLoading = false;
         this.closeInactivateDialog();
       },
       error: () => {
-        this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Falha ao inativar parceiro.', life: 5000 });
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Erro',
+          detail: 'Falha ao inativar parceiro.',
+          life: 5000,
+        });
         this.inactivateLoading = false;
-      }
+      },
     });
   }
 
@@ -166,26 +256,32 @@ export class Parceiros {
     const payload = { notes: this.reviewNotes || null };
     const id = this.partnerToReview.id;
 
-    const call$ = this.selectedAction === 'approve'
-      ? this.partnerService.approve(id, payload)
-      : this.partnerService.reject(id, payload);
+    const call$ =
+      this.selectedAction === 'approve'
+        ? this.partnerService.approve(id, payload)
+        : this.partnerService.reject(id, payload);
 
     call$.subscribe({
       next: (updated) => {
-        this.parceiros.update(list => list.map(p => p.id === updated.id ? updated : p));
+        this.parceiros.update((list) => list.map((p) => (p.id === updated.id ? updated : p)));
         this.messageService.add({
           severity: 'success',
           summary: 'Sucesso',
           detail: this.selectedAction === 'approve' ? 'Parceiro aprovado.' : 'Parceiro rejeitado.',
-          life: 3000
+          life: 3000,
         });
         this.reviewLoading = false;
         this.closeReviewDialog();
       },
       error: (err: HttpErrorResponse) => {
-        this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Falha ao revisar parceiro.', life: 5000 });
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Erro',
+          detail: 'Falha ao revisar parceiro.',
+          life: 5000,
+        });
         this.reviewLoading = false;
-      }
+      },
     });
   }
 }

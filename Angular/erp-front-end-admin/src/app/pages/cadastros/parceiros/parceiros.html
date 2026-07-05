@@ -94,6 +94,7 @@
                     pRipple
                     icon="pi pi-pencil"
                     class="p-button-rounded p-button-text p-button-info p-button-sm w-8 h-8"
+                    (click)="openEditDialog(rowData)"
                     pTooltip="Editar"
                     tooltipPosition="top">
                   </button>
@@ -126,6 +127,72 @@
     </div>
   </div>
 </div>
+
+<p-dialog
+  [(visible)]="editDialogVisible"
+  (onHide)="closeEditDialog()"
+  [style]="{ width: '450px' }"
+  header="Editar Parceiro"
+  [modal]="true"
+  [closable]="true"
+  styleClass="p-fluid">
+
+  <ng-template pTemplate="content">
+    <div class="field mb-4 mt-2">
+      <label for="editName" class="block text-sm font-medium text-gray-700 mb-1">Nome</label>
+      <input type="text" pInputText id="editName" [value]="partnerToEdit?.name" disabled
+             class="w-full border-gray-300 rounded-md shadow-sm p-2 border bg-gray-50 text-gray-500" />
+    </div>
+
+    <div class="field mb-4">
+      <label for="editCrc" class="block text-sm font-medium text-gray-700 mb-1">CRC</label>
+      <input type="text" pInputText id="editCrc" [value]="partnerToEdit?.crc" disabled
+             class="w-full border-gray-300 rounded-md shadow-sm p-2 border bg-gray-50 text-gray-500" />
+    </div>
+
+    <div class="field mb-4">
+      <label for="editCnpj" class="block text-sm font-medium text-gray-700 mb-1">CNPJ</label>
+      <input type="text" pInputText id="editCnpj" [value]="(partnerToEdit?.cnpj ?? '') | cnpj" disabled
+             class="w-full border-gray-300 rounded-md shadow-sm p-2 border bg-gray-50 text-gray-500" />
+    </div>
+
+    <div class="field mb-4">
+      <label for="editEmail" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+      <input type="email" pInputText id="editEmail" [value]="partnerToEdit?.email" disabled
+             class="w-full border-gray-300 rounded-md shadow-sm p-2 border bg-gray-50 text-gray-500" />
+    </div>
+
+    <div class="field mb-4" *ngIf="partnerToEdit">
+      <label for="editPhone" class="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
+      <p-inputmask
+        id="editPhone"
+        [(ngModel)]="partnerToEdit.phone"
+        mask="(99) 99999999?9"
+        placeholder="(00) 000000000"
+        styleClass="w-full border-gray-300 rounded-md shadow-sm focus:ring-orange-500 focus:border-orange-500 p-2 border">
+      </p-inputmask>
+    </div>
+
+    <div class="field mb-4" *ngIf="partnerToEdit">
+      <label for="editReferralCode" class="block text-sm font-medium text-gray-700 mb-1">Código de Parceiro</label>
+      <input type="text" pInputText id="editReferralCode" [(ngModel)]="partnerToEdit.referralCode" maxlength="20"
+             class="w-full border-gray-300 rounded-md shadow-sm focus:ring-orange-500 focus:border-orange-500 p-2 border" />
+    </div>
+
+    <div class="field mb-4" *ngIf="partnerToEdit">
+      <label for="editCommission" class="block text-sm font-medium text-gray-700 mb-1">Comissão (%)</label>
+      <input type="number" pInputText id="editCommission" [(ngModel)]="editCommissionRate" min="0" max="100" step="0.01" required
+             class="w-full border-gray-300 rounded-md shadow-sm focus:ring-orange-500 focus:border-orange-500 p-2 border"
+             [class.border-red-500]="editSubmitted && !isCommissionValid()" />
+      <small class="p-error text-red-500 text-xs mt-1 block" *ngIf="editSubmitted && !isCommissionValid()">A Comissão deve estar entre 0 e 100.</small>
+    </div>
+  </ng-template>
+
+  <ng-template pTemplate="footer">
+    <button pButton pRipple label="Cancelar" icon="pi pi-times" class="p-button-text text-gray-600 hover:bg-gray-100" (click)="closeEditDialog()"></button>
+    <button pButton pRipple label="Salvar" icon="pi pi-check" class="p-button-success" [disabled]="editLoading" [loading]="editLoading" (click)="confirmEdit()"></button>
+  </ng-template>
+</p-dialog>
 
 <p-dialog
   [(visible)]="inactivateDialogVisible"

@@ -96,6 +96,13 @@ public class AsaasGateway {
         return list.data().getFirst();
     }
 
+    /** Todas as cobranças de uma assinatura (mais recente primeiro), para o drill-down do admin. */
+    public java.util.List<AsaasPaymentResponse> listPayments(String asaasSubscriptionId) {
+        AsaasListResponse<AsaasPaymentResponse> list =
+                call("listPayments", () -> paymentClient.listBySubscription(asaasSubscriptionId));
+        return list == null || list.data() == null ? java.util.List.of() : list.data();
+    }
+
     public AsaasPixQrCodeResponse getPixQrCode(String asaasPaymentId) {
         return call("getPixQrCode", () -> paymentClient.getPixQrCode(asaasPaymentId));
     }

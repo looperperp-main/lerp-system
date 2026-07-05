@@ -40,7 +40,7 @@ export class AdminLayout {
     ] },
     { label: 'Parceiros', icon: 'pi pi-star', routerLink: '/admin/parceiros', items: [
         { label: 'Contadores', icon: 'pi pi-calculator', routerLink: '/admin/parceiros/contadores' },
-        { label: 'Comissões', icon: 'pi pi-percentage', routerLink: '/admin/parceiros/comissoes' },
+        //{ label: 'Comissões', icon: 'pi pi-percentage', routerLink: '/admin/parceiros/comissoes' },
         //{ label: 'Indicações', icon: 'pi pi-bullhorn', routerLink: '/admin/parceiros/indicacoes' }
         { label: 'Indicações', icon: 'pi pi-megaphone', routerLink: '/admin/parceiros/indicacoes' }
       ] },

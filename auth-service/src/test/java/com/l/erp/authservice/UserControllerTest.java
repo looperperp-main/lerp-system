@@ -190,7 +190,7 @@ class UserControllerTest {
         Page<UserAccountPageDTO> page = new PageImpl<>(List.of(user));
         when(userAccountRepository.findProjectedWithFilters(any(), any(Pageable.class))).thenReturn(page);
 
-        UserSearchFilterDTO filter = new UserSearchFilterDTO(null, null, null);
+        UserSearchFilterDTO filter = new UserSearchFilterDTO(null, null, null, null);
 
         mockMvc.perform(post("/auth/users/search")
                         .contentType(MediaType.APPLICATION_JSON)

@@ -13,7 +13,7 @@ export interface PartnerRequest {
 
 @Injectable({ providedIn: 'root' })
 export class ParceiroService {
-  private readonly url = `${environment.apiUrl}/billing/api/v1/partners`;
+  private readonly url = `${environment.apiUrl}/partner/api/v1/partners`;
 
   constructor(private http: HttpClient) {}
 

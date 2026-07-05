@@ -1,23 +1,23 @@
-import {Component,signal} from '@angular/core';
-import {CommonModule} from '@angular/common';
-import {FormsModule} from '@angular/forms';
-import {ConfirmationService, MessageService} from 'primeng/api';
-import {ToastModule} from 'primeng/toast';
-import {ToolbarModule} from 'primeng/toolbar';
-import {ButtonModule} from 'primeng/button';
-import {DialogModule} from 'primeng/dialog';
-import {ConfirmDialogModule} from 'primeng/confirmdialog';
-import {InputTextModule} from 'primeng/inputtext';
-import {ColumnConfig} from '../../../../components/table/data-table';
-import {TenantModel} from './tenant.model';
-import {Ripple} from 'primeng/ripple';
-import {TableModule} from 'primeng/table';
-import {TenantForm} from './tenant-form/tenant-form';
-import {TenantService} from './tenant.service';
-import {CnpjPipe} from '../../../../util/pipe/cnpj.pipe';
-import {HtmlDecodePipe} from '../../../../util/pipe/html-decode.pipe';
-import {HttpErrorResponse} from '@angular/common/http';
-import {Tooltip} from 'primeng/tooltip';
+import { Component, signal } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { ConfirmationService, MessageService } from 'primeng/api';
+import { ToastModule } from 'primeng/toast';
+import { ToolbarModule } from 'primeng/toolbar';
+import { ButtonModule } from 'primeng/button';
+import { DialogModule } from 'primeng/dialog';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { InputTextModule } from 'primeng/inputtext';
+import { ColumnConfig } from '../../../../components/table/data-table';
+import { TenantModel } from './tenant.model';
+import { Ripple } from 'primeng/ripple';
+import { TableModule } from 'primeng/table';
+import { TenantForm } from './tenant-form/tenant-form';
+import { TenantService } from './tenant.service';
+import { CnpjPipe } from '../../../../util/pipe/cnpj.pipe';
+import { HtmlDecodePipe } from '../../../../util/pipe/html-decode.pipe';
+import { HttpErrorResponse } from '@angular/common/http';
+import { Tooltip } from 'primeng/tooltip';
 
 @Component({
   selector: 'app-tenant',
@@ -36,17 +36,16 @@ import {Tooltip} from 'primeng/tooltip';
     TenantForm,
     CnpjPipe,
     HtmlDecodePipe,
-    Tooltip
+    Tooltip,
   ],
   providers: [MessageService, ConfirmationService],
   templateUrl: './tenant.html',
-  styleUrl: './tenant.scss'
+  styleUrl: './tenant.scss',
 })
 export class Tenant {
-
   // Configuração da Tabela
   tenantDialog: boolean = false;
-  tenants =  signal<TenantModel[]>([]);
+  tenants = signal<TenantModel[]>([]);
   tenant: TenantModel = { name: '', cnpj: '', status: 'ATIVO' }; // Objeto vazio inicial
   selectedTenants: Tenant[] = [];
   submitted: boolean = false;
@@ -62,9 +61,11 @@ export class Tenant {
   // Opções de Status
   statuses = [
     { label: 'Ativo', value: 'ATIVO' },
+    { label: 'Trial', value: 'TRIAL' },
+    { label: 'Convidado', value: 'CONVIDADO' },
     { label: 'Pendente', value: 'PENDENTE' },
     { label: 'Suspenso', value: 'SUSPENSO' },
-    { label: 'Cancelado', value: 'CANCELADO' }
+    { label: 'Cancelado', value: 'CANCELADO' },
   ];
 
   // Definição das Colunas
@@ -77,13 +78,13 @@ export class Tenant {
     { field: 'creationDate', header: 'Data Criação', type: 'date' },
     { field: 'lastUpdatedBy', header: 'Atualizado Por', type: 'text' },
     { field: 'updateDate', header: 'Data Atualização', type: 'date' },
-    { field: 'actions', header: 'Ações', type: 'actions' }
+    { field: 'actions', header: 'Ações', type: 'actions' },
   ];
 
   constructor(
     private messageService: MessageService,
     private confirmationService: ConfirmationService,
-    private tenantService: TenantService
+    private tenantService: TenantService,
   ) {}
 
   ngOnInit() {
@@ -113,7 +114,7 @@ export class Tenant {
       error: (err: HttpErrorResponse) => {
         this.handleError(err, 'Erro ao carregar tenants');
         this.loading.set(false);
-      }
+      },
     });
   }
 
@@ -149,7 +150,11 @@ export class Tenant {
 
     // Validação
     if (!this.deleteReason || this.deleteReason.trim() === '') {
-      this.messageService.add({ severity: 'warn', summary: 'Atenção', detail: 'O motivo é obrigatório' });
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Atenção',
+        detail: 'O motivo é obrigatório',
+      });
       return;
     }
 
@@ -158,16 +163,21 @@ export class Tenant {
 
       this.tenantService.updateTenantStatus(tenantId, 'CANCELADO').subscribe({
         next: () => {
-          this.tenants.update(currentTenants =>
-            currentTenants.map(t => t.id === tenantId ? { ...t, status: 'CANCELADO' } : t)
+          this.tenants.update((currentTenants) =>
+            currentTenants.map((t) => (t.id === tenantId ? { ...t, status: 'CANCELADO' } : t)),
           );
-          this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Tenant excluído (Cancelado)', life: 3000 });
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Sucesso',
+            detail: 'Tenant excluído (Cancelado)',
+            life: 3000,
+          });
           this.hideDeleteDialog(); // Sucesso: fecha o dialog
         },
         error: (err: HttpErrorResponse) => {
           this.handleError(err, 'Erro ao excluir o Tenant');
           // Não fecha o dialog em caso de erro, para o usuário tentar novamente se quiser
-        }
+        },
       });
     }
   }
@@ -175,16 +185,22 @@ export class Tenant {
   toggleTenantStatus(tenant: any) {
     const newStatus = tenant.status === 'ATIVO' ? 'SUSPENSO' : 'ATIVO';
 
-    if(tenant.id) {
+    if (tenant.id) {
       this.tenantService.updateTenantStatus(tenant.id, newStatus).subscribe({
         next: () => {
           // Atualiza o estado da lista via Signal
-          this.tenants.update(currentTenants =>
-            currentTenants.map(t => t.id === tenant.id ? { ...t, status: newStatus } : t)
+          this.tenants.update((currentTenants) =>
+            currentTenants.map((t) => (t.id === tenant.id ? { ...t, status: newStatus } : t)),
           );
-          this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: `Status alterado para ${newStatus}`, life: 3000 });
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Sucesso',
+            detail: `Status alterado para ${newStatus}`,
+            life: 3000,
+          });
         },
-        error: (err: HttpErrorResponse) => this.handleError(err, 'Erro ao alterar o status do Tenant')
+        error: (err: HttpErrorResponse) =>
+          this.handleError(err, 'Erro ao alterar o status do Tenant'),
       });
     }
   }
@@ -197,33 +213,46 @@ export class Tenant {
       this.tenantService.updateTenant(savedTenant).subscribe({
         next: (updatedTenant) => {
           // Substitui o tenant editado na lista reativamente via Signal
-          this.tenants.update(currentTenants =>
-            currentTenants.map(t => t.id === updatedTenant.id ? updatedTenant : t)
+          this.tenants.update((currentTenants) =>
+            currentTenants.map((t) => (t.id === updatedTenant.id ? updatedTenant : t)),
           );
-          this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Tenant Atualizado', life: 3000 });
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Sucesso',
+            detail: 'Tenant Atualizado',
+            life: 3000,
+          });
         },
-        error: (err: HttpErrorResponse) => this.handleError(err, 'Falha ao atualizar o Tenant')
+        error: (err: HttpErrorResponse) => this.handleError(err, 'Falha ao atualizar o Tenant'),
       });
     } else {
       // Criar Novo
       this.tenantService.createTenant(savedTenant).subscribe({
         next: () => {
           this.loadTenants(0, 10); // Recarrega a primeira página
-          this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Tenant Criado', life: 3000 });
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Sucesso',
+            detail: 'Tenant Criado',
+            life: 3000,
+          });
         },
-        error: (err: HttpErrorResponse) => this.handleError(err, 'Falha ao criar o Tenant')
+        error: (err: HttpErrorResponse) => this.handleError(err, 'Falha ao criar o Tenant'),
       });
     }
   }
 
   exportData() {
-    this.messageService.add({ severity: 'info', summary: 'Info', detail: 'Funcionalidade de exportação aqui' });
+    this.messageService.add({
+      severity: 'info',
+      summary: 'Info',
+      detail: 'Funcionalidade de exportação aqui',
+    });
   }
 
   private handleError(err: HttpErrorResponse, defaultSummary: string) {
     // Verifica se o erro possui o corpo do seu StandardError.java
     if (err.error && err.error.message && err.error.error && err.error.status) {
-
       // Formata a mensagem para mostrar o Status, Erro e a Mensagem detalhada
       const detailMsg = `[${err.error.status}] ${err.error.error} - ${err.error.message}`;
 
@@ -231,16 +260,15 @@ export class Tenant {
         severity: 'error',
         summary: defaultSummary,
         detail: detailMsg,
-        life: 5000 // Aumentei o tempo de vida para 5 segundos para dar tempo de ler
+        life: 5000, // Aumentei o tempo de vida para 5 segundos para dar tempo de ler
       });
-
     } else {
       // Fallback caso seja um erro genérico (ex: API offline, timeout, etc)
       this.messageService.add({
         severity: 'error',
         summary: defaultSummary,
         detail: 'Erro inesperado de comunicação com o servidor.',
-        life: 5000
+        life: 5000,
       });
     }
   }

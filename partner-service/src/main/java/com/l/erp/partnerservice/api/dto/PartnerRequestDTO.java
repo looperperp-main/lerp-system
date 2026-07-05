@@ -1,10 +1,14 @@
 package com.l.erp.partnerservice.api.dto;
 
 import com.l.erp.common.validation.NoHtml;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+
+import java.math.BigDecimal;
 
 public record PartnerRequestDTO(
 
@@ -29,6 +33,14 @@ public record PartnerRequestDTO(
 
         @Size(max = 20)
         @Pattern(regexp = "\\d{10,11}", message = "Telefone deve conter 10 ou 11 dígitos")
-        String phone
+        String phone,
+
+        @NoHtml
+        @Size(max = 20)
+        String referralCode,
+
+        @DecimalMin(value = "0.00")
+        @DecimalMax(value = "100.00")
+        BigDecimal commissionRate
 
 ) {}

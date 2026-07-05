@@ -1,4 +1,5 @@
 <div class="card">
+  <p-toast></p-toast>
 
   <div class="page-header">
     <div>
@@ -11,58 +12,135 @@
     <div class="table-container">
       <p-table
         [value]="rows()"
-        [columns]="cols"
+        dataKey="id"
         [loading]="carregando()"
+        [expandedRowKeys]="expandedRows"
         [paginator]="true"
         [rows]="10"
         [showCurrentPageReport]="true"
         currentPageReportTemplate="Mostrando {first} até {last} de {totalRecords} registros"
         [rowsPerPageOptions]="[10, 25, 50]"
-        [tableStyle]="{ 'min-width': '50rem' }"
+        [tableStyle]="{ 'min-width': '60rem' }"
         styleClass="p-datatable-sm text-sm">
 
-        <ng-template pTemplate="header" let-columns>
+        <ng-template pTemplate="header">
           <tr>
-            @for (col of columns; track col.field) {
+            <th style="width: 3rem"></th>
+            @for (col of cols; track col.field) {
               <th class="text-xs uppercase text-gray-400 font-semibold border-b border-gray-100 pb-3">
                 {{ col.header }}
               </th>
             }
+            <th class="text-xs uppercase text-gray-400 font-semibold border-b border-gray-100 pb-3">Ações</th>
           </tr>
         </ng-template>
 
-        <ng-template pTemplate="body" let-rowData let-columns="columns">
+        <ng-template pTemplate="body" let-rowData>
           <tr class="hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-colors">
-            @for (col of columns; track col.field) {
-              <td class="py-3 text-gray-600">
-
-                @if (col.field === 'tenantId') {
-                  {{ rowData.tenantId }}
-                } @else if (col.field === 'planType') {
-                  <span [class]="'px-2 py-1 rounded text-xs font-medium ' +
-                    (rowData.planType === 'ANUAL' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700')">
-                    {{ rowData.planType }}
-                  </span>
-                } @else if (col.field === 'billingCycle') {
-                  {{ rowData.billingCycle }}
-                } @else if (col.field === 'value') {
-                  {{ rowData.value | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}
-                } @else if (col.type === 'status') {
-                  <span [class]="statusClass(rowData.status)">{{ rowData.status }}</span>
-                } @else if (col.field === 'nextDueDate') {
-                  {{ rowData.nextDueDate ? (rowData.nextDueDate | date: 'dd/MM/yyyy') : '—' }}
-                } @else if (col.field === 'asaasSubscriptionId') {
-                  <span class="text-gray-500 text-xs truncate max-w-xs block">{{ rowData.asaasSubscriptionId }}</span>
+            <td>
+              <button
+                type="button"
+                pButton
+                (click)="toggleRow(rowData)"
+                class="p-button-text p-button-rounded p-button-plain p-button-sm w-8 h-8"
+                [icon]="expandedRows[rowData.id] ? 'pi pi-chevron-down' : 'pi pi-chevron-right'">
+              </button>
+            </td>
+            <td class="py-3 text-gray-600">{{ rowData.tenantId }}</td>
+            <td class="py-3">
+              <span [class]="'px-2 py-1 rounded text-xs font-medium ' +
+                (rowData.planType === 'ANUAL' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700')">
+                {{ rowData.planType }}
+              </span>
+            </td>
+            <td class="py-3 text-gray-600">{{ rowData.billingCycle }}</td>
+            <td class="py-3 text-gray-600">{{ rowData.value | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}</td>
+            <td class="py-3"><span [class]="statusClass(rowData.status)">{{ rowData.status }}</span></td>
+            <td class="py-3 text-gray-600">{{ rowData.nextDueDate ? (rowData.nextDueDate | date: 'dd/MM/yyyy') : '—' }}</td>
+            <td class="py-3">
+              <!-- ponytail: sem deep-link — o painel do Asaas usa id interno (não o sub_xxx da API); acesso externo via "Abrir fatura" no drill-down -->
+              <span class="text-gray-500 text-xs truncate max-w-xs block">{{ rowData.asaasSubscriptionId || '—' }}</span>
+            </td>
+            <td class="py-3">
+              <div class="flex gap-1">
+                @if (rowData.status === 'AGUARDANDO_PAGAMENTO' || rowData.status === 'SUSPENSO') {
+                  <button
+                    type="button"
+                    pButton
+                    icon="pi pi-refresh"
+                    (click)="reprocessar(rowData)"
+                    [loading]="reprocessLoading[rowData.id]"
+                    class="p-button-rounded p-button-text p-button-sm p-button-info w-8 h-8"
+                    title="Reprocessar ativação (consulta o Asaas)">
+                  </button>
                 }
+                @if (rowData.status === 'ATIVA' || rowData.status === 'SUSPENSO') {
+                  <button
+                    type="button"
+                    pButton
+                    icon="pi pi-ban"
+                    (click)="abrirCancelDialog(rowData)"
+                    class="p-button-rounded p-button-text p-button-sm p-button-danger w-8 h-8"
+                    title="Cancelar assinatura">
+                  </button>
+                }
+              </div>
+            </td>
+          </tr>
+        </ng-template>
 
-              </td>
-            }
+        <ng-template #expandedrow let-rowData>
+          <tr>
+            <td colspan="9" class="bg-gray-50 p-4">
+              @if (cobrancasLoading[rowData.id]) {
+                <div class="text-center py-4 text-gray-400">
+                  <i class="pi pi-spin pi-spinner"></i> Buscando cobranças no Asaas…
+                </div>
+              } @else {
+                <table class="w-full text-sm">
+                  <thead>
+                    <tr>
+                      <th class="text-left text-xs uppercase text-gray-400 font-semibold pb-2">Cobrança</th>
+                      <th class="text-left text-xs uppercase text-gray-400 font-semibold pb-2">Valor</th>
+                      <th class="text-left text-xs uppercase text-gray-400 font-semibold pb-2">Vencimento</th>
+                      <th class="text-left text-xs uppercase text-gray-400 font-semibold pb-2">Status</th>
+                      <th class="text-left text-xs uppercase text-gray-400 font-semibold pb-2">Fatura</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (cob of cobrancas[rowData.id]; track cob.id) {
+                      <tr class="border-t border-gray-100">
+                        <td class="py-2 text-gray-600 text-xs">{{ cob.id }}</td>
+                        <td class="py-2 text-gray-600">{{ cob.value | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}</td>
+                        <td class="py-2 text-gray-600">{{ cob.dueDate ? (cob.dueDate | date: 'dd/MM/yyyy') : '—' }}</td>
+                        <td class="py-2"><span [class]="cobrancaStatusClass(cob.status)">{{ cob.status }}</span></td>
+                        <td class="py-2">
+                          @if (cob.invoiceUrl) {
+                            <a [href]="cob.invoiceUrl" target="_blank" rel="noopener"
+                               class="text-blue-500 hover:underline text-xs">
+                              Abrir fatura <i class="pi pi-external-link text-[10px]"></i>
+                            </a>
+                          } @else {
+                            <span class="text-gray-400 text-xs">—</span>
+                          }
+                        </td>
+                      </tr>
+                    }
+                    @if (!cobrancas[rowData.id]?.length) {
+                      <tr>
+                        <td colspan="5" class="text-center py-4 text-gray-500">Nenhuma cobrança encontrada no Asaas.</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              }
+            </td>
           </tr>
         </ng-template>
 
         <ng-template pTemplate="emptymessage">
           <tr>
-            <td [attr.colspan]="cols.length" class="text-center py-6 text-gray-500">
+            <td colspan="9" class="text-center py-6 text-gray-500">
               Nenhuma assinatura encontrada.
             </td>
           </tr>
@@ -70,4 +148,28 @@
       </p-table>
     </div>
   </div>
+
+  <!-- Dialog de confirmação de cancelamento -->
+  <p-dialog
+    header="Cancelar Assinatura"
+    [(visible)]="cancelDialogVisible"
+    [modal]="true"
+    [style]="{ width: '450px' }"
+    [draggable]="false"
+    [resizable]="false">
+    <div class="flex items-start gap-3 py-2">
+      <i class="pi pi-exclamation-triangle text-orange-500 text-2xl"></i>
+      <p class="text-sm text-gray-700 leading-relaxed">
+        Isso interrompe a renovação no Asaas do tenant
+        <strong>{{ cancelTarget?.tenantId }}</strong>. O acesso é mantido até o próximo vencimento
+        ({{ cancelTarget?.nextDueDate ? (cancelTarget?.nextDueDate | date: 'dd/MM/yyyy') : '—' }})
+        e depois o tenant é cancelado. Continuar?
+      </p>
+    </div>
+    <ng-template pTemplate="footer">
+      <button pButton type="button" label="Voltar" class="p-button-text" (click)="cancelDialogVisible = false"></button>
+      <button pButton type="button" label="Cancelar assinatura" class="p-button-danger"
+              [loading]="cancelLoading" (click)="confirmarCancel()"></button>
+    </ng-template>
+  </p-dialog>
 </div>

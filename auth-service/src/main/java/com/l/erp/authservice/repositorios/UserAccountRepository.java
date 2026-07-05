@@ -30,6 +30,11 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, UUID> 
     Optional<UserAccount> findByEmailAndTenantId(String email, Long tenantId);
 
     /**
+     * Busca a conta de usuário vinculada a um parceiro.
+     */
+    Optional<UserAccount> findByPartnerId(UUID partnerId);
+
+    /**
      * Acesso por-id tenant-scoped (IDOR-safe) para o portal do tenant.
      */
     @Query("SELECT u FROM UserAccount u WHERE u.id = :id AND u.tenant.id = :tenantId")
@@ -71,7 +76,8 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, UUID> 
             "            FROM UserAccount u LEFT JOIN u.tenant t " +
             "            WHERE (:#{#filter.tenantId} IS NULL OR t.id = :#{#filter.tenantId}) " +
             "            AND (:#{#filter.displayName} IS NULL OR LOWER(u.displayName) LIKE LOWER(CONCAT('%', :#{#filter.displayName}, '%'))) " +
-            "            AND (:#{#filter.active} IS NULL OR u.active = :#{#filter.active})")
+            "            AND (:#{#filter.active} IS NULL OR u.active = :#{#filter.active}) " +
+            "            AND (:#{#filter.userType} IS NULL OR u.userType = :#{#filter.userType})")
     Page<UserAccountPageDTO> findProjectedWithFilters(@Param("filter") UserSearchFilterDTO filter, Pageable pageable);
 
 }

@@ -80,7 +80,7 @@ public class EnderecoService {
                 Constants.END,
                 saved.getId(),
                 Constants.SUCCESS,
-                "",
+                "{}",
                 correlationId
         );
         return saved;
@@ -107,7 +107,7 @@ public class EnderecoService {
                 Constants.END,
                 id,
                 Constants.SUCCESS,
-                "",
+                "{}",
                 correlationId
         );
 

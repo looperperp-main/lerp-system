@@ -211,7 +211,7 @@ public class UserService {
     /** Busca paginada de usuários do tenant (força o tenant no filtro). */
     @Transactional(readOnly = true)
     public Page<UserAccountPageDTO> searchAccountsForTenant(UserSearchFilterDTO filter, Pageable pageable, Long tenantId) {
-        UserSearchFilterDTO scoped = new UserSearchFilterDTO(tenantId, filter.displayName(), filter.active());
+        UserSearchFilterDTO scoped = new UserSearchFilterDTO(tenantId, filter.displayName(), filter.active(), filter.userType());
         return userAccountRepository.findProjectedWithFilters(scoped, pageable);
     }
 

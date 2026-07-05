@@ -79,7 +79,7 @@ public class ContatoService {
                 Constants.CONTATO,
                 saved.getId(),
                 Constants.SUCCESS,
-                "",
+                "{}",
                 correlationId
         );
         return saved;
@@ -88,6 +88,7 @@ public class ContatoService {
     @Transactional
     public Contato update(UUID id, UUID pessoaId, ContatoRequestDTO dto, Long tenantId, UUID userId) {
         logger.debug("Atualizando contato {} da pessoa {} para o tenant {}", id, pessoaId, tenantId);
+        UUID correlationId = getCorrelationIdFromRequest(logger);
 
         Contato entity = contatoRepository.findByIdAndPessoaIdAndTenantId(id, pessoaId, tenantId)
                 .orElseThrow(() -> new BusinessException("Contato não encontrado", HttpStatus.NOT_FOUND));
@@ -97,7 +98,17 @@ public class ContatoService {
         entity.setUpdatedAt(Instant.now());
         entity.setLastUpdatedBy(userId);
 
-        return contatoRepository.save(entity);
+        Contato updated = contatoRepository.save(entity);
+        utils.sendAuditEvent(
+                Constants.CONTATO_UPDATE,
+                userId,
+                Constants.CONTATO,
+                updated.getId(),
+                Constants.SUCCESS,
+                "{}",
+                correlationId
+        );
+        return updated;
     }
 
     private void setContatoData(ContatoRequestDTO dto, Contato entity) {

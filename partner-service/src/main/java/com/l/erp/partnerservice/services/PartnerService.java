@@ -179,6 +179,13 @@ public class PartnerService {
         partner.setCnpj(dto.cnpj());
         partner.setEmail(dto.email());
         partner.setPhone(dto.phone());
+        if (dto.referralCode() != null) {
+            partner.setReferralCode(dto.referralCode());
+        }
+        if (dto.commissionRate() != null) {
+            partner.setCommissionRate(dto.commissionRate());
+        }
+        // ponytail: sem checagem de unicidade do referralCode — admin é responsável; constraint do banco segura duplicata
         partner.setUpdatedAt(OffsetDateTime.now());
         partner.setUpdatedBy(updatedBy);
 
@@ -232,6 +239,34 @@ public class PartnerService {
         return saved;
     }
 
+    /**
+     * Listagem mestre-detalhe: contador (nome) → indicados (nome), sem expor IDs.
+     */
+    @Transactional(readOnly = true)
+    public List<com.l.erp.partnerservice.api.dto.IndicacoesPorContadorDTO> listIndicacoesPorContador() {
+        Map<Partner, List<PartnerReferral>> porContador = referralRepository.findAllWithPartner().stream()
+                .collect(java.util.stream.Collectors.groupingBy(PartnerReferral::getPartner,
+                        java.util.LinkedHashMap::new, java.util.stream.Collectors.toList()));
+
+        return porContador.entrySet().stream()
+                .map(entry -> {
+                    Partner contador = entry.getKey();
+                    List<com.l.erp.partnerservice.api.dto.IndicacoesPorContadorDTO.IndicacaoDTO> indicacoes =
+                            entry.getValue().stream()
+                                    .map(r -> new com.l.erp.partnerservice.api.dto.IndicacoesPorContadorDTO.IndicacaoDTO(
+                                            r.getRazaoSocial(), r.getCnpj(), r.getEmailContato(), r.getStatus(),
+                                            r.getPlanoSugerido(), r.getInvitedAt(), r.getActivatedAt(),
+                                            r.getConvertedAt(), r.getTrialExpiresAt()))
+                                    .toList();
+                    long convertidas = entry.getValue().stream()
+                            .filter(r -> Constants.CONVERTIDO.equals(r.getStatus())).count();
+                    return new com.l.erp.partnerservice.api.dto.IndicacoesPorContadorDTO(
+                            contador.getName(), contador.getCrc(), contador.getReferralCode(),
+                            contador.getCommissionRate(), indicacoes.size(), convertidas, indicacoes);
+                })
+                .toList();
+    }
+
     @Transactional
     public Partner inactivate(UUID id, String inactivatedBy) {
         logger.info("Inativando parceiro {}", id);
@@ -256,6 +291,7 @@ public class PartnerService {
         partner.setUpdatedBy(inactivatedBy);
 
         Partner saved = repository.save(partner);
+        kafkaProducer.sendPartnerInactivated(saved.getId());
         sendAuditEvent(Constants.PARCEIRO_INACTIVATE, userId, saved.getId(), Constants.SUCCESS, null, correlationID);
         return saved;
     }

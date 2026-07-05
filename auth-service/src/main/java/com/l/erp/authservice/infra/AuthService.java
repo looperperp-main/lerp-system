@@ -271,6 +271,15 @@ public class AuthService {
         }
 
         UserAccount user = existingRT.getUser();
+
+        // Conta desativada (ex.: parceiro inativado) não pode renovar sessão.
+        if (!user.isActive()) {
+            refreshTokenService.revokeFamily(existingRT.getFamilyId());
+            auditService.logAuditEventWithActor(Constants.LOGIN_USER_INACTIVE, user.getId(), Constants.USER,
+                    user.getId(), Constants.FAILED, "Tentativa de refresh em conta inativa", null);
+            throw new ResponseStatusException(UNAUTHORIZED, Constants.USER_INACTIVE);
+        }
+
         String newJwt = generateJwtForUser(user);
 
         RefreshTokenService.TokenPair newRt = refreshTokenService.issue(user, existingRT.getFamilyId());

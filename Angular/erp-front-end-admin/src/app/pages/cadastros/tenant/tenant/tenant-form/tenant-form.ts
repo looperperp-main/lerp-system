@@ -1,13 +1,13 @@
-import {Component, EventEmitter, Input, Output} from '@angular/core';
-import {TenantModel} from '../tenant.model';
-import {FormsModule} from '@angular/forms';
-import {Dialog} from 'primeng/dialog';
-import {NgClass} from '@angular/common';
-import {PrimeTemplate} from 'primeng/api';
-import {InputText} from 'primeng/inputtext';
-import {ButtonDirective} from 'primeng/button';
-import {Ripple} from 'primeng/ripple';
-import {InputMask} from 'primeng/inputmask';
+import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { TenantModel } from '../tenant.model';
+import { FormsModule } from '@angular/forms';
+import { Dialog } from 'primeng/dialog';
+import { NgClass } from '@angular/common';
+import { PrimeTemplate } from 'primeng/api';
+import { InputText } from 'primeng/inputtext';
+import { ButtonDirective } from 'primeng/button';
+import { Ripple } from 'primeng/ripple';
+import { InputMask } from 'primeng/inputmask';
 
 @Component({
   selector: 'app-tenant-form',
@@ -19,7 +19,7 @@ import {InputMask} from 'primeng/inputmask';
     InputText,
     ButtonDirective,
     Ripple,
-    InputMask
+    InputMask,
   ],
   templateUrl: './tenant-form.html',
   styleUrl: './tenant-form.scss',
@@ -35,8 +35,11 @@ export class TenantForm {
 
   statuses = [
     { label: 'Ativo', value: 'ATIVO' },
+    { label: 'Trial', value: 'TRIAL' },
+    { label: 'Convidado', value: 'CONVIDADO' },
+    { label: 'Pendente', value: 'PENDENTE' },
     { label: 'Suspenso', value: 'SUSPENSO' },
-    { label: 'Cancelado', value: 'CANCELADO' }
+    { label: 'Cancelado', value: 'CANCELADO' },
   ];
 
   hideDialog() {
@@ -55,11 +58,10 @@ export class TenantForm {
 
     // Validação básica (garante que tenha 14 dígitos de fato)
     if (this.tenant.name?.trim() && unmaskedCnpj.length === 14) {
-
       // Cria uma cópia para enviar ao pai com o CNPJ limpo
       const tenantToSave = {
         ...this.tenant,
-        cnpj: unmaskedCnpj
+        cnpj: unmaskedCnpj,
       };
 
       // Emite o tenant para o componente pai e fecha o modal

@@ -21,5 +21,8 @@ export interface UpdateStatusRequest {
 
 export interface FilaPage {
   content: FilaInternaItem[];
-  page: { totalElements: number; totalPages: number; size: number; number: number };
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
 }

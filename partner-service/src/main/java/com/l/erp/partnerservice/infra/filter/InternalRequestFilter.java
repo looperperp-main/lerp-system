@@ -31,7 +31,7 @@ public class InternalRequestFilter extends OncePerRequestFilter {
                                     FilterChain chain) throws ServletException, IOException {
         String path = request.getRequestURI();
 
-        if (isPublic(path)) {
+        if (isPublic(request.getMethod(), path)) {
             chain.doFilter(request, response);
             return;
         }
@@ -46,8 +46,10 @@ public class InternalRequestFilter extends OncePerRequestFilter {
         chain.doFilter(request, response);
     }
 
-    private boolean isPublic(String path) {
+    private boolean isPublic(String method, String path) {
         if (PUBLIC_EXACT.contains(path)) return true;
+        // POST /api/v1/partners — solicitação pública de parceria (público no gateway)
+        if ("POST".equalsIgnoreCase(method) && "/api/v1/partners".equals(path)) return true;
         // Documentação OpenAPI / Swagger UI
         if (path.startsWith("/v3/api-docs") || path.startsWith("/swagger-ui")) return true;
         // GET /api/v1/partners/cnpj/** — consulta pública de CNPJ

@@ -13,6 +13,7 @@ public class KafkaPartnerProducerService {
     private static final String TOPIC_INVITE_REQUESTED    = "partner.invite.requested";
     private static final String TOPIC_EMAIL_NOTIFICATION  = "partner.email.notification";
     private static final String TOPIC_COMMISSION_CALCULATED = "partner.commission.calculated";
+    private static final String TOPIC_PARTNER_INACTIVATED  = "partner.inactivated";
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
@@ -56,6 +57,17 @@ public class KafkaPartnerProducerService {
                 .whenComplete((result, ex) -> {
                     if (ex != null) {
                         logger.error("Falha ao publicar partner.commission.calculated partnerId={}", partnerId, ex);
+                    }
+                });
+    }
+
+    public void sendPartnerInactivated(java.util.UUID partnerId) {
+        java.util.Map<String, Object> payload = java.util.Map.of("partnerId", partnerId.toString());
+        logger.info("Publicando evento PARTNER_INACTIVATED para parceiro id={}", partnerId);
+        kafkaTemplate.send(TOPIC_PARTNER_INACTIVATED, partnerId.toString(), payload)
+                .whenComplete((result, ex) -> {
+                    if (ex != null) {
+                        logger.error("Falha ao publicar PARTNER_INACTIVATED id={}", partnerId, ex);
                     }
                 });
     }

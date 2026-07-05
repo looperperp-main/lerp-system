@@ -29,6 +29,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/billing/api/v1/plans").permitAll()
                         .requestMatchers("/billing/api/v1/webhooks/asaas").permitAll()
                         .requestMatchers("/partner/api/v1/partners/cnpj/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/partner/api/v1/partners").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class)

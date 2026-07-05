@@ -38,6 +38,11 @@ public interface PartnerReferralRepository extends JpaRepository<PartnerReferral
     List<PartnerReferral> findTop10ByPartner_IdOrderByInvitedAtDesc(UUID partnerId);
     List<PartnerReferral> findTop10ByPartner_IdAndActivatedAtNotNullOrderByActivatedAtDesc(UUID partnerId);
 
+    // Listagem mestre-detalhe (contador → indicados), join pra evitar N+1
+    @org.springframework.data.jpa.repository.Query(
+            "SELECT r FROM PartnerReferral r JOIN FETCH r.partner p ORDER BY p.name ASC, r.invitedAt DESC")
+    List<PartnerReferral> findAllWithPartner();
+
     // Schedulers
     List<PartnerReferral> findByStatusAndTrialExpiresAtLessThanEqual(String status, OffsetDateTime deadline);
     List<PartnerReferral> findByStatusAndTrialStartedAtBetween(String status, OffsetDateTime from, OffsetDateTime to);

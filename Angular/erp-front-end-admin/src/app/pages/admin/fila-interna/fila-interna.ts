@@ -60,7 +60,7 @@ export class FilaInterna implements OnInit {
     this.service.listar(this.filtroStatus, page, size).subscribe({
       next: (res) => {
         this.tickets.set(res.content);
-        this.totalRecords.set(res.page?.totalElements ?? 0);
+        this.totalRecords.set(res.totalElements || 0);
         this.loading.set(false);
       },
       error: () => {

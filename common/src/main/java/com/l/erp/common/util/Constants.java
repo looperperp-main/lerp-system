@@ -54,6 +54,13 @@ public class Constants {
     public static final String TENANT_CANCEL= "TENANT" + "_" + CANCEL;
     public static final String TENANT_SUBSCRIPTION_ACTIVATED = TENANT + "_SUBSCRIPTION_ACTIVATED";
 
+    public static final String ASSINATURA = "ASSINATURA";
+    public static final String ASSINATURA_REPROCESS = "ASSINATURA_REPROCESS";
+    public static final String ASAAS_EVENT_PAYMENT_RECEIVED = "PAYMENT_RECEIVED";
+    public static final String ASSINATURA_CANCEL_ADMIN = "ASSINATURA_CANCEL_ADMIN";
+    /** Status de cobrança do Asaas que contam como "pago" (webhook e reconciliação). */
+    public static final java.util.Set<String> ASAAS_PAID_STATUSES = java.util.Set.of("RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH");
+
     public static final String USER_CREATION = USER + "_" + INSERT;
     public static final String USER_UPDATE = USER + "_" + UPDATE;
     public static final String USER_NOT_FOUND= "Usuário não Encontrado";
@@ -232,6 +239,7 @@ public class Constants {
     public static final String PARCEIRO_NOT_FOUND_EM = "{ERROR: Parceiro não encontrado}";
     public static final String PARCEIRO_CNPJ_ALREADY_EXISTS = "CNPJ já cadastrado";
     public static final String PARCEIRO_EMAIL_ALREADY_EXISTS = "E-mail já cadastrado";
+    public static final String PARCEIRO_REFERRAL_CODE_ALREADY_EXISTS = "Código de parceiro já cadastrado";
     public static final String PARCEIRO_INACTIVATE = PARCEIRO + "_INACTIVATE";
     public static final String PARCEIRO_APPROVE = PARCEIRO + "_APPROVE";
     public static final String PARCEIRO_REJECT = PARCEIRO + "_REJECT";

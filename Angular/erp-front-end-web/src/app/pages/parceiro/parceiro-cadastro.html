@@ -28,7 +28,7 @@
   <div class="container">
 
     <!-- Success state -->
-    @if (success) {
+    @if (success()) {
       <div class="success-card reveal-in">
         <div class="success-icon" aria-hidden="true">
           <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
@@ -66,7 +66,7 @@
     }
 
     <!-- Form state -->
-    @if (!success) {
+    @if (!success()) {
       <div class="form-layout">
 
         <!-- Left: pitch -->
@@ -130,13 +130,13 @@
           </div>
 
           <!-- Error banner -->
-          @if (errorMsg) {
+          @if (errorMsg()) {
             <div class="error-banner" role="alert">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                 <circle cx="8" cy="8" r="7" stroke="#FF5C5C" stroke-width="1.5"/>
                 <path d="M8 5v4M8 11v.5" stroke="#FF5C5C" stroke-width="1.5" stroke-linecap="round"/>
               </svg>
-              {{ errorMsg }}
+              {{ errorMsg() }}
             </div>
           }
 
@@ -220,8 +220,8 @@
             </div>
           </div>
 
-          <button class="btn btn-primary btn-full" [disabled]="form.invalid || loading" (click)="submit()">
-            @if (loading) {
+          <button class="btn btn-primary btn-full" [disabled]="form.invalid || loading()" (click)="submit()">
+            @if (loading()) {
               <span class="spinner" aria-hidden="true"></span>
               Enviando...
             } @else {

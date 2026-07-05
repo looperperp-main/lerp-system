@@ -1,0 +1,105 @@
+<div class="card">
+  <p-toast></p-toast>
+
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Indicações por Contador</h1>
+      <p class="page-subtitle">Acompanhe as indicações de cada contador parceiro</p>
+    </div>
+  </div>
+
+  <div class="content-card">
+    <div class="table-container">
+      <p-table
+        [value]="contadores()"
+        dataKey="contador"
+        [loading]="loading()"
+        [expandedRowKeys]="expandedRows"
+        [tableStyle]="{ 'min-width': '60rem' }"
+        styleClass="p-datatable-sm text-sm"
+      >
+        <ng-template pTemplate="header">
+          <tr>
+            <th style="width: 3rem"></th>
+            <th class="text-xs uppercase text-gray-400 font-semibold border-b border-gray-100 pb-3">Contador</th>
+            <th class="text-xs uppercase text-gray-400 font-semibold border-b border-gray-100 pb-3">CRC</th>
+            <th class="text-xs uppercase text-gray-400 font-semibold border-b border-gray-100 pb-3">Código</th>
+            <th class="text-xs uppercase text-gray-400 font-semibold border-b border-gray-100 pb-3">Comissão</th>
+            <th class="text-xs uppercase text-gray-400 font-semibold border-b border-gray-100 pb-3">Indicações</th>
+            <th class="text-xs uppercase text-gray-400 font-semibold border-b border-gray-100 pb-3">Convertidas</th>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="body" let-contador>
+          <tr class="hover:bg-gray-50 border-b border-gray-50 transition-colors">
+            <td>
+              <button
+                type="button"
+                pButton
+                (click)="toggleRow(contador)"
+                class="p-button-text p-button-rounded p-button-plain p-button-sm w-8 h-8"
+                [icon]="expandedRows[contador.contador] ? 'pi pi-chevron-down' : 'pi pi-chevron-right'">
+              </button>
+            </td>
+            <td class="py-3 font-medium text-gray-900">{{ contador.contador | htmlDecode }}</td>
+            <td class="py-3 text-gray-600">{{ contador.crc }}</td>
+            <td class="py-3 text-gray-600">{{ contador.referralCode }}</td>
+            <td class="py-3 text-gray-600">{{ contador.commissionRate }}%</td>
+            <td class="py-3 text-gray-600">{{ contador.totalIndicacoes }}</td>
+            <td class="py-3">
+              <span class="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-700">
+                {{ contador.convertidas }}
+              </span>
+            </td>
+          </tr>
+        </ng-template>
+
+        <ng-template #expandedrow let-contador>
+          <tr>
+            <td colspan="7" class="bg-gray-50 p-4">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr>
+                    <th class="text-left text-xs uppercase text-gray-400 font-semibold pb-2">Indicado</th>
+                    <th class="text-left text-xs uppercase text-gray-400 font-semibold pb-2">CNPJ</th>
+                    <th class="text-left text-xs uppercase text-gray-400 font-semibold pb-2">Email</th>
+                    <th class="text-left text-xs uppercase text-gray-400 font-semibold pb-2">Status</th>
+                    <th class="text-left text-xs uppercase text-gray-400 font-semibold pb-2">Plano</th>
+                    <th class="text-left text-xs uppercase text-gray-400 font-semibold pb-2">Convidado em</th>
+                    <th class="text-left text-xs uppercase text-gray-400 font-semibold pb-2">Ativado em</th>
+                    <th class="text-left text-xs uppercase text-gray-400 font-semibold pb-2">Convertido em</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let ind of contador.indicacoes" class="border-t border-gray-100">
+                    <td class="py-2 font-medium text-gray-900">{{ ind.razaoSocial | htmlDecode }}</td>
+                    <td class="py-2 text-gray-600">{{ (ind.cnpj ?? '') | cnpj }}</td>
+                    <td class="py-2 text-gray-600">{{ ind.email }}</td>
+                    <td class="py-2">
+                      <span [class]="'px-2 py-1 rounded text-xs font-medium ' + statusClass(ind.status)">
+                        {{ ind.status }}
+                      </span>
+                    </td>
+                    <td class="py-2 text-gray-600">{{ ind.planoSugerido }}</td>
+                    <td class="py-2 text-gray-600">{{ ind.invitedAt | date: 'dd/MM/yyyy HH:mm' }}</td>
+                    <td class="py-2 text-gray-600">{{ ind.activatedAt | date: 'dd/MM/yyyy HH:mm' }}</td>
+                    <td class="py-2 text-gray-600">{{ ind.convertedAt | date: 'dd/MM/yyyy HH:mm' }}</td>
+                  </tr>
+                  <tr *ngIf="!contador.indicacoes?.length">
+                    <td colspan="8" class="text-center py-4 text-gray-500">Nenhuma indicação deste contador.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </td>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td colspan="7" class="text-center py-6 text-gray-500">Nenhuma indicação encontrada.</td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </div>
+  </div>
+</div>
