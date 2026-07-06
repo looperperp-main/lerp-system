@@ -4033,6 +4033,9 @@ Se o boleto já está `REGISTRADO`, a alteração de vencimento exige remessa CN
    - **Liquidação** → boleto `PAGO`; criar `titulo_baixa` **`PLANEJADA`** com
      `tipo_baixa.meio = 'BOLETO'`, valor = `valor_liquido`; guardar `valor_acrescimos`
      (juros/multa) e `valor_desconto`; tarifa bancária como `conta_movimentacao` DÉBITO (despesa).
+   - **Liquidação parcial** (ocorrência FEBRABAN de baixa parcial) → baixa **`PLANEJADA` parcial**
+     pelo `valor_liquido`; o título **continua `EM_ABERTO`** com saldo residual (§2 — baixa parcial
+     do Módulo I) e o boleto pode permanecer para reapresentação do saldo. Não fecha o título.
    - **Baixa/devolução** → refletir no `status` do boleto (`CANCELADO`); não altera o saldo do
      título além do que a ocorrência determina.
    - **Rejeição** → item `ERRO`, alerta ao operador; boleto volta a `EMITIDO`.
@@ -4357,6 +4360,7 @@ forem o mesmo processo) via `ApplicationEventPublisher`; **eventos que cruzam se
 | Juros/multa recebidos | Caixa/Banco | Receita financeira | do retorno CNAB (`valor_acrescimos`) |
 | Tarifa bancária | Despesa bancária | Caixa/Banco | `conta_movimentacao` DÉBITO |
 | Rendimento de aplicação | Caixa/Banco | Receita financeira (líq. IR) | §17.9 |
+| **Provisão PDD** (§24) | Despesa com PCLD | PCLD (retificadora do ativo, `retificadora=TRUE`) | só quando tenant contabiliza PDD; `PddCalculoJob` mensal; estimativa, não baixa título |
 
 **Resolução das contas:** o `GeracaoLancamentoService` consulta `mapeamento` por
 `(tipo_origem, origem_id)` — ex.: `TIPO_BAIXA` → contas de D/C daquela baixa, `CONTA_CORRENTE` →
