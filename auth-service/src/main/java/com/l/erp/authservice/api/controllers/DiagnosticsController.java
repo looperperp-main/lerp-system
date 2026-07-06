@@ -1,7 +1,9 @@
 package com.l.erp.authservice.api.controllers;
 
 import com.l.erp.authservice.infra.config.Roles;
+import com.l.erp.authservice.repositorios.JobExecutionRepository;
 import com.l.erp.authservice.services.TrialScheduler;
+import com.l.erp.common.util.Constants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cloud.client.ServiceInstance;
@@ -18,15 +20,12 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.time.Duration;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Painel de saúde dos serviços (ferramenta de diagnóstico admin, #2).
@@ -43,12 +42,14 @@ public class DiagnosticsController {
 
     // #5 Runner de jobs: os schedulers de trial do auth, disparáveis manualmente.
     private final Map<String, Job> jobs = new LinkedHashMap<>();
-    private final Map<String, JobInfo> lastRuns = new ConcurrentHashMap<>();
+    private final JobExecutionRepository executions;
 
-    public DiagnosticsController(DiscoveryClient discoveryClient, TrialScheduler trialScheduler) {
+    public DiagnosticsController(DiscoveryClient discoveryClient, TrialScheduler trialScheduler,
+                                 JobExecutionRepository executions) {
         this.discoveryClient = discoveryClient;
-        jobs.put("trial-d10", new Job("Trial D+10 (relatório de engajamento)", trialScheduler::processarD10));
-        jobs.put("trial-d15", new Job("Trial D+15 (expiração/suspensão)", trialScheduler::processarD15));
+        this.executions = executions;
+        jobs.put(Constants.JOB_KEY_TRIAL_D10, new Job("Trial D+10 (relatório de engajamento)", trialScheduler::processarD10));
+        jobs.put(Constants.JOB_KEY_TRIAL_D15, new Job("Trial D+15 (expiração/suspensão)", trialScheduler::processarD15));
     }
 
     public record ServiceHealthDTO(String name, String status, int instances, List<String> down) {}
@@ -150,8 +151,10 @@ public class DiagnosticsController {
     @Secured(Roles.APP_OWNER)
     public ResponseEntity<List<JobInfo>> listJobs() {
         List<JobInfo> result = jobs.entrySet().stream()
-                .map(e -> lastRuns.getOrDefault(e.getKey(),
-                        new JobInfo(e.getKey(), e.getValue().label(), null, null, null)))
+                .map(e -> executions.findFirstByJobKeyOrderByStartedAtDesc(e.getKey())
+                        .map(x -> new JobInfo(e.getKey(), e.getValue().label(),
+                                x.getStartedAt().toString(), x.getStatus(), x.getDurationMs()))
+                        .orElse(new JobInfo(e.getKey(), e.getValue().label(), null, null, null)))
                 .toList();
         return ResponseEntity.ok(result);
     }
@@ -164,20 +167,13 @@ public class DiagnosticsController {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Job desconhecido: " + key);
         }
         log.info("Disparo manual do job {} (admin)", key);
-        lastRuns.put(key, new JobInfo(key, job.label(), Instant.now().toString(), "EXECUTANDO", null));
         // ponytail: assíncrono — o scheduler varre tenants e publica em Kafka; não segura o thread HTTP.
-        CompletableFuture.runAsync(() -> {
-            Instant start = Instant.now();
-            try {
-                job.action().run();
-                lastRuns.put(key, new JobInfo(key, job.label(), start.toString(), "OK",
-                        Duration.between(start, Instant.now()).toMillis()));
-            } catch (Exception e) {
-                log.error("Job manual {} falhou", key, e);
-                lastRuns.put(key, new JobInfo(key, job.label(), start.toString(), "ERRO: " + e.getMessage(),
-                        Duration.between(start, Instant.now()).toMillis()));
-            }
-        });
-        return ResponseEntity.accepted().body(lastRuns.get(key));
+        // O recorder dentro do scheduler persiste início/fim (manual e cron). whenComplete: não engolir falha.
+        CompletableFuture.runAsync(job.action())
+                .whenComplete((v, ex) -> {
+                    if (ex != null) log.error("Disparo async do job {} falhou", key, ex);
+                });
+        return ResponseEntity.accepted()
+                .body(new JobInfo(key, job.label(), null, Constants.JOB_STATUS_RUNNING, null));
     }
 }

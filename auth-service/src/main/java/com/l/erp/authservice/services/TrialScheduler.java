@@ -7,6 +7,7 @@ import com.l.erp.authservice.dominio.TrialEngagement;
 import com.l.erp.authservice.dominio.enumerators.EnumTenantStatus;
 import com.l.erp.authservice.repositorios.TenantRepository;
 import com.l.erp.authservice.repositorios.TrialEngagementRepository;
+import com.l.erp.common.util.Constants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -35,56 +36,63 @@ public class TrialScheduler {
     private final SyaxQueueService syaxQueueService;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
+    private final JobExecutionRecorder recorder;
 
     public TrialScheduler(TenantRepository tenantRepository,
                           TrialEngagementRepository engagementRepository,
                           SyaxQueueService syaxQueueService,
                           KafkaTemplate<String, String> kafkaTemplate,
-                          ObjectMapper objectMapper) {
+                          ObjectMapper objectMapper,
+                          JobExecutionRecorder recorder) {
         this.tenantRepository = tenantRepository;
         this.engagementRepository = engagementRepository;
         this.syaxQueueService = syaxQueueService;
         this.kafkaTemplate = kafkaTemplate;
         this.objectMapper = objectMapper;
+        this.recorder = recorder;
     }
 
     // D+10: roda às 1h todo dia
     @Scheduled(cron = "0 0 1 * * *")
     public void processarD10() {
-        log.info("TrialScheduler D+10 iniciado");
-        Instant ref = Instant.now().minus(10, ChronoUnit.DAYS);
-        Instant from = ref.minus(12, ChronoUnit.HOURS);
-        Instant to = ref.plus(12, ChronoUnit.HOURS);
+        recorder.record(Constants.JOB_KEY_TRIAL_D10, () -> {
+            log.info("TrialScheduler D+10 iniciado");
+            Instant ref = Instant.now().minus(10, ChronoUnit.DAYS);
+            Instant from = ref.minus(12, ChronoUnit.HOURS);
+            Instant to = ref.plus(12, ChronoUnit.HOURS);
 
-        List<Tenant> tenants = tenantRepository.findByStatusAndTrialStartedAtBetween(
-                EnumTenantStatus.TRIAL, from, to);
+            List<Tenant> tenants = tenantRepository.findByStatusAndTrialStartedAtBetween(
+                    EnumTenantStatus.TRIAL, from, to);
 
-        log.info("D+10: {} tenants encontrados", tenants.size());
-        for (Tenant tenant : tenants) {
-            try {
-                processarRelatorioD10(tenant);
-            } catch (Exception e) {
-                log.error("Falha D+10 para tenant {}", tenant.getId(), e);
+            log.info("D+10: {} tenants encontrados", tenants.size());
+            for (Tenant tenant : tenants) {
+                try {
+                    processarRelatorioD10(tenant);
+                } catch (Exception e) {
+                    log.error("Falha D+10 para tenant {}", tenant.getId(), e);
+                }
             }
-        }
+        });
     }
 
     // D+15: roda às 2h todo dia
     @Scheduled(cron = "0 0 2 * * *")
     @Transactional
     public void processarD15() {
-        log.info("TrialScheduler D+15 iniciado");
-        List<Tenant> tenants = tenantRepository.findByStatusAndTrialExpiresAtBefore(
-                EnumTenantStatus.TRIAL, Instant.now());
+        recorder.record(Constants.JOB_KEY_TRIAL_D15, () -> {
+            log.info("TrialScheduler D+15 iniciado");
+            List<Tenant> tenants = tenantRepository.findByStatusAndTrialExpiresAtBefore(
+                    EnumTenantStatus.TRIAL, Instant.now());
 
-        log.info("D+15: {} tenants com trial expirado", tenants.size());
-        for (Tenant tenant : tenants) {
-            try {
-                processarExpiracaoTrial(tenant);
-            } catch (Exception e) {
-                log.error("Falha D+15 para tenant {}", tenant.getId(), e);
+            log.info("D+15: {} tenants com trial expirado", tenants.size());
+            for (Tenant tenant : tenants) {
+                try {
+                    processarExpiracaoTrial(tenant);
+                } catch (Exception e) {
+                    log.error("Falha D+15 para tenant {}", tenant.getId(), e);
+                }
             }
-        }
+        });
     }
 
     public List<SyaxQueue> processarD10ParaTenant(Long tenantId) {

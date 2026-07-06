@@ -78,7 +78,11 @@ public class JobRunnerController {
         log.info("Disparo manual do job {} (admin)", key);
         // ponytail: assíncrono — reconciliation/dunning varrem várias entidades e chamam o Asaas; rodar
         // no thread HTTP estouraria o timeout. O recorder dentro do job persiste início/fim (manual e cron).
-        CompletableFuture.runAsync(job.trigger());
+        // whenComplete: sem isso, qualquer falha (ex.: tabela job_execution ausente) morria engolida no CF.
+        CompletableFuture.runAsync(job.trigger())
+                .whenComplete((v, ex) -> {
+                    if (ex != null) log.error("Disparo async do job {} falhou", key, ex);
+                });
         return ResponseEntity.accepted()
                 .body(new JobInfo(key, job.label(), null, Constants.JOB_STATUS_RUNNING, null));
     }

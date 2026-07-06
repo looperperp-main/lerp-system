@@ -305,6 +305,9 @@ public class Constants {
     public static final String JOB_KEY_WEBHOOK_RECOVERY = "webhook-recovery";
     public static final String JOB_KEY_DUNNING = "dunning";
     public static final String JOB_KEY_COMMISSION_PAYOUT = "commission-payout";
+    // Jobs de trial do auth (schedulers D+10/D+15) — persistidos em auth.job_execution
+    public static final String JOB_KEY_TRIAL_D10 = "trial-d10";
+    public static final String JOB_KEY_TRIAL_D15 = "trial-d15";
     public static final String JOB_STATUS_RUNNING = "EXECUTANDO";
     public static final String JOB_STATUS_OK = "OK";
     public static final String JOB_STATUS_ERROR = "ERRO";

@@ -1,0 +1,62 @@
+databaseChangeLog:
+  - changeSet:
+      id: "auth-014-job-execution"
+      author: vitor fernandes ferreira
+      comment: "Histórico de execução dos jobs agendados do auth (schedulers de trial D+10/D+15). Espelha billing.job_execution: início/fim/status/duração de cada execução manual (admin) ou cron. Persiste o que antes ficava só em memória."
+      changes:
+        - createTable:
+            schemaName: auth
+            tableName: job_execution
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: job_key
+                  type: VARCHAR(60)
+                  remarks: "chave lógica do job (trial-d10, trial-d15) — casa com a tela de jobs do admin"
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: VARCHAR(20)
+                  remarks: "EXECUTANDO enquanto roda; OK ou ERRO ao terminar"
+                  constraints:
+                    nullable: false
+              - column:
+                  name: started_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: finished_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: true
+              - column:
+                  name: duration_ms
+                  type: BIGINT
+                  constraints:
+                    nullable: true
+              - column:
+                  name: error_message
+                  type: TEXT
+                  constraints:
+                    nullable: true
+        - createIndex:
+            schemaName: auth
+            tableName: job_execution
+            indexName: idx_auth_job_execution_key_started
+            columns:
+              - column:
+                  name: job_key
+              - column:
+                  name: started_at
+                  descending: true
+      rollback:
+        - dropTable:
+            schemaName: auth
+            tableName: job_execution
