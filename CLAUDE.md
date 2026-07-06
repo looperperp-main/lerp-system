@@ -159,6 +159,8 @@ Angular 21, standalone components (no NgModules). Pages in `src/app/pages/` (`lo
 
 **Constantes:** todo valor constante (strings de ação/auditoria, tipos de evento, mensagens reutilizáveis, códigos) deve ser declarado em `common/src/main/java/com/l/erp/common/util/Constants.java` e referenciado de lá — não usar literais "soltos" no código dos serviços.
 
+**Nunca rodar build:** o Claude **não executa nenhum comando de build** — nem backend (`mvnw compile/verify/test/package/spring-boot:run`, Docker) nem frontend (`npm run build`, `ng build/serve`, `npm test`). O usuário roda tudo isso. Confiar na leitura do código pra verificar; marcar sempre o que não foi rodado como "não testado".
+
 After every set of code changes, propose a short commit message in the format:
 
 ```

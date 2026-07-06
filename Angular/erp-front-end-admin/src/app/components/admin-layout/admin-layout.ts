@@ -91,6 +91,11 @@ export class AdminLayout {
           routerLink: '/admin/diagnostico/saude',
         },
         { label: 'Nível de Log', icon: 'pi pi-sliders-h', routerLink: '/admin/diagnostico/logs' },
+        {
+          label: 'Jobs Agendados',
+          icon: 'pi pi-play-circle',
+          routerLink: '/admin/diagnostico/jobs',
+        },
       ],
     },
     { label: 'Relatórios', icon: 'pi pi-chart-bar', routerLink: '/admin/relatorios' },

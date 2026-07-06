@@ -19,6 +19,7 @@ import { FilaInterna } from './pages/admin/fila-interna/fila-interna';
 import { Rastreador } from './pages/admin/diagnostico/rastreador';
 import { Saude } from './pages/admin/diagnostico/saude';
 import { Logs } from './pages/admin/diagnostico/logs';
+import { Jobs } from './pages/admin/diagnostico/jobs';
 import { authGuard } from './util/authguard';
 
 export const routes: Routes = [
@@ -51,6 +52,7 @@ export const routes: Routes = [
       { path: 'diagnostico/rastreador', component: Rastreador },
       { path: 'diagnostico/saude', component: Saude },
       { path: 'diagnostico/logs', component: Logs },
+      { path: 'diagnostico/jobs', component: Jobs },
     ],
   },
 ];
