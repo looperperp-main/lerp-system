@@ -4,7 +4,9 @@ import com.l.erp.billingservice.domain.Subscription;
 import com.l.erp.billingservice.domain.SubscriptionStatus;
 import com.l.erp.billingservice.infra.redis.DistributedLockService;
 import com.l.erp.billingservice.repository.SubscriptionRepository;
+import com.l.erp.billingservice.services.JobExecutionRecorder;
 import com.l.erp.billingservice.services.SubscriptionService;
+import com.l.erp.common.util.Constants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -29,13 +31,16 @@ public class ReconciliationJob {
     private final DistributedLockService lockService;
     private final SubscriptionRepository subscriptionRepository;
     private final SubscriptionService subscriptionService;
+    private final JobExecutionRecorder recorder;
 
     public ReconciliationJob(DistributedLockService lockService,
                              SubscriptionRepository subscriptionRepository,
-                             SubscriptionService subscriptionService) {
+                             SubscriptionService subscriptionService,
+                             JobExecutionRecorder recorder) {
         this.lockService = lockService;
         this.subscriptionRepository = subscriptionRepository;
         this.subscriptionService = subscriptionService;
+        this.recorder = recorder;
     }
 
     @Scheduled(cron = "${billing.cron.reconciliation}")
@@ -47,16 +52,18 @@ public class ReconciliationJob {
             return;
         }
         try {
-            List<Subscription> pendentes = subscriptionRepository.findByStatus(SubscriptionStatus.AGUARDANDO_PAGAMENTO);
-            for (Subscription sub : pendentes) {
-                try {
-                    if (sub.getAsaasSubscriptionId() != null) {
-                        subscriptionService.reprocessarPagamento(sub);
+            recorder.record(Constants.JOB_KEY_RECONCILIATION, () -> {
+                List<Subscription> pendentes = subscriptionRepository.findByStatus(SubscriptionStatus.AGUARDANDO_PAGAMENTO);
+                for (Subscription sub : pendentes) {
+                    try {
+                        if (sub.getAsaasSubscriptionId() != null) {
+                            subscriptionService.reprocessarPagamento(sub);
+                        }
+                    } catch (Exception e) {
+                        log.error("Falha na reconciliação — subscription Asaas {}", sub.getAsaasSubscriptionId(), e);
                     }
-                } catch (Exception e) {
-                    log.error("Falha na reconciliação — subscription Asaas {}", sub.getAsaasSubscriptionId(), e);
                 }
-            }
+            });
         } finally {
             lockService.release(lockKey, lockOwner);
         }

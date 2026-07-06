@@ -5,6 +5,7 @@ import com.l.erp.billingservice.domain.WebhookLog;
 import com.l.erp.billingservice.infra.asaas.dto.AsaasWebhookPayload;
 import com.l.erp.billingservice.infra.redis.DistributedLockService;
 import com.l.erp.billingservice.repository.WebhookLogRepository;
+import com.l.erp.billingservice.services.JobExecutionRecorder;
 import com.l.erp.billingservice.services.webhook.WebhookProcessor;
 import com.l.erp.common.util.Constants;
 import org.slf4j.Logger;
@@ -33,13 +34,16 @@ public class WebhookRecoveryJob {
     private final DistributedLockService lockService;
     private final WebhookLogRepository webhookLogRepository;
     private final WebhookProcessor webhookProcessor;
+    private final JobExecutionRecorder recorder;
 
     public WebhookRecoveryJob(DistributedLockService lockService,
                               WebhookLogRepository webhookLogRepository,
-                              WebhookProcessor webhookProcessor) {
+                              WebhookProcessor webhookProcessor,
+                              JobExecutionRecorder recorder) {
         this.lockService = lockService;
         this.webhookLogRepository = webhookLogRepository;
         this.webhookProcessor = webhookProcessor;
+        this.recorder = recorder;
     }
 
     @Scheduled(cron = "${billing.cron.webhook-recovery}")
@@ -51,21 +55,23 @@ public class WebhookRecoveryJob {
             return;
         }
         try {
-            OffsetDateTime cutoff = OffsetDateTime.now().minusMinutes(STUCK_MINUTES);
-            List<WebhookLog> stuck = webhookLogRepository
-                    .findByStatusAndReceivedAtBefore(Constants.WEBHOOK_RECEBIDO, cutoff);
-            if (stuck.isEmpty()) {
-                return;
-            }
-            log.warn("WebhookRecovery: {} webhook(s) presos em RECEBIDO — reprocessando", stuck.size());
-            for (WebhookLog wl : stuck) {
-                try {
-                    AsaasWebhookPayload payload = MAPPER.readValue(wl.getPayload(), AsaasWebhookPayload.class);
-                    webhookProcessor.processAsync(payload, wl);
-                } catch (Exception e) {
-                    log.error("Falha ao reprocessar webhook_log id={}", wl.getId(), e);
+            recorder.record(Constants.JOB_KEY_WEBHOOK_RECOVERY, () -> {
+                OffsetDateTime cutoff = OffsetDateTime.now().minusMinutes(STUCK_MINUTES);
+                List<WebhookLog> stuck = webhookLogRepository
+                        .findByStatusAndReceivedAtBefore(Constants.WEBHOOK_RECEBIDO, cutoff);
+                if (stuck.isEmpty()) {
+                    return;
                 }
-            }
+                log.warn("WebhookRecovery: {} webhook(s) presos em RECEBIDO — reprocessando", stuck.size());
+                for (WebhookLog wl : stuck) {
+                    try {
+                        AsaasWebhookPayload payload = MAPPER.readValue(wl.getPayload(), AsaasWebhookPayload.class);
+                        webhookProcessor.processAsync(payload, wl);
+                    } catch (Exception e) {
+                        log.error("Falha ao reprocessar webhook_log id={}", wl.getId(), e);
+                    }
+                }
+            });
         } finally {
             lockService.release(lockKey, lockOwner);
         }

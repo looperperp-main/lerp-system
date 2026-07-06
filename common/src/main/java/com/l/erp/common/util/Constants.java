@@ -298,4 +298,14 @@ public class Constants {
 
     // Chave do MDC que carrega o correlationId em toda a thread da requisição (log + corpo de erro).
     public static final String MDC_CORRELATION_ID = "correlationId";
+
+    // Jobs agendados do billing (runner de diagnóstico #5) — chaves e status persistidos em
+    // billing.job_execution. As chaves batem com as usadas na tela de jobs do admin.
+    public static final String JOB_KEY_RECONCILIATION = "reconciliation";
+    public static final String JOB_KEY_WEBHOOK_RECOVERY = "webhook-recovery";
+    public static final String JOB_KEY_DUNNING = "dunning";
+    public static final String JOB_KEY_COMMISSION_PAYOUT = "commission-payout";
+    public static final String JOB_STATUS_RUNNING = "EXECUTANDO";
+    public static final String JOB_STATUS_OK = "OK";
+    public static final String JOB_STATUS_ERROR = "ERRO";
 }

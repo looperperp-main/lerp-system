@@ -67,7 +67,7 @@ interface JobRow {
                     {{ j.lastStatus }}
                   </span>
                 } @else {
-                  <span class="text-gray-400 text-xs">nunca rodado manualmente</span>
+                  <span class="text-gray-400 text-xs">nunca executado</span>
                 }
               </td>
               <td class="py-3 text-gray-600">

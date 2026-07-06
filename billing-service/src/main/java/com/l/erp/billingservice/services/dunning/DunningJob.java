@@ -1,6 +1,8 @@
 package com.l.erp.billingservice.services.dunning;
 
 import com.l.erp.billingservice.infra.redis.DistributedLockService;
+import com.l.erp.billingservice.services.JobExecutionRecorder;
+import com.l.erp.common.util.Constants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -20,10 +22,13 @@ public class DunningJob {
 
     private final DistributedLockService lockService;
     private final DunningService dunningService;
+    private final JobExecutionRecorder recorder;
 
-    public DunningJob(DistributedLockService lockService, DunningService dunningService) {
+    public DunningJob(DistributedLockService lockService, DunningService dunningService,
+                      JobExecutionRecorder recorder) {
         this.lockService = lockService;
         this.dunningService = dunningService;
+        this.recorder = recorder;
     }
 
     @Scheduled(cron = "${billing.cron.dunning}")
@@ -36,8 +41,10 @@ public class DunningJob {
             return;
         }
         try {
-            log.info("Iniciando ciclo de dunning");
-            dunningService.run();
+            recorder.record(Constants.JOB_KEY_DUNNING, () -> {
+                log.info("Iniciando ciclo de dunning");
+                dunningService.run();
+            });
         } finally {
             lockService.release(lockKey, lockOwner);
         }

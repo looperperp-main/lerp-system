@@ -1,6 +1,8 @@
 package com.l.erp.billingservice.services.payout;
 
 import com.l.erp.billingservice.infra.redis.DistributedLockService;
+import com.l.erp.billingservice.services.JobExecutionRecorder;
+import com.l.erp.common.util.Constants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -20,10 +22,13 @@ public class CommissionPayoutJob {
 
     private final DistributedLockService lockService;
     private final CommissionPayoutService payoutService;
+    private final JobExecutionRecorder recorder;
 
-    public CommissionPayoutJob(DistributedLockService lockService, CommissionPayoutService payoutService) {
+    public CommissionPayoutJob(DistributedLockService lockService, CommissionPayoutService payoutService,
+                               JobExecutionRecorder recorder) {
         this.lockService = lockService;
         this.payoutService = payoutService;
+        this.recorder = recorder;
     }
 
     @Scheduled(cron = "${billing.cron.commission-payout}")
@@ -37,8 +42,10 @@ public class CommissionPayoutJob {
             return;
         }
         try {
-            log.info("Iniciando repasse de comissões — período {}", period);
-            payoutService.processPayouts(period);
+            recorder.record(Constants.JOB_KEY_COMMISSION_PAYOUT, () -> {
+                log.info("Iniciando repasse de comissões — período {}", period);
+                payoutService.processPayouts(period);
+            });
         } finally {
             lockService.release(lockKey, lockOwner);
         }
