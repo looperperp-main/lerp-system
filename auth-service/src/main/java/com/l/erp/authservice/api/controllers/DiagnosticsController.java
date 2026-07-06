@@ -20,6 +20,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -50,7 +51,7 @@ public class DiagnosticsController {
         jobs.put("trial-d15", new Job("Trial D+15 (expiração/suspensão)", trialScheduler::processarD15));
     }
 
-    public record ServiceHealthDTO(String name, String status, int instances) {}
+    public record ServiceHealthDTO(String name, String status, int instances, List<String> down) {}
 
     @GetMapping("/health")
     @Secured(Roles.APP_OWNER)
@@ -64,21 +65,40 @@ public class DiagnosticsController {
 
     private ServiceHealthDTO probe(String serviceId) {
         List<ServiceInstance> instances = discoveryClient.getInstances(serviceId);
-        String status = "DOWN";
-        if (!instances.isEmpty()) {
-            try {
-                // ponytail: pinga só a 1ª instância; se rodar N réplicas, iterar todas.
-                Map<?, ?> body = restClient.get()
-                        .uri(instances.get(0).getUri() + "/actuator/health")
-                        .retrieve()
-                        .body(Map.class);
-                status = body != null && body.get("status") != null ? body.get("status").toString() : "UNKNOWN";
-            } catch (Exception e) {
-                log.debug("Health check falhou para {}: {}", serviceId, e.getMessage());
-                status = "DOWN";
+        if (instances.isEmpty()) {
+            return new ServiceHealthDTO(serviceId, "DOWN", 0, List.of());
+        }
+        try {
+            // ponytail: pinga só a 1ª instância; se rodar N réplicas, iterar todas.
+            // exchange (não retrieve): health DOWN devolve 503 — precisamos ler o corpo mesmo assim
+            // pra saber QUAL componente caiu (retrieve estouraria e perderíamos o motivo).
+            Map<?, ?> body = restClient.get()
+                    .uri(instances.get(0).getUri() + "/actuator/health")
+                    .exchange((req, res) -> res.bodyTo(Map.class));
+            String status = body != null && body.get("status") != null ? body.get("status").toString() : "UNKNOWN";
+            return new ServiceHealthDTO(serviceId, status, instances.size(), downComponents(body));
+        } catch (Exception e) {
+            log.debug("Health check falhou para {}: {}", serviceId, e.getMessage());
+            return new ServiceHealthDTO(serviceId, "DOWN", instances.size(), List.of());
+        }
+    }
+
+    /** Componentes com status != UP no corpo do /actuator/health (exige show-details=always). */
+    private List<String> downComponents(Map<?, ?> body) {
+        Object components = body == null ? null : body.get("components");
+        if (!(components instanceof Map<?, ?> map)) {
+            return List.of();
+        }
+        List<String> down = new ArrayList<>();
+        for (Map.Entry<?, ?> entry : map.entrySet()) {
+            if (entry.getValue() instanceof Map<?, ?> comp) {
+                Object st = comp.get("status");
+                if (st != null && !"UP".equals(st.toString())) {
+                    down.add(entry.getKey().toString());
+                }
             }
         }
-        return new ServiceHealthDTO(serviceId, status, instances.size());
+        return down;
     }
 
     // ---- #3 Toggle de log level em runtime (proxy pro /actuator/loggers de cada serviço) ----

@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { ButtonDirective } from 'primeng/button';
+import { ToastrService } from 'ngx-toastr';
 import { environment } from '../../../../environments/environment';
 
 interface HealthRow {
@@ -91,6 +92,7 @@ interface HealthRow {
 })
 export class Logs implements OnInit {
   private readonly http = inject(HttpClient);
+  private readonly toastr = inject(ToastrService);
   private readonly base = `${environment.apiUrl}/auth/diagnostics`;
 
   readonly levels = ['TRACE', 'DEBUG', 'INFO', 'WARN', 'ERROR', 'OFF', ''];
@@ -107,7 +109,8 @@ export class Logs implements OnInit {
     // reaproveita o painel de saúde pra listar os serviços registrados no Eureka
     this.http.get<HealthRow[]>(`${this.base}/health`).subscribe({
       next: (res) => {
-        const names = (res ?? []).map((s) => s.name);
+        // gateway não tem /actuator/loggers exposto → tira do seletor pra não oferecer alvo que falha
+        const names = (res ?? []).map((s) => s.name).filter((n) => n.toLowerCase() !== 'gateway');
         this.services.set(names);
         if (names.length && !this.service) this.service = names[0];
       },
@@ -124,14 +127,16 @@ export class Logs implements OnInit {
     this.http.post(`${this.base}/loggers`, null, { params }).subscribe({
       next: () => {
         this.erro.set(false);
-        this.result.set(
-          `Nível de ${this.logger} em ${this.service} → ${this.level || '(resetado)'}.`,
-        );
+        const msg = `Nível de ${this.logger} em ${this.service} → ${this.level || '(resetado)'}.`;
+        this.result.set(msg);
+        this.toastr.success(msg);
         this.saving.set(false);
       },
       error: (e) => {
         this.erro.set(true);
-        this.result.set(`Falhou: ${e?.error?.message || e?.message || 'erro'}`);
+        const msg = this.errMsg(e);
+        this.result.set(`Falhou: ${msg}`);
+        this.toastr.error(msg, 'Falha ao aplicar nível');
         this.saving.set(false);
       },
     });
@@ -151,8 +156,15 @@ export class Logs implements OnInit {
       },
       error: (e) => {
         this.erro.set(true);
-        this.result.set(`Falhou: ${e?.error?.message || e?.message || 'erro'}`);
+        const msg = this.errMsg(e);
+        this.result.set(`Falhou: ${msg}`);
+        this.toastr.error(msg, 'Falha ao consultar nível');
       },
     });
+  }
+
+  /** Mensagem amigável: usa o `message` do StandardError do back quando existir. */
+  private errMsg(e: any): string {
+    return e?.error?.message || e?.message || 'Erro inesperado';
   }
 }

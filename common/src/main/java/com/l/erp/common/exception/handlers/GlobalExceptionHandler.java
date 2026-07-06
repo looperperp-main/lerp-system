@@ -3,14 +3,18 @@ package com.l.erp.common.exception.handlers;
 import com.l.erp.common.exception.custom.BusinessException;
 import com.l.erp.common.exception.custom.UserLockedException;
 import com.l.erp.common.exception.dto.StandardError;
+import com.l.erp.common.util.Constants;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -22,6 +26,15 @@ import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * Handler global de exceções — padrão de erros do projeto (2026-07-06):
+ * <ul>
+ *   <li>Status correto: erro de cliente (4xx) nunca vira 500.</li>
+ *   <li>Log por classe: 4xx → {@code WARN}, uma linha, sem stacktrace; 5xx → {@code ERROR} com stacktrace.</li>
+ *   <li>Mensagens em PT-BR; 5xx nunca vaza detalhe interno pro cliente.</li>
+ *   <li>Todo corpo e toda linha de log carregam o {@code correlationId} (colável no Rastreador).</li>
+ * </ul>
+ */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -31,18 +44,47 @@ public class GlobalExceptionHandler {
             .ofPattern("dd/MM/yyyy HH:mm:ss")
             .withZone(ZoneId.systemDefault());
 
+    /** correlationId da requisição atual (populado pelo CorrelationIdFilter). */
+    private static String correlationId() {
+        return MDC.get(Constants.MDC_CORRELATION_ID);
+    }
+
+    /** Monta o corpo padrão já com correlationId. */
+    private static StandardError body(int status, String error, String message, HttpServletRequest request) {
+        return StandardError.builder()
+                .timestamp(Instant.now())
+                .status(status)
+                .error(error)
+                .message(message)
+                .path(request.getRequestURI())
+                .correlationId(correlationId())
+                .build();
+    }
+
+    /** Uma linha só, sem stacktrace — para erros de cliente (4xx) e outros esperados. */
+    private static void logClientError(int status, HttpServletRequest request, String message) {
+        log.warn("[corr={}] {} {} {} — {}", correlationId(), status, request.getMethod(), request.getRequestURI(), message);
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<StandardError> handleNoResourceFound(NoResourceFoundException e, HttpServletRequest request) {
+        logClientError(HttpStatus.NOT_FOUND.value(), request, "recurso inexistente");
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(body(HttpStatus.NOT_FOUND.value(), "Não encontrado", "Recurso não encontrado.", request));
+    }
+
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<StandardError> handleResponseStatusException(ResponseStatusException e, HttpServletRequest request) {
-        HttpStatus status = HttpStatus.resolve(e.getStatusCode().value());
-        String error = status != null ? status.getReasonPhrase() : "Error";
-        StandardError err = StandardError.builder()
-                .timestamp(Instant.now())
-                .status(e.getStatusCode().value())
-                .error(error)
-                .message(e.getReason())
-                .path(request.getRequestURI())
-                .build();
-        return ResponseEntity.status(e.getStatusCode()).body(err);
+        HttpStatusCode statusCode = e.getStatusCode();
+        HttpStatus status = HttpStatus.resolve(statusCode.value());
+        String error = status != null ? status.getReasonPhrase() : "Erro";
+        String message = e.getReason();
+        if (statusCode.is5xxServerError()) {
+            log.error("[corr={}] {} {} {} — {}", correlationId(), statusCode.value(), request.getMethod(), request.getRequestURI(), message, e);
+        } else {
+            logClientError(statusCode.value(), request, message);
+        }
+        return ResponseEntity.status(statusCode).body(body(statusCode.value(), error, message, request));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -50,54 +92,32 @@ public class GlobalExceptionHandler {
         String message = e.getBindingResult().getFieldErrors().stream()
                 .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
                 .collect(Collectors.joining("; "));
-        StandardError err = StandardError.builder()
-                .timestamp(Instant.now())
-                .status(HttpStatus.BAD_REQUEST.value())
-                .error("Validation Error")
-                .message(message)
-                .path(request.getRequestURI())
-                .build();
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(err);
+        logClientError(HttpStatus.BAD_REQUEST.value(), request, message);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(body(HttpStatus.BAD_REQUEST.value(), "Erro de validação", message, request));
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<StandardError> handleGenericException(Exception e, HttpServletRequest request) {
-        if(log.isErrorEnabled()){
-            log.error("Erro não tratado em {} {} — {}",
-                    request.getMethod(), request.getRequestURI(), e.toString(), e);
-        }
-        StandardError err = StandardError.builder()
-                .timestamp(Instant.now())
-                .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
-                .error("Internal Server Error")
-                .message("Ocorreu um erro inesperado. Tente novamente ou contate o suporte.")
-                .path(request.getRequestURI())
-                .build();
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(err);
+        // Único ponto que loga stacktrace — bug de verdade (5xx).
+        log.error("[corr={}] 500 {} {} — {}", correlationId(), request.getMethod(), request.getRequestURI(), e.toString(), e);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(body(HttpStatus.INTERNAL_SERVER_ERROR.value(), "Erro interno",
+                        "Ocorreu um erro inesperado. Tente novamente ou contate o suporte.", request));
     }
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<StandardError> handleBussinessException(BusinessException e, HttpServletRequest request) {
-        StandardError err = StandardError.builder()
-                .timestamp(Instant.now())
-                .status(e.getStatus().value())
-                .error("Erro de Negocio")
-                .message(e.getMessage())
-                .path(request.getRequestURI())
-                .build();
-        return ResponseEntity.status(e.getStatus()).body(err);
+        logClientError(e.getStatus().value(), request, e.getMessage());
+        return ResponseEntity.status(e.getStatus())
+                .body(body(e.getStatus().value(), "Erro de negócio", e.getMessage(), request));
     }
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<StandardError> handleAccessDenied(AccessDeniedException e, HttpServletRequest request) {
-        StandardError err = StandardError.builder()
-                .timestamp(Instant.now())
-                .status(HttpStatus.FORBIDDEN.value())
-                .error("Forbidden")
-                .message("Access Denied")
-                .path(request.getRequestURI())
-                .build();
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(err);
+        logClientError(HttpStatus.FORBIDDEN.value(), request, "acesso negado");
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(body(HttpStatus.FORBIDDEN.value(), "Acesso negado", "Acesso negado.", request));
     }
 
     @ExceptionHandler(UserLockedException.class)

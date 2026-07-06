@@ -48,6 +48,8 @@ public class InternalRequestFilter extends OncePerRequestFilter {
 
     private boolean isPublic(String method, String path) {
         if (PUBLIC_EXACT.contains(path)) return true;
+        // Actuator loggers: painel de diagnóstico (proxy interno) lê/troca nível de log
+        if (path.startsWith("/actuator/loggers")) return true;
         // POST /api/v1/partners — solicitação pública de parceria (público no gateway)
         if ("POST".equalsIgnoreCase(method) && "/api/v1/partners".equals(path)) return true;
         // Documentação OpenAPI / Swagger UI

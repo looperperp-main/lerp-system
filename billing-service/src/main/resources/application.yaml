@@ -80,7 +80,9 @@ management:
         include: "health,info,prometheus,metrics,loggers"
   endpoint:
     health:
-      show-details: when-authorized
+      # always (não when-authorized): o painel de saúde do admin chama sem token e precisa ver
+      # quais componentes estão DOWN (ex.: redis). Actuator fica só na rede interna, não passa pelo gateway.
+      show-details: always
     loggers:
       access: unrestricted
   prometheus:

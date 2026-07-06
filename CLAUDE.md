@@ -54,7 +54,9 @@ ERP-VSD is a multi-tenant ERP system built as a Spring Boot microservices monore
 docker compose up -d
 
 # Start only essential infrastructure
-docker compose up -d postgres zookeeper kafka
+# NOTE: inclua redis — billing-service usa Redis (DistributedLock dos jobs). Sem Redis, o
+# health agregado do billing fica DOWN (503) e o painel de saúde do admin mostra billing DOWN.
+docker compose up -d postgres zookeeper kafka redis
 
 # Web UIs: Kafka UI :8080, Adminer :8081, Prometheus :9090, Grafana :3000, Kibana :5601
 ```
@@ -135,6 +137,12 @@ Both `auth-service` and `cadastro-service` run with `spring.jpa.hibernate.ddl-au
 - `DB_USER`, `DB_PASS`, `DB_HOST`, `DB_PORT`
 - `KAFKA_BROKERS`
 
+`billing-service`:
+- `DB_USER`, `DB_PASS`, `DB_HOST`, `DB_PORT`
+- `KAFKA_BROKERS`
+- `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` — **obrigatório** (DistributedLock dos jobs); Redis fora do ar ⇒ health do billing DOWN
+- `ASAAS_API_KEY`, `ASAAS_BASE_URL`, `ASAAS_WEBHOOK_TOKEN`
+
 ### Test Strategy
 
 Tests in `auth-service` use `@WebMvcTest` + `MockMvc` with Mockito for mocking service/repository layers. H2 is on the test classpath for repository-level tests. JaCoCo enforces ≥40% instruction coverage at `verify` phase, excluding DTOs, mappers, domain entities, and `@Configuration` classes. The test `WebSecurityConfig` replaces the production `SecurityConfig` with an in-memory user.
@@ -160,6 +168,8 @@ Angular 21, standalone components (no NgModules). Pages in `src/app/pages/` (`lo
 **Constantes:** todo valor constante (strings de ação/auditoria, tipos de evento, mensagens reutilizáveis, códigos) deve ser declarado em `common/src/main/java/com/l/erp/common/util/Constants.java` e referenciado de lá — não usar literais "soltos" no código dos serviços.
 
 **Nunca rodar build:** o Claude **não executa nenhum comando de build** — nem backend (`mvnw compile/verify/test/package/spring-boot:run`, Docker) nem frontend (`npm run build`, `ng build/serve`, `npm test`). O usuário roda tudo isso. Confiar na leitura do código pra verificar; marcar sempre o que não foi rodado como "não testado".
+
+**Padrão de erros/logs (backend):** tratamento de erro passa pelo `common/GlobalExceptionHandler`. Regras: (1) status correto — erro de cliente (4xx) nunca vira 500 (`NoResourceFound`→404, validação→400, `AccessDenied`→403); (2) log por classe — 4xx → `WARN`, uma linha, **sem** stacktrace; 5xx → `ERROR` **com** stacktrace (único lugar que loga stack); (3) mensagens em **PT-BR**; (4) 5xx nunca vaza detalhe interno pro cliente; (5) corpo `StandardError` = `{timestamp, status, error, message, path, correlationId}`, com `correlationId` vindo do MDC (`CorrelationIdFilter` lê o header `X-Correlation-ID`). Pra correlationId sair em toda linha de log, falta `[%X{correlationId}]` no pattern do logback de cada serviço.
 
 After every set of code changes, propose a short commit message in the format:
 

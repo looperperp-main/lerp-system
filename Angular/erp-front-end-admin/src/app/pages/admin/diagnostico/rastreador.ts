@@ -26,7 +26,8 @@ interface AuditRow {
       <div class="mb-6">
         <h1 class="text-xl lg:text-2xl font-bold text-gray-900">Rastreador de operação</h1>
         <p class="text-gray-500 text-sm mt-1">
-          Cole um <b>correlationId</b> (ex.: da Visão 360 ou de um log) e veja tudo que aconteceu naquela operação.
+          Cole um <b>correlationId</b> (ex.: da Visão 360 ou de um log) e veja tudo que aconteceu
+          naquela operação.
         </p>
       </div>
 
@@ -37,9 +38,17 @@ interface AuditRow {
             [(ngModel)]="correlationId"
             (keydown.enter)="buscar()"
             placeholder="correlationId (UUID)"
-            class="flex-1 border border-gray-300 rounded-md p-2 text-sm font-mono" />
-          <button pButton type="button" icon="pi pi-search" label="Rastrear"
-                  class="p-button-sm" [disabled]="!correlationId || loading()" (click)="buscar()"></button>
+            class="flex-1 border border-gray-300 rounded-md p-2 text-sm font-mono"
+          />
+          <button
+            pButton
+            type="button"
+            icon="pi pi-search"
+            label="Rastrear"
+            class="p-button-sm"
+            [disabled]="!correlationId || loading()"
+            (click)="buscar()"
+          ></button>
         </div>
       </div>
 
@@ -56,12 +65,20 @@ interface AuditRow {
           </ng-template>
           <ng-template pTemplate="body" let-e>
             <tr class="hover:bg-gray-50 border-b border-gray-50 transition-colors">
-              <td class="py-3 text-gray-600">{{ e.eventDate ? (e.eventDate | date: 'dd/MM/yyyy HH:mm:ss') : '—' }}</td>
+              <td class="py-3 text-gray-600">
+                {{ e.eventDate ? (e.eventDate | date: 'dd/MM/yyyy HH:mm:ss') : '—' }}
+              </td>
               <td class="py-3 text-gray-800 font-medium">{{ e.action }}</td>
               <td class="py-3 text-gray-500 text-xs">{{ e.targetType }} {{ e.targetId }}</td>
               <td class="py-3">
-                <span [class]="'px-2 py-1 rounded text-xs font-medium ' +
-                  (e.result === 'SUCCESS' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700')">
+                <span
+                  [class]="
+                    'px-2 py-1 rounded text-xs font-medium ' +
+                    (e.result === 'SUCCESS'
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-red-100 text-red-700')
+                  "
+                >
                   {{ e.result }}
                 </span>
               </td>
@@ -69,9 +86,15 @@ interface AuditRow {
             </tr>
           </ng-template>
           <ng-template pTemplate="emptymessage">
-            <tr><td colspan="5" class="text-center py-6 text-gray-500">
-              {{ buscou() ? 'Nenhum evento para esse correlationId.' : 'Informe um correlationId e clique em Rastrear.' }}
-            </td></tr>
+            <tr>
+              <td colspan="5" class="text-center py-6 text-gray-500">
+                {{
+                  buscou()
+                    ? 'Nenhum evento para esse correlationId.'
+                    : 'Informe um correlationId e clique em Rastrear.'
+                }}
+              </td>
+            </tr>
           </ng-template>
         </p-table>
       </div>

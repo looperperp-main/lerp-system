@@ -17,6 +17,7 @@ public class StandardError {
     private String error;
     private String message;
     private String path;
+    private String correlationId;
 
     //public StandardError() {}
 

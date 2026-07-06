@@ -294,4 +294,8 @@ public class Constants {
     public static final String HEADER_PARTNER_ID = "X-Partner-Id";
     public static final String HEADER_AUTHORITIES = "X-Authorities";
     public static final String HEADER_ASAAS_ACCESS_TOKEN = "asaas-access-token";
+    public static final String HEADER_CORRELATION_ID = "X-Correlation-ID";
+
+    // Chave do MDC que carrega o correlationId em toda a thread da requisição (log + corpo de erro).
+    public static final String MDC_CORRELATION_ID = "correlationId";
 }
