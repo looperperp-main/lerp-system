@@ -209,21 +209,24 @@ INDEX idx_audit_data            (tenant_id, created_at)
 
 ## F3. Centro de Custo
 
-Aparece em três módulos (`titulo_ajuste`, `conta_movimentacao`, `lancamento_partida`) mas nunca foi modelado como entidade. Sem isso, os relatórios gerenciais ficam sem dimensão analítica por departamento/projeto.
+O centro de custo é modelado como **entidade própria** (`financeiro.centro_custo`) — dimensão analítica por departamento/projeto referenciada por `titulo`, `titulo_baixa`, `conta_movimentacao` e `lancamento_partida` (`titulo_ajuste` não tem coluna própria: herda o centro de custo do título). Sem essa entidade, os relatórios gerenciais ficam sem dimensão analítica.
 
 ```sql
 financeiro.centro_custo
 ─────────────────────────────────────────────
-id              BIGSERIAL PK
-tenant_id       BIGINT NOT NULL
-codigo          VARCHAR(30) NOT NULL
-descricao       VARCHAR(200) NOT NULL
-centro_pai_id   BIGINT REFERENCES centro_custo   -- hierarquia opcional
-nivel           INT NOT NULL DEFAULT 1
-aceita_rateio   BOOLEAN DEFAULT TRUE             -- só analíticos aceitam lançamento
-ativo           BOOLEAN DEFAULT TRUE
-created_at      TIMESTAMPTZ NOT NULL
-created_by      VARCHAR(100) NOT NULL
+id                BIGSERIAL PK
+tenant_id         BIGINT NOT NULL
+codigo            VARCHAR(30) NOT NULL
+descricao         VARCHAR(200) NOT NULL
+centro_pai_id     BIGINT REFERENCES centro_custo   -- hierarquia opcional; serviço valida ausência de ciclo
+nivel             INT NOT NULL DEFAULT 1           -- derivado do pai — mantido pelo serviço, não editável na tela
+aceita_lancamento BOOLEAN DEFAULT TRUE             -- analítico (folha) = TRUE; sintético (agrupador) = FALSE
+                                                   -- mesmo conceito de contabil.conta.aceita_lancamento
+ativo             BOOLEAN DEFAULT TRUE
+created_at        TIMESTAMPTZ NOT NULL
+created_by        VARCHAR(100) NOT NULL
+updated_at        TIMESTAMPTZ
+updated_by        VARCHAR(100)
 UNIQUE (tenant_id, codigo)
 ```
 
@@ -241,13 +244,18 @@ created_at       TIMESTAMPTZ NOT NULL
 financeiro.centro_custo_rateio_item
 ─────────────────────────────────────────────
 id               BIGSERIAL PK
+tenant_id        BIGINT NOT NULL
 rateio_id        BIGINT NOT NULL REFERENCES centro_custo_rateio
 centro_custo_id  BIGINT NOT NULL REFERENCES centro_custo
-percentual       NUMERIC(5,2) NOT NULL
--- Regra: SUM(percentual) por rateio_id = 100
+percentual       NUMERIC(5,2) NOT NULL CHECK (percentual > 0)
+UNIQUE (rateio_id, centro_custo_id)
+-- Regras (service): SUM(percentual) por rateio_id = 100;
+-- só entram CCs ativos com aceita_lancamento = TRUE
 ```
 
-**Impacto em entidades existentes:** adicionar `centro_custo_id BIGINT` (nullable) em `titulo`, `titulo_baixa`, `conta_movimentacao` e `lancamento_partida`.
+**Impacto em entidades existentes:** adicionar `centro_custo_id BIGINT` (nullable) em `titulo`, `titulo_baixa`, `conta_movimentacao` e `lancamento_partida`. Em `titulo`, adicionar também `rateio_id BIGINT` (nullable, REFERENCES `centro_custo_rateio`) — **mutuamente exclusivo** com `centro_custo_id` (CHECK: no máximo um dos dois preenchido).
+
+**Onde o rateio é aplicado:** o título carrega a referência (`rateio_id`); a **explosão percentual acontece na contabilização** — o lançamento gera N `lancamento_partida`, uma por centro de custo do rateio, conforme os percentuais vigentes na data do lançamento. Relatórios gerenciais por CC fazem a mesma explosão ao agregar títulos/baixas com `rateio_id`. Baixas herdam a referência do título (CC direto ou rateio); rateio em `conta_movimentacao` avulsa não é suportado — usar CC direto.
 
 ---
 
@@ -467,7 +475,7 @@ public void criarDaNfeEntrada(NfeEntradaAprovadaEvent event) {
 | `transversal-001` | `financeiro-feriados.yaml` | `feriado_bancario` + seed feriados nacionais |
 | `transversal-002` | `financeiro-audit-log.yaml` | `audit_log` |
 | `transversal-003` | `financeiro-centro-custo.yaml` | `centro_custo`, `centro_custo_rateio`, `centro_custo_rateio_item` |
-| `transversal-004` | `financeiro-addcolumn-centro-custo.yaml` | addColumn `centro_custo_id` em `titulo`, `titulo_baixa`, `conta_movimentacao` |
+| ~~`transversal-004`~~ | — | **Movida** — o addColumn de `centro_custo_id`/`rateio_id` vive em `financeiro/v1/010`, `012` e `019` + `contabil/v1/008` (§12.4–12.8): as tabelas-alvo ainda não existem no Sprint 1 |
 
 
 ---
@@ -841,7 +849,12 @@ PASSO 1 — Validar CFOP
 PASSO 2 — Verificar tributação do produto
   ├── NCM não encontrado → warning, usar alíquota padrão sem regime diferenciado
   ├── ncm.cesta_basica = TRUE → IBS = 0, CBS = 0, IS = 0 → FIM
-  └── ncm.monofasico = TRUE → IBS = 0, CBS = 0 (já recolhido na origem) → calcular IS se aplicável
+  └── ncm.monofasico = TRUE:
+        ├── emitente é o fabricante/importador (1ª etapa da cadeia — identificado pelo
+        │   CFOP de produção própria/importação) → calcular IS (Passo 4) e IBS/CBS sobre
+        │   a base com IS (Passos 5–7) — recolhimento concentrado na origem (ver Exemplo 3)
+        └── demais etapas (distribuidor/varejo) → IBS = 0, CBS = 0, IS = 0
+            (já recolhidos na origem) → FIM
 
 PASSO 3 — Buscar alíquotas vigentes pela data_competencia
   ├── aliq_ibs = AliquotaIbsProvider.get(ibge_destino, ano_competencia)
@@ -1290,6 +1303,418 @@ UNIQUE (nbs, vigente_de)
 Sem linha na tabela → `LOCAL_PRESTACAO` (default). Seed inicial com as exceções da LC 214;
 mantido pelo painel admin (parametrizado).
 
+### 1.8 Dados Fiscais Confirmados — Fontes Oficiais
+
+> Dados extraídos diretamente da **LC 214/2025** (atualizada até LC 227/2026) e do **Informe Técnico RT 2025.002 v1.10** (publicado em Portal NF-e, abril/2026). Não requerem validação adicional — são as fontes primárias.
+
+---
+
+#### 1.8.1 Esclarecimento Arquitetural: CST vs. cClassTrib
+
+O spec anterior usava apenas `cst varchar(3)`. A RT 2025.002 esclarece a distinção:
+
+| Campo | Tamanho | Obrigatório | O que é |
+|---|---|---|---|
+| `CST` | 3 dígitos | Sim, a partir de jan/2026 | Código de Situação Tributária — nível macro |
+| `cClassTrib` | N dígitos (os 3 primeiros = CST) | Sim, a partir de jan/2026 | Classificação granular vinculada a artigo da LC 214/2025 |
+
+**Impacto no schema:** a tabela `fiscal.cst_ibs_cbs` representa os CSTs (macro). O `cClassTrib` completo deve ser baixado do Portal NF-e (CSV oficial) e armazenado em `fiscal.c_class_trib` separado. A `operacao_fiscal` precisa de ambos os campos.
+
+**Simples Nacional e MEI:** durante 2026, NÃO são obrigados a informar CST e cClassTrib. Obrigatoriedade inicia em janeiro de 2027. O motor fiscal deve retornar `cst = null` e `c_class_trib = null` para essas empresas em 2026.
+
+---
+
+#### 1.8.2 Seed Confirmado — `fiscal.cst_ibs_cbs`
+
+18 códigos confirmados pelo RT 2025.002:
+
+```sql
+INSERT INTO fiscal.cst_ibs_cbs (codigo, descricao, natureza) VALUES
+('000', 'Tributação integral', 'AMBOS'),
+('010', 'Tributação com alíquotas uniformes — operações setor financeiro', 'AMBOS'),
+('011', 'Tributação com alíquotas uniformes reduzidas em 60% ou 30%', 'AMBOS'),
+('200', 'Alíquota zero / Alíquota reduzida (80%, 70%, 60%, 50%, 40% ou 30%)', 'AMBOS'),
+('220', 'Alíquota fixa', 'AMBOS'),
+('221', 'Alíquota fixa proporcional', 'AMBOS'),
+('222', 'Redução de base de cálculo', 'AMBOS'),
+('400', 'Isenção', 'AMBOS'),
+('410', 'Imunidade e não incidência', 'AMBOS'),
+('510', 'Diferimento', 'AMBOS'),
+('515', 'Diferimento com redução de alíquota', 'AMBOS'),
+('550', 'Suspensão', 'AMBOS'),
+('620', 'Tributação monofásica', 'AMBOS'),
+('800', 'Transferência de crédito', 'AMBOS'),
+('810', 'Ajustes de IBS na ZFM', 'SAIDA'),
+('811', 'Ajustes', 'AMBOS'),
+('820', 'Tributação em documento específico', 'AMBOS'),
+('830', 'Exclusão de base de cálculo', 'AMBOS');
+```
+
+---
+
+#### 1.8.3 Nova Entidade — `fiscal.c_cred_pres` (Crédito Presumido)
+
+13 códigos confirmados pelo RT 2025.002:
+
+```sql
+fiscal.c_cred_pres
+─────────────────────────────────────────────
+id          BIGSERIAL PK
+codigo      INT NOT NULL UNIQUE   -- 1 a 13
+descricao   VARCHAR(500) NOT NULL
+artigo_lc   VARCHAR(20)           -- ex: 'art. 168'
+UNIQUE (codigo)
+```
+
+Seed:
+```sql
+INSERT INTO fiscal.c_cred_pres (codigo, descricao, artigo_lc) VALUES
+(1,  'Crédito presumido — aquisição de bens/serviços de produtor rural não contribuinte', 'art. 168'),
+(2,  'Crédito presumido — serviço de transportador autônomo de carga PF não contribuinte', 'art. 169'),
+(3,  'Crédito presumido — resíduos para reciclagem/reutilização de PF/cooperativa', 'art. 170'),
+(4,  'Crédito presumido — bens móveis usados de PF não contribuinte para revenda', 'art. 171'),
+(5,  'Crédito presumido — regime automotivo', 'art. 310'),
+(6,  'Crédito presumido — regime automotivo', 'art. 311'),
+(7,  'Crédito presumido — aquisição por contribuinte na Zona Franca de Manaus', 'art. 444'),
+(8,  'Crédito presumido — aquisição por contribuinte na Zona Franca de Manaus', 'art. 447'),
+(9,  'Crédito presumido — aquisição por contribuinte na Zona Franca de Manaus', 'art. 447'),
+(10, 'Crédito presumido — aquisição por contribuinte na Zona Franca de Manaus', 'art. 450'),
+(11, 'Crédito presumido — aquisição por contribuinte na Área de Livre Comércio', 'art. 462'),
+(12, 'Crédito presumido — aquisição por contribuinte na Área de Livre Comércio', 'art. 465'),
+(13, 'Crédito presumido — aquisição pela indústria na Área de Livre Comércio', 'art. 467');
+```
+
+---
+
+#### 1.8.4 Atualização Schema — `fiscal.operacao_fiscal`
+
+Adicionar campos que a RT 2025.002 torna obrigatórios na NF-e:
+
+```sql
+-- Adicionar em fiscal.operacao_fiscal (addColumn)
+cst                VARCHAR(3)    -- CST IBS/CBS (null para Simples/MEI em 2026)
+c_class_trib       VARCHAR(20)   -- cClassTrib completo (null para Simples/MEI em 2026)
+c_cred_pres_id     BIGINT        -- REFERENCES fiscal.c_cred_pres (nullable)
+p_red_ibs          NUMERIC(5,2)  -- % redução alíquota IBS (do cClassTrib)
+p_red_cbs          NUMERIC(5,2)  -- % redução alíquota CBS (do cClassTrib)
+```
+
+---
+
+#### 1.8.5 Regimes Diferenciados — Mapeamento Completo dos Anexos LC 214/2025
+
+Atualiza a entidade `fiscal.regime_dif_ncm` com os valores reais. O campo `regime_diferenciado` em `produto` também deve refletir esses valores.
+
+**Enum atualizado para `regime_diferenciado` (produto):**
+
+| Valor | Efeito IBS | Efeito CBS | Fonte |
+|---|---|---|---|
+| `PADRAO` | Alíquota cheia | Alíquota cheia | — |
+| `ANEXO_I_ZERO` | Zero | Zero | Anexo I — alimentos básicos |
+| `ANEXO_XII_ZERO` | Zero | Zero | Anexo XII — dispositivos médicos |
+| `ANEXO_XIII_ZERO` | Zero | Zero | Anexo XIII — acessibilidade PcD |
+| `ANEXO_XIV_ZERO` | Zero | Zero | Anexo XIV — medicamentos |
+| `ANEXO_XV_ZERO` | Zero | Zero | Anexo XV — hortícolas, frutas, ovos |
+| `ANEXO_II_60` | Redução 60% | Redução 60% | Anexo II — educação |
+| `ANEXO_III_60` | Redução 60% | Redução 60% | Anexo III — saúde |
+| `ANEXO_IV_60` | Redução 60% | Redução 60% | Anexo IV — dispositivos médicos (60%) |
+| `ANEXO_V_60` | Redução 60% | Redução 60% | Anexo V — acessibilidade PcD (60%) |
+| `ANEXO_VI_60` | Redução 60% | Redução 60% | Anexo VI — nutrição enteral/parenteral |
+| `ANEXO_VII_60` | Redução 60% | Redução 60% | Anexo VII — alimentos (60%) |
+| `ANEXO_VIII_60` | Redução 60% | Redução 60% | Anexo VIII — higiene pessoal baixa renda |
+| `ANEXO_IX_60` | Redução 60% | Redução 60% | Anexo IX — insumos agropecuários |
+| `ANEXO_X_60` | Redução 60% | Redução 60% | Anexo X — produções artísticas/culturais |
+| `ANEXO_XI_60` | Redução 60% | Redução 60% | Anexo XI — segurança nacional/cibernética |
+| `MONOFASICO` | Zero (já recolhido na origem) | Zero | LC 214/2025 art. específico |
+| `ISENTO` | Zero | Zero | CST 400 |
+| `IMUNE` | Zero | Zero | CST 410 |
+| `ZFM` | Ajuste específico | Ajuste específico | CST 810 |
+
+---
+
+#### 1.8.6 Seed Confirmado — Anexo I (Alíquota Zero — Alimentos Básicos)
+
+26 itens confirmados da LC 214/2025 — NCMs reais para seed de `fiscal.regime_dif_ncm`:
+
+```sql
+-- Anexo I — Alíquota Zero IBS e CBS
+INSERT INTO fiscal.regime_dif_ncm (ncm, descricao, regime, percentual_reducao, vigente_de) VALUES
+-- Arroz
+('1006.20', 'Arroz subposição 1006.20', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+('1006.30', 'Arroz subposição 1006.30', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+('1006.40.00', 'Arroz código 1006.40.00', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+-- Leite fresco
+('0401.10.10', 'Leite para consumo direto', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+('0401.10.90', 'Leite para consumo direto', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+('0401.20.10', 'Leite para consumo direto', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+('0401.20.90', 'Leite para consumo direto', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+('0401.40.10', 'Leite para consumo direto', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+('0401.50.10', 'Leite para consumo direto', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+-- Leite em pó
+('0402.10.10', 'Leite em pó', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+('0402.10.90', 'Leite em pó', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+('0402.21.10', 'Leite em pó', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+('0402.21.20', 'Leite em pó', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+('0402.29.10', 'Leite em pó', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+('0402.29.20', 'Leite em pó', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+-- Fórmulas infantis
+('1901.10.10', 'Fórmulas infantis', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+('1901.10.90', 'Fórmulas infantis', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+-- Manteiga, margarina
+('0405.10.00', 'Manteiga', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+('1517.10.00', 'Margarina', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+-- Feijões
+('0713.33.19', 'Feijões', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+('0713.33.29', 'Feijões', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+('0713.33.99', 'Feijões', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+('0713.35.90', 'Feijões', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+-- Farinha de mandioca, tapioca
+('1106.20.00', 'Farinha de mandioca', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+('1903.00.00', 'Tapioca e sucedâneos', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+-- Farinha de milho
+('1102.20.00', 'Farinha de milho', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+('1103.13.00', 'Sêmola de milho', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+-- Milho em grão
+('1104.19.00', 'Grãos de milho', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+('1104.23.00', 'Grãos de milho', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+-- Farinha de trigo
+('1101.00.10', 'Farinha de trigo', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+-- Açúcar
+('1701.14.00', 'Açúcar', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+('1701.99.00', 'Açúcar', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+-- Massas alimentícias (subposição 1902.1 - múltiplos)
+('1902.1', 'Massas alimentícias', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+-- Pão francês
+('1905.90.90', 'Pão francês', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+('1901.20.10', 'Pré-mistura para pão francês', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+('1901.20.90', 'Pré-mistura para pão francês', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+-- Aveia
+('1104.12.00', 'Grãos de aveia', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+('1104.22.00', 'Grãos de aveia', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+('1102.90.00', 'Farinha de aveia', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+-- Queijos (mozarela, minas, prato, coalho, ricota, requeijão, provolone, parmesão, fresco, reino)
+('0406.10.10', 'Queijo fresco não maturado', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+('0406.10.90', 'Queijo fresco não maturado', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+('0406.20.00', 'Queijo ralado ou em pó', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+('0406.90.10', 'Outros queijos (mozarela, minas, prato, coalho)', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+('0406.90.20', 'Outros queijos', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+('0406.90.30', 'Outros queijos (provolone, parmesão, reino)', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+-- Sal
+('2501.00.20', 'Sal para consumo humano', 'ANEXO_I_ZERO', 100, '2026-01-01'),
+('2501.00.90', 'Sal para consumo humano', 'ANEXO_I_ZERO', 100, '2026-01-01');
+-- Nota: Carnes (NCMs 02.xx), peixes (NCMs 03.xx), café (09.01, 2101.1), mate (09.03) e
+-- outros itens com múltiplos NCMs/subposições devem ser expandidos conforme tabela NCM completa
+```
+
+---
+
+#### 1.8.7 Seed Confirmado — Anexo XVII (Imposto Seletivo — IS)
+
+Produtos e NCMs sujeitos ao IS confirmados pela LC 214/2025:
+
+```sql
+-- Seed de fiscal.aliq_is_ncm (IS)
+-- Nota: alíquotas específicas serão regulamentadas. Estrutura confirmada.
+INSERT INTO fiscal.aliq_is_ncm (ncm, descricao, aliquota_pct, vigente_de) VALUES
+-- Veículos (exceto caminhões e veículos militares/segurança pública)
+('87.03', 'Automóveis de passageiros', NULL, '2027-01-01'),
+('8704.21', 'Veículos para transporte de mercadorias (exceto caminhões)', NULL, '2027-01-01'),
+('8704.31', 'Veículos para transporte de mercadorias (exceto caminhões)', NULL, '2027-01-01'),
+('8704.41.00', 'Veículos para transporte de mercadorias (exceto caminhões)', NULL, '2027-01-01'),
+('8704.51.00', 'Veículos para transporte de mercadorias (exceto caminhões)', NULL, '2027-01-01'),
+('8704.60.00', 'Veículos elétricos para transporte (exceto caminhões)', NULL, '2027-01-01'),
+('8704.90.00', 'Outros veículos (exceto caminhões)', NULL, '2027-01-01'),
+-- Aeronaves (exceto militares e 8802.60.00)
+('8802', 'Aeronaves (exceto 8802.60.00 e militares)', NULL, '2027-01-01'),
+-- Embarcações com motor
+('8903', 'Embarcações com motor', NULL, '2027-01-01'),
+-- Produtos fumígenos
+('2401', 'Fumo não manufaturado', NULL, '2027-01-01'),
+('2402', 'Charutos, cigarros, cigarrilhas', NULL, '2027-01-01'),
+('2403', 'Outros produtos do fumo', NULL, '2027-01-01'),
+('2404', 'Produtos com nicotina', NULL, '2027-01-01'),
+-- Bebidas alcoólicas
+('2203', 'Cerveja de malte', NULL, '2027-01-01'),
+('2204', 'Vinhos de uvas frescas', NULL, '2027-01-01'),
+('2205', 'Vermutes e outros vinhos', NULL, '2027-01-01'),
+('2206', 'Outras bebidas fermentadas', NULL, '2027-01-01'),
+('2208', 'Álcool etílico e bebidas espirituosas', NULL, '2027-01-01'),
+-- Bebidas açucaradas
+('2202.10.00', 'Águas e bebidas gaseificadas com açúcar/edulcorante', NULL, '2027-01-01'),
+-- Bens minerais
+('2601', 'Minérios de ferro', NULL, '2027-01-01'),
+('2709.00.10', 'Petróleo bruto', NULL, '2027-01-01'),
+('2711.11.00', 'Gás natural liquefeito', NULL, '2027-01-01'),
+('2711.21.00', 'Gás natural em estado gasoso', NULL, '2027-01-01');
+-- Concursos de prognósticos e Fantasy sport: sem NCM (CST 820 — tributação em documento específico)
+-- Nota: aliquota_pct = NULL porque o IS ainda aguarda regulamentação das alíquotas específicas
+```
+
+---
+
+#### 1.8.8 Seed Parcial — Anexos II e III (Serviços com Redução 60%)
+
+Para NFS-e, o campo de classificação é NBS (Nomenclatura Brasileira de Serviços), não NCM.
+
+**Impacto arquitetural:** `fiscal.regime_dif_ncm` precisa suportar tanto NCM quanto NBS:
+
+```sql
+-- Adicionar campo nbs em fiscal.regime_dif_ncm (addColumn)
+ALTER TABLE fiscal.regime_dif_ncm ADD COLUMN nbs VARCHAR(20);
+-- ncm e nbs são mutuamente exclusivos (CHECK constraint)
+```
+
+Seed Anexo II — Educação (Redução 60%):
+```sql
+INSERT INTO fiscal.regime_dif_ncm (nbs, descricao, regime, percentual_reducao, vigente_de) VALUES
+('1.2201.1',    'Ensino Infantil, inclusive creche e pré-escola', 'ANEXO_II_60', 60, '2026-01-01'),
+('1.2201.20.00','Ensino Fundamental', 'ANEXO_II_60', 60, '2026-01-01'),
+('1.2201.30.00','Ensino Médio', 'ANEXO_II_60', 60, '2026-01-01'),
+('1.2202.00.00','Ensino Técnico de Nível Médio', 'ANEXO_II_60', 60, '2026-01-01'),
+('1.2203',      'EJA — Ensino para jovens e adultos', 'ANEXO_II_60', 60, '2026-01-01'),
+('1.2204',      'Ensino Superior (graduação, pós-graduação, extensão)', 'ANEXO_II_60', 60, '2026-01-01'),
+('1.2205.13.00','Ensino de sistemas linguísticos e línguas nativas', 'ANEXO_II_60', 60, '2026-01-01');
+```
+
+Seed Anexo III — Saúde (Redução 60% — 30 itens):
+```sql
+INSERT INTO fiscal.regime_dif_ncm (nbs, descricao, regime, percentual_reducao, vigente_de) VALUES
+('1.2301.11.00','Serviços cirúrgicos', 'ANEXO_III_60', 60, '2026-01-01'),
+('1.2301.12.00','Serviços ginecológicos e obstétricos', 'ANEXO_III_60', 60, '2026-01-01'),
+('1.2301.13.00','Serviços psiquiátricos', 'ANEXO_III_60', 60, '2026-01-01'),
+('1.2301.14.00','Serviços de UTI', 'ANEXO_III_60', 60, '2026-01-01'),
+('1.2301.15.00','Serviços de urgência', 'ANEXO_III_60', 60, '2026-01-01'),
+('1.2301.19.00','Serviços hospitalares não classificados', 'ANEXO_III_60', 60, '2026-01-01'),
+('1.2301.21.00','Serviços de clínica médica', 'ANEXO_III_60', 60, '2026-01-01'),
+('1.2301.22.00','Serviços médicos especializados', 'ANEXO_III_60', 60, '2026-01-01'),
+('1.2301.23.00','Serviços odontológicos', 'ANEXO_III_60', 60, '2026-01-01'),
+('1.2301.91.00','Serviços de enfermagem', 'ANEXO_III_60', 60, '2026-01-01'),
+('1.2301.92.00','Serviços de fisioterapia', 'ANEXO_III_60', 60, '2026-01-01'),
+('1.2301.93.00','Serviços laboratoriais', 'ANEXO_III_60', 60, '2026-01-01'),
+('1.2301.94.00','Serviços de diagnóstico por imagem', 'ANEXO_III_60', 60, '2026-01-01'),
+('1.2301.95.00','Serviços de bancos de material biológico humano', 'ANEXO_III_60', 60, '2026-01-01'),
+('1.2301.96.00','Serviços de ambulância', 'ANEXO_III_60', 60, '2026-01-01'),
+('1.2301.97.00','Serviços de assistência ao parto e pós-parto', 'ANEXO_III_60', 60, '2026-01-01'),
+('1.2301.98.00','Serviços de psicologia', 'ANEXO_III_60', 60, '2026-01-01'),
+('1.2301.99.00','Outros serviços de saúde (vigilância, epidemiologia, vacinação, fonoaudiologia, nutrição, optometria, biomedicina, farmácia, esterilização)', 'ANEXO_III_60', 60, '2026-01-01'),
+('1.2302',      'Serviços de cuidado a idosos e PcD em acolhimento', 'ANEXO_III_60', 60, '2026-01-01'),
+('1.2603.00.00','Serviços funerários, cremação e embalsamamento', 'ANEXO_III_60', 60, '2026-01-01');
+```
+
+---
+
+#### 1.8.9 Seed Confirmado — Anexo XV (Hortícolas, Frutas, Ovos — Alíquota Zero)
+
+```sql
+INSERT INTO fiscal.regime_dif_ncm (ncm, descricao, regime, percentual_reducao, vigente_de) VALUES
+('0407.2',  'Ovos', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
+-- Hortícolas (Cap 7 exceto 0709.5 e 0710.80.00)
+('07.01', 'Batatas', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
+('07.02.00.00', 'Tomates', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
+('07.03', 'Cebolas, alhos, alho-poró', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
+('07.04', 'Couves e brássicas', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
+('07.05', 'Alfaces e chicórias', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
+('07.06', 'Cenouras, nabos, beterrabas', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
+('0707.00.00', 'Pepinos e pepinilhos', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
+('07.08', 'Legumes de vagem', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
+('07.09', 'Outros produtos hortícolas (exceto cogumelos 0709.5)', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
+('07.10', 'Produtos hortícolas congelados (exceto 0710.80.00)', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
+-- Frutas frescas (Cap 8)
+('08.03', 'Bananas', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
+('08.04', 'Tâmaras, figos, abacaxis, abacates, goiabas, mangas', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
+('08.05', 'Frutas cítricas', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
+('08.06', 'Uvas', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
+('08.07', 'Melões, melancias, mamões', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
+('08.08', 'Maçãs, peras, marmelos', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
+('08.09', 'Damascos, cerejas, pêssegos, ameixas', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
+('08.10', 'Outros frutos frescos (morangos, framboesas, kiwi, caju, etc.)', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
+('08.11', 'Frutas congeladas sem açúcar ou edulcorante', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
+-- Raízes e tubérculos, cocos
+('07.14', 'Raízes e tubérculos', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
+('0801.1', 'Cocos', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
+-- Capítulo 6 (plantas/flores para fins alimentares/ornamentais/medicinais)
+('06', 'Plantas e produtos de floricultura (cap 6)', 'ANEXO_XV_ZERO', 100, '2026-01-01');
+```
+
+---
+
+#### 1.8.10 Higiene Pessoal — Anexo VIII (Redução 60%)
+
+7 itens confirmados:
+
+```sql
+INSERT INTO fiscal.regime_dif_ncm (ncm, descricao, regime, percentual_reducao, vigente_de) VALUES
+('3401.11.90', 'Sabões de toucador', 'ANEXO_VIII_60', 60, '2026-01-01'),
+('3306.10.00', 'Dentifrícios', 'ANEXO_VIII_60', 60, '2026-01-01'),
+('9603.21.00', 'Escovas de dentes', 'ANEXO_VIII_60', 60, '2026-01-01'),
+('4818.10.00', 'Papel higiênico', 'ANEXO_VIII_60', 60, '2026-01-01'),
+('3808.94.19', 'Água sanitária', 'ANEXO_VIII_60', 60, '2026-01-01'),
+('3401.19.00', 'Sabões em barra', 'ANEXO_VIII_60', 60, '2026-01-01'),
+('9619.00.00', 'Fraldas e artigos higiênicos semelhantes', 'ANEXO_VIII_60', 60, '2026-01-01');
+```
+
+---
+
+#### 1.8.11 Simples Nacional — Alíquotas IBS/CBS por Faixa (2027–2033)
+
+Dados confirmados pelos Anexos XVIII–XXII da LC 214/2025 para seed de `fiscal.aliq_cbs_regime`:
+
+**Simples Nacional — Comércio (2027–2028):**
+
+| Faixa | Alíquota efetiva | % CBS | % IBS | CBS efetiva | IBS efetivo |
+|---|---|---|---|---|---|
+| 1ª (até 180k) | 4,00% | 15,33% | 0,17% | 0,6132% | 0,0068% |
+| 2ª–5ª | varia | 15,33% | 0,17% | varia | varia |
+
+**MEI — valores fixos mensais confirmados (Anexo XXIII):**
+
+| Ano | ICMS | ISS | CBS | IBS | Total |
+|---|---|---|---|---|---|
+| 2027–2028 | R$ 1,00 | R$ 5,00 | R$ 0,994 | R$ 0,006 | R$ 7,00 |
+| 2029 | R$ 0,90 | R$ 4,50 | R$ 1,00 | R$ 0,20 | R$ 6,60 |
+| 2030 | R$ 0,80 | R$ 4,00 | R$ 1,00 | R$ 0,40 | R$ 6,20 |
+| 2031 | R$ 0,70 | R$ 3,50 | R$ 1,00 | R$ 0,60 | R$ 5,80 |
+| 2032 | R$ 0,60 | R$ 3,00 | R$ 1,00 | R$ 0,80 | R$ 5,40 |
+| 2033+ | — | — | R$ 1,00 | R$ 2,00 | R$ 3,00 |
+
+MEI não destaca IBS/CBS por item na NF-e. O motor retorna `cst = null` para MEI.
+
+---
+
+#### 1.8.12 Migrations Adicionais Necessárias
+
+Com base nas informações dos documentos oficiais, adicionar ao plano de migrations:
+
+| Arquivo | Operação | Descrição |
+|---|---|---|
+| `fiscal/v1/017-c-cred-pres.yaml` | `createTable` + seed | 13 códigos de crédito presumido confirmados pelo RT 2025.002 |
+| `fiscal/v1/018-addcol-operacao-fiscal-cst.yaml` | `addColumn` | Adiciona `cst`, `c_class_trib`, `c_cred_pres_id`, `p_red_ibs`, `p_red_cbs` em `operacao_fiscal` |
+| `fiscal/v1/019-addcol-regime-dif-nbs.yaml` | `addColumn` | Adiciona coluna `nbs varchar(20)` em `regime_dif_ncm` para suportar serviços |
+| `fiscal/v1/020-seed-anexo-i.yaml` | `loadData` | Seed Anexo I — alimentos básicos alíquota zero |
+| `fiscal/v1/021-seed-anexo-ii-iii.yaml` | `loadData` | Seed Anexos II e III — educação e saúde (60%) |
+| `fiscal/v1/022-seed-anexo-viii.yaml` | `loadData` | Seed Anexo VIII — higiene pessoal (60%) |
+| `fiscal/v1/023-seed-anexo-xv.yaml` | `loadData` | Seed Anexo XV — hortícolas, frutas e ovos (zero) |
+| `fiscal/v1/024-seed-anexo-xvii-is.yaml` | `loadData` | Seed Anexo XVII — produtos sujeitos ao IS |
+| `fiscal/v1/025-addcol-produto-regime.yaml` | N/A | Atualizar enum `regime_diferenciado` com novos valores dos Anexos |
+
+---
+
+#### 1.8.13 Status dos Seeds — Pós Planilhas Oficiais
+
+Com o processamento das três planilhas oficiais, os seeds estão prontos para uso direto no Liquibase `loadData`. Ver §15 para maturidade geral atualizada.
+
+| Arquivo gerado | Fonte | Linhas | Status |
+|---|---|---|---|
+| `c_class_trib.csv` | cClassTrib_2026_04_15.xlsx | 156 | ✅ Pronto |
+| `ncm_codigos.csv` | Tabela_NCM_2022_vigência_01_02_26 | 10.520 | ✅ Pronto |
+| `seed_cst_ibs_cbs.sql` | cClassTrib_2026_04_15.xlsx aba CST | 18 | ✅ Pronto |
+| `seed_aliq_cbs.sql` | IT_2026_002_v_1_00_Aliquotas_CBS | 5 | ✅ Pronto |
+| `schema_c_class_trib.sql` | — (DDL) | — | ✅ Pronto |
+
+**Correção importante confirmada pelas planilhas:** `c_class_trib` é `INTEGER` (ex: 1, 200028, 410004), não `VARCHAR`. O schema e o spec foram atualizados.
+
+---
+
 ### 1.9 Parametrização Fiscal — `fiscal.parametro_fiscal`
 
 **Decisão:** tudo que é valor de legislação (alíquotas, fallbacks, prazos, mecânica de split)
@@ -1429,7 +1854,7 @@ tenant_id           BIGINT NOT NULL
 codigo              VARCHAR(20) NOT NULL
 descricao           VARCHAR(100) NOT NULL
 natureza            VARCHAR(10) NOT NULL  -- 'PAGAR' | 'RECEBER' | 'AMBOS'
-meio                VARCHAR(30) NOT NULL  -- 'DINHEIRO' | 'BOLETO' | 'CREDITO_CONTA' | 'PIX' | 'CARTAO' | 'CHEQUE' | 'ANTECIPACAO' | 'COMPENSACAO' | 'RETENCAO' | 'SPLIT_PAYMENT' | 'RETENCAO' | 'SPLIT_PAYMENT'
+meio                VARCHAR(30) NOT NULL  -- 'DINHEIRO' | 'BOLETO' | 'CREDITO_CONTA' | 'PIX' | 'CARTAO' | 'CHEQUE' | 'ANTECIPACAO' | 'COMPENSACAO' | 'RETENCAO' | 'SPLIT_PAYMENT'
 ativo               BOOLEAN DEFAULT TRUE
 created_at          TIMESTAMPTZ NOT NULL
 created_by          VARCHAR(100) NOT NULL
@@ -1902,7 +2327,7 @@ Compensação só pode ser cancelada enquanto as baixas associadas estiverem com
 **Fluxo:**
 1. Validar que todos os títulos pertencem ao mesmo `tenant_id` e `terceiro_id`.
 2. Validar que todos têm `status_titulo = 'EM_ABERTO'`.
-3. Gerar UUID para `associacao_id` e atualizar todos os títulos.
+3. Gerar novo `associacao_id` (sequence BIGINT — o campo em `titulo` é BIGINT) e atualizar todos os títulos.
 
 ---
 
@@ -2089,13 +2514,15 @@ UNIQUE (tenant_id, tributo)
 1. No lançamento do título, o operador (ou a integração NFS-e) informa as retenções —
    o sistema sugere pelos `retencao_config` aplicáveis.
 2. `valor_liquido_pagar = valor_liquido − SUM(retencoes)`. A baixa ao fornecedor é pelo
-   líquido; as retenções ficam como obrigação do tenant.
+   líquido; **cada retenção gera uma baixa no título com `tipo_baixa.meio = 'RETENCAO'`**
+   na data do pagamento — assim o título fecha por completo (líquido pago + baixas de
+   retenção = valor_liquido). As retenções ficam como obrigação do tenant.
 3. Job mensal (`RetencaoGuiaJob`): agrupa retenções por `(tributo, codigo_receita, competencia)`
    e cria **um título a pagar por guia** (`origem = 'APURACAO_FISCAL'`, favorecido = ente
    arrecadador), vinculando `titulo_retencao.titulo_guia_id`.
 4. No AR (nosso cliente reteve): registrar a retenção sofrida como baixa parcial
    `tipo_baixa.meio = 'RETENCAO'` — o caixa nunca recebe esse valor; o crédito tributário
-   vai para conta de "Tributos Retidos na Fonte a Recuperar" (plano de contas 1.1.6.04).
+   vai para conta de "Tributos Retidos na Fonte a Recuperar" (plano de contas 1.1.6.05).
 
 ---
 
@@ -2207,9 +2634,10 @@ qualquer etapa encerra a sequência; a carta manual (§5.3) continua disponível
 
 **Fluxo:**
 1. Verificar `status_titulo = 'EMITIDO'`.
-2. Calcular valor líquido após desconto.
-3. Criar ajuste de desconto no título.
-4. Registrar operação e atualizar status para `DESCONTADO`.
+2. Calcular o líquido da antecipação: `valor_antecipado = valor_saldo − (valor_saldo × taxa_desconto/100)`.
+3. Criar `conta_movimentacao` CRÉDITO pelo `valor_antecipado` na conta informada e registrar a taxa como **despesa financeira** (movimentação DÉBITO, categoria LANCAMENTO). **Não** criar ajuste de desconto no título — o sacado continua devendo o valor integral (quem recebe a liquidação é o banco); um ajuste distorceria o saldo e o relatório de descontos concedidos.
+4. Atualizar status para `DESCONTADO`. O título mantém o saldo integral até a liquidação pelo sacado (retorno CNAB) — a baixa quita 100% do valor.
+5. Se o sacado não pagar, o banco exerce o regresso (debita o valor antecipado): registrar movimentação DÉBITO correspondente e o título segue o fluxo de cobrança/dunning normalmente.
 
 ---
 
@@ -2556,7 +2984,9 @@ SELECT
 FROM financeiro.conta_corrente cc
 LEFT JOIN financeiro.conta_movimentacao m
   ON m.conta_corrente_id = cc.id
-  AND m.data_movimentacao >= cc.data_saldo_inicial
+  AND m.data_movimentacao >= COALESCE(cc.data_saldo_inicial, DATE '1900-01-01')
+  -- COALESCE obrigatório: data_saldo_inicial é nullable; sem ele, o >= com NULL
+  -- descartaria TODAS as movimentações e o saldo congelaria no saldo_inicial
 GROUP BY cc.id, cc.tenant_id, cc.descricao, cc.saldo_inicial, cc.data_saldo_inicial;
 ```
 
@@ -2877,10 +3307,9 @@ Usado para tarifas, IOF e lançamentos que não têm correspondência no sistema
 
 **Fluxo:**
 1. Verificar `extrato_bancario.status_conciliacao = 'CONCILIADO'`.
-2. Verificar se a baixa associada ainda pode ser revertida (não pode se já gerou obrigações contábeis).
-3. Reverter `extrato_bancario.status_conciliacao = 'PENDENTE'`.
-4. Reverter `conta_movimentacao.conciliado = FALSE`.
-5. Se a baixa foi confirmada automaticamente pela conciliação: reverter para `PLANEJADA`.
+2. Reverter `extrato_bancario.status_conciliacao = 'PENDENTE'`.
+3. Reverter `conta_movimentacao.conciliado = FALSE`.
+4. Desfazer a conciliação **não reverte baixa REAL** — a máquina de estados (§II.2/3.2) só admite saída de REAL via estorno (§4.6.1). O desfazer apenas desvincula extrato ↔ movimentação; se a confirmação automática (CB-07) foi indevida, o operador estorna a baixa pelo fluxo de estorno (que cria a movimentação inversa e reabre o título).
 
 ---
 
@@ -3213,7 +3642,10 @@ titulo (status atualizado se valor_saldo = 0)
 
 ## MÓDULO IV — TESOURARIA E EMISSÃO DE BOLETOS
 
-> Spec completo disponível na versão anterior do documento (v10.0). As seções §16–§20 cobrem entidades, operações (boleto, CNAB, DDA, cheques, aplicações), máquinas de estado, regras de negócio e cron jobs.
+> Reconstruído nesta versão (v12.1) a partir das entidades e decisões já registradas.
+> **DDLs alinhados ao plano de migrations do §12** (sprints 4/5/7 — fonte da verdade dos campos,
+> enums e uniques). Cobre entidades (§16), operações (§17), máquinas de estado (§18), regras (§19)
+> e cron jobs (§20). A estratégia CNAB (§IV-CNAB) e o QR PIX (§IV-PIX) permanecem logo abaixo.
 
 **Meios de cobrança/recebimento suportados:** Boleto · CNAB · **PIX** · DDA · Cheque
 
@@ -3231,11 +3663,8 @@ titulo (status atualizado se valor_saldo = 0)
   sob demanda, banco a banco, quando um cliente exigir.
 - Validação: piloto com 1 banco em homologação de van/banco antes de habilitar os demais.
 
-**Resumo das entidades:** `cobranca_config`, `boleto`, `pix_cobranca`, `cnab_remessa`, `cnab_remessa_item`, `cnab_retorno`, `cnab_retorno_item`, `cheque`, `aplicacao_financeira`, `dda_boleto`
-
-**Operações-chave:** emitir boleto (§17.1), gerar cobrança PIX (§IV-PIX), gerar remessa CNAB cobrança/pagamento (§17.4-5), importar retorno CNAB (§17.6), vincular DDA a título (§17.7)
-
-**Cron jobs:** `BoletoVencidoJob` (diário), `AplicacaoVencidaJob` (diário), `ChequeCompensacaoJob` (diário), `PixExpiradoJob` (diário)
+> **Eixos distintos:** o campo `layout_cnab` (`CNAB240` | `CNAB400`) grava só o **tamanho do
+> registro**; o dialeto FEBRABAN-vs-override é resolvido pelo Strategy no código, não por coluna.
 
 ### IV-PIX. Cobrança PIX (QR dinâmico)
 
@@ -3265,19 +3694,628 @@ UNIQUE (tenant_id, txid)
 3. Conciliação OFX reforça por `e2e_id`/`txid` no histórico.
 4. Split payment (2027+): PIX é instrumento com split — segregação ocorre na liquidação (§1.4.2 Passo 8).
 
+> **PIX × CNAB:** o PIX liquida direto pela API/webhook (baixa REAL, dinheiro já caiu) — não passa
+> por retorno CNAB nem pela máquina PLANEJADA. Só o **boleto liquidado por retorno CNAB** nasce
+> PLANEJADA (§17.6), porque o retorno é aviso, não a compensação no extrato.
+
 > **Decisão registrada — entrada multi-canal de NF (AP):** portal do fornecedor (iSupplier-like),
 > OCR de PDF e EDI **ficam fora do escopo** desta versão; entrada de NF é via Kafka (NF-e) e manual.
 > Registrado no roadmap (§14).
 
 ---
 
+## §16 — Entidades
+
+Todas as tabelas moram no schema `financeiro`, carregam `tenant_id BIGINT NOT NULL` e as
+colunas de auditoria (`created_at/created_by`, e `updated_at/updated_by` quando mutáveis),
+seguindo o padrão dos Módulos I–III. **Nomes de campo, enums e uniques abaixo espelham o §12.**
+
+### 16.1 `cobranca_config` — Configuração de cobrança por conta (§12.6 / migration 023)
+
+Uma configuração por conta corrente (`UNIQUE (tenant_id, conta_corrente_id)`). Concentra convênio
+de boleto/CNAB e, como extensão, os dados de PSP PIX.
+
+```sql
+financeiro.cobranca_config
+─────────────────────────────────────────────
+id                  BIGSERIAL PK
+tenant_id           BIGINT NOT NULL
+conta_corrente_id   BIGINT NOT NULL REFERENCES conta_corrente
+codigo_cedente      VARCHAR(20) NOT NULL      -- convênio/cedente no banco
+carteira            VARCHAR(10)
+modalidade          VARCHAR(15)               -- 'SIMPLES' | 'VINCULADA' | 'DESCONTADA'
+nosso_numero_atual  BIGINT DEFAULT 0          -- sequencial do nosso número (lock atômico)
+instrucoes          TEXT                      -- instruções de cobrança padrão
+dias_protesto       INT                       -- null = não protestar
+dias_negativacao    INT                       -- null = não negativar
+layout_cnab         VARCHAR(10)               -- 'CNAB240' | 'CNAB400'
+
+-- Extensão PIX (o mesmo registro serve boleto e PIX da conta)
+pix_provider        VARCHAR(30)               -- identificador do PSP (ex.: 'ASAAS','GERENCIANET')
+pix_chave           VARCHAR(140)              -- chave PIX recebedora
+pix_expiracao_seg   INT DEFAULT 86400         -- TTL do QR dinâmico
+
+ativo               BOOLEAN DEFAULT TRUE
+created_at          TIMESTAMPTZ NOT NULL
+created_by          VARCHAR(100) NOT NULL
+updated_at          TIMESTAMPTZ
+updated_by          VARCHAR(100)
+UNIQUE (tenant_id, conta_corrente_id)
+```
+
+> **Sequencial do nosso número:** `nosso_numero_atual` é incrementado sob lock por conta/cedente
+> (mesmo padrão do `DistributedLock` dos jobs de billing) — dois boletos nunca compartilham nosso número.
+
+### 16.2 `boleto` — Boleto emitido (§12.6 / migration 024)
+
+```sql
+financeiro.boleto
+─────────────────────────────────────────────
+id                  BIGSERIAL PK
+tenant_id           BIGINT NOT NULL
+titulo_id           BIGINT NOT NULL REFERENCES titulo   -- sempre a receber
+conta_corrente_id   BIGINT NOT NULL REFERENCES conta_corrente
+
+nosso_numero        VARCHAR(30) NOT NULL
+codigo_barras       VARCHAR(44) NOT NULL       -- 44 dígitos FEBRABAN
+linha_digitavel     VARCHAR(54) NOT NULL
+numero_documento    VARCHAR(30)               -- normalmente = titulo.numero_documento
+valor               NUMERIC(15,2) NOT NULL
+vencimento          DATE NOT NULL
+percentual_multa    NUMERIC(5,2)
+percentual_mora_mes NUMERIC(5,2)
+percentual_desconto NUMERIC(5,2)
+
+status              VARCHAR(15) NOT NULL       -- ver §18.1
+                    -- 'EMITIDO' | 'REGISTRADO' | 'PAGO' | 'CANCELADO' | 'VENCIDO'
+registrado_em       TIMESTAMPTZ               -- confirmação de registro no banco (retorno)
+pago_em             DATE                      -- data do crédito (retorno)
+valor_pago          NUMERIC(15,2)
+valor_tarifa        NUMERIC(15,2)             -- tarifa bancária do retorno
+
+url_pdf             VARCHAR(500)
+motivo_cancelamento VARCHAR(200)
+
+created_at          TIMESTAMPTZ NOT NULL
+created_by          VARCHAR(100) NOT NULL
+updated_at          TIMESTAMPTZ
+updated_by          VARCHAR(100)
+UNIQUE (tenant_id, conta_corrente_id, nosso_numero)
+INDEX idx_boleto_titulo (tenant_id, titulo_id)
+INDEX idx_boleto_status (tenant_id, status)
+```
+
+### 16.3 `cnab_remessa` / `cnab_remessa_item` — Arquivo de remessa (§12.6 / migration 025)
+
+```sql
+financeiro.cnab_remessa
+─────────────────────────────────────────────
+id                  BIGSERIAL PK
+tenant_id           BIGINT NOT NULL
+conta_corrente_id   BIGINT NOT NULL REFERENCES conta_corrente
+tipo                VARCHAR(15) NOT NULL       -- 'COBRANCA' | 'PAGAMENTO'
+layout_cnab         VARCHAR(10) NOT NULL       -- 'CNAB240' | 'CNAB400'
+numero_sequencial   INT NOT NULL              -- NSA — sequencial do arquivo por banco
+nome_arquivo        VARCHAR(300) NOT NULL
+conteudo_ref        VARCHAR(500)              -- caminho/URL do .REM gerado
+total_itens         INT NOT NULL
+valor_total         NUMERIC(15,2) NOT NULL
+status              VARCHAR(15) NOT NULL       -- ver §18.2
+                    -- 'GERADO' | 'ENVIADO' | 'PROCESSADO' | 'ERRO'
+gerado_em           TIMESTAMPTZ NOT NULL
+enviado_em          TIMESTAMPTZ
+created_by          VARCHAR(100) NOT NULL
+UNIQUE (tenant_id, conta_corrente_id, tipo, numero_sequencial)
+
+financeiro.cnab_remessa_item
+─────────────────────────────────────────────
+id                  BIGSERIAL PK
+tenant_id           BIGINT NOT NULL
+remessa_id          BIGINT NOT NULL REFERENCES cnab_remessa
+titulo_id           BIGINT NOT NULL REFERENCES titulo
+boleto_id           BIGINT REFERENCES boleto             -- cobrança
+tipo_movimento      VARCHAR(15) NOT NULL       -- 'INCLUSAO' | 'EXCLUSAO' | 'ALTERACAO' | 'BLOQUEIO'
+segmento            VARCHAR(2)                -- 'P'|'Q'|'R'|'A'|'B'|'J'
+valor               NUMERIC(15,2) NOT NULL
+situacao            VARCHAR(15) NOT NULL DEFAULT 'PENDENTE'  -- 'PENDENTE'|'CONFIRMADO'|'REJEITADO'
+UNIQUE (tenant_id, remessa_id, titulo_id, tipo_movimento)
+```
+
+### 16.4 `cnab_retorno` / `cnab_retorno_item` — Arquivo de retorno (§12.6 / migration 026)
+
+```sql
+financeiro.cnab_retorno
+─────────────────────────────────────────────
+id                  BIGSERIAL PK
+tenant_id           BIGINT NOT NULL
+conta_corrente_id   BIGINT NOT NULL REFERENCES conta_corrente
+layout_cnab         VARCHAR(10) NOT NULL       -- 'CNAB240' | 'CNAB400'
+nome_arquivo        VARCHAR(300) NOT NULL
+numero_sequencial   INT                       -- NSA do retorno
+total_itens         INT NOT NULL
+valor_total         NUMERIC(15,2)
+status              VARCHAR(15) NOT NULL       -- 'PROCESSADO' | 'PARCIAL' | 'ERRO'
+importado_em        TIMESTAMPTZ NOT NULL
+created_by          VARCHAR(100) NOT NULL
+UNIQUE (tenant_id, conta_corrente_id, nome_arquivo)   -- reimportar mesmo arquivo é idempotente
+
+financeiro.cnab_retorno_item
+─────────────────────────────────────────────
+id                  BIGSERIAL PK
+tenant_id           BIGINT NOT NULL
+retorno_id          BIGINT NOT NULL REFERENCES cnab_retorno
+titulo_id           BIGINT REFERENCES titulo
+boleto_id           BIGINT REFERENCES boleto
+nosso_numero        VARCHAR(30)
+codigo_ocorrencia   VARCHAR(5) NOT NULL       -- ocorrência FEBRABAN (ex.: '06' liquidação)
+descricao_ocorrencia VARCHAR(200)
+data_ocorrencia     DATE
+valor_principal     NUMERIC(15,2)
+valor_tarifa        NUMERIC(15,2)
+valor_acrescimos    NUMERIC(15,2)             -- juros/multa recebidos
+valor_desconto      NUMERIC(15,2)
+valor_liquido       NUMERIC(15,2)
+status              VARCHAR(15) NOT NULL DEFAULT 'PENDENTE'  -- 'PENDENTE'|'BAIXADO'|'IGNORADO'|'ERRO'
+erro_processamento  VARCHAR(300)
+INDEX idx_retorno_item (tenant_id, retorno_id, status)
+```
+
+> **Baixa nasce PLANEJADA (§12.6):** as baixas geradas por retorno CNAB **sempre** nascem
+> `PLANEJADA`; a conciliação com o extrato (§III 4.3) é o que as promove a `REAL`. Ver §17.6.
+
+### 16.5 `cheque` — Cheques emitidos e recebidos (§12.6 / migration 027)
+
+```sql
+financeiro.cheque
+─────────────────────────────────────────────
+id                  BIGSERIAL PK
+tenant_id           BIGINT NOT NULL
+natureza            VARCHAR(10) NOT NULL       -- 'EMITIDO' (pagar) | 'RECEBIDO' (receber)
+conta_corrente_id   BIGINT REFERENCES conta_corrente   -- conta do cheque emitido
+titulo_id           BIGINT REFERENCES titulo           -- título vinculado
+pessoa_id           BIGINT                    -- emitente (recebido) / favorecido (emitido)
+
+banco_codigo        VARCHAR(10)
+agencia             VARCHAR(20)
+conta               VARCHAR(30)
+numero              VARCHAR(20) NOT NULL
+valor               NUMERIC(15,2) NOT NULL
+data_bom_para       DATE                      -- pré-datado; alimenta o cron de alerta diário
+status              VARCHAR(15) NOT NULL       -- ver §18.3
+                    -- 'EMITIDO' | 'COMPENSADO' | 'DEVOLVIDO' | 'CANCELADO' | 'SUSTADO'
+compensacao_em      DATE
+motivo_devolucao    VARCHAR(10)               -- alínea de devolução (ex.: '11','12','21')
+
+created_at          TIMESTAMPTZ NOT NULL
+created_by          VARCHAR(100) NOT NULL
+updated_at          TIMESTAMPTZ
+updated_by          VARCHAR(100)
+UNIQUE (tenant_id, conta_corrente_id, numero)
+INDEX idx_cheque_status (tenant_id, natureza, status)
+INDEX idx_cheque_bompara (tenant_id, data_bom_para) WHERE status = 'EMITIDO'
+```
+
+### 16.6 `aplicacao_financeira` — Aplicações e resgates (§12.6 / migration 028)
+
+Só permitida em conta corrente do tipo `INVESTIMENTO`.
+
+```sql
+financeiro.aplicacao_financeira
+─────────────────────────────────────────────
+id                  BIGSERIAL PK
+tenant_id           BIGINT NOT NULL
+conta_corrente_id   BIGINT NOT NULL REFERENCES conta_corrente   -- tipo INVESTIMENTO
+descricao           VARCHAR(200) NOT NULL
+tipo                VARCHAR(20) NOT NULL       -- 'CDB' | 'LCI' | 'LCA' | 'FUNDOS'
+data_aplicacao      DATE NOT NULL
+valor_aplicado      NUMERIC(15,2) NOT NULL
+data_vencimento     DATE                      -- null = liquidez diária
+indexador           VARCHAR(20)               -- 'CDI'|'SELIC'|'PRE'|'IPCA'
+taxa                NUMERIC(9,4)
+valor_resgatado     NUMERIC(15,2)
+data_resgate        DATE
+rendimento_bruto    NUMERIC(15,2)
+ir_retido           NUMERIC(15,2)
+rendimento_liquido  NUMERIC(15,2)
+status              VARCHAR(15) NOT NULL       -- ver §18.4  'ATIVO' | 'RESGATADO' | 'VENCIDO'
+created_at          TIMESTAMPTZ NOT NULL
+created_by          VARCHAR(100) NOT NULL
+updated_at          TIMESTAMPTZ
+updated_by          VARCHAR(100)
+INDEX idx_aplic_status (tenant_id, status)
+```
+
+### 16.7 `dda_boleto` — Boletos DDA a pagar (§12.6 / migration 029)
+
+DDA (Débito Direto Autorizado): boletos que o banco disponibiliza como **a pagar** para o
+CNPJ do tenant. Entram como candidatos a virar/vincular título a pagar.
+
+```sql
+financeiro.dda_boleto
+─────────────────────────────────────────────
+id                  BIGSERIAL PK
+tenant_id           BIGINT NOT NULL
+conta_corrente_id   BIGINT NOT NULL REFERENCES conta_corrente
+linha_digitavel     VARCHAR(54) NOT NULL
+codigo_barras       VARCHAR(44) NOT NULL
+cedente_nome        VARCHAR(200)
+cedente_cnpj        VARCHAR(14)
+valor               NUMERIC(15,2) NOT NULL
+vencimento          DATE NOT NULL
+titulo_id           BIGINT REFERENCES titulo   -- preenchido ao vincular/gerar título
+status              VARCHAR(15) NOT NULL DEFAULT 'IMPORTADO'
+                    -- 'IMPORTADO' | 'VINCULADO' | 'PAGO' | 'IGNORADO'
+importado_em        TIMESTAMPTZ NOT NULL
+created_by          VARCHAR(100) NOT NULL
+UNIQUE (tenant_id, codigo_barras)          -- idempotência do DDA
+INDEX idx_dda_status (tenant_id, status)
+```
+
+---
+
+## §17 — Operações
+
+### 17.1 Emitir boleto
+
+**Endpoint:** `POST /api/financeiro/titulos/receber/{titulo_id}/boleto`
+
+**Body:** `{ "instrucoes": ["...","..."] }` (usa a `cobranca_config` única da conta)
+
+**Fluxo:**
+1. Validar título a receber pertence ao tenant e está `EM_ABERTO`/`EMITIDO` (§2 máquina de status_titulo).
+2. Resolver a `cobranca_config` da conta corrente.
+3. Alocar `nosso_numero` sob lock (§16.1) e calcular DV conforme banco.
+4. Gerar `codigo_barras` (44) e `linha_digitavel` (`CodigoBarrasGenerator` — mesmo motor do CNAB).
+5. Persistir `boleto` com `status = 'EMITIDO'`.
+6. Renderizar PDF (armazenar `url_pdf`).
+7. **Não** cria movimentação nem baixa — boleto emitido é promessa de recebimento, não caixa.
+
+**Regra:** um título pode ter vários boletos ao longo do tempo (2ª via, reemissão pós-cancelamento),
+mas **no máximo um** em status `EMITIDO`/`REGISTRADO` simultaneamente.
+
+### 17.2 Segunda via / alteração de vencimento
+
+**Endpoint:** `PATCH /api/financeiro/boletos/{id}` — altera vencimento/instruções e regenera PDF.
+Se o boleto já está `REGISTRADO`, a alteração de vencimento exige remessa CNAB de movimento
+`ALTERACAO` — não basta mudar no banco de dados.
+
+### 17.3 Cancelar boleto
+
+**Endpoint:** `POST /api/financeiro/boletos/{id}/cancelar` (`{ "motivo": "..." }`)
+- Boleto `REGISTRADO` → gera item de remessa CNAB movimento `EXCLUSAO` (baixa/cancelamento no banco)
+  e passa a `CANCELADO` só após confirmação do retorno.
+- Boleto apenas `EMITIDO` (nunca registrado) → cancela direto (`CANCELADO`).
+- **Nunca** baixa o título — o título só é baixado por liquidação (retorno) ou pela operação de AR.
+
+> **Protesto/negativação** são **comandos de remessa** (`dias_protesto`/`dias_negativacao` da
+> `cobranca_config`), não um status de boleto — o boleto permanece `REGISTRADO` até liquidar,
+> cancelar ou vencer. O acompanhamento do protesto é operacional (histórico), não muda o enum.
+
+### 17.4 Gerar remessa CNAB de cobrança
+
+**Endpoint:** `POST /api/financeiro/cnab/remessa/cobranca`
+**Body:** `{ "conta_corrente_id": 1, "boleto_ids": [..] }` (ou filtro por período/status)
+
+**Fluxo:**
+1. Selecionar boletos `EMITIDO` da conta ainda não incluídos em remessa aberta.
+2. Alocar NSA (`numero_sequencial`) por banco.
+3. Montar header de arquivo/lote + segmentos **P** (título), **Q** (sacado/pagador),
+   **R** (multa/desconto/juros) via `Cnab240LayoutFebraban` + override do banco.
+4. Persistir `cnab_remessa` (`tipo = 'COBRANCA'`, `status = 'GERADO'`) + `cnab_remessa_item`
+   por boleto (`tipo_movimento = 'INCLUSAO'`).
+5. Gravar arquivo `.REM` (`conteudo_ref`).
+6. Ao marcar como enviada (`PATCH .../enviar`): `status = 'ENVIADO'`; boletos passam a aguardar
+   confirmação de registro (retorno).
+
+### 17.5 Gerar remessa CNAB de pagamento
+
+**Endpoint:** `POST /api/financeiro/cnab/remessa/pagamento`
+**Body:** `{ "conta_corrente_id": 1, "titulo_ids": [..] }` (títulos **a pagar** aprovados)
+
+**Fluxo:**
+1. Selecionar títulos a pagar com baixa `PLANEJADA` e dentro da alçada aprovada (§4.10 Alçada).
+2. Montar segmentos **A** (crédito em conta/TED/PIX), **B** (dados do favorecido/PIX),
+   **J** (pagamento de boleto/tributo) conforme o meio de cada título.
+3. Persistir remessa (`tipo = 'PAGAMENTO'`) + itens.
+4. Ao confirmar retorno (§17.6): cada pagamento efetivado confirma a **baixa** do título +
+   `conta_movimentacao` DÉBITO CONFIRMADO.
+
+### 17.6 Importar retorno CNAB
+
+**Endpoint:** `POST /api/financeiro/cnab/retorno` (`multipart` com `.RET` + `conta_corrente_id`)
+
+**Fluxo:**
+1. Parse do arquivo conforme `layout_cnab` da conta.
+2. Idempotência: `UNIQUE (tenant_id, conta_corrente_id, nome_arquivo)` — reimportar não duplica efeito.
+3. Persistir `cnab_retorno` + `cnab_retorno_item` (um por ocorrência), `status = 'PENDENTE'`.
+4. Para cada item, aplicar efeito por `codigo_ocorrencia` (FEBRABAN):
+   - **Entrada confirmada / registro** → boleto `EMITIDO` → `REGISTRADO` (`registrado_em`).
+   - **Liquidação** → boleto `PAGO`; criar `titulo_baixa` **`PLANEJADA`** com
+     `tipo_baixa.meio = 'BOLETO'`, valor = `valor_liquido`; guardar `valor_acrescimos`
+     (juros/multa) e `valor_desconto`; tarifa bancária como `conta_movimentacao` DÉBITO (despesa).
+   - **Baixa/devolução** → refletir no `status` do boleto (`CANCELADO`); não altera o saldo do
+     título além do que a ocorrência determina.
+   - **Rejeição** → item `ERRO`, alerta ao operador; boleto volta a `EMITIDO`.
+5. Marcar item `status = 'BAIXADO'` (ou `IGNORADO`/`ERRO`). Erros por item não abortam o arquivo
+   (`cnab_retorno.status = 'PARCIAL'`).
+
+> **Por que PLANEJADA e não REAL:** o retorno CNAB é o **aviso** do banco de que o boleto foi pago,
+> não a confirmação de que o dinheiro compensou na conta. A promoção `PLANEJADA → REAL` acontece na
+> **conciliação com o extrato** (§III 4.3), quando a linha do OFX bate com a movimentação. Assim
+> a máquina de baixa fica coerente com §4.6.1 (REAL só sai por estorno) e com a correção de
+> "desfazer conciliação" — que desvincula extrato↔movimentação sem reverter uma REAL.
+
+### 17.7 Importar e vincular DDA a título a pagar
+
+- **Importar feed DDA** (`POST /api/financeiro/dda/importar`): recebe o arquivo/consulta do banco,
+  insere `dda_boleto` `status = 'IMPORTADO'`; idempotente por `codigo_barras`.
+- **Vincular** (`POST /api/financeiro/dda/{id}/vincular` `{ "titulo_id": 123 }`): exige `valor`/
+  `vencimento` compatíveis com o título (tolerância configurável) → `status = 'VINCULADO'`.
+- **Gerar título** (`POST /api/financeiro/dda/{id}/gerar-titulo`): cria `titulo` a pagar
+  `origem = 'DDA'`, pessoa = cedente (dedup por CNPJ), `EM_ABERTO`.
+- DDA ignorado (`status = 'IGNORADO'`) some da fila de conciliação.
+
+### 17.8 Cheques
+
+- **Receber cheque** (`POST /api/financeiro/cheques` natureza `RECEBIDO`): entra em `EMITIDO`
+  (em carteira/registrado); se vinculado a título a receber, gera baixa **PLANEJADA** (só vira
+  REAL na compensação).
+- **Depositar** (`POST .../{id}/depositar`): ação operacional (registra depósito); o cheque
+  permanece `EMITIDO` até o banco compensar ou devolver.
+- **Compensar** (`ChequeCompensacaoJob` ou manual): `EMITIDO`→`COMPENSADO` (`compensacao_em`);
+  confirma a baixa do título (PLANEJADA→REAL) + `conta_movimentacao` CRÉDITO CONFIRMADO.
+- **Devolver** (`POST .../{id}/devolver` `{ "alinea": "11" }`): `EMITIDO`→`DEVOLVIDO`; **estorna**
+  a baixa (§4.6.1); título volta a `EM_ABERTO`; opcional reapresentar (novo registro/cheque).
+- **Sustar** (`POST .../{id}/sustar`): `EMITIDO`→`SUSTADO` (contraordem); estorna baixa pendente.
+- **Cheque emitido** (natureza `EMITIDO`, pagar): `EMITIDO`→`COMPENSADO` confirma baixa do título a pagar.
+
+### 17.9 Aplicação / resgate
+
+- **Aplicar** (`POST /api/financeiro/aplicacoes`): DÉBITO na `conta_corrente` origem
+  (`categoria = 'APLICACAO'`), cria `aplicacao_financeira` `ATIVO`.
+- **Resgatar** (`POST .../{id}/resgatar`): CRÉDITO na conta (`categoria = 'RESGATE'`) pelo
+  `valor_resgatado`; registra `rendimento_bruto`, `ir_retido`, `rendimento_liquido`;
+  `status = 'RESGATADO'`. O rendimento líquido é receita financeira; IR retido é despesa/tributo —
+  refletidos no GL (§37).
+
+---
+
+## §18 — Máquinas de estado
+
+### 18.1 `boleto.status`
+
+```
+EMITIDO ──(remessa INCLUSAO + retorno de registro)──► REGISTRADO
+EMITIDO ──(cancelar, nunca registrado)──────────────► CANCELADO
+REGISTRADO ──(retorno liquidação)───────────────────► PAGO        [terminal — baixa PLANEJADA do título]
+REGISTRADO ──(remessa EXCLUSAO + retorno)───────────► CANCELADO   [terminal]
+REGISTRADO ──(BoletoVencidoJob, vencido)────────────► VENCIDO
+VENCIDO ──(retorno liquidação)──────────────────────► PAGO
+VENCIDO ──(remessa EXCLUSAO + retorno)──────────────► CANCELADO
+```
+- `PAGO`/`CANCELADO` são terminais. Reemissão cria **novo** boleto.
+- Protesto/negativação são comandos de remessa, não status (§17.3).
+
+### 18.2 `cnab_remessa.status`
+
+```
+GERADO ──► ENVIADO ──► PROCESSADO   (todos os itens confirmados no retorno)
+GERADO ──► ERRO                      (falha na geração)
+ENVIADO ──► ERRO                     (arquivo rejeitado pelo banco)
+```
+
+### 18.3 `cheque.status`
+
+```
+EMITIDO ─► COMPENSADO        [baixa REAL do título]
+EMITIDO ─► DEVOLVIDO ─►(reapresentar)─► EMITIDO   [estorna baixa]
+EMITIDO ─► SUSTADO           [estorna baixa pendente]
+EMITIDO ─► CANCELADO
+```
+- Vale para cheque `RECEBIDO` (a receber) e `EMITIDO` (a pagar) — a natureza distingue o efeito no título.
+
+### 18.4 `aplicacao_financeira.status`
+
+```
+ATIVO ─► RESGATADO        (resgate total)
+ATIVO ─► VENCIDO          (vencimento sem resgate — AplicacaoVencidaJob sinaliza)
+```
+
+---
+
+## §19 — Regras de negócio
+
+- **RN-TES-01** Boleto emitido não é caixa: nenhuma emissão/registro cria movimentação ou baixa.
+  A **liquidação por retorno** gera baixa **PLANEJADA**; a conciliação com o extrato a torna REAL.
+- **RN-TES-02** Nosso número é único e alocado sob lock por conta/cedente; nunca reutilizado.
+- **RN-TES-03** Retorno CNAB é idempotente por nome de arquivo; reprocessar não duplica baixa.
+- **RN-TES-04** Alterar vencimento/valor de boleto já registrado exige movimento CNAB `ALTERACAO`
+  — o dado local só muda após a confirmação do retorno (o banco é a fonte da verdade do registro).
+- **RN-TES-05** Cheque recebido gera baixa **PLANEJADA**; só a compensação a torna **REAL**.
+  Devolução/sustação **estorna** (nunca "desfaz" baixa REAL sem estorno — §4.6.1).
+- **RN-TES-06** Remessa de pagamento só inclui títulos dentro da **alçada aprovada** (§4.10).
+- **RN-TES-07** DDA é idempotente por código de barras; vincular exige compatibilidade valor/vencimento.
+- **RN-TES-08** Split payment (2027+): quando ativo, a liquidação do boleto/PIX segrega o valor do
+  governo na própria baixa (`tipo_baixa.meio = 'SPLIT_PAYMENT'`, §1.4.2 Passo 8) — não é passo manual.
+- **RN-TES-09** `layout_cnab` grava só `CNAB240`/`CNAB400` (tamanho do registro); o dialeto
+  FEBRABAN×override é resolvido pelo Strategy no código (§IV-CNAB).
+
+---
+
+## §20 — Cron jobs
+
+| Job | Frequência | Ação |
+|---|---|---|
+| `BoletoVencidoJob` | diária | Boletos `REGISTRADO` vencidos → `VENCIDO`; aplica instrução de protesto/negativação conforme `cobranca_config`; sinaliza inadimplência (Módulo VI) |
+| `AplicacaoVencidaJob` | diária | Aplicações `ATIVO` com `data_vencimento < hoje` → `VENCIDO` + alerta de resgate |
+| `ChequeCompensacaoJob` | diária | Cheques `EMITIDO` com `data_bom_para ≤ hoje` → tenta compensar |
+| `PixExpiradoJob` | diária | `pix_cobranca` `ATIVA` com `expiracao < now()` → `EXPIRADA` |
+| `CnabRetornoPollJob` | configurável | (Quando houver integração VAN/API) baixa retornos disponíveis e chama §17.6 |
+
+Todos rodam sob `DistributedLock` (Redis) e persistem execução em `job_execution` — mesmo padrão
+dos jobs de billing.
+
+---
+
 ## MÓDULO V — CONTABILIDADE E GL (General Ledger)
 
-> Spec completo disponível na versão anterior do documento (v10.0). As seções §36–§44 cobrem entidades, geração automática de lançamentos, demonstrações financeiras (BP, DRE, Razão, Livro Diário) e fechamento anual.
+> Reconstruído nesta versão (v12.1). **DDLs alinhados ao §12.8** (sprint 5, migrations 002–008).
+> Cobre entidades (§36), geração automática a partir dos eventos do financeiro (§37), demonstrações
+> — Razão (§38), Balanço (§39), DRE (§40), Livro Diário (§41) — fechamento (§42), conciliação GL ×
+> sub-ledgers (§43) e regras (§44). A dimensão matriz/filial (§36.7) segue a decisão já registrada.
 
-**Resumo das entidades:** `conta` (plano hierárquico), `periodo`, `lancamento`, `lancamento_partida`, `mapeamento`, `plano_contas_template`
+**Escopo:** GL por **partidas dobradas** consumindo os eventos do financeiro. O contábil é
+**consumidor**: não origina títulos nem movimentações — traduz fatos financeiros em lançamentos.
 
-### Dimensão Filial = `cadastros.estabelecimento` (não criar `contabil.filial`)
+---
+
+## §36 — Entidades
+
+Schema **`contabil`**. Todas com `tenant_id BIGINT NOT NULL` + auditoria (exceto o template global).
+
+### 36.1 `plano_contas_template` — Elenco oficial editável (§12.8 / migration 007)
+
+Template **global** (sem `tenant_id`) semeado no onboarding do tenant. **Editável** — sem bloqueio
+(decisão §F6): é ponto de partida, não camisa de força. `codigo_pai` referencia **por código**
+(não por id) para viabilizar a cópia no `TenantAtivacaoListener`.
+
+```sql
+contabil.plano_contas_template
+─────────────────────────────────────────────
+id                  BIGSERIAL PK
+versao              INT NOT NULL DEFAULT 1
+codigo              VARCHAR(30) NOT NULL       -- '1.1.1.02'
+descricao           VARCHAR(200) NOT NULL
+tipo                VARCHAR(20) NOT NULL       -- ATIVO|PASSIVO|PATRIMONIO_LIQUIDO|RECEITA|CUSTO|DESPESA
+natureza            VARCHAR(10) NOT NULL       -- 'DEVEDORA' | 'CREDORA'
+nivel               INT NOT NULL
+codigo_pai          VARCHAR(30)                -- referência por código (não por id)
+aceita_lancamento   BOOLEAN NOT NULL           -- analítica = TRUE; sintética = FALSE
+retificadora        BOOLEAN NOT NULL DEFAULT FALSE  -- depreciação/PCLD: subtrai do grupo no BP
+ativo               BOOLEAN NOT NULL DEFAULT TRUE
+UNIQUE (versao, codigo)
+```
+
+### 36.2 `conta` — Plano de contas do tenant (§12.8 / migration 002)
+
+```sql
+contabil.conta
+─────────────────────────────────────────────
+id                  BIGSERIAL PK
+tenant_id           BIGINT NOT NULL
+codigo              VARCHAR(30) NOT NULL       -- '1.1.1.02'
+descricao           VARCHAR(200) NOT NULL
+conta_pai_id        BIGINT REFERENCES conta    -- hierarquia; serviço valida ausência de ciclo
+nivel               INT NOT NULL               -- derivado do pai — mantido pelo serviço
+tipo                VARCHAR(20) NOT NULL        -- ATIVO|PASSIVO|PATRIMONIO_LIQUIDO|RECEITA|CUSTO|DESPESA
+natureza            VARCHAR(10) NOT NULL        -- DEVEDORA | CREDORA
+aceita_lancamento   BOOLEAN NOT NULL DEFAULT TRUE  -- analítica (folha) = TRUE; sintética = FALSE
+retificadora        BOOLEAN NOT NULL DEFAULT FALSE -- depreciação/PCLD: subtrai do grupo no BP
+ativo               BOOLEAN DEFAULT TRUE
+created_at          TIMESTAMPTZ NOT NULL
+created_by          VARCHAR(100) NOT NULL
+updated_at          TIMESTAMPTZ
+updated_by          VARCHAR(100)
+UNIQUE (tenant_id, codigo)
+INDEX idx_conta_pai (tenant_id, conta_pai_id)
+```
+
+> **Analítica × sintética:** lançamentos só entram em conta com `aceita_lancamento = TRUE`
+> (folha da árvore). Sintética consolida saldos dos filhos. Mesma regra do centro de custo (§F3).
+> **Sem tabela de filial** — a dimensão é `cadastros.estabelecimento` (FK lógica UUID, §36.7).
+
+### 36.3 `periodo` — Período contábil (§12.8 / migration 003)
+
+```sql
+contabil.periodo
+─────────────────────────────────────────────
+id                  BIGSERIAL PK
+tenant_id           BIGINT NOT NULL
+estabelecimento_id  UUID                       -- null = consolidado do grupo (§36.7)
+competencia         VARCHAR(7) NOT NULL         -- 'YYYY-MM'
+template_versao     INT                        -- versão do plano de contas vigente no período
+status              VARCHAR(10) NOT NULL        -- 'ABERTO' | 'FECHADO' | 'BLOQUEADO'
+fechado_em          TIMESTAMPTZ
+fechado_by          VARCHAR(100)
+created_at          TIMESTAMPTZ NOT NULL
+UNIQUE (tenant_id, estabelecimento_id, competencia)
+```
+
+> `BLOQUEADO` = trava administrativa temporária (impede lançamento sem fechar de vez).
+> Permite fechar por estabelecimento individualmente antes do consolidado.
+
+### 36.4 `lancamento` — Cabeçalho do lançamento (§12.8 / migration 004)
+
+```sql
+contabil.lancamento
+─────────────────────────────────────────────
+id                  BIGSERIAL PK
+tenant_id           BIGINT NOT NULL
+periodo_id          BIGINT NOT NULL REFERENCES periodo
+numero              VARCHAR(20) NOT NULL       -- sequencial por período SEM lacunas (Livro Diário)
+data_lancamento     DATE NOT NULL              -- data de competência
+tipo                VARCHAR(15) NOT NULL        -- 'AUTOMATICO' | 'MANUAL' | 'ABERTURA' | 'ENCERRAMENTO'
+historico           VARCHAR(500) NOT NULL
+origem              VARCHAR(30)                -- TITULO_BAIXA|MOVIMENTACAO|APURACAO_FISCAL|
+                                               --  EMPRESTIMO|APLICACAO|MANUAL
+origem_id           BIGINT                     -- id do fato financeiro (rastreabilidade/idempotência)
+status              VARCHAR(15) NOT NULL DEFAULT 'ATIVO'  -- 'ATIVO' | 'ESTORNADO'
+estorno_de_id       BIGINT REFERENCES lancamento
+created_at          TIMESTAMPTZ NOT NULL
+created_by          VARCHAR(100) NOT NULL
+INDEX idx_lanc_periodo (tenant_id, periodo_id)
+UNIQUE (tenant_id, periodo_id, numero)         -- numeração gapless (§12.8)
+UNIQUE (tenant_id, origem, origem_id) WHERE origem <> 'MANUAL'  -- idempotência 1 fato = 1 lançamento
+```
+
+> **Duas unicidades:** `(periodo_id, numero)` garante a numeração legal sem lacunas do Livro Diário;
+> `(origem, origem_id)` parcial garante que um mesmo fato financeiro não gere dois lançamentos (§37).
+
+### 36.5 `lancamento_partida` — Partidas (débito/crédito) (§12.8 / migration 005)
+
+```sql
+contabil.lancamento_partida
+─────────────────────────────────────────────
+id                  BIGSERIAL PK
+tenant_id           BIGINT NOT NULL
+lancamento_id       BIGINT NOT NULL REFERENCES lancamento
+conta_id            BIGINT NOT NULL REFERENCES conta   -- deve ter aceita_lancamento = TRUE
+tipo                VARCHAR(1) NOT NULL         -- 'D' | 'C'
+valor               NUMERIC(15,2) NOT NULL CHECK (valor > 0)
+
+-- Dimensões analíticas
+centro_custo_id     BIGINT                     -- financeiro.centro_custo (FK lógica)
+estabelecimento_id  UUID                       -- cadastros.estabelecimento (§36.7)
+pessoa_id           BIGINT                     -- contrapartida (cliente/fornecedor)
+
+historico           VARCHAR(200)
+INDEX idx_partida_conta (tenant_id, conta_id)
+INDEX idx_partida_cc (tenant_id, centro_custo_id)
+```
+
+> **Partidas dobradas:** por `lancamento_id`, `SUM(valor WHERE tipo='D') = SUM(valor WHERE tipo='C')`.
+> Validado no `LancamentoService` (não no banco) — lançamento desbalanceado é rejeitado (RN-CONT-01).
+
+### 36.6 `mapeamento` — De-para financeiro → contábil (§12.8 / migration 006)
+
+Regras que traduzem uma entidade financeira nas contas de débito/crédito, e a linha da DRE.
+
+```sql
+contabil.mapeamento
+─────────────────────────────────────────────
+id                  BIGSERIAL PK
+tenant_id           BIGINT NOT NULL
+tipo_origem         VARCHAR(30) NOT NULL        -- CONTA_CORRENTE|TIPO_BAIXA|TIPO_AJUSTE|
+                                                --  CLASSIFICACAO_FINANCEIRA|TRIBUTO|LINHA_DRE
+origem_id           BIGINT NOT NULL            -- id da entidade financeira mapeada
+conta_debito_id     BIGINT REFERENCES conta
+conta_credito_id    BIGINT REFERENCES conta
+linha_dre           VARCHAR(50)                -- linha da DRE (configurável — muda com a reforma)
+ativo               BOOLEAN DEFAULT TRUE
+UNIQUE (tenant_id, tipo_origem, origem_id)
+```
+
+### 36.7 Dimensão Filial = `cadastros.estabelecimento` (não criar `contabil.filial`)
 
 > **Decisão:** a dimensão matriz/filial usa o **relationship model** do
 > `spec/estabelecimentos-filiais.md` (party + estabelecimento, estilo TCA) — o
@@ -3293,50 +4331,287 @@ UNIQUE (tenant_id, txid)
 - IE/UF/município do emitente vêm do estabelecimento — `fiscal.config_empresa` fica reduzida a
   regime tributário/CRT/opção Simples (dados que não são por estabelecimento).
 
-**`contabil.periodo`** — coluna `estabelecimento_id UUID` (null = consolidado do grupo):
-
-| id | tenant_id | estabelecimento_id | competencia | status |
-|---|---|---|---|---|
-| 1 | 42 | NULL | `2025-06` | FECHADO | ← consolidado do grupo |
-| 2 | 42 | `uuid-matriz-0001` | `2025-06` | FECHADO | ← Matriz fechada |
-| 3 | 42 | `uuid-filial-0002` | `2025-06` | ABERTO | ← Filial ainda aberta |
-
-**`contabil.lancamento_partida`** — coluna `estabelecimento_id UUID`. Mesmo `lancamento_id`,
-mesma conta contábil, estabelecimentos diferentes → a dimensão analítica resolve
-transferências e resultado por filial sem duplicar o plano de contas.
-
-**Financeiro:** `titulo` e `conta_movimentacao` também carregam `estabelecimento_id UUID`
-(bill-to/pay-from por filial — já incluído no schema do título, §2.8).
-
-**Apuração fiscal na transição:** `fiscal.apuracao_mensal` ganha `estabelecimento_id UUID`
-nullable — IBS/CBS apura consolidado por raiz de CNPJ (`estabelecimento_id = NULL`);
-ICMS/ISS (até 2033) apuram **por estabelecimento**.
-
-**Demonstrações financeiras:**
-- Razão Contábil: filtrar por `estabelecimento_id` — visão por filial ou consolidada
-- Balanço Patrimonial / DRE: `estabelecimento_id = NULL` gera consolidado; por estabelecimento gera individual
-- Fechamento de período: pode fechar por estabelecimento individualmente antes do consolidado
+`contabil.periodo` e `contabil.lancamento_partida` carregam `estabelecimento_id UUID`
+(null = consolidado). Financeiro (`titulo`, `conta_movimentacao`) também — bill-to/pay-from por
+filial (§2.8). Apuração: IBS/CBS consolida por raiz de CNPJ (`estabelecimento_id = NULL`);
+ICMS/ISS (até 2033) apura **por estabelecimento**.
 
 ---
 
-**Demonstrações:** Razão Contábil (§5.9.1), Balanço Patrimonial (§5.9.2), DRE por Competência (§5.9.3), Fechamento Anual (§5.9.4), Livro Diário (§5.9.5), Conciliação GL vs Sub-ledgers (§5.9.6)
+## §37 — Geração automática de lançamentos
 
-Plano de contas: template oficial editável pelo tenant — sem bloqueio (§F6).
+O GL consome eventos do financeiro. **Eventos internos ao serviço** (se contábil e financeiro
+forem o mesmo processo) via `ApplicationEventPublisher`; **eventos que cruzam serviços** via Kafka
+(§13.4). Idempotência garantida pela unique parcial `(tenant_id, origem, origem_id)` em `lancamento`.
+
+**Eventos que geram lançamento:**
+
+| Evento financeiro | Débito | Crédito | Observação |
+|---|---|---|---|
+| Emissão título a receber | Clientes (1.1.2) | Receita (3.x) / IBS-CBS a recolher | competência da emissão |
+| Baixa a receber (REAL) | Caixa/Banco (1.1.1) | Clientes (1.1.2) | por `titulo_baixa` |
+| Emissão título a pagar | Despesa/Estoque | Fornecedores (2.1.1) | crédito IBS/CBS quando houver |
+| Baixa a pagar (REAL) | Fornecedores (2.1.1) | Caixa/Banco (1.1.1) | |
+| **Retenção** (§4.9) | Fornecedores | Impostos a recolher (2.1.3) | baixa `meio='RETENCAO'` fecha o título |
+| **Desconto de título** (§5.4) | Banco (líquido) + Despesa financeira (taxa) | Títulos Descontados (2.x, obrigação c/ banco) | título mantém saldo integral; não há baixa por desconto. Na liquidação pelo sacado, baixa o recebível e zera "Títulos Descontados" |
+| Juros/multa recebidos | Caixa/Banco | Receita financeira | do retorno CNAB (`valor_acrescimos`) |
+| Tarifa bancária | Despesa bancária | Caixa/Banco | `conta_movimentacao` DÉBITO |
+| Rendimento de aplicação | Caixa/Banco | Receita financeira (líq. IR) | §17.9 |
+
+**Resolução das contas:** o `GeracaoLancamentoService` consulta `mapeamento` por
+`(tipo_origem, origem_id)` — ex.: `TIPO_BAIXA` → contas de D/C daquela baixa, `CONTA_CORRENTE` →
+conta de caixa/banco, `TRIBUTO` → conta de imposto a recolher. Se não houver mapeamento
+específico, cai no de-para por `CLASSIFICACAO_FINANCEIRA`.
+
+**Explosão de rateio (centro de custo):** quando o título tem `rateio_id` (§F3), a partida da
+conta de resultado é **explodida em N partidas**, uma por item do rateio, cada uma com seu
+`centro_custo_id` e `valor = base × percentual/100`. A soma das partidas explodidas = valor da
+conta de resultado (fecha as partidas dobradas). Título com `centro_custo_id` direto → 1 partida
+com aquele centro. Título sem centro nem rateio → partida sem dimensão de centro de custo.
+
+**Fluxo (`GeracaoLancamentoService`):**
+1. Recebe o fato financeiro (evento) com `origem`/`origem_id`.
+2. Resolve `periodo` pela competência; **rejeita** se o período estiver `FECHADO`/`BLOQUEADO`
+   (RN-CONT-03) → fato fica pendente até reabertura ou lança no período aberto seguinte, conforme parâmetro.
+3. Aloca `numero` sequencial do período sob lock (gapless).
+4. Seleciona contas via `mapeamento`; monta partidas D/C; aplica explosão de rateio.
+5. Valida partidas dobradas; persiste `lancamento` + `lancamento_partida` atômico.
+6. Idempotente: se já existe lançamento para `(origem, origem_id)`, ignora (log).
+
+**Estorno:** o estorno de uma baixa REAL (§4.6.1) gera **lançamento de estorno** (partidas
+invertidas, `estorno_de_id` preenchido, `status` do original → `ESTORNADO`) — nunca apaga o original.
+
+---
+
+## §38 — Razão Contábil e Balancete
+
+**Razão** — `GET /api/contabil/razao?conta_id=&de=&ate=&estabelecimento_id=&centro_custo_id=`
+
+Movimento analítico de uma conta no período, com saldo acumulado. Filtro por estabelecimento
+(individual ou consolidado quando `NULL`) e por centro de custo.
+
+```json
+{
+  "conta": { "codigo": "1.1.1.02", "descricao": "Banco Conta Movimento" },
+  "saldo_anterior": 12000.00,
+  "partidas": [
+    { "data": "2025-06-05", "historico": "Baixa NF 001", "debito": 3000.00, "credito": 0, "saldo": 15000.00 }
+  ],
+  "total_debito": 8000.00, "total_credito": 3200.00, "saldo_final": 16800.00
+}
+```
+
+**Balancete de verificação** — `GET /api/contabil/balancete?competencia=&estabelecimento_id=`
+
+Lista de todas as contas com `saldo_anterior`, `débitos`, `créditos` e `saldo_final` no período —
+a ponte entre o Razão e as demonstrações. Valida a partida dobrada agregada: `Σ débitos = Σ créditos`.
+
+---
+
+## §39 — Balanço Patrimonial
+
+**Endpoint:** `GET /api/contabil/balanco?competencia=&estabelecimento_id=`
+
+Ativo / Passivo / PL a partir dos saldos das contas sintéticas (consolidação da árvore). Contas
+**retificadoras** (`retificadora = TRUE`, ex.: depreciação acumulada, PCLD) **subtraem** do grupo.
+`estabelecimento_id = NULL` → consolidado do grupo; informado → balanço individual da filial.
+Só considera lançamentos de períodos até a competência pedida. Valida `Ativo = Passivo + PL`.
+
+---
+
+## §40 — DRE por Competência
+
+**Endpoint:** `GET /api/contabil/dre?de=&ate=&estabelecimento_id=`
+
+Receitas − Despesas por competência (contas de resultado), estruturado pelas linhas configuradas em
+`mapeamento.linha_dre` (receita bruta, deduções, CMV, despesas operacionais, resultado financeiro,
+resultado antes/depois de tributos). As linhas são **configuráveis** — nunca hardcode, pois a
+estrutura muda com a reforma tributária. Não confundir com a **DRE gerencial** (§25) — esta é a
+societária/contábil.
+
+---
+
+## §41 — Livro Diário
+
+**Endpoint:** `GET /api/contabil/livro-diario?de=&ate=`
+
+Lançamentos em ordem cronológica pelo `numero` sequencial **sem lacunas**, cada um com suas
+partidas D/C balanceadas — formato para impressão/ECD. Termo de abertura/encerramento por exercício.
+
+---
+
+## §42 — Fechamento de período e apuração de resultado
+
+**Endpoint:** `POST /api/contabil/periodo/{id}/fechar`
+
+**Fluxo:**
+1. Validar que não há fato financeiro pendente de lançar na competência.
+2. Validar partidas dobradas de todos os lançamentos do período (balancete fecha).
+3. Marcar `periodo.status = 'FECHADO'` — a partir daí `GeracaoLancamentoService` rejeita a competência.
+4. **Fechamento anual:** apurar resultado — transferir saldos de contas de RECEITA/CUSTO/DESPESA para
+   conta de resultado do exercício (lançamento `ENCERRAMENTO`), zerando as contas de resultado;
+   o resultado é transferido ao PL (Lucros/Prejuízos Acumulados).
+5. Abertura do exercício seguinte: lançamento `ABERTURA` com os saldos patrimoniais.
+
+- **Reabertura** (`POST .../reabrir`, com alçada): `FECHADO` → `ABERTO`, com auditoria.
+- **Bloqueio/desbloqueio** (`POST .../bloquear`): `ABERTO` → `BLOQUEADO` (trava temporária que
+  impede lançamento sem fechar de vez); reversível para `ABERTO`.
+
+---
+
+## §43 — Conciliação GL × sub-ledgers
+
+Job/relatório que confere se os saldos das contas de controle batem com os sub-ledgers do financeiro:
+
+| Conta de controle (GL) | Sub-ledger (financeiro) | Deve igualar |
+|---|---|---|
+| Clientes (1.1.2) | `SUM(titulo.saldo)` a receber em aberto | saldo contábil = saldo dos títulos |
+| Fornecedores (2.1.1) | `SUM(titulo.saldo)` a pagar em aberto | idem |
+| Banco/Caixa (1.1.1) | `v_saldo_conta_corrente` | saldo GL = saldo das contas correntes |
+| Impostos a recolher (2.1.3) | retenções não recolhidas | |
+
+Divergência → relatório de itens que não amarram (lançamento sem fato, fato sem lançamento).
+Roda como `ConciliacaoGlJob` (mensal, pós-fechamento).
+
+---
+
+## §44 — Regras de negócio
+
+- **RN-CONT-01** Todo lançamento respeita partidas dobradas (ΣD = ΣC); desbalanceado é rejeitado.
+- **RN-CONT-02** Partida só em conta analítica (`aceita_lancamento = TRUE`).
+- **RN-CONT-03** Período `FECHADO`/`BLOQUEADO` não aceita novo lançamento na competência.
+- **RN-CONT-04** 1 fato financeiro = 1 lançamento (idempotência por `(origem, origem_id)`);
+  correção só por **estorno** (partidas invertidas, original → `ESTORNADO`), nunca delete.
+- **RN-CONT-05** Explosão de rateio preserva o total da conta de resultado (§37/§F3).
+- **RN-CONT-06** Plano de contas é editável (§F6) — sem elenco travado.
+- **RN-CONT-07** Dimensão filial é `estabelecimento_id UUID`; `estabelecimento_id = NULL` = consolidado.
+- **RN-CONT-08** `numero` do lançamento é sequencial por período **sem lacunas** (exigência do Livro Diário).
+- **RN-CONT-09** Contas `retificadora = TRUE` subtraem do grupo no Balanço (depreciação/PCLD).
 
 ---
 
 ## MÓDULO VI — ANÁLISES GERENCIAIS E RELATÓRIOS
 
-> Spec completo disponível na versão anterior do documento (v10.0). As seções §21–§27 cobrem relatórios operacionais, KPIs, DRE gerencial, PDD, dashboard executivo.
+> Reconstruído nesta versão (v12.1). **DDL de `pdd_config` alinhado ao §12.10** (migration 030).
+> Cobre relatórios operacionais (aging §21), inadimplência (§22), KPIs (§23), PDD (§24), DRE
+> gerencial (§25), dashboard executivo (§26) e materialização/cron (§27). Consome os dados dos
+> Módulos I–V; **não** escreve fatos — é camada de leitura/analítica.
 
-**Relatórios:** Aging (§6.2), Inadimplência (§6.2.3), Posição de Títulos (§6.2.4)
+**Natureza:** relatórios são **consultas** (views/materialized views + endpoints de leitura).
+Nada aqui altera título, baixa ou lançamento. Filtros comuns: período, `estabelecimento_id`,
+`centro_custo_id`, `classificacao_financeira`, pessoa.
 
-**KPIs:** Giro de Recebíveis, PMR, PMP, Ciclo Financeiro, Taxa de Inadimplência (§6.3)
+---
 
-**PDD:** Provisão para Devedores Duvidosos configurável por faixa de aging (§6.3.5)
+## §21 — Aging (posição por faixa de vencimento)
 
-**Dashboard executivo:** posição de caixa + recebíveis + pagáveis + fluxo + alertas (§6.5)
+**Endpoint:** `GET /api/financeiro/relatorios/aging?natureza=RECEBER|PAGAR&data_base=&estabelecimento_id=`
 
+Distribui os saldos em aberto por faixa de dias vencidos, a partir da `data_base`. As faixas
+espelham as do `pdd_config` (§24):
+
+| Faixa (`pdd_config.faixa`) | Critério |
+|---|---|
+| NAO_VENCIDO | `vencimento ≥ data_base` |
+| ATE_30 | vencido 1 a 30 dias |
+| DE_31_60 | vencido 31 a 60 dias |
+| DE_61_90 | vencido 61 a 90 dias |
+| ACIMA_90 | vencido mais de 90 dias |
+
+Agrupável por pessoa (cliente/fornecedor), classificação e centro de custo. Base do PDD (§24) e
+da régua de cobrança (dunning, Módulo II).
+
+---
+
+## §22 — Inadimplência e posição de títulos
+
+- **Inadimplência** (`GET .../relatorios/inadimplencia`): títulos a receber vencidos e não pagos,
+  com dias de atraso, valor original + juros/multa projetados, situação na régua de cobrança.
+- **Posição de títulos** (`GET .../relatorios/posicao-titulos`): visão consolidada de saldos por
+  status (`PREVISTO/EM_ABERTO/EMITIDO/DESCONTADO/BAIXADO`) — a receber e a pagar, com totalizadores.
+
+---
+
+## §23 — KPIs financeiros
+
+**Endpoint:** `GET /api/financeiro/relatorios/kpis?de=&ate=&estabelecimento_id=`
+
+| KPI | Fórmula (resumo) |
+|---|---|
+| **PMR** (prazo médio de recebimento) | Σ(saldo receber × dias) / Σ recebimentos no período |
+| **PMP** (prazo médio de pagamento) | Σ(saldo pagar × dias) / Σ pagamentos no período |
+| **Ciclo financeiro** | PMR − PMP (+ PME de estoque, quando houver módulo de estoque) |
+| **Giro de recebíveis** | Recebimentos no período / saldo médio a receber |
+| **Taxa de inadimplência** | Vencido não pago / total a receber no período |
+
+Retorna valor atual + série histórica mensal para gráfico.
+
+---
+
+## §24 — PDD (Provisão para Devedores Duvidosos) (§12.10 / migration 030)
+
+**Configuração:** percentual de provisão (PCLD) por faixa de aging (§21), parametrizável pelo tenant.
+Seed default na ativação: 0,5% / 3% / 8% / 20% / 50%.
+
+```sql
+financeiro.pdd_config
+─────────────────────────────────────────────
+id                  BIGSERIAL PK
+tenant_id           BIGINT NOT NULL
+faixa               VARCHAR(15) NOT NULL       -- NAO_VENCIDO|ATE_30|DE_31_60|DE_61_90|ACIMA_90
+percentual          NUMERIC(5,2) NOT NULL      -- % provisionado da faixa
+ativo               BOOLEAN DEFAULT TRUE
+UNIQUE (tenant_id, faixa)
+```
+
+**Cálculo** (`GET .../relatorios/pdd`): para cada faixa, `provisão = saldo_faixa × percentual`.
+O total da PDD alimenta o lançamento contábil de provisão (despesa × conta retificadora do ativo)
+via §37 quando o tenant contabiliza PDD. **É estimativa gerencial** — não baixa título.
+
+---
+
+## §25 — DRE gerencial
+
+**Endpoint:** `GET /api/financeiro/relatorios/dre-gerencial?de=&ate=&por=CLASSIFICACAO|CENTRO_CUSTO`
+
+Diferente da DRE contábil (§40): estrutura por **`classificacao_financeira`** (plano gerencial de
+receitas/despesas) e/ou por **centro de custo**, em regime de caixa **ou** competência (parâmetro).
+Comparativo orçado × realizado usando `orcamento_fluxo` (§2.8 do Módulo III). Permite drill-down
+até o título/movimentação de origem.
+
+---
+
+## §26 — Dashboard executivo
+
+**Endpoint:** `GET /api/financeiro/relatorios/dashboard?estabelecimento_id=`
+
+Painel consolidado (uma chamada, várias métricas):
+- **Posição de caixa:** saldo atual de todas as contas (`v_saldo_conta_corrente`) + projeção de
+  fluxo (entradas previstas − saídas previstas) para 7/30/90 dias.
+- **Recebíveis:** total a receber, vencido, aging resumido, top 5 clientes.
+- **Pagáveis:** total a pagar, vencido, compromissos dos próximos 30 dias, alçadas pendentes.
+- **Indicadores:** PMR, PMP, ciclo, inadimplência (§23).
+- **Alertas:** boletos vencidos (§20), cheques a compensar, aplicações vencidas, títulos em atraso
+  na régua de cobrança, divergências de conciliação (§43).
+
+---
+
+## §27 — Materialização e cron
+
+- Relatórios pesados (aging, KPIs, dashboard) usam **materialized views** por tenant, atualizadas
+  por `RelatoriosRefreshJob` (diário, madrugada) + refresh sob demanda ao abrir o painel.
+- Consultas ad-hoc por período curto rodam direto nas tabelas (índices de `vencimento`/`status`).
+- Todos os endpoints deste módulo são **read-only** e respeitam o `TenantContext` (filtro por tenant)
+  e as permissões RBAC (visão gerencial exige permissão específica).
+
+**Cron jobs do módulo:**
+
+| Job | Frequência | Ação |
+|---|---|---|
+| `RelatoriosRefreshJob` | diária (madrugada) | `REFRESH MATERIALIZED VIEW` de aging/KPIs/dashboard por tenant |
+| `PddCalculoJob` | mensal | Recalcula PDD por faixa e (se configurado) dispara lançamento de provisão (§37) |
+
+---
 
 ## 11. Mapeamento dos Diagramas de Arquitetura
 
@@ -3539,7 +4814,7 @@ Exemplo: `vitor-financeiro-v1.001-feriado-bancario`
 |---|---|---|
 | `financeiro/v1/001-feriado-bancario.yaml` | `createTable` | Tabela `financeiro.feriado_bancario` com colunas: `id`, `data DATE`, `descricao`, `tipo` (NACIONAL/ESTADUAL/MUNICIPAL), `uf` nullable, `ibge_municipio` nullable. Unique em `(data, tipo, uf, ibge_municipio)`. Seed inline com os 12 feriados nacionais fixos (Confraternização, Tiradentes, Trabalho, Independência, N.Sra.Aparecida, Finados, Proclamação, Natal). Feriados móveis (Carnaval, Corpus Christi, Sexta Santa) calculados em código, não no seed. |
 | `financeiro/v1/002-audit-log.yaml` | `createTable` | Tabela `financeiro.audit_log` com colunas: `id`, `tenant_id`, `tabela varchar(50)`, `registro_id BIGINT`, `operacao varchar(10)` (INSERT/UPDATE/DELETE), `campos_antes JSONB`, `campos_depois JSONB`, `actor_user_id UUID` (UUID — não BIGINT, pois `user_account.id` é UUID; nome `actor_user_id` segue o padrão da audit_log principal — ver §F2), `user_nome varchar(100)`, `ip_origem varchar(45)`, `created_at TIMESTAMPTZ`. Índices em `(tenant_id, tabela, registro_id)`, `(tenant_id, actor_user_id)` e `(tenant_id, created_at)`. Sem FK — referência a `user_account` garantida pela aplicação. |
-| `financeiro/v1/003-centro-custo.yaml` | `createTable` | Tabelas `financeiro.centro_custo` (hierárquica com `centro_pai_id` self-reference, `aceita_rateio boolean`, `ativo boolean`) e `financeiro.centro_custo_rateio` + `financeiro.centro_custo_rateio_item` (percentual por CC, soma deve ser 100%). Índice em `(tenant_id, codigo)` unique. |
+| `financeiro/v1/003-centro-custo.yaml` | `createTable` | Tabelas `financeiro.centro_custo` (hierárquica com `centro_pai_id` self-reference, `aceita_lancamento boolean`, `ativo boolean`) e `financeiro.centro_custo_rateio` + `financeiro.centro_custo_rateio_item` (com `tenant_id`; percentual por CC, soma deve ser 100%; unique `(rateio_id, centro_custo_id)`). Índice em `(tenant_id, codigo)` unique. |
 | `financeiro/v1/004-addcol-centro-custo-referencias.yaml` | `addColumn` | Adiciona `centro_custo_id BIGINT nullable` em: `financeiro.titulo`, `financeiro.titulo_baixa`, `financeiro.conta_movimentacao`, `contabil.lancamento_partida`. Atenção: `titulo` e `titulo_baixa` ainda não existem neste ponto — esta migration deve vir **depois** das migrations que criam essas tabelas. Mover para após financeiro/v1/006. |
 
 > ⚠️ **Ajuste de ordem:** `004-addcol-centro-custo-referencias.yaml` deve ser renumerado para `financeiro/v1/010-addcol-centro-custo-referencias.yaml` para vir após a criação de `titulo` e `titulo_baixa`.
@@ -3582,7 +4857,7 @@ Exemplo: `vitor-financeiro-v1.001-feriado-bancario`
 | `financeiro/v1/007-classificacao-motivo.yaml` | `createTable` | Tabelas `financeiro.classificacao_financeira` (agrupamento livre para relatórios) e `financeiro.motivo` (justificativas de cancelamento, parcelamento, prorrogação). |
 | `financeiro/v1/008-parametros.yaml` | `createTable` | Tabela `financeiro.parametros` — 1 linha por tenant. Armazena tipos de ajuste padrão para multa/mora/desconto em AP e AR (usados quando retorno CNAB traz valor diferente do boleto), flag de permissão de baixa com data anterior, consideração de feriado bancário, e tolerância de conciliação automática. |
 | `financeiro/v1/009-titulo.yaml` | `createTable` | Tabela `financeiro.titulo` — entidade central. Campos principais: `natureza` (PAGAR/RECEBER), `numero`, `tipo_titulo_id`, `status_titulo` (PREVISTO/EM_ABERTO/EMITIDO/BAIXADO/CANCELADO), `status_baixa` (PLANEJADA/REAL), `terceiro_tipo/id/nome/cnpj_cpf`, `data_emissao/vencimento/competencia`, `valor_original`, `valor_ajuste_acrescimo/desconto`, `valor_baixado`, colunas geradas `valor_liquido` e `valor_saldo`, `origem` (MANUAL/NF_ENTRADA/NF_SAIDA/CNAB/EMPRESTIMO/ADIANTAMENTO/PARCELAMENTO/RENEGOCIACAO), `impostos JSONB` (reservado para IBS/CBS). Índices em `(tenant_id, natureza)`, `(tenant_id, data_vencimento)`, `(tenant_id, terceiro_tipo, terceiro_id)`, `(tenant_id, status_titulo, status_baixa)`. |
-| `financeiro/v1/010-addcol-centro-custo-referencias.yaml` | `addColumn` | Adiciona `centro_custo_id BIGINT nullable` em `financeiro.titulo`. Executar aqui pois `titulo` agora existe. |
+| `financeiro/v1/010-addcol-centro-custo-referencias.yaml` | `addColumn` | Adiciona `centro_custo_id BIGINT nullable` e `rateio_id BIGINT nullable` (mutuamente exclusivos — CHECK, §F3) em `financeiro.titulo`. Executar aqui pois `titulo` agora existe. |
 | `financeiro/v1/011-titulo-operacoes.yaml` | `createTable` | Tabelas `financeiro.titulo_ajuste` (acréscimos/descontos por tipo), `financeiro.titulo_baixa` (cada evento de pagamento/recebimento com status PLANEJADA/REAL, origem MANUAL/CNAB/COMPENSACAO/ADIANTAMENTO), `financeiro.titulo_prorrogacao` (histórico de prorrogações com data anterior/nova), `financeiro.titulo_parcelamento` (controle de parcelamentos com referência ao título original). |
 | `financeiro/v1/012-addcol-centro-custo-baixa.yaml` | `addColumn` | Adiciona `centro_custo_id BIGINT nullable` em `financeiro.titulo_baixa`. Separado da migration anterior pois `titulo_baixa` é criada em 011. |
 | `financeiro/v1/013-adiantamento.yaml` | `createTable` | Tabela `financeiro.adiantamento_saldo` — controla saldo disponível de adiantamentos por terceiro (fornecedor ou cliente). Campos: `titulo_id`, `terceiro_tipo/id`, `natureza`, `valor_total`, `valor_utilizado`, coluna gerada `valor_disponivel`. Unique em `(tenant_id, titulo_id)`. |
@@ -3760,7 +5035,8 @@ SPRINT 6 — Apuração Fiscal
 SPRINT 7 — Análises
 └── financeiro/v1/030  pdd-config + seed
 
-Total: 50 migrations em 3 schemas novos
+Total: ~72 migrations em 3 schemas novos
+(50 dos sprints acima + 13 do §12.10-B + 9 do §1.8.12)
 ```
 
 ---
@@ -4129,7 +5405,7 @@ Implementação via `Specification<T>` do Spring Data JPA — não repetir filtr
 
 ### 13.4 Publicação de Eventos de Domínio
 
-**Decisão:** eventos in-process via Spring `ApplicationEventPublisher`. Sem broker externo (RabbitMQ/Kafka) por enquanto — adicionar quando houver necessidade de comunicação entre serviços deployados separadamente.
+**Decisão:** eventos **internos ao serviço** via Spring `ApplicationEventPublisher`; eventos que **cruzam serviços** (NF-e, ativação de tenant) via Kafka (contrato em §F4) — não usar broker para o que fica dentro do mesmo deploy.
 
 **Interface base:**
 ```java
@@ -4149,7 +5425,7 @@ public interface DomainEvent {
 | `ContaMovimentacaoConfirmadaEvent` | In-process | `MovimentacaoService` | `GlEventListener`, `FluxoCaixaService` |
 | `ApuracaoFechadaEvent` | In-process | `ApuracaoMensalService` | `GlEventListener` |
 | `AplicacaoResgatadaEvent` | In-process | `AplicacaoFinanceiraService` | `GlEventListener` |
-| `TenantAtivadoEvent` | In-process | Auth Service (externo) | `TenantAtivacaoListener` |
+| `TenantAtivadoEvent` | **Kafka** (auth-service é outro processo — in-process não alcança) | Auth Service (externo) | `TenantAtivacaoListener` |
 | `nfe.entrada.aprovada` | **Kafka** | fiscal-service / emissor | `NfeEntradaConsumer` → `TituloService` |
 | `nfe.saida.autorizada` | **Kafka** | fiscal-service / emissor | `NfeSaidaConsumer` → `TituloService` |
 | `nfe.cancelada` | **Kafka** | fiscal-service / emissor | `NfeCanceladaConsumer` → `TituloService` |
@@ -4631,7 +5907,7 @@ Estas tabelas são configuradas pelo próprio tenant no ERP. Cada tenant tem seu
 
 | Tabela | Tela no ERP | Campos principais |
 |---|---|---|
-| `financeiro.centro_custo` | **Cadastros → Centros de Custo** | Código, descrição, hierarquia (pai), aceita rateio, ativo |
+| `financeiro.centro_custo` | **Cadastros → Centros de Custo** | Código, descrição, hierarquia (pai), aceita lançamento (analítico/sintético), ativo |
 | `financeiro.centro_custo_rateio` | **Cadastros → Centros de Custo → Rateios** | Nome do rateio, percentual por CC (soma = 100%) |
 
 #### Bancário e Tesouraria
@@ -4728,416 +6004,4 @@ Estas tabelas são criadas/atualizadas automaticamente pelo sistema durante a op
 
 ---
 
-*Fim do documento — Spec Funcional Módulo Financeiro v16.0 completo.*
-
----
-
-## 1.8 Dados Fiscais Confirmados — Fontes Oficiais
-
-> Dados extraídos diretamente da **LC 214/2025** (atualizada até LC 227/2026) e do **Informe Técnico RT 2025.002 v1.10** (publicado em Portal NF-e, abril/2026). Não requerem validação adicional — são as fontes primárias.
-
----
-
-### 1.8.1 Esclarecimento Arquitetural: CST vs. cClassTrib
-
-O spec anterior usava apenas `cst varchar(3)`. A RT 2025.002 esclarece a distinção:
-
-| Campo | Tamanho | Obrigatório | O que é |
-|---|---|---|---|
-| `CST` | 3 dígitos | Sim, a partir de jan/2026 | Código de Situação Tributária — nível macro |
-| `cClassTrib` | N dígitos (os 3 primeiros = CST) | Sim, a partir de jan/2026 | Classificação granular vinculada a artigo da LC 214/2025 |
-
-**Impacto no schema:** a tabela `fiscal.cst_ibs_cbs` representa os CSTs (macro). O `cClassTrib` completo deve ser baixado do Portal NF-e (CSV oficial) e armazenado em `fiscal.c_class_trib` separado. A `operacao_fiscal` precisa de ambos os campos.
-
-**Simples Nacional e MEI:** durante 2026, NÃO são obrigados a informar CST e cClassTrib. Obrigatoriedade inicia em janeiro de 2027. O motor fiscal deve retornar `cst = null` e `c_class_trib = null` para essas empresas em 2026.
-
----
-
-### 1.8.2 Seed Confirmado — `fiscal.cst_ibs_cbs`
-
-18 códigos confirmados pelo RT 2025.002:
-
-```sql
-INSERT INTO fiscal.cst_ibs_cbs (codigo, descricao, natureza) VALUES
-('000', 'Tributação integral', 'AMBOS'),
-('010', 'Tributação com alíquotas uniformes — operações setor financeiro', 'AMBOS'),
-('011', 'Tributação com alíquotas uniformes reduzidas em 60% ou 30%', 'AMBOS'),
-('200', 'Alíquota zero / Alíquota reduzida (80%, 70%, 60%, 50%, 40% ou 30%)', 'AMBOS'),
-('220', 'Alíquota fixa', 'AMBOS'),
-('221', 'Alíquota fixa proporcional', 'AMBOS'),
-('222', 'Redução de base de cálculo', 'AMBOS'),
-('400', 'Isenção', 'AMBOS'),
-('410', 'Imunidade e não incidência', 'AMBOS'),
-('510', 'Diferimento', 'AMBOS'),
-('515', 'Diferimento com redução de alíquota', 'AMBOS'),
-('550', 'Suspensão', 'AMBOS'),
-('620', 'Tributação monofásica', 'AMBOS'),
-('800', 'Transferência de crédito', 'AMBOS'),
-('810', 'Ajustes de IBS na ZFM', 'SAIDA'),
-('811', 'Ajustes', 'AMBOS'),
-('820', 'Tributação em documento específico', 'AMBOS'),
-('830', 'Exclusão de base de cálculo', 'AMBOS');
-```
-
----
-
-### 1.8.3 Nova Entidade — `fiscal.c_cred_pres` (Crédito Presumido)
-
-13 códigos confirmados pelo RT 2025.002:
-
-```sql
-fiscal.c_cred_pres
-─────────────────────────────────────────────
-id          BIGSERIAL PK
-codigo      INT NOT NULL UNIQUE   -- 1 a 13
-descricao   VARCHAR(500) NOT NULL
-artigo_lc   VARCHAR(20)           -- ex: 'art. 168'
-UNIQUE (codigo)
-```
-
-Seed:
-```sql
-INSERT INTO fiscal.c_cred_pres (codigo, descricao, artigo_lc) VALUES
-(1,  'Crédito presumido — aquisição de bens/serviços de produtor rural não contribuinte', 'art. 168'),
-(2,  'Crédito presumido — serviço de transportador autônomo de carga PF não contribuinte', 'art. 169'),
-(3,  'Crédito presumido — resíduos para reciclagem/reutilização de PF/cooperativa', 'art. 170'),
-(4,  'Crédito presumido — bens móveis usados de PF não contribuinte para revenda', 'art. 171'),
-(5,  'Crédito presumido — regime automotivo', 'art. 310'),
-(6,  'Crédito presumido — regime automotivo', 'art. 311'),
-(7,  'Crédito presumido — aquisição por contribuinte na Zona Franca de Manaus', 'art. 444'),
-(8,  'Crédito presumido — aquisição por contribuinte na Zona Franca de Manaus', 'art. 447'),
-(9,  'Crédito presumido — aquisição por contribuinte na Zona Franca de Manaus', 'art. 447'),
-(10, 'Crédito presumido — aquisição por contribuinte na Zona Franca de Manaus', 'art. 450'),
-(11, 'Crédito presumido — aquisição por contribuinte na Área de Livre Comércio', 'art. 462'),
-(12, 'Crédito presumido — aquisição por contribuinte na Área de Livre Comércio', 'art. 465'),
-(13, 'Crédito presumido — aquisição pela indústria na Área de Livre Comércio', 'art. 467');
-```
-
----
-
-### 1.8.4 Atualização Schema — `fiscal.operacao_fiscal`
-
-Adicionar campos que a RT 2025.002 torna obrigatórios na NF-e:
-
-```sql
--- Adicionar em fiscal.operacao_fiscal (addColumn)
-cst                VARCHAR(3)    -- CST IBS/CBS (null para Simples/MEI em 2026)
-c_class_trib       VARCHAR(20)   -- cClassTrib completo (null para Simples/MEI em 2026)
-c_cred_pres_id     BIGINT        -- REFERENCES fiscal.c_cred_pres (nullable)
-p_red_ibs          NUMERIC(5,2)  -- % redução alíquota IBS (do cClassTrib)
-p_red_cbs          NUMERIC(5,2)  -- % redução alíquota CBS (do cClassTrib)
-```
-
----
-
-### 1.8.5 Regimes Diferenciados — Mapeamento Completo dos Anexos LC 214/2025
-
-Atualiza a entidade `fiscal.regime_dif_ncm` com os valores reais. O campo `regime_diferenciado` em `produto` também deve refletir esses valores.
-
-**Enum atualizado para `regime_diferenciado` (produto):**
-
-| Valor | Efeito IBS | Efeito CBS | Fonte |
-|---|---|---|---|
-| `PADRAO` | Alíquota cheia | Alíquota cheia | — |
-| `ANEXO_I_ZERO` | Zero | Zero | Anexo I — alimentos básicos |
-| `ANEXO_XII_ZERO` | Zero | Zero | Anexo XII — dispositivos médicos |
-| `ANEXO_XIII_ZERO` | Zero | Zero | Anexo XIII — acessibilidade PcD |
-| `ANEXO_XIV_ZERO` | Zero | Zero | Anexo XIV — medicamentos |
-| `ANEXO_XV_ZERO` | Zero | Zero | Anexo XV — hortícolas, frutas, ovos |
-| `ANEXO_II_60` | Redução 60% | Redução 60% | Anexo II — educação |
-| `ANEXO_III_60` | Redução 60% | Redução 60% | Anexo III — saúde |
-| `ANEXO_IV_60` | Redução 60% | Redução 60% | Anexo IV — dispositivos médicos (60%) |
-| `ANEXO_V_60` | Redução 60% | Redução 60% | Anexo V — acessibilidade PcD (60%) |
-| `ANEXO_VI_60` | Redução 60% | Redução 60% | Anexo VI — nutrição enteral/parenteral |
-| `ANEXO_VII_60` | Redução 60% | Redução 60% | Anexo VII — alimentos (60%) |
-| `ANEXO_VIII_60` | Redução 60% | Redução 60% | Anexo VIII — higiene pessoal baixa renda |
-| `ANEXO_IX_60` | Redução 60% | Redução 60% | Anexo IX — insumos agropecuários |
-| `ANEXO_X_60` | Redução 60% | Redução 60% | Anexo X — produções artísticas/culturais |
-| `ANEXO_XI_60` | Redução 60% | Redução 60% | Anexo XI — segurança nacional/cibernética |
-| `MONOFASICO` | Zero (já recolhido na origem) | Zero | LC 214/2025 art. específico |
-| `ISENTO` | Zero | Zero | CST 400 |
-| `IMUNE` | Zero | Zero | CST 410 |
-| `ZFM` | Ajuste específico | Ajuste específico | CST 810 |
-
----
-
-### 1.8.6 Seed Confirmado — Anexo I (Alíquota Zero — Alimentos Básicos)
-
-26 itens confirmados da LC 214/2025 — NCMs reais para seed de `fiscal.regime_dif_ncm`:
-
-```sql
--- Anexo I — Alíquota Zero IBS e CBS
-INSERT INTO fiscal.regime_dif_ncm (ncm, descricao, regime, percentual_reducao, vigente_de) VALUES
--- Arroz
-('1006.20', 'Arroz subposição 1006.20', 'ANEXO_I_ZERO', 100, '2026-01-01'),
-('1006.30', 'Arroz subposição 1006.30', 'ANEXO_I_ZERO', 100, '2026-01-01'),
-('1006.40.00', 'Arroz código 1006.40.00', 'ANEXO_I_ZERO', 100, '2026-01-01'),
--- Leite fresco
-('0401.10.10', 'Leite para consumo direto', 'ANEXO_I_ZERO', 100, '2026-01-01'),
-('0401.10.90', 'Leite para consumo direto', 'ANEXO_I_ZERO', 100, '2026-01-01'),
-('0401.20.10', 'Leite para consumo direto', 'ANEXO_I_ZERO', 100, '2026-01-01'),
-('0401.20.90', 'Leite para consumo direto', 'ANEXO_I_ZERO', 100, '2026-01-01'),
-('0401.40.10', 'Leite para consumo direto', 'ANEXO_I_ZERO', 100, '2026-01-01'),
-('0401.50.10', 'Leite para consumo direto', 'ANEXO_I_ZERO', 100, '2026-01-01'),
--- Leite em pó
-('0402.10.10', 'Leite em pó', 'ANEXO_I_ZERO', 100, '2026-01-01'),
-('0402.10.90', 'Leite em pó', 'ANEXO_I_ZERO', 100, '2026-01-01'),
-('0402.21.10', 'Leite em pó', 'ANEXO_I_ZERO', 100, '2026-01-01'),
-('0402.21.20', 'Leite em pó', 'ANEXO_I_ZERO', 100, '2026-01-01'),
-('0402.29.10', 'Leite em pó', 'ANEXO_I_ZERO', 100, '2026-01-01'),
-('0402.29.20', 'Leite em pó', 'ANEXO_I_ZERO', 100, '2026-01-01'),
--- Fórmulas infantis
-('1901.10.10', 'Fórmulas infantis', 'ANEXO_I_ZERO', 100, '2026-01-01'),
-('1901.10.90', 'Fórmulas infantis', 'ANEXO_I_ZERO', 100, '2026-01-01'),
--- Manteiga, margarina
-('0405.10.00', 'Manteiga', 'ANEXO_I_ZERO', 100, '2026-01-01'),
-('1517.10.00', 'Margarina', 'ANEXO_I_ZERO', 100, '2026-01-01'),
--- Feijões
-('0713.33.19', 'Feijões', 'ANEXO_I_ZERO', 100, '2026-01-01'),
-('0713.33.29', 'Feijões', 'ANEXO_I_ZERO', 100, '2026-01-01'),
-('0713.33.99', 'Feijões', 'ANEXO_I_ZERO', 100, '2026-01-01'),
-('0713.35.90', 'Feijões', 'ANEXO_I_ZERO', 100, '2026-01-01'),
--- Farinha de mandioca, tapioca
-('1106.20.00', 'Farinha de mandioca', 'ANEXO_I_ZERO', 100, '2026-01-01'),
-('1903.00.00', 'Tapioca e sucedâneos', 'ANEXO_I_ZERO', 100, '2026-01-01'),
--- Farinha de milho
-('1102.20.00', 'Farinha de milho', 'ANEXO_I_ZERO', 100, '2026-01-01'),
-('1103.13.00', 'Sêmola de milho', 'ANEXO_I_ZERO', 100, '2026-01-01'),
--- Milho em grão
-('1104.19.00', 'Grãos de milho', 'ANEXO_I_ZERO', 100, '2026-01-01'),
-('1104.23.00', 'Grãos de milho', 'ANEXO_I_ZERO', 100, '2026-01-01'),
--- Farinha de trigo
-('1101.00.10', 'Farinha de trigo', 'ANEXO_I_ZERO', 100, '2026-01-01'),
--- Açúcar
-('1701.14.00', 'Açúcar', 'ANEXO_I_ZERO', 100, '2026-01-01'),
-('1701.99.00', 'Açúcar', 'ANEXO_I_ZERO', 100, '2026-01-01'),
--- Massas alimentícias (subposição 1902.1 - múltiplos)
-('1902.1', 'Massas alimentícias', 'ANEXO_I_ZERO', 100, '2026-01-01'),
--- Pão francês
-('1905.90.90', 'Pão francês', 'ANEXO_I_ZERO', 100, '2026-01-01'),
-('1901.20.10', 'Pré-mistura para pão francês', 'ANEXO_I_ZERO', 100, '2026-01-01'),
-('1901.20.90', 'Pré-mistura para pão francês', 'ANEXO_I_ZERO', 100, '2026-01-01'),
--- Aveia
-('1104.12.00', 'Grãos de aveia', 'ANEXO_I_ZERO', 100, '2026-01-01'),
-('1104.22.00', 'Grãos de aveia', 'ANEXO_I_ZERO', 100, '2026-01-01'),
-('1102.90.00', 'Farinha de aveia', 'ANEXO_I_ZERO', 100, '2026-01-01'),
--- Queijos (mozarela, minas, prato, coalho, ricota, requeijão, provolone, parmesão, fresco, reino)
-('0406.10.10', 'Queijo fresco não maturado', 'ANEXO_I_ZERO', 100, '2026-01-01'),
-('0406.10.90', 'Queijo fresco não maturado', 'ANEXO_I_ZERO', 100, '2026-01-01'),
-('0406.20.00', 'Queijo ralado ou em pó', 'ANEXO_I_ZERO', 100, '2026-01-01'),
-('0406.90.10', 'Outros queijos (mozarela, minas, prato, coalho)', 'ANEXO_I_ZERO', 100, '2026-01-01'),
-('0406.90.20', 'Outros queijos', 'ANEXO_I_ZERO', 100, '2026-01-01'),
-('0406.90.30', 'Outros queijos (provolone, parmesão, reino)', 'ANEXO_I_ZERO', 100, '2026-01-01'),
--- Sal
-('2501.00.20', 'Sal para consumo humano', 'ANEXO_I_ZERO', 100, '2026-01-01'),
-('2501.00.90', 'Sal para consumo humano', 'ANEXO_I_ZERO', 100, '2026-01-01');
--- Nota: Carnes (NCMs 02.xx), peixes (NCMs 03.xx), café (09.01, 2101.1), mate (09.03) e
--- outros itens com múltiplos NCMs/subposições devem ser expandidos conforme tabela NCM completa
-```
-
----
-
-### 1.8.7 Seed Confirmado — Anexo XVII (Imposto Seletivo — IS)
-
-Produtos e NCMs sujeitos ao IS confirmados pela LC 214/2025:
-
-```sql
--- Seed de fiscal.aliq_is_ncm (IS)
--- Nota: alíquotas específicas serão regulamentadas. Estrutura confirmada.
-INSERT INTO fiscal.aliq_is_ncm (ncm, descricao, aliquota_pct, vigente_de) VALUES
--- Veículos (exceto caminhões e veículos militares/segurança pública)
-('87.03', 'Automóveis de passageiros', NULL, '2027-01-01'),
-('8704.21', 'Veículos para transporte de mercadorias (exceto caminhões)', NULL, '2027-01-01'),
-('8704.31', 'Veículos para transporte de mercadorias (exceto caminhões)', NULL, '2027-01-01'),
-('8704.41.00', 'Veículos para transporte de mercadorias (exceto caminhões)', NULL, '2027-01-01'),
-('8704.51.00', 'Veículos para transporte de mercadorias (exceto caminhões)', NULL, '2027-01-01'),
-('8704.60.00', 'Veículos elétricos para transporte (exceto caminhões)', NULL, '2027-01-01'),
-('8704.90.00', 'Outros veículos (exceto caminhões)', NULL, '2027-01-01'),
--- Aeronaves (exceto militares e 8802.60.00)
-('8802', 'Aeronaves (exceto 8802.60.00 e militares)', NULL, '2027-01-01'),
--- Embarcações com motor
-('8903', 'Embarcações com motor', NULL, '2027-01-01'),
--- Produtos fumígenos
-('2401', 'Fumo não manufaturado', NULL, '2027-01-01'),
-('2402', 'Charutos, cigarros, cigarrilhas', NULL, '2027-01-01'),
-('2403', 'Outros produtos do fumo', NULL, '2027-01-01'),
-('2404', 'Produtos com nicotina', NULL, '2027-01-01'),
--- Bebidas alcoólicas
-('2203', 'Cerveja de malte', NULL, '2027-01-01'),
-('2204', 'Vinhos de uvas frescas', NULL, '2027-01-01'),
-('2205', 'Vermutes e outros vinhos', NULL, '2027-01-01'),
-('2206', 'Outras bebidas fermentadas', NULL, '2027-01-01'),
-('2208', 'Álcool etílico e bebidas espirituosas', NULL, '2027-01-01'),
--- Bebidas açucaradas
-('2202.10.00', 'Águas e bebidas gaseificadas com açúcar/edulcorante', NULL, '2027-01-01'),
--- Bens minerais
-('2601', 'Minérios de ferro', NULL, '2027-01-01'),
-('2709.00.10', 'Petróleo bruto', NULL, '2027-01-01'),
-('2711.11.00', 'Gás natural liquefeito', NULL, '2027-01-01'),
-('2711.21.00', 'Gás natural em estado gasoso', NULL, '2027-01-01');
--- Concursos de prognósticos e Fantasy sport: sem NCM (CST 820 — tributação em documento específico)
--- Nota: aliquota_pct = NULL porque o IS ainda aguarda regulamentação das alíquotas específicas
-```
-
----
-
-### 1.8.8 Seed Parcial — Anexos II e III (Serviços com Redução 60%)
-
-Para NFS-e, o campo de classificação é NBS (Nomenclatura Brasileira de Serviços), não NCM.
-
-**Impacto arquitetural:** `fiscal.regime_dif_ncm` precisa suportar tanto NCM quanto NBS:
-
-```sql
--- Adicionar campo nbs em fiscal.regime_dif_ncm (addColumn)
-ALTER TABLE fiscal.regime_dif_ncm ADD COLUMN nbs VARCHAR(20);
--- ncm e nbs são mutuamente exclusivos (CHECK constraint)
-```
-
-Seed Anexo II — Educação (Redução 60%):
-```sql
-INSERT INTO fiscal.regime_dif_ncm (nbs, descricao, regime, percentual_reducao, vigente_de) VALUES
-('1.2201.1',    'Ensino Infantil, inclusive creche e pré-escola', 'ANEXO_II_60', 60, '2026-01-01'),
-('1.2201.20.00','Ensino Fundamental', 'ANEXO_II_60', 60, '2026-01-01'),
-('1.2201.30.00','Ensino Médio', 'ANEXO_II_60', 60, '2026-01-01'),
-('1.2202.00.00','Ensino Técnico de Nível Médio', 'ANEXO_II_60', 60, '2026-01-01'),
-('1.2203',      'EJA — Ensino para jovens e adultos', 'ANEXO_II_60', 60, '2026-01-01'),
-('1.2204',      'Ensino Superior (graduação, pós-graduação, extensão)', 'ANEXO_II_60', 60, '2026-01-01'),
-('1.2205.13.00','Ensino de sistemas linguísticos e línguas nativas', 'ANEXO_II_60', 60, '2026-01-01');
-```
-
-Seed Anexo III — Saúde (Redução 60% — 30 itens):
-```sql
-INSERT INTO fiscal.regime_dif_ncm (nbs, descricao, regime, percentual_reducao, vigente_de) VALUES
-('1.2301.11.00','Serviços cirúrgicos', 'ANEXO_III_60', 60, '2026-01-01'),
-('1.2301.12.00','Serviços ginecológicos e obstétricos', 'ANEXO_III_60', 60, '2026-01-01'),
-('1.2301.13.00','Serviços psiquiátricos', 'ANEXO_III_60', 60, '2026-01-01'),
-('1.2301.14.00','Serviços de UTI', 'ANEXO_III_60', 60, '2026-01-01'),
-('1.2301.15.00','Serviços de urgência', 'ANEXO_III_60', 60, '2026-01-01'),
-('1.2301.19.00','Serviços hospitalares não classificados', 'ANEXO_III_60', 60, '2026-01-01'),
-('1.2301.21.00','Serviços de clínica médica', 'ANEXO_III_60', 60, '2026-01-01'),
-('1.2301.22.00','Serviços médicos especializados', 'ANEXO_III_60', 60, '2026-01-01'),
-('1.2301.23.00','Serviços odontológicos', 'ANEXO_III_60', 60, '2026-01-01'),
-('1.2301.91.00','Serviços de enfermagem', 'ANEXO_III_60', 60, '2026-01-01'),
-('1.2301.92.00','Serviços de fisioterapia', 'ANEXO_III_60', 60, '2026-01-01'),
-('1.2301.93.00','Serviços laboratoriais', 'ANEXO_III_60', 60, '2026-01-01'),
-('1.2301.94.00','Serviços de diagnóstico por imagem', 'ANEXO_III_60', 60, '2026-01-01'),
-('1.2301.95.00','Serviços de bancos de material biológico humano', 'ANEXO_III_60', 60, '2026-01-01'),
-('1.2301.96.00','Serviços de ambulância', 'ANEXO_III_60', 60, '2026-01-01'),
-('1.2301.97.00','Serviços de assistência ao parto e pós-parto', 'ANEXO_III_60', 60, '2026-01-01'),
-('1.2301.98.00','Serviços de psicologia', 'ANEXO_III_60', 60, '2026-01-01'),
-('1.2301.99.00','Outros serviços de saúde (vigilância, epidemiologia, vacinação, fonoaudiologia, nutrição, optometria, biomedicina, farmácia, esterilização)', 'ANEXO_III_60', 60, '2026-01-01'),
-('1.2302',      'Serviços de cuidado a idosos e PcD em acolhimento', 'ANEXO_III_60', 60, '2026-01-01'),
-('1.2603.00.00','Serviços funerários, cremação e embalsamamento', 'ANEXO_III_60', 60, '2026-01-01');
-```
-
----
-
-### 1.8.9 Seed Confirmado — Anexo XV (Hortícolas, Frutas, Ovos — Alíquota Zero)
-
-```sql
-INSERT INTO fiscal.regime_dif_ncm (ncm, descricao, regime, percentual_reducao, vigente_de) VALUES
-('0407.2',  'Ovos', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
--- Hortícolas (Cap 7 exceto 0709.5 e 0710.80.00)
-('07.01', 'Batatas', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
-('07.02.00.00', 'Tomates', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
-('07.03', 'Cebolas, alhos, alho-poró', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
-('07.04', 'Couves e brássicas', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
-('07.05', 'Alfaces e chicórias', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
-('07.06', 'Cenouras, nabos, beterrabas', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
-('0707.00.00', 'Pepinos e pepinilhos', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
-('07.08', 'Legumes de vagem', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
-('07.09', 'Outros produtos hortícolas (exceto cogumelos 0709.5)', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
-('07.10', 'Produtos hortícolas congelados (exceto 0710.80.00)', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
--- Frutas frescas (Cap 8)
-('08.03', 'Bananas', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
-('08.04', 'Tâmaras, figos, abacaxis, abacates, goiabas, mangas', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
-('08.05', 'Frutas cítricas', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
-('08.06', 'Uvas', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
-('08.07', 'Melões, melancias, mamões', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
-('08.08', 'Maçãs, peras, marmelos', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
-('08.09', 'Damascos, cerejas, pêssegos, ameixas', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
-('08.10', 'Outros frutos frescos (morangos, framboesas, kiwi, caju, etc.)', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
-('08.11', 'Frutas congeladas sem açúcar ou edulcorante', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
--- Raízes e tubérculos, cocos
-('07.14', 'Raízes e tubérculos', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
-('0801.1', 'Cocos', 'ANEXO_XV_ZERO', 100, '2026-01-01'),
--- Capítulo 6 (plantas/flores para fins alimentares/ornamentais/medicinais)
-('06', 'Plantas e produtos de floricultura (cap 6)', 'ANEXO_XV_ZERO', 100, '2026-01-01');
-```
-
----
-
-### 1.8.10 Higiene Pessoal — Anexo VIII (Redução 60%)
-
-7 itens confirmados:
-
-```sql
-INSERT INTO fiscal.regime_dif_ncm (ncm, descricao, regime, percentual_reducao, vigente_de) VALUES
-('3401.11.90', 'Sabões de toucador', 'ANEXO_VIII_60', 60, '2026-01-01'),
-('3306.10.00', 'Dentifrícios', 'ANEXO_VIII_60', 60, '2026-01-01'),
-('9603.21.00', 'Escovas de dentes', 'ANEXO_VIII_60', 60, '2026-01-01'),
-('4818.10.00', 'Papel higiênico', 'ANEXO_VIII_60', 60, '2026-01-01'),
-('3808.94.19', 'Água sanitária', 'ANEXO_VIII_60', 60, '2026-01-01'),
-('3401.19.00', 'Sabões em barra', 'ANEXO_VIII_60', 60, '2026-01-01'),
-('9619.00.00', 'Fraldas e artigos higiênicos semelhantes', 'ANEXO_VIII_60', 60, '2026-01-01');
-```
-
----
-
-### 1.8.11 Simples Nacional — Alíquotas IBS/CBS por Faixa (2027–2033)
-
-Dados confirmados pelos Anexos XVIII–XXII da LC 214/2025 para seed de `fiscal.aliq_cbs_regime`:
-
-**Simples Nacional — Comércio (2027–2028):**
-
-| Faixa | Alíquota efetiva | % CBS | % IBS | CBS efetiva | IBS efetivo |
-|---|---|---|---|---|---|
-| 1ª (até 180k) | 4,00% | 15,33% | 0,17% | 0,6132% | 0,0068% |
-| 2ª–5ª | varia | 15,33% | 0,17% | varia | varia |
-
-**MEI — valores fixos mensais confirmados (Anexo XXIII):**
-
-| Ano | ICMS | ISS | CBS | IBS | Total |
-|---|---|---|---|---|---|
-| 2027–2028 | R$ 1,00 | R$ 5,00 | R$ 0,994 | R$ 0,006 | R$ 7,00 |
-| 2029 | R$ 0,90 | R$ 4,50 | R$ 1,00 | R$ 0,20 | R$ 6,60 |
-| 2030 | R$ 0,80 | R$ 4,00 | R$ 1,00 | R$ 0,40 | R$ 6,20 |
-| 2031 | R$ 0,70 | R$ 3,50 | R$ 1,00 | R$ 0,60 | R$ 5,80 |
-| 2032 | R$ 0,60 | R$ 3,00 | R$ 1,00 | R$ 0,80 | R$ 5,40 |
-| 2033+ | — | — | R$ 1,00 | R$ 2,00 | R$ 3,00 |
-
-MEI não destaca IBS/CBS por item na NF-e. O motor retorna `cst = null` para MEI.
-
----
-
-### 1.8.12 Migrations Adicionais Necessárias
-
-Com base nas informações dos documentos oficiais, adicionar ao plano de migrations:
-
-| Arquivo | Operação | Descrição |
-|---|---|---|
-| `fiscal/v1/017-c-cred-pres.yaml` | `createTable` + seed | 13 códigos de crédito presumido confirmados pelo RT 2025.002 |
-| `fiscal/v1/018-addcol-operacao-fiscal-cst.yaml` | `addColumn` | Adiciona `cst`, `c_class_trib`, `c_cred_pres_id`, `p_red_ibs`, `p_red_cbs` em `operacao_fiscal` |
-| `fiscal/v1/019-addcol-regime-dif-nbs.yaml` | `addColumn` | Adiciona coluna `nbs varchar(20)` em `regime_dif_ncm` para suportar serviços |
-| `fiscal/v1/020-seed-anexo-i.yaml` | `loadData` | Seed Anexo I — alimentos básicos alíquota zero |
-| `fiscal/v1/021-seed-anexo-ii-iii.yaml` | `loadData` | Seed Anexos II e III — educação e saúde (60%) |
-| `fiscal/v1/022-seed-anexo-viii.yaml` | `loadData` | Seed Anexo VIII — higiene pessoal (60%) |
-| `fiscal/v1/023-seed-anexo-xv.yaml` | `loadData` | Seed Anexo XV — hortícolas, frutas e ovos (zero) |
-| `fiscal/v1/024-seed-anexo-xvii-is.yaml` | `loadData` | Seed Anexo XVII — produtos sujeitos ao IS |
-| `fiscal/v1/025-addcol-produto-regime.yaml` | N/A | Atualizar enum `regime_diferenciado` com novos valores dos Anexos |
-
----
-
-### 1.8.13 Status dos Seeds — Pós Planilhas Oficiais
-
-Com o processamento das três planilhas oficiais, os seeds estão prontos para uso direto no Liquibase `loadData`. Ver §15 para maturidade geral atualizada.
-
-| Arquivo gerado | Fonte | Linhas | Status |
-|---|---|---|---|
-| `c_class_trib.csv` | cClassTrib_2026_04_15.xlsx | 156 | ✅ Pronto |
-| `ncm_codigos.csv` | Tabela_NCM_2022_vigência_01_02_26 | 10.520 | ✅ Pronto |
-| `seed_cst_ibs_cbs.sql` | cClassTrib_2026_04_15.xlsx aba CST | 18 | ✅ Pronto |
-| `seed_aliq_cbs.sql` | IT_2026_002_v_1_00_Aliquotas_CBS | 5 | ✅ Pronto |
-| `schema_c_class_trib.sql` | — (DDL) | — | ✅ Pronto |
-
-**Correção importante confirmada pelas planilhas:** `c_class_trib` é `INTEGER` (ex: 1, 200028, 410004), não `VARCHAR`. O schema e o spec foram atualizados.
+*Fim do documento — Spec Funcional Módulo Financeiro v12.1 (Módulos IV/V/VI reconstruídos).*
