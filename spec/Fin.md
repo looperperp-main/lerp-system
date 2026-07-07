@@ -3697,7 +3697,7 @@ Registro 9  Trailer de arquivo
 | Lote de serviço | 004–007 | `'0000'` fixo | |
 | Tipo de registro | 008 | `'0'` fixo | |
 | Tipo de inscrição da empresa | 018 | `'2'` (CNPJ) | |
-| Nº de inscrição | 019–032 | CNPJ do estabelecimento emissor | ⚠️ CNPJ alfanumérico: conferir NT do leiaute vigente (mesmo ponto em aberto do §14.1) |
+| Nº de inscrição | 019–032 | CNPJ do estabelecimento emissor | ⚠️ campo **numérico** no leiaute FEBRABAN — tenant com CNPJ alfanumérico depende de atualização do leiaute bancário (limitação externa; ver §14.1) |
 | Código do convênio | 033–052 | `cobranca_config.codigo_cedente` | **override por banco** (formato/posicionamento interno variam) |
 | Agência + DV | 053–058 | `conta_corrente.agencia` + dígito | |
 | Conta + DV | 059–072 | `conta_corrente.conta` + `digito` | |
@@ -6038,9 +6038,13 @@ valor_split_payment   NUMERIC(15,2) DEFAULT 0
 >   Usar os `.xlsx` como fonte de seed Liquibase (mesmo padrão do NCM); os `.docx` são
 >   duplicatas para leitura humana.
 >
-> **⚠️ CNPJ alfanumérico:** nenhum dos dois manuais trata do assunto (as menções a
-> "alfanumérico" no manual do desenvolvedor são tipos de campo — recibo/ID de evento).
-> Confirmar a NT/versão de leiaute vigente antes de implementar o relatório de retenções.
+> **CNPJ alfanumérico — não bloqueia o MVP:** o sistema já trata ambos os formatos (NT
+> 2026.004 implementada — `CnpjService` + validação base-36), e como o ERP só **exporta
+> relatórios** (quem transmite a Reinf é o contador), eventual restrição do leiaute da
+> Receita é responsabilidade do software transmissor, não nossa. A ressalva que permanece é
+> sobre **arquivos que nós geramos para terceiros**: no CNAB 240, o campo de inscrição é
+> tipado numérico no leiaute FEBRABAN — tenant com CNPJ alfanumérico depende de atualização
+> do leiaute bancário (limitação externa, monitorar FEBRABAN; ver §IV-CNAB.1).
 > O manual v1.5.1.3 (2021), obsoleto, foi removido da pasta.
 
 ---

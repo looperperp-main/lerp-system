@@ -410,9 +410,13 @@ O sistema carrega essas tabelas como dados de configuração versionados, e o re
 retenções deriva o código de receita a partir delas — quando a Receita atualiza a tabela,
 atualiza-se o dado, não o código do relatório.
 
-**Ponto em aberto:** nenhum dos manuais anexados documenta o suporte da EFD-Reinf ao CNPJ
-alfanumérico. Antes de implementar o relatório de retenções, confirmar a nota técnica de leiaute
-vigente para esse ponto.
+**CNPJ alfanumérico:** o sistema já trata os dois formatos de CNPJ (numérico e alfanumérico) em
+cadastro, validação e relatórios. Como o ERP apenas exporta relatórios — quem transmite a
+EFD-Reinf é o contador —, eventual restrição do leiaute da Receita ao formato alfanumérico é
+responsabilidade do software transmissor, e não bloqueia o relatório de retenções. A única
+ressalva remanescente está nos arquivos bancários gerados pelo sistema (CNAB), cujo leiaute
+padrão ainda define o campo de inscrição como numérico — limitação externa, do padrão bancário,
+a ser monitorada.
 
 **Obrigações que não têm papel no módulo Financeiro:** o ISS do Simples Nacional é recolhido
 dentro do próprio DAS (guia única do Simples) — não gera nenhuma declaração municipal separada
