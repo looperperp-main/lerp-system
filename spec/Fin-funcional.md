@@ -26,6 +26,7 @@
 9. [Perfis e Alçadas de Aprovação](#9-perfis-e-alçadas-de-aprovação)
 10. [Telas e Menus](#10-telas-e-menus)
 11. [Pontos em Aberto / Decisões Pendentes](#11-pontos-em-aberto--decisões-pendentes)
+12. [Cenários de Aceitação (exemplos numéricos)](#12-cenários-de-aceitação-exemplos-numéricos)
 
 ---
 
@@ -67,13 +68,13 @@ próprio SaaS.
 | Conciliação Bancária (extrato OFX) | Especificado |
 | Controle de conta corrente | Especificado |
 | Orçamento financeiro | Especificado |
-| Boletos (emissão e CNAB) | Especificado em nível de entidades e regras; detalhamento campo a campo do arquivo bancário fica para uma etapa técnica posterior |
+| Boletos (emissão e CNAB) | Especificado — inclusive o detalhamento campo a campo do arquivo bancário (padrão FEBRABAN 240, banco piloto e plano de homologação), descrito na spec técnica |
 | DDA (débito direto autorizado) | Especificado |
 | Cheques | Especificado |
 | Aplicações financeiras | Especificado |
 | Análises gerenciais e relatórios | Especificado |
 | Plano de contas | Elenco contábil oficial usado como modelo de partida, editável pelo tenant, sem bloqueio |
-| Obrigações acessórias (SPED, DCTFWeb, declaração IBS/CBS) | Fora do escopo — roadmap |
+| Obrigações acessórias (SPED, DCTFWeb, declaração IBS/CBS) | Especificado por regime tributário — MVP entrega relatórios de apoio (receita bruta e retenções) para tenant do Simples Nacional; ECD/ECF/EFD ICMS-IPI ficam para a Fase 2 (Lucro Presumido/Real) — ver §3.10 |
 | Módulo fiscal legado (ICMS/ISS, ainda vigente até 2033) | Spec separada |
 
 ### 1.3 Ordem de dependência entre os módulos
@@ -349,6 +350,74 @@ mensal (§3.5, RN-MF-015).
   municipal, opção pelo Simples Nacional).
 - Consulta da apuração mensal (créditos, débitos, saldo a recolher ou saldo credor
   acumulado).
+
+### 3.10 Obrigações acessórias — escopo por regime tributário
+
+**Decisão de escopo:** o MVP atende tenants optantes pelo **Simples Nacional** — o público-alvo
+do produto. O regime tributário do tenant (Simples Nacional, Lucro Presumido ou Lucro Real) é
+um parâmetro cadastral e é ele quem determina quais obrigações fiscais acessórias e quais
+retenções na fonte se aplicam a cada tenant. Tenants em Lucro Presumido ou Lucro Real ficam
+para uma **Fase 2** do produto.
+
+Importante: o ERP **nunca transmite nada diretamente à Receita Federal** — quem transmite é o
+contador do tenant, usando os relatórios e os dados que o ERP produz.
+
+**O que o ERP entrega no MVP (tenant Simples Nacional):**
+
+- Relatório de **receita bruta** segregada por atividade e por estabelecimento — a base que o
+  contador usa para preencher o PGDAS-D mensal e a DEFIS anual.
+- Relatório de **retenções e pagamentos**, por período, por contraparte (fornecedor/prestador),
+  por natureza de rendimento (tabela oficial da Receita) e código de receita derivado dela — a
+  base que o contador usa para a EFD-Reinf. Uma empresa do Simples Nacional é obrigada a
+  declarar a EFD-Reinf sempre que efetua algum tipo de retenção — por exemplo, INSS de 11% ao
+  contratar serviço com cessão de mão de obra, ou IRRF sobre pagamentos a prestadores de
+  serviços profissionais. Atenção: os eventos de pagamentos a pessoas físicas e jurídicas são
+  devidos, nos casos previstos, **mesmo quando não há imposto retido** (e uma retenção
+  dispensada por ficar abaixo de R$ 10 também é informada) — por isso o relatório lista os
+  pagamentos por natureza de rendimento, e não apenas os que tiveram retenção.
+- O relatório oferece **duas visões de competência**, porque cada tributo é apurado por uma
+  data diferente: a retenção de INSS é apurada pela data de **emissão da nota fiscal** do
+  prestador, enquanto a retenção de IR é apurada pela data do **pagamento**.
+
+**O que fica fora do MVP e vira Fase 2** (aplicável a Lucro Presumido/Real): a Escrituração
+Contábil Digital (ECD/SPED Contábil), a Escrituração Contábil Fiscal (ECF) e a EFD ICMS/IPI
+(SPED Fiscal). Ainda assim, a fundação contábil do MVP já nasce compatível com essa evolução
+futura: o Livro Diário é gerado sem lacunas de numeração e o fechamento de período é imutável
+(ver §7) — pré-requisitos de qualquer SPED contábil. O plano de contas também prevê, desde já,
+um de-para opcional com o plano de contas referencial da Receita Federal, para que a Fase 2 não
+exija reclassificar retroativamente nenhuma conta.
+
+**Regras de retenção por regime do pagador** — quem retém e o quê depende do regime tributário
+do próprio tenant (quem paga o fornecedor), não do regime do fornecedor:
+
+| # | Regra |
+|---|---|
+| RN-MF-017 | Um tenant do Simples Nacional nunca retém PIS, COFINS ou CSLL sobre pagamentos a fornecedores/prestadores — a legislação exclui optantes do Simples dessa retenção. |
+| RN-MF-018 | Um tenant do Simples Nacional retém IRRF sobre pagamentos a prestadores de serviços profissionais e retém INSS (11%) quando contrata serviço com cessão de mão de obra — essas retenções exigem declaração posterior via EFD-Reinf, feita pelo contador. |
+| RN-MF-019 | A matriz de qual tributo é retido para cada combinação de regime tributário do tenant e tipo de serviço é **configuração do sistema**, não uma regra fixa — permite ajustar quando a legislação mudar ou quando o tenant migrar de regime. |
+
+**Fontes oficiais consultadas:** a pasta `spec/` do projeto guarda o manual do usuário da EFD-Reinf
+(leiaute 2.1.2, ADE Cofis 23/2023, ago/2023) — cobre as regras de negócio citadas acima — e o
+manual do desenvolvedor (v2.7, out/2025), que só passa a ser relevante se um dia o sistema
+transmitir declarações diretamente à Receita; hoje o escopo é exportar relatórios para o
+contador transmitir.
+
+**Tabelas oficiais como dado, não como regra:** a natureza de rendimento de cada retenção e o
+código de receita do DARF que dela deriva vêm de tabelas oficiais da Receita Federal — a Tabela
+de Naturezas de Rendimento e as tabelas de-para (natureza × tributo × código de receita ×
+periodicidade de recolhimento, cerca de mil combinações, cada uma com vigência de início e fim).
+O sistema carrega essas tabelas como dados de configuração versionados, e o relatório de
+retenções deriva o código de receita a partir delas — quando a Receita atualiza a tabela,
+atualiza-se o dado, não o código do relatório.
+
+**Ponto em aberto:** nenhum dos manuais anexados documenta o suporte da EFD-Reinf ao CNPJ
+alfanumérico. Antes de implementar o relatório de retenções, confirmar a nota técnica de leiaute
+vigente para esse ponto.
+
+**Obrigações que não têm papel no módulo Financeiro:** o ISS do Simples Nacional é recolhido
+dentro do próprio DAS (guia única do Simples) — não gera nenhuma declaração municipal separada
+tratada pelo financeiro. A DCTFWeb é uma consequência automática do que já foi declarado via
+EFD-Reinf/eSocial no portal da Receita — o ERP não participa dessa etapa.
 
 ---
 
@@ -647,7 +716,8 @@ e aplicações financeiras.
 - **DDA (Débito Direto Autorizado)** — mecanismo em que boletos de outros emissores (que o
   tenant deve pagar) chegam automaticamente ao sistema via banco, sem precisar do código de
   barras físico; o operador vincula manualmente cada boleto DDA ao título a pagar
-  correspondente.
+  correspondente — ou, quando o título ainda não existe, gera um novo título a pagar a
+  partir do próprio boleto DDA (ação igualmente manual, nunca automática).
 - **Cheque** — controle de cheques emitidos e recebidos, com status (emitido, compensado,
   devolvido, cancelado, sustado) e alerta quando a data de "bom para" se aproxima.
 - **Aplicação financeira** — controle de recursos aplicados (CDB, LCI, LCA, fundos),
@@ -671,7 +741,7 @@ padronizado entre bancos, só é implementado quando algum cliente exigir um ban
 | RN-TES-002 | Uma aplicação financeira só pode ser feita em conta corrente do tipo investimento. |
 | RN-TES-003 | Um boleto vinculado a uma remessa bancária não pode ter a emissão desfeita — só pode ser cancelado ou seguir o fluxo normal de pagamento/vencimento. |
 | RN-TES-004 | Uma baixa originada de um retorno bancário nasce sempre como **planejada**, exigindo confirmação (a confirmação normalmente ocorre pela conciliação bancária do valor efetivamente creditado). |
-| RN-TES-005 | Um boleto recebido via DDA só é baixado no título a pagar depois que o operador o vincula manualmente ao título correspondente. |
+| RN-TES-005 | Um boleto recebido via DDA só é baixado no título a pagar depois que o operador o vincula manualmente ao título correspondente. Quando o título ainda não existe, o operador pode gerar um novo título a pagar a partir do boleto DDA (com o cedente como fornecedor) — também ação manual; nada é criado ou baixado automaticamente. |
 | RN-TES-006 | O sistema alerta automaticamente sobre cheques cuja data de "bom para" (data a partir da qual o cheque pode ser depositado) se aproxima. |
 | RN-TES-007 | Uma cobrança via PIX que expira sem ser paga não gera baixa; o pagamento fora do prazo de validade da cobrança não é reconhecido automaticamente por aquele código — é preciso gerar nova cobrança. |
 | RN-TES-008 | A partir de 2027, cobranças via PIX (e demais meios eletrônicos, incluindo boleto liquidado por arranjo de pagamento) ficam sujeitas ao split payment (ver §3, RN-MF-005) — a segregação do valor do imposto ocorre no momento da liquidação. |
@@ -764,12 +834,14 @@ Livro Diário).
 | RN-CONT-005 | Balanço Patrimonial e DRE podem ser gerados de forma consolidada (todas as filiais juntas) ou individual (por filial). |
 | RN-CONT-006 | Contas retificadoras (como a de depreciação acumulada ou a de provisão para devedores duvidosos) reduzem o saldo do grupo de contas ao qual pertencem na apresentação do Balanço. |
 | RN-CONT-007 | Ver também as regras de imutabilidade do plano de contas (RN-FUND-008 a RN-FUND-012, em §2). |
+| RN-CONT-008 | O estorno de uma baixa confirmada gera automaticamente um lançamento contábil de **reversão**: as mesmas contas do lançamento original, com débito e crédito invertidos. O lançamento original é marcado como "estornado" e nunca é apagado. Se o original pertence a um período já fechado, a reversão é lançada na competência aberta atual, com histórico referenciando o lançamento e a competência originais — o período fechado permanece intacto. |
+| RN-CONT-009 | Um evento financeiro cuja competência cai em período contábil **fechado** não gera lançamento naquele período. O tratamento é configurável por empresa: **lançar automaticamente na competência aberta atual** (padrão, com histórico referenciando a competência original) ou **reter o evento como pendente** até eventual reabertura do período — nesse caso, eventos pendentes impedem um novo fechamento até serem tratados. |
 
 ### 7.4 Estrutura do modelo de plano de contas (elenco oficial de partida)
 
 O modelo de partida segue a estrutura clássica: **1. Ativo · 2. Passivo (com o Patrimônio
 Líquido sob o grupo 2.4) · 3. Receitas · 4. Custos · 5. Despesas e Demais Resultados**,
-incluindo already contas específicas para os novos tributos da reforma (IBS/CBS a recuperar
+já incluindo contas específicas para os novos tributos da reforma (IBS/CBS a recuperar
 e a recolher, IS a recolher) convivendo com as contas dos tributos atuais durante a
 transição (ICMS, ISS, PIS/Cofins). Itens setoriais muito específicos não entram no modelo
 padrão — cada tenant pode adicioná-los à própria cópia, se necessário.
@@ -916,19 +988,111 @@ Itens que a Fin.md registra explicitamente como **fora do escopo desta revisão*
 |---|---|
 | **Alíquotas de IBS por município** | Único bloqueante real para colocar o motor fiscal em produção — depende da publicação oficial do Comitê Gestor do IBS (CGIBS). Enquanto isso, o sistema usa um valor de teste para 2026. |
 | **Alíquotas do Imposto Seletivo** | A lista de produtos sujeitos ao IS já está mapeada, mas os percentuais exatos ainda aguardam regulamentação. |
-| **SPED / EFD-Contribuições** | Fora do escopo desta versão — depende do módulo fiscal estar concluído. |
-| **DCTFWeb e geração de DARF** | Fora do escopo — as guias geradas hoje cobrem o recolhimento operacional (títulos a pagar), não a declaração formal ao Fisco. |
+| **SPED / EFD-Contribuições, ECD, ECF, EFD ICMS-IPI** | Decisão de escopo tomada (ver §3.10): dispensados para tenant do Simples Nacional (MVP); viram Fase 2 para tenants Lucro Presumido/Real. A fundação contábil (Livro Diário sem lacunas, fechamento imutável, de-para opcional com plano referencial da RFB) já nasce pronta para essa evolução. |
+| **DCTFWeb e geração de DARF** | Fora do escopo — é consequência automática do que já foi declarado via EFD-Reinf/eSocial no portal da Receita; as guias geradas hoje cobrem apenas o recolhimento operacional (títulos a pagar). |
 | **Nova declaração de IBS/CBS** | Obrigação acessória ainda não definida pelo órgão gestor — fora do escopo. |
 | **Módulo fiscal legado (ICMS/ISS/PIS/Cofins)** | Tratado apenas como convivência durante a transição; o detalhamento operacional completo (livros fiscais do regime atual) é uma spec separada. |
-| **Reflexo contábil do estorno de baixa** | O estorno operacional (reversão do valor no título) está especificado; o lançamento contábil de reversão correspondente ainda não foi desenhado. |
 | **Faturamento recorrente (assinatura/contrato) como origem automática de título a receber** | Reservado para uma fase futura — não entra nesta versão. |
 | **Taxas de adquirência de cartão e agenda de recebíveis no contas a receber** | Fora do desenho aprovado até o momento — marcado como possível evolução futura. |
 | **Entrada de nota fiscal por múltiplos canais** (portal do fornecedor, leitura óptica de PDF, troca eletrônica de dados) | Fora de escopo desta versão — a entrada de nota fiscal continua sendo automática (via integração eletrônica) ou manual. |
 | **Conferência cruzada entre pedido de compra, recebimento físico e nota fiscal, com bloqueio automático de pagamento em caso de divergência** | Depende de um futuro módulo de Compras; hoje o bloqueio de pagamento existe, mas é sempre acionado manualmente. |
-| **Detalhamento campo a campo dos arquivos bancários (CNAB) por banco** | A estratégia (padrão nacional primeiro, ajustes pontuais por banco depois) está definida; o detalhamento fino de cada banco é tratado sob demanda, banco a banco, com homologação prévia. |
+| **Detalhamento campo a campo dos arquivos bancários (CNAB) por banco** | O padrão nacional (FEBRABAN 240) está detalhado campo a campo na spec técnica, com banco piloto definido e plano de homologação; bancos adicionais entram como ajustes pontuais sob demanda, sempre com homologação prévia. |
 | **Revisão formal do plano de contas por um contador** | Hoje é opcional/qualidade — não é pré-requisito para a operação. Recomendável ainda assim, antes de uso extensivo em produção. |
 | **Split payment — mecânica definitiva** | O modelo adotado ("split inteligente") é uma simplificação a ser confrontada com a regulamentação final do Comitê Gestor antes de 2027. |
 | **Zona Franca de Manaus** | Regra de benefício fiscal descrita em alto nível — caso de alta especificidade que precisa de validação de especialista antes de entrar em produção. |
+
+---
+
+## 12. Cenários de Aceitação (exemplos numéricos)
+
+> Cenários de referência para validação de negócio e para os testes de aceitação. Cada um
+> exercita as regras indicadas entre parênteses, com valores concretos. Percentuais de multa,
+> mora e PDD usam os padrões sugeridos — em produção valem os configurados pelo tenant.
+
+**CA-01 — Baixa em atraso com multa e mora (RN-AP-012).** Título de R$ 1.000,00 vence em
+10/03; é pago em 09/04 (30 dias de atraso). O sistema sugere multa de 2% = R$ 20,00 e mora de
+1% a.m. proporcional (30/30 dias) = R$ 10,00 → total sugerido R$ 1.030,00. O operador pode
+ajustar antes de confirmar.
+
+**CA-02 — Estorno de baixa confirmada (RN-AP-011).** Título de R$ 500,00 baixado
+integralmente (baixa real) → status Baixado. O estorno cria uma **nova** baixa de −R$ 500,00
+(a original é preservada); o saldo volta a R$ 500,00 e o título retorna a Em Aberto. A baixa
+de estorno não pode ser estornada.
+
+**CA-03 — Um recebimento quita vários títulos (RN-AR-007, RN-AR-005).** O cliente paga
+R$ 1.700,00 de uma vez; há três títulos em aberto: A R$ 600,00 (venc. 10/01), B R$ 700,00
+(10/02), C R$ 300,00 (10/03). Alocação por vencimento: A 600 + B 700 + C 300 = R$ 1.600,00 —
+uma baixa por título. A sobra de R$ 100,00 vira adiantamento (crédito) do cliente.
+
+**CA-04 — Baixas parciais sucessivas (RN-AR-008).** Título de R$ 1.000,00 vencido em 10/01.
+Primeira baixa parcial de R$ 400,00 em 20/01: mora calculada sobre o saldo de R$ 1.000,00
+(1% × 10/30 = R$ 3,33). Segunda baixa em 19/02 quitando o restante: mora calculada sobre o
+**saldo residual** de R$ 600,00 na data (1% × 40/30 = R$ 8,00) — nunca sobre o valor
+original. O título só passa a Baixado quando o saldo zera.
+
+**CA-05 — Rateio com diferença de centavos (RN-FUND-017).** Rateio 33,33% TI / 33,33% Vendas
+/ 33,34% Adm sobre título de R$ 50,00: as parcelas arredondadas dariam 16,67 + 16,67 + 16,67
+= R$ 50,01. A diferença de −R$ 0,01 é absorvida pelo centro de maior percentual (Adm) →
+16,67 + 16,67 + **16,66** = R$ 50,00 exato.
+
+**CA-06 — Baixa por adiantamento sem desconto duplicado (RN-AP-007, RN-AP-013).** Fornecedor
+tem adiantamento de R$ 200,00. Título de R$ 1.000,00 recebe baixa por adiantamento de
+R$ 200,00 → saldo passa a R$ 800,00 (não R$ 600,00 — nenhum desconto adicional é criado) e o
+saldo de adiantamento zera. O adiantamento não pode baixar título de outro fornecedor.
+
+**CA-07 — Compensação parcial (RN-CO-002, RN-CO-003).** Mesmo CNPJ: título a pagar de
+R$ 800,00 e a receber de R$ 500,00 → compensável no máximo R$ 500,00. Uma compensação parcial
+de R$ 300,00 deixa R$ 500,00 em aberto no pagar e R$ 200,00 no receber.
+
+**CA-08 — Retenções na fonte no pagamento (RN-AP-014, RN-MF-018).** NFS-e de R$ 10.000,00 de
+serviço com cessão de mão de obra, prestador PJ: INSS 11% = R$ 1.100,00 (competência pela
+**emissão** da nota) e IRRF 1,5% = R$ 150,00 (competência pelo **pagamento**). O fornecedor
+recebe R$ 8.750,00; o título fecha com 8.750 + 1.100 + 150 = R$ 10.000,00. Os valores retidos
+viram obrigação do tenant, agrupados na guia mensal por tributo/código de receita, e entram no
+relatório de apoio à EFD-Reinf.
+
+**CA-09 — Retenção sofrida no recebimento (RN-AR-006).** Nota de R$ 2.000,00; o cliente retém
+IRRF 1,5% = R$ 30,00 e deposita R$ 1.970,00. O título fecha com a baixa de R$ 1.970,00 mais
+uma baixa "por retenção" de R$ 30,00 — que vira crédito tributário a recuperar (o caixa nunca
+recebe esses R$ 30,00).
+
+**CA-10 — Trava de competência retroativa (RN-AP-015).** Maio/2026 está fechado. Em
+07/07/2026 um operador (mesmo administrador) tenta registrar uma baixa com data 15/05/2026 →
+**bloqueado**. A correção é feita por lançamento de ajuste na competência aberta (julho); o
+período fechado permanece imutável.
+
+**CA-11 — Split payment na liquidação (RN-MF-005, §3.7).** Venda de R$ 1.000,00 paga via PIX
+em 2027, com IBS+CBS destacados de R$ 264,20. O título é baixado pelo **bruto** (R$ 1.000,00 →
+Baixado); o caixa recebe o **líquido** R$ 735,80; os R$ 264,20 retidos vão para a conta
+transitória de tributos recolhidos na liquidação. A conciliação bancária casa exatamente com
+R$ 735,80; o acerto da transitória ocorre na apuração mensal.
+
+**CA-12 — Boleto rejeitado pelo banco (RN-TES-009).** O retorno bancário traz rejeição (CPF
+do sacado inválido): o boleto volta a Emitido, um alerta crítico entra na fila até ser
+tratado, e o **título permanece Em Aberto** — o problema é do boleto, nunca trava o recebível.
+Após corrigir o cadastro, o operador reemite.
+
+**CA-13 — Liquidação parcial de boleto (RN-TES-010).** Boleto de R$ 1.000,00; o retorno
+informa pagamento de R$ 600,00 → baixa parcial planejada de R$ 600,00 (vira real na
+conciliação); o título fica em aberto com saldo de R$ 400,00 e o boleto pode ser reapresentado
+pelo residual.
+
+**CA-14 — PDD por faixa de aging (RN-GER-001).** Carteira a receber: R$ 10.000,00 não vencido
+(0,5% → R$ 50,00), R$ 2.000,00 vencidos até 30 dias (3% → R$ 60,00), R$ 1.000,00 acima de 90
+dias (50% → R$ 500,00). PDD total = R$ 610,00 → alimenta o lançamento de despesa contra a
+conta redutora (quando o tenant contabiliza a provisão). **Nenhum título tem o saldo
+alterado** — é estimativa de perda, não baixa.
+
+**CA-15 — Cancelamento de nota com baixa efetiva (RN-FUND-007).** NF de saída gera 3 parcelas
+de R$ 500,00; a parcela 1 já foi recebida (baixa real). O cancelamento da NF é **bloqueado** e
+um alerta é enviado ao financeiro para tratamento manual (estorno/nota de crédito). Se nenhuma
+baixa real existisse, as 3 parcelas seriam canceladas automaticamente.
+
+**CA-16 — Reversão contábil do estorno (RN-CONT-008).** A baixa de R$ 500,00 gerou o
+lançamento D Fornecedores / C Banco. O estorno da baixa gera automaticamente o lançamento
+invertido D Banco / C Fornecedores de R$ 500,00; o lançamento original é marcado como
+"estornado" (nunca apagado). Se o original está em competência já fechada, a reversão entra na
+competência aberta atual com histórico referenciando o lançamento e a competência originais.
 
 ---
 

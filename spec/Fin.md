@@ -1924,6 +1924,8 @@ receber_tipo_ajuste_cnab_desconto_id  BIGINT REFERENCES tipo_ajuste
 receber_permite_data_baixa_anterior BOOLEAN DEFAULT FALSE
 -- Geral
 considera_feriado_bancario          BOOLEAN DEFAULT FALSE
+gl_fato_periodo_fechado             VARCHAR(30) DEFAULT 'LANCAR_COMPETENCIA_ABERTA'
+                                    -- 'LANCAR_COMPETENCIA_ABERTA' | 'AGUARDAR_REABERTURA' (§37, passo 2)
 updated_at                          TIMESTAMPTZ
 updated_by                          VARCHAR(100)
 ```
@@ -2372,7 +2374,7 @@ Compensação só pode ser cancelada enquanto as baixas associadas estiverem com
 ### 4.6.1 Estornar Baixa REAL
 
 > Nada disso existe hoje — endpoint e fluxo novos. O reflexo contábil do estorno (lançamento
-> de reversão no GL) fica no **roadmap** (§14) — ainda não desenhado.
+> de reversão no GL) está especificado em **§37.1**.
 
 **Endpoint:** `POST /api/financeiro/titulos/{id}/baixas/{baixa_id}/estorno`
 
@@ -2402,7 +2404,7 @@ Compensação só pode ser cancelada enquanto as baixas associadas estiverem com
   (não retroage à data da baixa original).
 - Conciliação automática (§III 4.4): match do estorno se dá pela movimentação inversa
   (positiva, tipo oposto) — o matcher não precisa tratar valores negativos.
-- GL (roadmap §14): lançamento de reversão consome o evento da baixa de estorno.
+- GL (§37.1): lançamento de reversão consome o evento da baixa de estorno.
 - Uma baixa de estorno não pode ser estornada (bloquear `origem = 'ESTORNO'` no endpoint).
 
 ---
@@ -2820,7 +2822,7 @@ Os dois nunca se comunicam diretamente. O billing service verifica se o tenant e
 
 ---
 
-## IV.12 Checklist de Implementação
+## II.12 Checklist de Implementação
 
 ### Backend (Spring Boot)
 
@@ -3669,6 +3671,157 @@ titulo (status atualizado se valor_saldo = 0)
 > **Eixos distintos:** o campo `layout_cnab` (`CNAB240` | `CNAB400`) grava só o **tamanho do
 > registro**; o dialeto FEBRABAN-vs-override é resolvido pelo Strategy no código, não por coluna.
 
+### IV-CNAB.1 De-para campo a campo — cobrança CNAB 240 (FEBRABAN v10.09)
+
+> **Fonte normativa:** `spec/Layout padrao CNAB240 V 10 09 - 14_10_21.pdf` (FEBRABAN v10.09).
+> As tabelas abaixo são o **de-para de implementação** (campo da norma → fonte no nosso modelo);
+> as posições seguem o leiaute FEBRABAN e devem ser **conferidas 1:1 contra o PDF** nos testes
+> unitários de layout e na homologação (passo 2 do §IV-CNAB.3). Onde a norma delega ao banco
+> (nosso número, convênio, carteira), a linha está marcada como **override por banco**.
+
+Estrutura do arquivo de cobrança (largura fixa 240, um lote de serviço):
+
+```
+Registro 0  Header de arquivo
+Registro 1  Header de lote        (tipo de serviço 01 = cobrança)
+Registro 3  Detalhe — segmentos P + Q (+ R quando há multa/desconto 2º nível)  × N títulos
+Registro 5  Trailer de lote       (quantidades e somatórias)
+Registro 9  Trailer de arquivo
+```
+
+**Header de arquivo (registro `0`):**
+
+| Campo FEBRABAN | Pos. | Fonte no modelo | Obs. |
+|---|---|---|---|
+| Código do banco | 001–003 | `banco.codigo_compensacao` | |
+| Lote de serviço | 004–007 | `'0000'` fixo | |
+| Tipo de registro | 008 | `'0'` fixo | |
+| Tipo de inscrição da empresa | 018 | `'2'` (CNPJ) | |
+| Nº de inscrição | 019–032 | CNPJ do estabelecimento emissor | ⚠️ CNPJ alfanumérico: conferir NT do leiaute vigente (mesmo ponto em aberto do §14.1) |
+| Código do convênio | 033–052 | `cobranca_config.codigo_cedente` | **override por banco** (formato/posicionamento interno variam) |
+| Agência + DV | 053–058 | `conta_corrente.agencia` + dígito | |
+| Conta + DV | 059–072 | `conta_corrente.conta` + `digito` | |
+| Nome da empresa | 073–102 | razão social do tenant (30, sem acento) | |
+| Nome do banco | 103–132 | `banco.nome` | |
+| Código remessa/retorno | 143 | `'1'` remessa / `'2'` retorno | |
+| Data/hora de geração | 144–157 | timestamp da geração | `DDMMAAAA` + `HHMMSS` |
+| NSA (nº sequencial do arquivo) | 158–163 | `cnab_remessa.numero_sequencial` | sequência por conta, nunca repete |
+| Versão do leiaute do arquivo | 164–166 | constante conforme PDF v10.09 | conferir na homologação |
+
+**Header de lote (registro `1`)** repete os dados da empresa/convênio e adiciona: tipo de
+operação (remessa), tipo de serviço `'01'` (cobrança), versão do leiaute do lote (constante do
+PDF), nº da remessa e data de gravação — todas as fontes já mapeadas acima.
+
+**Segmento P (registro `3`, dados do título):**
+
+| Campo FEBRABAN | Pos. | Fonte no modelo | Obs. |
+|---|---|---|---|
+| Nº sequencial no lote | 009–013 | contador por lote | |
+| Código do segmento | 014 | `'P'` | |
+| Código de movimento remessa | 016–017 | `cnab_remessa_item.tipo_movimento` | de-para abaixo |
+| Agência/conta + DVs | 018–037 | `conta_corrente` | |
+| Identificação do título no banco (nosso número) | 038–057 | `boleto.nosso_numero` + DV | **override por banco** — formato, tamanho útil e cálculo do DV são a principal variação entre bancos |
+| Código da carteira | 058 | `cobranca_config.carteira` | **override por banco** |
+| Forma de cadastramento | 059 | `'1'` (cobrança registrada) | |
+| Nº do documento de cobrança | 063–077 | `boleto.numero_documento` | |
+| Data de vencimento | 078–085 | `boleto.vencimento` | `DDMMAAAA` |
+| Valor nominal | 086–100 | `boleto.valor` | 13 int + 2 dec, sem separador |
+| Espécie do título | 107–108 | `'02'` duplicata mercantil (default) | parametrizável em `cobranca_config` |
+| Data de emissão | 110–117 | `titulo.data_emissao` | |
+| Juros de mora (código/data/valor) | 118–141 | `boleto.percentual_mora_mes` | código `2` = taxa mensal; data = vencimento + 1 |
+| Desconto 1 (código/data/valor) | 142–165 | `boleto.percentual_desconto` + data limite | |
+| Valor do abatimento | 181–195 | ajustes tipo DESCONTO do título | |
+| Uso da empresa ("seu número") | 196–220 | `boleto.id` | **chave de conciliação do retorno** — volta intacta no `.RET` |
+| Código/prazo para protesto | 221–223 | `cobranca_config.dias_protesto` | código `1` protestar / `3` não protestar |
+| Código/prazo para baixa/devolução | 224–227 | parametrizado em `cobranca_config` | prazo p/ banco baixar título vencido não pago |
+| Código da moeda | 228 | `'09'` (Real) | |
+
+**Segmento Q (registro `3`, dados do sacado):** tipo de inscrição (018) e CNPJ/CPF (019–033) ←
+`titulo.terceiro_cnpj_cpf`; nome (034–073) ← `titulo.terceiro_nome`; endereço, bairro, CEP,
+cidade e UF ← cadastro do cliente (desnormalizados no momento da emissão do boleto — mudança
+posterior no cadastro não altera boleto já emitido). Sacador/avalista (154–209): em branco (não
+usado no MVP).
+
+**Segmento R (registro `3`, opcional):** gerado só quando há multa ou 2º/3º desconto. Multa:
+código (`'2'` percentual), data (vencimento + 1) e percentual ← `boleto.percentual_multa`.
+Descontos 2 e 3: não usados no MVP.
+
+**Trailers:** trailer de lote (registro `5`) traz a quantidade de registros e as somatórias de
+quantidade/valor por carteira (agregado da remessa); trailer de arquivo (registro `9`) traz a
+quantidade de lotes (1) e o total de registros.
+
+**De-para dos códigos de movimento (remessa):**
+
+| `tipo_movimento` (§IV-CNAB) | Código FEBRABAN | Efeito no banco |
+|---|---|---|
+| `INCLUSAO` | `01` | Entrada de título |
+| `EXCLUSAO` | `02` | Pedido de baixa |
+| `ALTERACAO` (vencimento) | `06` | Alteração de vencimento |
+| `ALTERACAO` (demais dados) | `31` | Alteração de outros dados |
+| `BLOQUEIO` | sustação de protesto/cobrança — código conforme tabela de movimentos do PDF | conferir na homologação |
+
+**Ocorrências do retorno (`.RET`) → efeito no sistema** (complementa o fluxo do §17.6):
+
+| Ocorrência | Significado | Efeito |
+|---|---|---|
+| `02` | Entrada confirmada | boleto `EMITIDO` → `REGISTRADO` (`registrado_em`) |
+| `03` | Entrada rejeitada | item `ERRO` + alerta crítico em fila; boleto volta a `EMITIDO` (RN do §17.6) |
+| `06` | Liquidação | baixa `PLANEJADA` pelo valor pago; tarifa em `valor_tarifa`; **parcial** se valor pago < nominal (§17.6) |
+| `09` | Baixa | boleto `CANCELADO` (confirmação da `EXCLUSAO`) |
+| `14` | Alteração de vencimento confirmada | atualiza `boleto.vencimento` local (§17.2) |
+| `17` | Liquidação após baixa | baixa `PLANEJADA` + alerta (título pode já ter sido renegociado) |
+| `19` / `23` | Protesto (confirmação / cartório) | histórico operacional do boleto (não muda o enum — §17.3) |
+| `26` / `30` | Instrução/alteração rejeitada | item `ERRO` + alerta |
+| `28` | Débito de tarifas | `conta_movimentacao` DÉBITO (tarifa avulsa, sem título) |
+
+Ocorrência sem tratamento mapeado → item `IGNORADO` + log estruturado; **nunca aborta o
+arquivo** (os demais itens seguem o processamento normal).
+
+### IV-CNAB.2 De-para campo a campo — pagamento CNAB 240 (segmentos A/B/J)
+
+Remessa de **pagamento em lote** (tipo de serviço de pagamento; forma de lançamento por item):
+
+- **Segmento A** (crédito em conta / TED / PIX transferência): banco, agência e conta do
+  favorecido + nome ← **dados bancários do fornecedor**; "seu número" ← `titulo.id`; data de
+  pagamento ← vencimento/agendamento da baixa `PLANEJADA`; valor ← valor da baixa. As posições
+  231–240 trazem no retorno os códigos de ocorrência (pago/rejeitado), que confirmam ou
+  devolvem a baixa — mesma regra do §17.5 (efetivação REAL só na conciliação).
+  ⚠️ **Dependência de cadastro:** o modelo atual não tem tabela de dados bancários de
+  fornecedor — requisito para o `cadastro-service` (`fornecedor_conta_bancaria`: banco,
+  agência, conta, tipo, chave PIX) antes de implementar remessa de pagamento.
+- **Segmento B** (complemento do favorecido): CNPJ/CPF e endereço ← cadastro do fornecedor;
+  quando a forma de lançamento é PIX, carrega a **chave PIX** conforme a NT FEBRABAN de PIX no
+  CNAB (leiaute do B varia por tipo de chave — conferir no PDF).
+- **Segmento J** (pagamento de boleto — casa com o fluxo DDA do §17.7): código de barras (44
+  posições) ← `dda_boleto.codigo_barras`; valor nominal, vencimento e cedente ← dados do DDA;
+  data/valor do pagamento ← baixa `PLANEJADA` do título vinculado; complemento J-52 com as
+  inscrições de pagador/beneficiário.
+
+### IV-CNAB.3 Banco piloto e plano de homologação
+
+**Banco piloto: Banco do Brasil (001)** — default técnico (convênio de cobrança amplamente
+documentado e validador público de arquivo). A escolha final é **comercial**: se o primeiro
+tenant pagante concentrar movimento em outro banco, troca-se o piloto — o motor FEBRABAN é o
+mesmo, muda só o override (nosso número/DV, carteira, códigos de convênio).
+
+Plano de homologação (pré-requisito para habilitar cobrança em produção):
+
+1. Contratar convênio de cobrança em **ambiente de homologação** junto ao banco/van.
+2. **Conferência 1:1** das posições geradas contra o PDF FEBRABAN v10.09 (e o manual do
+   convênio do banco) — testes unitários de layout por segmento: largura fixa 240, tipos
+   numérico/alfa, zeros/brancos de preenchimento.
+3. Gerar **remessa sintética** com ≥ 5 boletos cobrindo: valor quebrado (ex.: R$ 101,01), com
+   multa+mora, com desconto, vencimento em feriado (RN-FUND-001) e sacados PF e PJ.
+4. Submeter ao **validador de arquivo do banco**; corrigir até aceite sem ressalvas.
+5. Processar **retorno de homologação** cobrindo as ocorrências `02`, `03`, `06` (total e
+   parcial), `09` e `28` — incluindo teste de idempotência (reimportar o mesmo `.RET` não
+   duplica efeito).
+6. Conciliar com **extrato OFX de homologação** — baixas `PLANEJADA` → `REAL` de ponta a ponta.
+7. **Produção assistida:** 1 ciclo real com poucos boletos (tenant interno/parceiro) antes da
+   liberação geral.
+8. Critério de aceite: **2 ciclos consecutivos** com 100% dos boletos registrados e liquidados
+   sem intervenção manual. Só então iniciar o 2º banco (implementando apenas o override).
+
 ### IV-PIX. Cobrança PIX (QR dinâmico)
 
 ```sql
@@ -4394,14 +4547,34 @@ com aquele centro. Título sem centro nem rateio → partida sem dimensão de ce
 **Fluxo (`GeracaoLancamentoService`):**
 1. Recebe o fato financeiro (evento) com `origem`/`origem_id`.
 2. Resolve `periodo` pela competência; **rejeita** se o período estiver `FECHADO`/`BLOQUEADO`
-   (RN-CONT-03) → fato fica pendente até reabertura ou lança no período aberto seguinte, conforme parâmetro.
+   (RN-CONT-03). O destino do fato é dado por `parametros.gl_fato_periodo_fechado`:
+   `'LANCAR_COMPETENCIA_ABERTA'` (**default**) lança na competência aberta atual, com histórico
+   referenciando a competência original; `'AGUARDAR_REABERTURA'` retém o fato numa fila de
+   pendências até o período reabrir (fila visível na tela de Períodos — fatos pendentes
+   bloqueiam novo fechamento até serem tratados, §42 passo 1).
 3. Aloca `numero` sequencial do período sob lock (gapless).
 4. Seleciona contas via `mapeamento`; monta partidas D/C; aplica explosão de rateio.
 5. Valida partidas dobradas; persiste `lancamento` + `lancamento_partida` atômico.
 6. Idempotente: se já existe lançamento para `(origem, origem_id)`, ignora (log).
 
-**Estorno:** o estorno de uma baixa REAL (§4.6.1) gera **lançamento de estorno** (partidas
-invertidas, `estorno_de_id` preenchido, `status` do original → `ESTORNADO`) — nunca apaga o original.
+### §37.1 — Lançamento de reversão do estorno de baixa
+
+O estorno de uma baixa REAL (§4.6.1) gera automaticamente um **lançamento de reversão** no GL:
+
+- **Gatilho:** o evento da baixa de estorno (`titulo_baixa` com `origem = 'ESTORNO'`) — mesmo
+  canal dos demais fatos financeiros desta seção.
+- **Partidas:** **copiadas do lançamento original com D/C invertidos** — não são re-derivadas
+  do `mapeamento` (que pode ter mudado desde a baixa original); copiar garante simetria exata,
+  inclusive o rateio de centro de custo já explodido. Valores das partidas sempre positivos
+  (o sinal negativo existe só em `titulo_baixa` — a reversão é de D/C, não de sinal).
+- **Vínculo e idempotência:** novo `lancamento` com `origem = 'TITULO_BAIXA'` e `origem_id` =
+  id da **baixa de estorno** (a unique parcial `(origem, origem_id)` continua valendo — é outro
+  fato); `estorno_de_id` aponta o lançamento original, que passa a `status = 'ESTORNADO'` —
+  nunca é apagado.
+- **Período fechado:** se o lançamento original pertence a período `FECHADO`, a reversão entra
+  na **competência aberta atual** (coerente com RN-CONT-10), com histórico
+  "Estorno do lançamento nº {numero} (competência {YYYY-MM})" — o período fechado permanece intacto.
+- **Numeração:** sequencial normal do período em que a reversão é lançada (sem lacunas — RN-CONT-08).
 
 ---
 
@@ -4642,6 +4815,16 @@ Painel consolidado (uma chamada, várias métricas):
 ---
 
 ## 11. Mapeamento dos Diagramas de Arquitetura
+
+> ⚠️ **Seção histórica (pré-v12)** — mantida apenas como rastreabilidade do planejamento original.
+> Dois pontos estão defasados em relação ao resto do documento:
+> 1. **Numeração dos módulos deslocada**: onde esta seção diz "Módulo I (§3–§8)" para AP/AR,
+>    leia **Módulo II**; fluxo de caixa/conciliação = **Módulo III**; tesouraria (§17) =
+>    **Módulo IV**; análises = **Módulo VI**.
+> 2. **Status desatualizados**: o motor fiscal (Módulo I, §1.4–§1.9) e a contabilidade/GL
+>    (Módulo V, §36–§44) hoje estão **especificados neste próprio documento** — os marcadores
+>    "spec separado" / "⏳ reservado" abaixo refletem o estado da época. As obrigações
+>    acessórias têm decisão de escopo em §14.1 (MVP Simples Nacional).
 
 Esta seção conecta cada caixa dos dois diagramas compartilhados durante o planejamento às seções deste documento. Serve como rastreabilidade entre o diagrama de alto nível e o spec técnico.
 
@@ -4990,6 +5173,7 @@ Novas entidades e colunas introduzidas pelas correções desta revisão — dist
 | `financeiro/v1/039-evento-processado.yaml` | 2 | `financeiro.evento_processado` — chave de idempotência dos consumers Kafka (§F4.5) |
 | `financeiro/v1/040-compensacao-unique-pendente.yaml` | 2 | índices parciais únicos em `compensacao` para CO-05 (`titulo_pagar_id` / `titulo_receber_id` WHERE status='PENDENTE') |
 | `fiscal/v1/028-apuracao-estabelecimento.yaml` | 6 | addColumn `estabelecimento_id UUID` nullable em `apuracao_mensal` (ICMS/ISS por estabelecimento; IBS/CBS consolidado = NULL) |
+| `financeiro/v1/041-parametros-gl-periodo-fechado.yaml` | 5 | addColumn em `parametros`: `gl_fato_periodo_fechado` (§37, passo 2) |
 
 ---
 
@@ -5063,8 +5247,8 @@ SPRINT 6 — Apuração Fiscal
 SPRINT 7 — Análises
 └── financeiro/v1/030  pdd-config + seed
 
-Total: ~72 migrations em 3 schemas novos
-(50 dos sprints acima + 13 do §12.10-B + 9 do §1.8.12)
+Total: ~76 migrations em 3 schemas novos
+(53 dos sprints acima + 14 do §12.10-B + 9 do §1.8.12)
 ```
 
 ---
@@ -5788,7 +5972,6 @@ Complementa o que está em §10.2.
 
 | Item | Motivo |
 |---|---|
-| Reflexo contábil do estorno de baixa no GL (lançamento de reversão) | Estorno operacional especificado (§4.6.1); o desenho contábil ainda não foi pensado |
 | Faturamento recorrente (assinatura/contrato) como origem de título AR | Não sai em 2026 — `origem = 'RECORRENTE'` já reservado no enum do título |
 | Adquirência/cartão no AR (taxas, agenda de recebíveis) | Fora do desenho aprovado (SVG) — marcar como futuro |
 | Entrada multi-canal de NF no AP: portal do fornecedor, OCR, EDI | Fora de escopo desta versão — entrada via Kafka NF-e e manual |
@@ -5807,6 +5990,61 @@ valor_split_payment   NUMERIC(15,2) DEFAULT 0
 
 ---
 
+### 14.1 Obrigações acessórias (arquivos da Receita) — escopo por regime
+
+> **Decisão de escopo:** o MVP atende tenant **Simples Nacional** (público-alvo). Isso dispensa a
+> maior parte dos SPEDs — o que sobra é exportar dados para o contador do tenant transmitir.
+> Tenants Lucro Presumido/Real entram na Fase 2 e puxam ECD/ECF/EFD ICMS-IPI.
+> O regime tributário do tenant é parametrização (`SIMPLES_NACIONAL` | `LUCRO_PRESUMIDO` |
+> `LUCRO_REAL`) e governa quais obrigações e retenções se aplicam.
+
+| Obrigação | Simples Nacional (MVP) | Papel do ERP | Fase |
+|---|---|---|---|
+| **PGDAS-D** (mensal) + **DEFIS** (anual) | Obrigatório — transmitido pelo contador no portal | Exportar **relatório de receita bruta** segregada por atividade/anexo e por estabelecimento (base do PGDAS-D); dados vêm dos títulos AR por competência | MVP |
+| **EFD-Reinf** | **Obrigatório quando há fato** (ME/EPP do Simples = 3º grupo, desde 10/mai/2021): retenção de INSS 11% ao contratar serviço com cessão de mão de obra (R-2010) e pagamentos a PF/PJ com IRRF (R-4010/R-4020, série **R-4000** — que substituiu a DIRF) | ERP **não transmite**; exporta **relatório de pagamentos e retenções** por período/CNPJ-CPF/natureza de rendimento a partir das baixas (§4.9). Atenção: R-4010/4020 são devidos **mesmo sem retenção** nos casos previstos (e retenção dispensada < R$ 10 também é informada) — o relatório lista os pagamentos por natureza, não só as baixas `meio = 'RETENCAO'` | MVP |
+| **DCTFWeb** | Gerada no portal a partir de Reinf/eSocial | Nenhum (consequência do Reinf) | — |
+| **ECD (SPED Contábil)** | **Dispensado** para Simples | Fundação já pronta: Livro Diário com numeração sem lacunas (§41) + fechamento imutável (§42). Exportação do arquivo ECD = Fase 2 (tenants Lucro Presumido) | Fase 2 |
+| **ECF** | **Não se aplica** (Simples entrega DEFIS) | Depende do de-para com plano referencial (abaixo) | Fase 2 |
+| **EFD ICMS/IPI (SPED Fiscal)** | **Dispensado** em regra para Simples (exigências estaduais pontuais fora de escopo) | Nenhum no MVP; reavaliar na Fase 2 com Lucro Presumido + mercadorias | Fase 2+ |
+| **Obrigações municipais de ISS** (DES/DMS) | ISS do Simples é recolhido via DAS/PGDAS — declarações municipais dispensadas em regra; emissão de **NFS-e** é do motor fiscal | Nenhum no financeiro | — |
+
+**Preparação barata agora (evita retrabalho na Fase 2):**
+
+- `contabil.conta.conta_referencial VARCHAR(20) NULL` — de-para com o **Plano de Contas
+  Referencial da RFB**, exigido por ECD/ECF. Campo opcional na migration do plano de contas;
+  o template versionado (§F6) já pode vir com o de-para preenchido.
+- Retenções na baixa (§4.9) devem guardar a **natureza do rendimento** (Tabela 01 dos leiautes
+  da EFD-Reinf) — é ela que, combinada ao tipo de beneficiário, define o **código de receita**
+  do DARF e a periodicidade de recolhimento. Guardar ambos (natureza + código derivado).
+- **Competência por tributo**: INSS retido (R-2010) é apurado pela **emissão da NF** do
+  prestador; IR retido (R-4010/4020) pela data do **pagamento/crédito** (a baixa). O relatório
+  de retenções precisa das duas visões — o modelo já tem as duas datas (título e baixa).
+- Motor de retenção **por regime do pagador**: tenant Simples **não retém** PIS/COFINS/CSLL
+  (art. 30, Lei 10.833 exclui optantes), mas **retém** IRRF sobre serviços profissionais e
+  INSS 11% em cessão de mão de obra. A matriz regime × tributo retido é configuração, não código.
+
+> **Arquivos de referência em `spec/`:**
+> - `Manual da EFD-Reinf versão 2.1.2.1.pdf` — manual do **usuário** (leiaute 2.1.2, ADE Cofis
+>   23/2023, ago/2023); cobre toda a série R-4000 e as regras de negócio citadas acima.
+> - `Manual-Desenvolvedor-EFD-Reinf-v2.7.pdf` — manual do **desenvolvedor** v2.7 (out/2025): API REST de lote assíncrono +
+>   webservice SOAP síncrono, certificado digital/procuração, XSDs, consulta de recibo. Só é
+>   relevante se um dia o ERP transmitir direto (hoje o escopo é exportar relatório).
+> - `EFD-REINF - Tabela 01.xlsx/.docx` — **Natureza de Rendimentos** (código, flags 13º/RRA/
+>   deduções/isento, beneficiário PF/PJ, tributo, vigência início/fim). É o **seed** da
+>   configuração de retenção (a "natureza do rendimento" que a baixa deve guardar).
+> - `EFD-REINF - Tabela R-4010/4020/4040/4080.xlsx/.docx` — de-para **natureza × residência
+>   fiscal × tributo × código de receita × periodicidade de recolhimento** com vigências
+>   (R-4020 tem ~1.000 combinações). É o seed da derivação do código de receita do DARF.
+>   Usar os `.xlsx` como fonte de seed Liquibase (mesmo padrão do NCM); os `.docx` são
+>   duplicatas para leitura humana.
+>
+> **⚠️ CNPJ alfanumérico:** nenhum dos dois manuais trata do assunto (as menções a
+> "alfanumérico" no manual do desenvolvedor são tipos de campo — recibo/ID de evento).
+> Confirmar a NT/versão de leiaute vigente antes de implementar o relatório de retenções.
+> O manual v1.5.1.3 (2021), obsoleto, foi removido da pasta.
+
+---
+
 ## 15. Maturidade do Documento
 
 ```
@@ -5814,10 +6052,10 @@ Modelagem de dados       ████████░░  85%
 Regras de negócio        ████████░░  80%
 Motor Fiscal             ██████████  100% ← todos os seeds gerados: Anexos I–XV + XVII completos
 Fiscal / contábil        ████████░░  82%  ← plano de contas e demonstrações aguardam contador
-Integrações técnicas     █████░░░░░  55%  ← CNAB campo a campo e NF-e ainda pendentes
+Integrações técnicas     ███████░░░  70%  ← CNAB especificado campo a campo (§IV-CNAB.1); NF-e ainda pendente
 Arquitetura de software  █████████░  85%
 
-Maturidade geral         ████████░░  80%
+Maturidade geral         ████████░░  82%
 ```
 
 ### Status detalhado por item
@@ -5852,7 +6090,7 @@ Maturidade geral         ████████░░  80%
 | **Alíquotas IBS por município** | ⏳ | — | Aguarda CGIBS — único bloqueante para produção |
 | Plano de contas padrão | ✅ | §F6.5 | Elenco oficial como base, editável pelo tenant — sem bloqueio |
 | DRE e BP formais | ⏳ | — | Estrutura em §5.9 — revisão contábil opcional |
-| CNAB campo a campo | ⏳ | — | Estratégia: layout FEBRABAN 240 padrão primeiro, overrides por banco depois (§IV-CNAB) |
+| CNAB campo a campo | ✅ | §IV-CNAB.1 | De-para FEBRABAN 240 (v10.09) + banco piloto e plano de homologação; conferência 1:1 contra o PDF na homologação |
 | NF-e campos obrigatórios (NT) | ⏳ | — | Portal NF-e — necessário para emissão real |
 | Stack de observabilidade | ⏳ | — | Decisão de infra pendente |
 
