@@ -1,4 +1,4 @@
-HELP.md
+/HELP.md
 target/
 node_modules/
 graphify-out/
@@ -50,3 +50,9 @@ Thumbs.db
 *.pem
 *.p12
 package-lock.json
+/.tokensave/sync.lock
+/.tokensave/tokensave.db
+/.tokensave/tokensave.db-shm
+/.tokensave/tokensave.db-wal
+/.tokensave/branch-meta.json
+/.tokensave/config.json

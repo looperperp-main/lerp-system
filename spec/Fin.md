@@ -1217,6 +1217,7 @@ public class MotorFiscalRequest {
 | MF-08 | Saldo credor IBS/CBS acumulado não expira — compensa tributos futuros |
 | MF-09 | Apuração FECHADA não reabre — somente retificada via nova competência |
 | MF-10 | NCM não encontrado → warning + alíquota padrão (não bloquear operação) |
+| MF-11 | **Inadimplência não estorna tributo.** IBS/CBS/IS têm fato gerador na operação (emissão/entrega), não no recebimento — cliente que não paga **não** reverte o imposto devido. A perda é tratada como risco de crédito via **PDD/PCLD (§24)**, nunca como estorno fiscal. Tributo só é estornado por **cancelamento ou devolução documentada** (nota de crédito), que gera título de ajuste (§4.6) e retificação da apuração — inadimplência pura não. |
 
 ### 1.7 Integração com Módulo Financeiro
 
@@ -2243,6 +2244,8 @@ PLANEJADA
 | Baixa total | `valor_baixado = valor_liquido` → status_titulo = BAIXADO |
 | Múltiplas baixas | Permitido enquanto `valor_saldo > 0` |
 | Cancelar baixa REAL | Não permitido — somente estorno via novo lançamento |
+| Recebimento **N→1** (1 pagamento, vários títulos) | Uma `titulo_baixa` por título; alocar por **ordem de vencimento (mais antigo primeiro)**; juros/mora/multa/desconto calculados **por título** sobre o saldo de cada um na data do recebimento; sobra vira crédito/adiantamento (§II.5), nunca "baixa a mais" num título |
+| Recebimento **1→N** (baixas parciais no mesmo título) | Cada baixa recalcula juros/mora sobre o **saldo residual** na sua própria data (juros proporcionais ao saldo e ao tempo, não ao valor cheio); título só fecha quando `saldo = 0`; baixa parcial mantém `EM_ABERTO` |
 | Cancelar baixa PLANEJADA | Permitido — reverte `valor_baixado` |
 
 ---
@@ -4038,7 +4041,11 @@ Se o boleto já está `REGISTRADO`, a alteração de vencimento exige remessa CN
      do Módulo I) e o boleto pode permanecer para reapresentação do saldo. Não fecha o título.
    - **Baixa/devolução** → refletir no `status` do boleto (`CANCELADO`); não altera o saldo do
      título além do que a ocorrência determina.
-   - **Rejeição** → item `ERRO`, alerta ao operador; boleto volta a `EMITIDO`.
+   - **Rejeição** (ex.: "CPF/CNPJ inválido", "agência inválida") → `cnab_retorno_item.status = 'ERRO'`,
+     **persistir código+motivo da ocorrência** (`codigo_ocorrencia`/`motivo`), boleto volta a `EMITIDO` e
+     dispara **alerta crítico** ao operador (fica na fila até tratado). O **título permanece `EM_ABERTO`**
+     — o status de registro bancário é do **boleto**, não do título (não há estado "Em Processamento" no
+     título; boleto rejeitado não trava o recebível). Operador corrige o cadastro e reemite (§17.1).
 5. Marcar item `status = 'BAIXADO'` (ou `IGNORADO`/`ERRO`). Erros por item não abortam o arquivo
    (`cnab_retorno.status = 'PARCIAL'`).
 
@@ -4361,6 +4368,15 @@ forem o mesmo processo) via `ApplicationEventPublisher`; **eventos que cruzam se
 | Tarifa bancária | Despesa bancária | Caixa/Banco | `conta_movimentacao` DÉBITO |
 | Rendimento de aplicação | Caixa/Banco | Receita financeira (líq. IR) | §17.9 |
 | **Provisão PDD** (§24) | Despesa com PCLD | PCLD (retificadora do ativo, `retificadora=TRUE`) | só quando tenant contabiliza PDD; `PddCalculoJob` mensal; estimativa, não baixa título |
+| **Baixa com split payment** (2027+) | Caixa/Banco (valor **líquido**) **+** IBS/CBS Recolhido na Liquidação (conta transitória, pelo **retido**) | Clientes/Fornecedores (valor **bruto**) | resolve a divergência de centavos da conciliação — ver nota abaixo |
+
+> **Split payment — baixa pelo bruto, caixa pelo líquido (Q-conciliação).** Quando o adquirente (cartão)
+> ou o BC (PIX) retém IBS/CBS na liquidação, o título é **baixado pelo valor bruto** (a obrigação do
+> cliente era o bruto), mas a Tesouraria só recebe o **líquido**. A partida de caixa registra o líquido e
+> a diferença retida vai para a **conta transitória `IBS/CBS Recolhido na Liquidação`** (ativo — crédito a
+> compensar na apuração). Assim `titulo_baixa.valor = bruto`, `conta_movimentacao.valor = líquido`,
+> `valor_retido_governo = diferença`, e a conciliação bancária (§III 4.3) casa pelo líquido — sem quebra de
+> centavos. O acerto da transitória contra o IBS/CBS a recolher é feito na apuração (módulo fiscal).
 
 **Resolução das contas:** o `GeracaoLancamentoService` consulta `mapeamento` por
 `(tipo_origem, origem_id)` — ex.: `TIPO_BAIXA` → contas de D/C daquela baixa, `CONTA_CORRENTE` →
@@ -4484,6 +4500,11 @@ Roda como `ConciliacaoGlJob` (mensal, pós-fechamento).
 - **RN-CONT-01** Todo lançamento respeita partidas dobradas (ΣD = ΣC); desbalanceado é rejeitado.
 - **RN-CONT-02** Partida só em conta analítica (`aceita_lancamento = TRUE`).
 - **RN-CONT-03** Período `FECHADO`/`BLOQUEADO` não aceita novo lançamento na competência.
+- **RN-CONT-06** A trava vale também para o **financeiro**: alterar `data_competencia`/`data_emissao` de um
+  título (ou emitir/baixar retroativo) que caia num período contábil `FECHADO`/`BLOQUEADO` é **bloqueado**,
+  mesmo para perfil administrativo. A correção econômica é lançada na **competência aberta atual** via
+  lançamento de ajuste (com `origem`/`origem_id` apontando o título), nunca reescrevendo o mês fechado —
+  o Livro Diário é imutável após fechamento (§41/§42). ΣD=ΣC do período fechado permanece intacto.
 - **RN-CONT-04** 1 fato financeiro = 1 lançamento (idempotência por `(origem, origem_id)`);
   correção só por **estorno** (partidas invertidas, original → `ESTORNADO`), nunca delete.
 - **RN-CONT-05** Explosão de rateio preserva o total da conta de resultado (§37/§F3).
