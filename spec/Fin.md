@@ -255,7 +255,7 @@ UNIQUE (rateio_id, centro_custo_id)
 
 **Impacto em entidades existentes:** adicionar `centro_custo_id BIGINT` (nullable) em `titulo`, `titulo_baixa`, `conta_movimentacao` e `lancamento_partida`. Em `titulo`, adicionar também `rateio_id BIGINT` (nullable, REFERENCES `centro_custo_rateio`) — **mutuamente exclusivo** com `centro_custo_id` (CHECK: no máximo um dos dois preenchido).
 
-**Onde o rateio é aplicado:** o título carrega a referência (`rateio_id`); a **explosão percentual acontece na contabilização** — o lançamento gera N `lancamento_partida`, uma por centro de custo do rateio, conforme os percentuais vigentes na data do lançamento. Relatórios gerenciais por CC fazem a mesma explosão ao agregar títulos/baixas com `rateio_id`. Baixas herdam a referência do título (CC direto ou rateio); rateio em `conta_movimentacao` avulsa não é suportado — usar CC direto.
+**Onde o rateio é aplicado:** o título carrega a referência (`rateio_id`); a **explosão percentual acontece na contabilização** — o lançamento gera N `lancamento_partida`, uma por centro de custo do rateio, conforme os percentuais vigentes na data do lançamento. Relatórios gerenciais por CC leem as `lancamento_partida` **já explodidas** quando o título está contabilizado (o rateio pode ser editado depois — re-explodir com percentuais atuais divergiria do razão); só re-explodem ao vivo para títulos ainda **não contabilizados** (visão prospectiva). Baixas herdam a referência do título (CC direto ou rateio); rateio em `conta_movimentacao` avulsa não é suportado — usar CC direto.
 
 ---
 
@@ -4386,7 +4386,9 @@ específico, cai no de-para por `CLASSIFICACAO_FINANCEIRA`.
 **Explosão de rateio (centro de custo):** quando o título tem `rateio_id` (§F3), a partida da
 conta de resultado é **explodida em N partidas**, uma por item do rateio, cada uma com seu
 `centro_custo_id` e `valor = base × percentual/100`. A soma das partidas explodidas = valor da
-conta de resultado (fecha as partidas dobradas). Título com `centro_custo_id` direto → 1 partida
+conta de resultado (fecha as partidas dobradas). **Arredondamento:** cada partida arredonda a
+2 casas e a **diferença residual de centavos vai na partida de maior percentual** (ex.: base
+R$ 100,00 com 33,33/33,33/33,34 → 33,33 + 33,33 + 33,34), garantindo ΣD=ΣC exato. Título com `centro_custo_id` direto → 1 partida
 com aquele centro. Título sem centro nem rateio → partida sem dimensão de centro de custo.
 
 **Fluxo (`GeracaoLancamentoService`):**
@@ -4500,11 +4502,6 @@ Roda como `ConciliacaoGlJob` (mensal, pós-fechamento).
 - **RN-CONT-01** Todo lançamento respeita partidas dobradas (ΣD = ΣC); desbalanceado é rejeitado.
 - **RN-CONT-02** Partida só em conta analítica (`aceita_lancamento = TRUE`).
 - **RN-CONT-03** Período `FECHADO`/`BLOQUEADO` não aceita novo lançamento na competência.
-- **RN-CONT-06** A trava vale também para o **financeiro**: alterar `data_competencia`/`data_emissao` de um
-  título (ou emitir/baixar retroativo) que caia num período contábil `FECHADO`/`BLOQUEADO` é **bloqueado**,
-  mesmo para perfil administrativo. A correção econômica é lançada na **competência aberta atual** via
-  lançamento de ajuste (com `origem`/`origem_id` apontando o título), nunca reescrevendo o mês fechado —
-  o Livro Diário é imutável após fechamento (§41/§42). ΣD=ΣC do período fechado permanece intacto.
 - **RN-CONT-04** 1 fato financeiro = 1 lançamento (idempotência por `(origem, origem_id)`);
   correção só por **estorno** (partidas invertidas, original → `ESTORNADO`), nunca delete.
 - **RN-CONT-05** Explosão de rateio preserva o total da conta de resultado (§37/§F3).
@@ -4512,6 +4509,12 @@ Roda como `ConciliacaoGlJob` (mensal, pós-fechamento).
 - **RN-CONT-07** Dimensão filial é `estabelecimento_id UUID`; `estabelecimento_id = NULL` = consolidado.
 - **RN-CONT-08** `numero` do lançamento é sequencial por período **sem lacunas** (exigência do Livro Diário).
 - **RN-CONT-09** Contas `retificadora = TRUE` subtraem do grupo no Balanço (depreciação/PCLD).
+- **RN-CONT-10** A trava de RN-CONT-03 vale também para o **financeiro**: alterar
+  `data_competencia`/`data_emissao` de um título (ou emitir/baixar retroativo) que caia num período
+  contábil `FECHADO`/`BLOQUEADO` é **bloqueado**, mesmo para perfil administrativo. A correção
+  econômica é lançada na **competência aberta atual** via lançamento de ajuste (com
+  `origem`/`origem_id` apontando o título), nunca reescrevendo o mês fechado — o Livro Diário é
+  imutável após fechamento (§41/§42). ΣD=ΣC do período fechado permanece intacto.
 
 ---
 

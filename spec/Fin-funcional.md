@@ -131,7 +131,10 @@ fiscal — a Receita Federal pode solicitar o histórico completo de alteraçõe
 associada a um título, a uma baixa ou a um lançamento contábil, para permitir relatórios por
 área da empresa. Centros de custo podem ter hierarquia (centro pai/filho); apenas os
 centros "analíticos" (folha da hierarquia) recebem lançamento direto. Um rateio permite
-distribuir um mesmo valor entre vários centros de custo por percentual.
+distribuir um mesmo valor entre vários centros de custo por percentual (ex.: uma nota de
+software rateada 50% TI / 30% Vendas / 20% Administrativo); os percentuais somam sempre
+100% e, na contabilização, eventual diferença de centavos do arredondamento fica no centro
+de maior percentual (ver RN-FUND-016 a RN-FUND-018).
 
 **Contrato NF-e → Financeiro.** Define como uma nota fiscal aprovada (de entrada ou saída)
 gera automaticamente um título financeiro, e como o cancelamento de uma nota reflete no
@@ -162,6 +165,9 @@ principalmente para liberar pagamentos.
 | RN-FUND-013 | Operações financeiras que se enquadrem em uma faixa de valor configurada para exigir aprovação (ex.: pagamentos acima de determinado valor) ficam retidas até a decisão do aprovador — o título correspondente fica bloqueado para pagamento/remessa enquanto aguarda decisão. |
 | RN-FUND-014 | Toda decisão de aprovação (aprovar ou rejeitar) é registrada de forma imutável na trilha de auditoria — quem decidiu, quando e de onde. Rejeição exige justificativa. |
 | RN-FUND-015 | Se o aprovador não decidir dentro do prazo configurado, a solicitação pode ser automaticamente escalada para um aprovador de nível superior ou aprovada automaticamente, conforme a política configurada para aquela faixa de valor. |
+| RN-FUND-016 | Um rateio por centro de custo só admite centros de custo analíticos e ativos — centros agrupadores ou inativos não podem participar. |
+| RN-FUND-017 | Ao contabilizar um título rateado, o valor é dividido entre os centros de custo conforme os percentuais definidos; a eventual diferença de centavos gerada pelo arredondamento é absorvida pelo centro de custo de **maior percentual**, garantindo que a soma dos valores lançados feche exatamente igual ao valor do título. |
+| RN-FUND-018 | Um relatório gerencial sobre um título **já contabilizado** sempre lê os valores por centro de custo tal como foram divididos no momento da contabilização — alterar o rateio depois não reescreve o passado. Um título **ainda não contabilizado** usa os percentuais vigentes do rateio como visão prospectiva, sujeita a mudar até a contabilização efetiva. |
 
 ### 2.4 Fluxo — Aprovação por Alçada
 
@@ -291,6 +297,7 @@ do vendedor.
 | RN-MF-013 | Para serviços, o município relevante para o IBS é o **local onde o serviço é efetivamente prestado**, e não necessariamente o endereço de quem contratou — exceto para categorias específicas de serviço com regra própria (ex.: serviços sobre imóveis usam o local do imóvel; serviços digitais remotos usam o domicílio de quem contratou; transporte usa o destino da carga/passageiro). |
 | RN-MF-014 | Uma devolução de mercadoria ou serviço gera o cálculo fiscal com valores invertidos (créditos e débitos revertidos na proporção devolvida), anulando o efeito da operação original na medida da devolução. |
 | RN-MF-015 | Ao fechar a apuração mensal, o sistema gera automaticamente os títulos a pagar das guias de recolhimento (uma para IBS, uma para CBS, uma para o Imposto Seletivo), com vencimento no prazo legal — apenas para os tributos com saldo devedor; tributo com saldo credor não gera guia. |
+| RN-MF-016 | IBS, CBS e IS têm fato gerador na **operação** (emissão/entrega), não no recebimento. Um cliente que não paga o título **não** reverte o imposto já devido — a perda é tratada como risco de crédito, via provisão para devedores duvidosos (ver §8), e não como estorno fiscal. Estorno fiscal só ocorre por cancelamento da operação ou devolução documentada (nota de crédito — RN-MF-014). |
 
 ### 3.6 Casos especiais
 
@@ -315,6 +322,15 @@ usado para: (1) criar o(s) título(s) a pagar correspondente(s) com os valores d
 identificados, e (2) somar os créditos de IBS/CBS na apuração mensal do tenant. Quando uma
 nota de saída é emitida, o mesmo cálculo cria o(s) título(s) a receber e soma os débitos na
 apuração mensal.
+
+**Conciliação do split payment (a partir de 2027):** quando a adquirente/Banco Central retém
+IBS/CBS já na liquidação do pagamento (RN-MF-005), o título é baixado pelo valor **bruto**
+(o valor da venda, imposto incluso), mas o caixa só recebe o valor **líquido** (bruto menos o
+imposto retido na fonte pelo arranjo de pagamento). A diferença retida é registrada numa conta
+transitória de impostos recolhidos na liquidação — assim a conciliação bancária casa
+exatamente com o valor líquido depositado, sem sobrar diferença de centavos em aberto. O
+acerto dessa conta transitória contra o valor efetivamente apurado acontece na apuração fiscal
+mensal (§3.5, RN-MF-015).
 
 ### 3.8 Validações
 
@@ -408,6 +424,7 @@ o saldo ao título.
 | RN-AP-012 | Ao baixar um título em atraso, o sistema sugere automaticamente os valores de multa (percentual configurável, padrão 2%) e mora (percentual mensal configurável, calculado proporcionalmente aos dias de atraso, padrão 1% ao mês) — o operador pode aceitar ou ajustar antes de confirmar. |
 | RN-AP-013 | Um título com uso de adiantamento é baixado pelo valor do adiantamento utilizado — sem criar, adicionalmente, um desconto pelo mesmo valor (isso evitaria contar o abatimento duas vezes e reduziria o saldo além do correto). |
 | RN-AP-014 | Retenções na fonte aplicadas a um título de serviço reduzem o valor líquido efetivamente pago ao fornecedor; o valor retido não é recolhido ao fornecedor — vira uma obrigação do tenant perante o órgão arrecadador correspondente, agrupada mensalmente em uma guia de recolhimento por tributo. |
+| RN-AP-015 | **Trava de competência retroativa** (vale para contas a pagar e a receber): alterar a data de competência ou de emissão de um título, ou emitir/baixar um título retroativamente, caindo num período contábil já fechado é bloqueado — mesmo para um usuário administrador. A correção é feita por um lançamento de ajuste na competência aberta atual; o período fechado permanece imutável (ver §7, período contábil). |
 
 ### 4.5 Regras de Negócio — Contas a Receber
 
@@ -422,6 +439,8 @@ parcelamento, baixa e estorno descritas acima. As regras específicas são:
 | RN-AR-004 | O desconto de um título (antecipação de recebível junto ao banco) só é permitido para títulos já emitidos. |
 | RN-AR-005 | O adiantamento recebido de um cliente segue a mesma lógica do adiantamento a fornecedor: fica disponível como saldo para baixar títulos futuros daquele mesmo cliente. |
 | RN-AR-006 | Uma retenção sofrida do cliente (quando o próprio cliente retém parte do pagamento por obrigação legal) é registrada como uma baixa parcial "por retenção" — o caixa nunca chega a receber esse valor; ele vira um crédito tributário a recuperar. |
+| RN-AR-007 | **Recebimento quitando vários títulos (N-para-1):** um único pagamento do cliente que cobre vários títulos gera uma baixa por título, alocando o valor recebido por ordem de vencimento (o mais antigo primeiro). Juros, mora, multa e desconto são calculados individualmente por título, sobre o saldo de cada um na data do recebimento. Se sobrar valor depois de quitar todos os títulos elegíveis, a sobra vira crédito/adiantamento do cliente (RN-AR-005). |
+| RN-AR-008 | **Baixas parciais sucessivas (1-para-N):** cada baixa parcial recalcula juros e mora sobre o saldo residual do título na data daquela baixa (não sobre o valor original) — o título só passa a Baixado quando o saldo chega a zero. |
 
 ### 4.6 Régua de cobrança automática (Dunning)
 
@@ -656,6 +675,8 @@ padronizado entre bancos, só é implementado quando algum cliente exigir um ban
 | RN-TES-006 | O sistema alerta automaticamente sobre cheques cuja data de "bom para" (data a partir da qual o cheque pode ser depositado) se aproxima. |
 | RN-TES-007 | Uma cobrança via PIX que expira sem ser paga não gera baixa; o pagamento fora do prazo de validade da cobrança não é reconhecido automaticamente por aquele código — é preciso gerar nova cobrança. |
 | RN-TES-008 | A partir de 2027, cobranças via PIX (e demais meios eletrônicos, incluindo boleto liquidado por arranjo de pagamento) ficam sujeitas ao split payment (ver §3, RN-MF-005) — a segregação do valor do imposto ocorre no momento da liquidação. |
+| RN-TES-009 | **Rejeição de boleto pelo banco:** quando o retorno bancário traz uma ocorrência de rejeição (ex.: CPF/CNPJ inválido do sacado), o sistema registra o código e o motivo, gera um alerta crítico para o operador (que permanece numa fila até ser tratado) e devolve o boleto ao estado de "emitido" para correção e reemissão. O título continua em aberto — o problema é do boleto, ele nunca trava o recebível. |
+| RN-TES-010 | **Liquidação parcial de boleto:** quando o retorno bancário informa pagamento parcial, o sistema gera uma baixa parcial pelo valor recebido; o título permanece em aberto com o saldo residual, e o boleto pode ser reapresentado ao banco pelo saldo remanescente. |
 
 ### 6.5 Fluxo — Cobrança PIX
 
@@ -673,7 +694,9 @@ padronizado entre bancos, só é implementado quando algum cliente exigir um ban
 3. O banco processa e devolve um arquivo de retorno informando o que aconteceu com cada
    título (pago, alterado, protestado, cancelado etc.).
 4. Cada ocorrência do retorno gera uma baixa planejada, que é confirmada assim que o
-   dinheiro é identificado na conciliação bancária.
+   dinheiro é identificado na conciliação bancária. Uma ocorrência de **rejeição** (RN-TES-009)
+   não gera baixa — devolve o boleto para reemissão. Uma ocorrência de **pagamento parcial**
+   (RN-TES-010) gera baixa parcial, deixando o título em aberto pelo saldo residual.
 
 ### 6.7 Cron jobs (rotinas automáticas relevantes ao negócio)
 
@@ -790,9 +813,12 @@ Fornecer visão analítica e indicadores de gestão financeira, sem originar nen
 - **Aging (posição por faixa de vencimento)** — agrupamento de títulos em aberto por faixa
   de atraso ou de vencimento futuro.
 - **Inadimplência** — indicador de quanto do total a receber está vencido e não pago.
-- **PDD (Provisão para Devedores Duvidosos)** — provisão contábil calculada por faixa de
-  aging, configurável por tenant (percentuais sugeridos de partida: 0,5% para não vencido,
-  3% para até 30 dias, 8% para 31–60 dias, 20% para 61–90 dias, 50% para acima de 90 dias).
+- **PDD (Provisão para Devedores Duvidosos)** — provisão contábil calculada mensalmente por
+  faixa de aging, configurável por tenant (percentuais sugeridos de partida: 0,5% para não
+  vencido, 3% para até 30 dias, 8% para 31–60 dias, 20% para 61–90 dias, 50% para acima de 90
+  dias). É uma **estimativa de perda**, não uma baixa de título: o total apurado alimenta um
+  lançamento contábil de despesa contra uma conta redutora do ativo (quando o tenant opta por
+  contabilizar a provisão — ver §7), sem afetar o saldo em aberto de nenhum título individual.
 - **KPIs financeiros** — Giro de Recebíveis, Prazo Médio de Recebimento (PMR), Prazo Médio
   de Pagamento (PMP), Ciclo Financeiro, Taxa de Inadimplência.
 - **Dashboard executivo** — visão consolidada de posição de caixa, recebíveis, pagáveis,
