@@ -2456,6 +2456,24 @@ boleto já tem os percentuais próprios em `cobranca_config`).
 > valores que não são desconto comercial. A baixa com `origem = 'ADIANTAMENTO'`
 > já carrega a rastreabilidade (`adiantamento_id`) e o efeito financeiro correto.
 
+#### 4.7.3 Devolver adiantamento
+
+Quando o terceiro pede de volta um saldo adiantado e não consumido (ex.: cliente adiantou
+R$ 500 mil, consumiu R$ 300 mil em notas e quer os R$ 200 mil restantes):
+
+**Endpoint:** `POST /api/financeiro/adiantamentos/{id}/devolver` — body `{ "valor": 200000.00 }`
+
+1. Validar `valor <= adiantamento_saldo.valor_disponivel`.
+2. Criar `titulo` novo com natureza **inversa** à do adiantamento (adiantamento recebido de
+   cliente → título a **PAGAR**; adiantamento pago a fornecedor → título a **RECEBER**),
+   `origem = 'ADIANTAMENTO'`, mesmo terceiro.
+3. **Incrementar** `adiantamento_saldo.valor_utilizado` pelo valor devolvido **no ato** (não
+   na baixa do título de devolução) — impede uso duplo do saldo enquanto a devolução está em
+   aberto.
+4. A baixa do título de devolução segue o fluxo normal (§4.5) e movimenta caixa.
+5. Cancelar o título de devolução (permitido só sem baixa REAL, RN-AP) devolve o valor ao
+   `adiantamento_saldo`.
+
 ---
 
 ### 4.8 Empréstimo / Leasing
@@ -5975,7 +5993,10 @@ Complementa o que está em §10.2.
 | Faturamento recorrente (assinatura/contrato) como origem de título AR | Não sai em 2026 — `origem = 'RECORRENTE'` já reservado no enum do título |
 | Adquirência/cartão no AR (taxas, agenda de recebíveis) | Fora do desenho aprovado (SVG) — marcar como futuro |
 | Entrada multi-canal de NF no AP: portal do fornecedor, OCR, EDI | Fora de escopo desta versão — entrada via Kafka NF-e e manual |
-| Matching 3 vias (PO × Recebimento × NF) com hold automático | Depende do módulo de Compras; o campo `titulo.bloqueado` já dá o hold manual |
+| Matching 3 vias (PO × Recebimento × NF) com hold automático | Depende do módulo de Compras; o campo `titulo.bloqueado` já dá o hold manual. Requisitos capturados em reunião (jul/2026): (1) **parâmetro por tenant** definindo a fonte da condição de pagamento — confiar na **ordem de compra** ou no **XML do fornecedor** —, com **alerta obrigatório** ao operador em divergência (evita título seguindo a OC enquanto o boleto real vence e vai a protesto); (2) **alçada de aprovação na OC**: pagamento cuja OC já foi aprovada pela mesma alçada/aprovador nasce desbloqueado, sem reaprovação no financeiro |
+| Adiantamento vinculado a operação com limite | Pedido de adiantamento (ex.: R$ 100 mil) em que as NFs subsequentes consomem o saldo automaticamente **sem gerar título** e a emissão trava ao esgotar o limite. O consumo usa `adiantamento_saldo` (§4.7) — a trava de emissão depende do módulo de pedidos/faturamento |
+| API bancária direta e VAN como canais alternativos ao arquivo CNAB | Registro instantâneo de boleto com QR PIX embutido ("bolecode") via API do banco é padrão de mercado no contas a receber. Não muda o modelo (boleto/baixa idênticos — muda o transporte); implementar como Strategy de canal ao lado do arquivo (§IV-CNAB) |
+| Motor de importação de dados | Módulo transversal de migração (templates por área — pessoas, títulos em aberto, plano de contas, saldos) para onboarding de tenants vindos de outros sistemas. Spec própria, fora deste documento |
 
 **Campos reservados (já no schema, sem migration futura):**
 
