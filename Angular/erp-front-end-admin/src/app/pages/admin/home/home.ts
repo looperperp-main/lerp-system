@@ -99,6 +99,7 @@ export class Home implements OnInit {
           boxHeight: 8,
           padding: 16,
           font: { size: 12 },
+          color: '#B8B8C2',
         },
       },
     },
@@ -107,7 +108,14 @@ export class Home implements OnInit {
   lineOptions = {
     plugins: { legend: { display: false } },
     maintainAspectRatio: false,
-    scales: { y: { beginAtZero: true } },
+    scales: {
+      y: {
+        beginAtZero: true,
+        ticks: { color: '#8C8475' },
+        grid: { color: 'rgba(255,255,255,0.06)' },
+      },
+      x: { ticks: { color: '#8C8475' }, grid: { display: false } },
+    },
   };
 
   ngOnInit() {
@@ -190,7 +198,7 @@ export class Home implements OnInit {
           data: labels.map((l) => porStatus.get(l)),
           backgroundColor: labels.map((l) => cores[l] ?? '#d1d5db'),
           borderWidth: 2,
-          borderColor: '#ffffff',
+          borderColor: '#1A1A22',
           hoverOffset: 6,
         },
       ],
@@ -274,14 +282,14 @@ export class Home implements OnInit {
     return d;
   }
 
-  notificacaoIcone(log: AuditLog): { icon: string; classes: string } {
+  notificacaoIcone(log: AuditLog): { icon: string; group: string } {
     if (log.result === 'FAILED' || log.result === 'ERROR') {
-      return { icon: 'pi pi-exclamation-triangle', classes: 'bg-red-100 text-red-500' };
+      return { icon: 'pi pi-exclamation-triangle', group: 'g4' };
     }
     if ((log.action ?? '').startsWith('LOGIN') || (log.action ?? '').startsWith('LOGOUT')) {
-      return { icon: 'pi pi-sign-in', classes: 'bg-blue-100 text-blue-500' };
+      return { icon: 'pi pi-sign-in', group: 'g3' };
     }
-    return { icon: 'pi pi-bell', classes: 'bg-orange-100 text-orange-500' };
+    return { icon: 'pi pi-bell', group: 'g1' };
   }
 
   private buildFunil(indicacoes: any[]) {

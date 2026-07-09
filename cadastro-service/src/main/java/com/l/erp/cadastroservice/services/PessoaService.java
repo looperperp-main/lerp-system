@@ -87,7 +87,10 @@ public class PessoaService {
         validateDocumento(dto.tipo(), dto.documento());
 
         Pessoa oldPessoa = pessoaRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(Constants.PESSOA_NOT_FOUND, HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> {
+                    sendAuditEvent(Constants.PESSOA_UPDATE, userId, id, Constants.ERROR, "{Error: Pessoa não encontrada}", correlationId);
+                    return new BusinessException(Constants.PESSOA_NOT_FOUND, HttpStatus.NOT_FOUND);
+                });
 
         if(!oldPessoa.getTenantId().equals(tenantID)){
             sendAuditEvent(
@@ -120,6 +123,34 @@ public class PessoaService {
         );
 
         return saved;
+    }
+
+    @Transactional
+    public void updateStatus(UUID id, Long tenantId, UUID userId){
+        UUID correlationId = getCorrelationIdFromRequest(logger);
+        logger.info("Atualizando status da Pessoa ID: {}", id);
+        Pessoa pessoa = pessoaRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> {
+                    sendAuditEvent(Constants.PESSOA_UPDATE, userId, id, Constants.ERROR, "{Error: Pessoa não encontrada}", correlationId);
+                    return new BusinessException(Constants.PESSOA_NOT_FOUND, HttpStatus.NOT_FOUND);
+                });
+        pessoa.setAtivo(!pessoa.getAtivo());
+        pessoa.setLastUpdatedBy(userId);
+        pessoa.setUpdatedAt(Instant.now());
+        pessoaRepository.save(pessoa);
+        sendAuditEvent(Constants.PESSOA_UPDATE, userId, id, Constants.SUCCESS, "{Status Alterado: " + pessoa.getAtivo() + "}", correlationId);
+    }
+
+    @Transactional
+    public void delete(UUID id, Long tenantId, UUID userId){
+        UUID correlationId = getCorrelationIdFromRequest(logger);
+        Pessoa pessoa = pessoaRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> {
+                    sendAuditEvent(Constants.PESSOA_DELETE, userId, id, Constants.ERROR, "{Error: Pessoa não encontrada}", correlationId);
+                    return new BusinessException(Constants.PESSOA_NOT_FOUND, HttpStatus.NOT_FOUND);
+                });
+        pessoaRepository.delete(pessoa);
+        sendAuditEvent(Constants.PESSOA_DELETE, userId, id, Constants.SUCCESS, "{Pessoa deletada}", correlationId);
     }
 
 

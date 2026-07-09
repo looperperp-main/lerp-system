@@ -23,7 +23,6 @@ export class AdminLayout {
   user = {
     name: this.userEmail,
     role: 'Admin',
-    avatar: 'https://primefaces.org/cdn/primeng/images/demo/avatar/amyelsner.png', // Placeholder
   };
 
   menuItems: MenuItem[] = [

@@ -1,151 +1,143 @@
-<div class="p-2 lg:p-6 bg-[#FDFBF7] min-h-screen font-sans text-gray-800">
+<!-- Header -->
+<div class="jb-page-head">
+  <div>
+    <span class="eyebrow"><i class="dot"></i> PLATAFORMA</span>
+    <h1>Olá, <span class="grad-text">{{ userEmail }}</span>.</h1>
+    <p class="sub">Confira o overview da plataforma.</p>
+  </div>
+</div>
 
-  <!-- Header Section -->
-  <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 lg:mb-8 gap-4">
-    <div>
-      <h1 class="text-xl lg:text-2xl font-bold text-gray-900">Olá, {{userEmail}}!</h1>
-      <p class="text-gray-500 text-sm mt-1">Confira o overview da plataforma</p>
+<!-- Cards Section -->
+<div class="jb-kpi-grid">
+  <div class="jb-kpi" *ngFor="let card of cards(); let i = index" [class.grad-1]="i === 0" [class.grad-2]="i === 1" [class.grad-3]="i === 2" [class.grad-4]="i === 3">
+    <div class="jb-kpi-top">
+      <span class="icon"><i [class]="card.icon"></i></span>
+    </div>
+    <div class="label">{{ card.title }}</div>
+    <div class="value">{{ card.value }}</div>
+  </div>
+</div>
+
+<!-- Charts Section -->
+<div class="jb-row two">
+  <div class="jb-panel">
+    <div class="jb-panel-head">
+      <h3>MRR — Receita Recorrente Mensal</h3>
+    </div>
+    <div style="height: 260px;" *ngIf="mrrChartData(); else chartLoading">
+      <p-chart type="line" [data]="mrrChartData()" [options]="lineOptions" height="100%"></p-chart>
     </div>
   </div>
 
-  <!-- Cards Section -->
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-6 lg:mb-8">
-    <div *ngFor="let card of cards()" class="bg-white p-5 lg:p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between min-h-[120px]">
-      <div class="flex justify-between items-start">
-        <div>
-          <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">{{ card.title }}</span>
-          <h2 class="text-3xl font-bold text-gray-900 mt-2">{{ card.value }}</h2>
-        </div>
-        <div [class]="'p-3 rounded-full ' + card.bgIcon">
-          <i [class]="card.icon + ' ' + card.textIcon + ' text-xl'"></i>
-        </div>
-      </div>
+  <div class="jb-panel">
+    <div class="jb-panel-head">
+      <h3>Tenants por Status</h3>
+    </div>
+    <div style="height: 260px;" *ngIf="tenantChartData(); else chartLoading">
+      <p-chart type="doughnut" [data]="tenantChartData()" [options]="doughnutOptions" height="100%"></p-chart>
     </div>
   </div>
 
-  <!-- Charts Section -->
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 lg:mb-8 min-w-0">
-    <div class="bg-white p-5 lg:p-6 rounded-2xl shadow-sm border border-gray-100 lg:col-span-2 min-w-0">
-      <h3 class="text-lg font-bold text-gray-800 mb-6">MRR — Receita Recorrente Mensal</h3>
-      <div class="h-56 lg:h-64" *ngIf="mrrChartData(); else chartLoading">
-        <p-chart type="line" [data]="mrrChartData()" [options]="lineOptions" height="100%"></p-chart>
-      </div>
+  <ng-template #chartLoading>
+    <div style="height: 260px; display: flex; align-items: center; justify-content: center; color: var(--muted);">
+      <i class="pi pi-spin pi-spinner" style="font-size: 1.5rem;"></i>
     </div>
+  </ng-template>
+</div>
 
-    <div class="bg-white p-5 lg:p-6 rounded-2xl shadow-sm border border-gray-100 min-w-0">
-      <h3 class="text-lg font-bold text-gray-800 mb-6">Tenants por Status</h3>
-      <div class="h-56 lg:h-64" *ngIf="tenantChartData(); else chartLoading">
-        <p-chart type="doughnut" [data]="tenantChartData()" [options]="doughnutOptions" height="100%"></p-chart>
-      </div>
+<!-- Top Contadores & Funil -->
+<div class="jb-row split">
+  <div class="jb-panel">
+    <div class="jb-panel-head">
+      <h3>Top Contadores</h3>
     </div>
-
-    <ng-template #chartLoading>
-      <div class="h-56 lg:h-64 flex items-center justify-center text-gray-300">
-        <i class="pi pi-spin pi-spinner text-2xl"></i>
-      </div>
-    </ng-template>
-  </div>
-
-  <!-- Middle Section: Top Contadores & Funil -->
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 min-w-0">
-
-    <!-- Top Contadores -->
-    <div class="bg-white p-5 lg:p-6 rounded-2xl shadow-sm border border-gray-100 lg:col-span-2 min-w-0 overflow-hidden">
-      <h3 class="text-lg font-bold text-gray-800 mb-6">Top Contadores</h3>
-
-      <div class="overflow-x-auto min-w-0">
-        <p-table [value]="topContadores()" [tableStyle]="{ 'min-width': '36rem' }" styleClass="p-datatable-sm text-sm">
-          <ng-template pTemplate="header">
-            <tr>
-              <th class="text-xs uppercase text-gray-400 font-semibold border-b-0">Nº</th>
-              <th class="text-xs uppercase text-gray-400 font-semibold border-b-0">Contador</th>
-              <th class="text-xs uppercase text-gray-400 font-semibold border-b-0">CRC</th>
-              <th class="text-xs uppercase text-gray-400 font-semibold border-b-0 text-center">Indicações</th>
-              <th class="text-xs uppercase text-gray-400 font-semibold border-b-0 text-center">Convertidas</th>
-              <th class="text-xs uppercase text-gray-400 font-semibold border-b-0">Desempenho</th>
-            </tr>
-          </ng-template>
-          <ng-template pTemplate="body" let-contador let-i="rowIndex">
-            <tr class="hover:bg-gray-50 border-b border-gray-50 last:border-0">
-              <td class="text-gray-400 font-medium">{{ i + 1 }}</td>
-              <td class="font-medium text-gray-800">{{ contador.contador | htmlDecode }}</td>
-              <td class="text-gray-600">{{ contador.crc }}</td>
-              <td class="text-gray-600 text-center">{{ contador.totalIndicacoes }}</td>
-              <td class="text-center">
-                <span class="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-700">
-                  {{ contador.convertidas }}
+    <div style="overflow-x: auto;">
+      <p-table [value]="topContadores()" [tableStyle]="{ 'min-width': '36rem' }" styleClass="p-datatable-sm text-sm">
+        <ng-template pTemplate="header">
+          <tr>
+            <th>Nº</th>
+            <th>Contador</th>
+            <th>CRC</th>
+            <th style="text-align: center;">Indicações</th>
+            <th style="text-align: center;">Convertidas</th>
+            <th>Desempenho</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-contador let-i="rowIndex">
+          <tr>
+            <td class="jb-idx">{{ i + 1 }}</td>
+            <td class="jb-prod-name">{{ contador.contador | htmlDecode }}</td>
+            <td>{{ contador.crc }}</td>
+            <td style="text-align: center;">{{ contador.totalIndicacoes }}</td>
+            <td style="text-align: center;">
+              <span style="padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; background: rgba(33,215,137,0.15); color: var(--ok);">
+                {{ contador.convertidas }}
+              </span>
+            </td>
+            <td>
+              <span class="jb-rev-bar">
+                <span class="track"><span class="fill" [style.width.%]="(contador.totalIndicacoes / maxIndicacoes()) * 100"></span></span>
+                <span class="pct">
+                  {{ contador.totalIndicacoes ? ((contador.convertidas / contador.totalIndicacoes) * 100).toFixed(0) : 0 }}%
                 </span>
-              </td>
-              <td>
-                <div class="flex items-center gap-2">
-                  <div class="w-16 h-1 bg-gray-100 rounded-full overflow-hidden">
-                    <div class="h-full bg-orange-500" [style.width.%]="(contador.totalIndicacoes / maxIndicacoes()) * 100"></div>
-                  </div>
-                  <span class="text-xs text-gray-500">
-                    {{ contador.totalIndicacoes ? ((contador.convertidas / contador.totalIndicacoes) * 100).toFixed(0) : 0 }}%
-                  </span>
-                </div>
-              </td>
-            </tr>
-          </ng-template>
-          <ng-template pTemplate="emptymessage">
-            <tr>
-              <td colspan="6" class="text-center py-6 text-gray-500">Nenhuma indicação registrada ainda.</td>
-            </tr>
-          </ng-template>
-        </p-table>
+              </span>
+            </td>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td colspan="6" style="text-align: center; padding: 24px; color: var(--muted);">Nenhuma indicação registrada ainda.</td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </div>
+  </div>
+
+  <div class="jb-panel">
+    <div class="jb-panel-head">
+      <h3>Funil de Indicações</h3>
+    </div>
+    <div class="jb-perf-list">
+      <div class="jb-perf-row" *ngFor="let etapa of funil()">
+        <div class="head">
+          <span class="name">{{ etapa.label }}</span>
+          <span class="pct up">{{ etapa.percent }}%</span>
+        </div>
+        <div class="qty">{{ etapa.count }}</div>
+        <div class="jb-bar"><div class="fill" [style.width.%]="etapa.percent"></div></div>
+      </div>
+
+      <div *ngIf="!funil().length" style="font-size: 13px; color: var(--muted); text-align: center; padding: 24px 0;">
+        Sem indicações para montar o funil.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Notificações (auditoria) -->
+<div class="jb-panel">
+  <div class="jb-panel-head">
+    <h3>Notificações</h3>
+  </div>
+  <div style="max-height: 400px; overflow-y: auto;" class="custom-scrollbar">
+    <div class="jb-notif" [class]="notificacaoIcone(note).group" *ngFor="let note of notificacoes()">
+      <span class="icon"><i [class]="notificacaoIcone(note).icon"></i></span>
+      <div>
+        <p class="text">
+          {{ notificacaoTexto(note) }}
+          <span *ngIf="note.result === 'FAILED' || note.result === 'ERROR'" style="margin-left: 4px; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; background: rgba(255,92,92,0.15); color: var(--bad);">FALHA</span>
+        </p>
+        <p *ngIf="notificacaoDetalhe(note)" style="font-size: 12px; color: var(--ink-3); margin-top: 2px;">
+          {{ notificacaoDetalhe(note) }}
+        </p>
+        <div class="time mono">
+          {{ note.eventDate | date: 'dd/MM/yyyy HH:mm' }}<span *ngIf="note.targetType"> · {{ note.targetType }}</span>
+        </div>
       </div>
     </div>
 
-    <!-- Funil de Indicações -->
-    <div class="bg-white p-5 lg:p-6 rounded-2xl shadow-sm border border-gray-100 min-w-0">
-      <h3 class="text-lg font-bold text-gray-800 mb-6">Funil de Indicações</h3>
-
-      <div class="space-y-6">
-        <div *ngFor="let etapa of funil()">
-          <div class="flex justify-between text-sm mb-1">
-            <span class="text-gray-600">{{ etapa.label }}</span>
-            <span class="font-bold text-gray-800">{{ etapa.percent }}%</span>
-          </div>
-          <div class="text-xs text-gray-400 mb-2">{{ etapa.count }}</div>
-          <div class="w-full bg-gray-100 rounded-full h-1.5">
-            <div [class]="etapa.barClass + ' h-1.5 rounded-full'" [style.width.%]="etapa.percent"></div>
-          </div>
-        </div>
-
-        <div *ngIf="!funil().length" class="text-sm text-gray-400 text-center py-6">
-          Sem indicações para montar o funil.
-        </div>
-      </div>
-    </div>
-
-    <!-- Notificações (auditoria) -->
-    <div class="bg-white p-5 lg:p-6 rounded-2xl shadow-sm border border-gray-100 lg:col-span-3 min-w-0">
-      <h3 class="text-lg font-bold text-gray-800 mb-6">Notificações</h3>
-
-      <div class="space-y-5 max-h-[400px] overflow-y-auto pr-2">
-        <div *ngFor="let note of notificacoes()" class="flex gap-4 items-start">
-          <div [class]="'w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center ' + notificacaoIcone(note).classes">
-            <i [class]="notificacaoIcone(note).icon + ' text-sm'"></i>
-          </div>
-          <div class="min-w-0">
-            <p class="text-sm text-gray-700 leading-tight">
-              {{ notificacaoTexto(note) }}
-              <span *ngIf="note.result === 'FAILED' || note.result === 'ERROR'" class="ml-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-600">FALHA</span>
-            </p>
-            <p *ngIf="notificacaoDetalhe(note)" class="text-xs text-gray-500 mt-0.5">
-              {{ notificacaoDetalhe(note) }}
-            </p>
-            <p class="text-xs text-gray-400 mt-0.5">
-              {{ note.eventDate | date: 'dd/MM/yyyy HH:mm' }}<span *ngIf="note.targetType"> · {{ note.targetType }}</span>
-            </p>
-          </div>
-        </div>
-
-        <div *ngIf="!notificacoes().length" class="text-sm text-gray-400 text-center py-6">
-          Nenhum evento de auditoria recente.
-        </div>
-      </div>
+    <div *ngIf="!notificacoes().length" style="font-size: 13px; color: var(--muted); text-align: center; padding: 24px 0;">
+      Nenhum evento de auditoria recente.
     </div>
   </div>
 </div>

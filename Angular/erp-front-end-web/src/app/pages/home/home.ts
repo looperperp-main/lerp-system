@@ -1,7 +1,6 @@
 import { Component, OnInit, signal } from '@angular/core';
 import { CurrencyPipe, NgForOf, NgIf } from '@angular/common';
-import { MessageService, PrimeTemplate } from 'primeng/api';
-import { TableModule } from 'primeng/table';
+import { MessageService } from 'primeng/api';
 import { ToastModule } from 'primeng/toast';
 import { Router } from '@angular/router';
 import { TenantService } from '../../services/tenant.service';
@@ -9,7 +8,7 @@ import { TenantService } from '../../services/tenant.service';
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [NgIf, NgForOf, CurrencyPipe, NgForOf, NgIf, PrimeTemplate, TableModule, ToastModule],
+  imports: [NgIf, NgForOf, CurrencyPipe, ToastModule],
   providers: [MessageService],
   templateUrl: './home.html',
   styleUrl: './home.scss',

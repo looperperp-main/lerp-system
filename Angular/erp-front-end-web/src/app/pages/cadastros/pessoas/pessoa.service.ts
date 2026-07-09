@@ -36,6 +36,10 @@ export class PessoaService {
     return this.http.put<Pessoa>(`${this.apiUrl}/${id}`, pessoa);
   }
 
+  updateStatus(id: string): Observable<void> {
+    return this.http.patch<void>(`${this.apiUrl}/${id}/status`, null);
+  }
+
   // Função auxiliar para reescrever o link HATEOAS passando pelo Gateway
   private fixHateoasUrl(url: string): string {
     const urlObj = new URL(url);

@@ -1,25 +1,40 @@
-import {Component, inject, signal} from '@angular/core';
-import {CommonModule} from '@angular/common';
-import {TableModule} from 'primeng/table';
-import {MessageService} from 'primeng/api';
-import {ButtonDirective, ButtonModule} from 'primeng/button';
-import {DialogModule} from 'primeng/dialog';
-import {ToastModule} from 'primeng/toast';
-import {PessoaService} from './pessoa.service';
-import {Pessoa} from './pessoa.model';
-import {PessoaForm} from './pessoa-form/pessoa-form';
-import {PrimaryButtonComponent} from '../../../components/primary-button/primary-button';
-import {ColumnConfig} from '../../../components/table/data-table';
-import {HtmlDecodePipe} from '../../../util/pipe/html-decode.pipe';
-import {Ripple} from 'primeng/ripple';
-import {Tooltip} from 'primeng/tooltip';
+import { Component, inject, signal } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { TableModule } from 'primeng/table';
+import { MessageService } from 'primeng/api';
+import { ButtonDirective, ButtonModule } from 'primeng/button';
+import { DialogModule } from 'primeng/dialog';
+import { ToastModule } from 'primeng/toast';
+import { PessoaService } from './pessoa.service';
+import { Pessoa } from './pessoa.model';
+import { PessoaForm } from './pessoa-form/pessoa-form';
+import { PrimaryButtonComponent } from '../../../components/primary-button/primary-button';
+import { ColumnConfig } from '../../../components/table/data-table';
+import { HtmlDecodePipe } from '../../../util/pipe/html-decode.pipe';
+import { Ripple } from 'primeng/ripple';
+import { Tooltip } from 'primeng/tooltip';
 
 @Component({
   selector: 'app-pessoas',
-  imports: [CommonModule, TableModule, ButtonModule, DialogModule, ToastModule, PessoaForm, PrimaryButtonComponent, HtmlDecodePipe, Ripple, Tooltip, PrimaryButtonComponent, ButtonDirective, Ripple, Tooltip,/*, PessoaForm*/],
+  imports: [
+    CommonModule,
+    TableModule,
+    ButtonModule,
+    DialogModule,
+    ToastModule,
+    PessoaForm,
+    PrimaryButtonComponent,
+    HtmlDecodePipe,
+    Ripple,
+    Tooltip,
+    PrimaryButtonComponent,
+    ButtonDirective,
+    Ripple,
+    Tooltip /*, PessoaForm*/,
+  ],
   providers: [MessageService],
   templateUrl: './pessoas.html',
-  styleUrl: './pessoas.scss'
+  styleUrl: './pessoas.scss',
 })
 export class Pessoas {
   private pessoaService = inject(PessoaService);
@@ -39,7 +54,7 @@ export class Pessoas {
     { field: 'ativo', header: 'Ativo', type: 'status' },
     { field: 'createdAt', header: 'Data de Criação', type: 'date' },
     { field: 'updatedAt', header: 'Data de Atualização', type: 'date' },
-    { field: 'actions', header: 'Ações', type: 'actions' }
+    { field: 'actions', header: 'Ações', type: 'actions' },
   ];
 
   loadPessoas(event: any): void {
@@ -54,7 +69,7 @@ export class Pessoas {
         this.totalRecords.set(data.totalElements || 0);
         this.loading.set(false);
       },
-      error: () => this.loading.set(false)
+      error: () => this.loading.set(false),
     });
   }
 
@@ -69,7 +84,11 @@ export class Pessoas {
   }
 
   deletePessoa(pessoa: Pessoa): void {
-    this.messageService.add({ severity: 'info', summary: 'Atenção', detail: 'Exclusão em desenvolvimento.' });
+    this.messageService.add({
+      severity: 'info',
+      summary: 'Atenção',
+      detail: 'Exclusão em desenvolvimento.',
+    });
   }
 
   onFormSaved(): void {
@@ -82,10 +101,32 @@ export class Pessoas {
   }
 
   exportData(): void {
-    this.messageService.add({ severity: 'info', summary: 'Info', detail: 'Exportação em desenvolvimento.' });
+    this.messageService.add({
+      severity: 'info',
+      summary: 'Info',
+      detail: 'Exportação em desenvolvimento.',
+    });
   }
 
-  protected inativarPessoa() {
-    this.messageService.add({ severity: 'info', summary: 'Info', detail: 'Funcionalidade em desenvolvimento.' });
+  protected inativarPessoa(pessoa: Pessoa): void {
+    if (!pessoa.id) {
+      return;
+    }
+    this.pessoaService.updateStatus(pessoa.id).subscribe({
+      next: () => {
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Sucesso',
+          detail: pessoa.ativo ? 'Pessoa inativada com sucesso.' : 'Pessoa ativada com sucesso.',
+        });
+        this.loadPessoas({ first: 0, rows: 10 });
+      },
+      error: () =>
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Erro',
+          detail: 'Não foi possível alterar o status da pessoa.',
+        }),
+    });
   }
 }

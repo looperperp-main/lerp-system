@@ -1,15 +1,1 @@
-.custom-scrollbar {
-  &::-webkit-scrollbar {
-    width: 4px;
-  }
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  &::-webkit-scrollbar-thumb {
-    background: #e5e7eb;
-    border-radius: 4px;
-  }
-  &::-webkit-scrollbar-thumb:hover {
-    background: #d1d5db;
-  }
-}
+/* .custom-scrollbar movido para src/styles.scss (global) — usado por mais de um componente */

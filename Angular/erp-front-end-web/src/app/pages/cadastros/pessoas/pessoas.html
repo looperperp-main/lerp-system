@@ -94,7 +94,7 @@
                   [class]="'p-button-rounded p-button-text p-button-sm w-8 h-8 ' + (rowData.status === 'ATIVO' ? 'p-button-warning' : 'p-button-success')"
                   [style]="rowData.active === true ? 'color: #F24405; background-color: rgba(242, 68, 5, 0.15); border: none' : 'color: #22c55e; background-color: rgba(34, 197, 94, 0.15); border: none'"
                   pTooltip="Inativar"
-                  (click)="inativarPessoa()"
+                  (click)="inativarPessoa(rowData)"
                   tooltipPosition="top"
                 >
                 </button>

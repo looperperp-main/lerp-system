@@ -4,8 +4,10 @@ import com.l.erp.billingservice.api.dto.CancelSubscriptionResponse;
 import com.l.erp.billingservice.domain.Subscription;
 import com.l.erp.billingservice.domain.SubscriptionStatus;
 import com.l.erp.billingservice.infra.asaas.AsaasGateway;
+import com.l.erp.billingservice.infra.kafka.KafkaBillingProducerService;
 import com.l.erp.billingservice.repository.CommissionRepository;
 import com.l.erp.billingservice.repository.SubscriptionRepository;
+import com.l.erp.billingservice.services.webhook.handler.PaymentReceivedHandler;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -25,6 +27,8 @@ class SubscriptionServiceTest {
     @Mock SubscriptionRepository subscriptionRepository;
     @Mock CommissionRepository commissionRepository;
     @Mock AsaasGateway asaasGateway;
+    @Mock PaymentReceivedHandler paymentReceivedHandler;
+    @Mock KafkaBillingProducerService kafkaProducer;
 
     private Subscription sub(String status, String asaasId) {
         Subscription s = new Subscription();
@@ -37,7 +41,7 @@ class SubscriptionServiceTest {
 
     @Test
     void cancela_chamaAsaas_eMarcaCancelamentoSolicitado() {
-        SubscriptionService service = new SubscriptionService(subscriptionRepository, commissionRepository, asaasGateway);
+        SubscriptionService service = new SubscriptionService(subscriptionRepository, commissionRepository, asaasGateway, paymentReceivedHandler, kafkaProducer);
         Subscription s = sub(SubscriptionStatus.ATIVA, "sub_1");
         when(subscriptionRepository.findByTenantId(1L)).thenReturn(List.of(s));
 
@@ -51,7 +55,7 @@ class SubscriptionServiceTest {
 
     @Test
     void idempotente_jaCancelando_naoChamaAsaas() {
-        SubscriptionService service = new SubscriptionService(subscriptionRepository, commissionRepository, asaasGateway);
+        SubscriptionService service = new SubscriptionService(subscriptionRepository, commissionRepository, asaasGateway, paymentReceivedHandler, kafkaProducer);
         Subscription s = sub(SubscriptionStatus.CANCELAMENTO_SOLICITADO, "sub_1");
         when(subscriptionRepository.findByTenantId(1L)).thenReturn(List.of(s));
 
@@ -63,7 +67,7 @@ class SubscriptionServiceTest {
 
     @Test
     void semAssinaturaCancelavel_404() {
-        SubscriptionService service = new SubscriptionService(subscriptionRepository, commissionRepository, asaasGateway);
+        SubscriptionService service = new SubscriptionService(subscriptionRepository, commissionRepository, asaasGateway, paymentReceivedHandler, kafkaProducer);
         when(subscriptionRepository.findByTenantId(1L)).thenReturn(List.of());
 
         assertThatThrownBy(() -> service.cancelForTenant(1L))

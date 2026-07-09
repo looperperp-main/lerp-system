@@ -144,6 +144,7 @@ public class Constants {
     public static final String PESSOA = "PESSOA";
     public static final String PESSOA_CREATION = PESSOA + "_" + INSERT;
     public static final String PESSOA_UPDATE = PESSOA +"_" + UPDATE;
+    public static final String PESSOA_DELETE = PESSOA +"_" + DELETE;
     public static final String PESSOA_NOT_FOUND = "Pessoa nao encontrada!";
     public static final String PESSOA_ALREADY_EXISTS = "Já existe uma Pessoa com este nome";
 

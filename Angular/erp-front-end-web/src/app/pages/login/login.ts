@@ -81,7 +81,7 @@ export class TenantLogin implements OnInit {
             severity: 'success',
             summary: response.tenantName,
             detail: `Bem-vindo(a), ${response.username}!`,
-            sticky: true,
+            life: 4000,
           });
 
           this.router.navigate(['/web']);
