@@ -141,19 +141,6 @@ public class PessoaService {
         sendAuditEvent(Constants.PESSOA_UPDATE, userId, id, Constants.SUCCESS, "{Status Alterado: " + pessoa.getAtivo() + "}", correlationId);
     }
 
-    @Transactional
-    public void delete(UUID id, Long tenantId, UUID userId){
-        UUID correlationId = getCorrelationIdFromRequest(logger);
-        Pessoa pessoa = pessoaRepository.findByIdAndTenantId(id, tenantId)
-                .orElseThrow(() -> {
-                    sendAuditEvent(Constants.PESSOA_DELETE, userId, id, Constants.ERROR, "{Error: Pessoa não encontrada}", correlationId);
-                    return new BusinessException(Constants.PESSOA_NOT_FOUND, HttpStatus.NOT_FOUND);
-                });
-        pessoaRepository.delete(pessoa);
-        sendAuditEvent(Constants.PESSOA_DELETE, userId, id, Constants.SUCCESS, "{Pessoa deletada}", correlationId);
-    }
-
-
     private void validateDocumento(TipoPessoa tipo, String documento) {
         String digits = documento.replaceAll("[^0-9]", "");
         if (tipo == TipoPessoa.PF && digits.length() != 11) {
