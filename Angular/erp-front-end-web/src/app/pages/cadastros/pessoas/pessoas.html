@@ -98,6 +98,17 @@
                   tooltipPosition="top"
                 >
                 </button>
+
+                <!-- Botão Excluir -->
+                <button
+                  pButton
+                  pRipple
+                  icon="pi pi-trash"
+                  class="p-button-rounded p-button-text p-button-danger p-button-sm w-8 h-8"
+                  pTooltip="Excluir"
+                  (click)="deletePessoa(rowData)"
+                  tooltipPosition="top">
+                </button>
               </ng-container>
 
               <!-- Dados em Texto Normal -->

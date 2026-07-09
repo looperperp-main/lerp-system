@@ -84,10 +84,24 @@ export class Pessoas {
   }
 
   deletePessoa(pessoa: Pessoa): void {
-    this.messageService.add({
-      severity: 'info',
-      summary: 'Atenção',
-      detail: 'Exclusão em desenvolvimento.',
+    if (!pessoa.id) {
+      return;
+    }
+    this.pessoaService.deletar(pessoa.id).subscribe({
+      next: () => {
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Sucesso',
+          detail: 'Pessoa excluída com sucesso.',
+        });
+        this.loadPessoas({ first: 0, rows: 10 });
+      },
+      error: () =>
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Erro',
+          detail: 'Não foi possível excluir a pessoa.',
+        }),
     });
   }
 

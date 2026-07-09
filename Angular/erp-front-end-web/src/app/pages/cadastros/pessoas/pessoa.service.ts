@@ -1,26 +1,26 @@
-import {inject, Injectable} from '@angular/core';
-import {HttpClient, HttpParams} from '@angular/common/http';
-import {environment} from '../../../../environments/environment';
-import {map, Observable} from 'rxjs';
-import {Contato, Endereco, Page, Pessoa} from './pessoa.model';
+import { inject, Injectable } from '@angular/core';
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { environment } from '../../../../environments/environment';
+import { map, Observable } from 'rxjs';
+import { Contato, Endereco, Page, Pessoa } from './pessoa.model';
 
-@Injectable({ providedIn: 'root'}) //Means it's a singleton app-wide
+@Injectable({ providedIn: 'root' }) //Means it's a singleton app-wide
 export class PessoaService {
   private http = inject(HttpClient);
   private readonly apiUrl = `${environment.apiUrl}/api/v1/pessoas`;
   listar(page: number = 0, size: number = 10): Observable<Page<Pessoa>> {
     let params = new HttpParams().set('page', page).set('size', size);
     return this.http.get<any>(this.apiUrl, { params }).pipe(
-      map(response => {
+      map((response) => {
         // Mapeia o formato HATEOAS (_embedded) para um formato mais fácil de usar no componente
         return {
           content: response._embedded ? response._embedded.pessoas : [],
           totalElements: response.page?.totalElements || 0,
           totalPages: response.page?.totalPages || 0,
           size: response.page?.size || size,
-          number: response.page?.number || page
+          number: response.page?.number || page,
         };
-      })
+      }),
     );
   }
 
@@ -38,6 +38,10 @@ export class PessoaService {
 
   updateStatus(id: string): Observable<void> {
     return this.http.patch<void>(`${this.apiUrl}/${id}/status`, null);
+  }
+
+  deletar(id: string): Observable<void> {
+    return this.http.patch<void>(`${this.apiUrl}/${id}`, null);
   }
 
   // Função auxiliar para reescrever o link HATEOAS passando pelo Gateway
