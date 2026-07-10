@@ -18,7 +18,7 @@
     <!-- Logo Area -->
     <div class="jb-sidebar-logo flex items-center justify-between">
       <span class="flex items-center gap-3">
-          <img ngSrc="svg/syax-icon-white.svg" height="80" width="180" alt="Syax Logo" />
+          <img [ngSrc]="themeService.theme() === 'light' ? 'svg/syax-icon.svg' : 'svg/syax-icon-white.svg'" height="80" width="180" alt="Syax Logo" />
       </span>
       <!-- Close Button Mobile -->
       <button class="lg:hidden text-white" (click)="toggleSidebar()">

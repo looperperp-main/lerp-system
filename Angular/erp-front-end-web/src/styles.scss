@@ -811,6 +811,18 @@ html.theme-light .p-inputmask::placeholder {
   color: var(--ink-2) !important;
 }
 
+/* Toast: vidro, mantendo o mesmo esquema de cores por severidade (só reduz opacidade do fundo) */
+.p-toast-message {
+  backdrop-filter: blur(16px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+}
+.p-toast-message-success { background: rgba(240, 253, 244, 0.55) !important; }
+.p-toast-message-info { background: rgba(239, 246, 255, 0.55) !important; }
+.p-toast-message-warn { background: rgba(254, 252, 232, 0.55) !important; }
+.p-toast-message-error { background: rgba(254, 242, 242, 0.55) !important; }
+.p-toast-message-secondary { background: rgba(244, 244, 245, 0.55) !important; }
+.p-toast-message-contrast { background: rgba(0, 0, 0, 0.55) !important; }
+
 .p-select-list,
 .p-select-list-container,
 .p-select-option {
