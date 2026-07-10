@@ -1,7 +1,7 @@
 <form [formGroup]="form" (ngSubmit)="onSubmit()" class="flex flex-col gap-4 mt-2">
 
   <div class="flex flex-col gap-2">
-    <label for="nome" class="font-semibold text-gray-700">Nome <span class="text-red-500">*</span></label>
+    <label for="nome" class="jb-label">Nome <span class="text-red-500">*</span></label>
     <input
       id="nome"
       type="text"
@@ -14,11 +14,11 @@
   </div>
 
   <div class="flex flex-col gap-2">
-    <label for="descricao" class="font-semibold text-gray-700">Descrição</label>
+    <label for="descricao" class="jb-label">Descrição</label>
     <textarea
       id="descricao"
       rows="3"
-      pInputTextarea
+      pTextarea
       formControlName="descricao"
       class="w-full"
       placeholder="Detalhes opcionais sobre o grupo..."></textarea>
@@ -29,14 +29,14 @@
       inputId="ativo"
       formControlName="ativo"
       [binary]="true"></p-checkbox>
-    <label for="ativo" class="font-semibold text-gray-700 cursor-pointer">Grupo Ativo</label>
+    <label for="ativo" class="jb-label cursor-pointer">Grupo Ativo</label>
   </div>
 
-  <div class="flex justify-end gap-2 mt-6 pt-4 border-t border-gray-200">
+  <div class="flex justify-end gap-2 mt-6 pt-4 jb-form-actions">
     <p-button
       label="Cancelar"
       icon="pi pi-times"
-      styleClass="p-button-text p-button-secondary"
+      severity="secondary"
       (onClick)="onCancel()"
       [disabled]="isSaving"></p-button>
     <p-button
