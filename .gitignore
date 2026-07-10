@@ -56,3 +56,5 @@ package-lock.json
 /.tokensave/tokensave.db-wal
 /.tokensave/branch-meta.json
 /.tokensave/config.json
+/AGENTS.md
+/.githooks/pre-push
