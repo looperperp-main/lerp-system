@@ -62,16 +62,16 @@
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-6">
       @for (p of planos(); track p.id) {
         <button type="button" (click)="selecionar(p)"
-          class="text-left bg-white rounded-2xl border p-5 transition-all"
+          class="text-left assinar-bp rounded-2xl border p-5 transition-all"
           [class.border-orange-500]="selecionado()?.id === p.id"
           [class.ring-2]="selecionado()?.id === p.id"
           [class.ring-orange-200]="selecionado()?.id === p.id"
           [class.border-gray-100]="selecionado()?.id !== p.id">
           <div class="flex items-center justify-between mb-2">
-            <span class="text-sm font-semibold text-gray-900">{{ p.name }}</span>
-            <span class="text-xs text-gray-400">{{ p.billingCycle }}</span>
+            <span class="text-sm font-semibold text-white-900">{{ p.name }}</span>
+            <span class="text-xs text-gray-400">{{ p.billingCycle == 'MONTHLY' ? 'Mensal' : 'Anual' }}</span>
           </div>
-          <div class="text-2xl font-bold text-gray-900">{{ p.value | currency: 'BRL' }}</div>
+          <div class="text-2xl font-bold text-gray-100">{{ p.value | currency: 'BRL' }}</div>
           @if (p.description) {
             <p class="text-xs text-gray-500 mt-2">{{ p.description }}</p>
           }
@@ -92,7 +92,7 @@
 
   <!-- Cancelar assinatura -->
   <div class="mt-10 border-t border-gray-100 pt-6">
-    <h2 class="text-sm font-semibold text-gray-700 mb-1">Cancelar assinatura</h2>
+    <h2 class="text-sm font-semibold text-white-700 mb-1">Cancelar assinatura</h2>
     <p class="text-xs text-gray-500 mb-3">
       Você para as próximas cobranças, mas mantém o acesso até o fim do período já pago (sem reembolso).
     </p>
@@ -102,7 +102,7 @@
       </div>
     }
     <button type="button" (click)="cancelar()" [disabled]="cancelando()"
-      class="px-4 py-2 border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50 rounded-lg text-sm font-semibold">
+      class="assiantura-cancelar px-4 py-2 border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50 rounded-lg text-sm font-semibold">
       {{ cancelando() ? 'Cancelando...' : 'Cancelar assinatura' }}
     </button>
   </div>

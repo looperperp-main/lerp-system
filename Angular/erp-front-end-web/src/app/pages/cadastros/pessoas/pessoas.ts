@@ -4,6 +4,7 @@ import { TableModule } from 'primeng/table';
 import { MessageService } from 'primeng/api';
 import { ButtonDirective, ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
+import { InputTextModule } from 'primeng/inputtext';
 import { ToastModule } from 'primeng/toast';
 import { PessoaService } from './pessoa.service';
 import { Pessoa } from './pessoa.model';
@@ -24,6 +25,7 @@ import { Tooltip } from 'primeng/tooltip';
     ToastModule,
     PessoaForm,
     PrimaryButtonComponent,
+    InputTextModule,
     HtmlDecodePipe,
     Ripple,
     Tooltip,

@@ -1,0 +1,260 @@
+.jb-panel-actions {
+  display: flex;
+  gap: 8px;
+}
+
+// Botão "Novo Cliente"/"Exportar"/"Filtrar": mesmo visual do número de página selecionado no paginador
+:host ::ng-deep .jb-btn-paginator-style,
+:host ::ng-deep .jb-btn-paginator-style button {
+  background: var(--brand-grad) !important;
+  border: none !important;
+  border-radius: 8px !important;
+  color: #fff !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+:host ::ng-deep .jb-btn-paginator-style:focus-visible,
+:host ::ng-deep .jb-btn-paginator-style button:focus-visible,
+:host ::ng-deep .jb-btn-paginator-style:focus,
+:host ::ng-deep .jb-btn-paginator-style button:focus {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+.jb-filters-panel {
+  margin-bottom: 16px;
+
+  h3 {
+    margin: 0 0 12px;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+}
+
+.jb-filters-row {
+  display: flex;
+  gap: 8px;
+}
+
+:host ::ng-deep .jb-filters-row .p-inputtext {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  color: var(--ink);
+}
+
+.jb-list-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 4px 0;
+  margin-top: 8px;
+  border-top: 1px solid var(--line);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+
+  span {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+.jb-strong {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.jb-status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+
+  &.active { background: rgba(33, 215, 137, 0.15); color: var(--ok); }
+  &.inactive { background: rgba(255, 92, 92, 0.15); color: var(--bad); }
+}
+
+:host ::ng-deep {
+  .p-datatable {
+    background: transparent;
+    color: var(--ink-2);
+  }
+
+  .p-datatable-table {
+    background: transparent;
+  }
+
+  .p-datatable-thead > tr > th {
+    background: transparent;
+    color: var(--ink-3);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border-color: var(--line);
+    padding: 0 0 12px;
+  }
+
+  .p-datatable-tbody > tr {
+    background: transparent;
+    color: var(--ink-2);
+  }
+
+  .p-datatable-tbody > tr > td {
+    border-color: var(--line);
+    padding: 12px 8px;
+  }
+
+  .p-datatable-tbody > tr:hover {
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  .p-datatable-tbody > tr:last-child > td {
+    border-bottom: 0;
+  }
+
+  .p-sortable-column .p-sortable-column-icon {
+    color: var(--ink-3);
+  }
+
+  // Botões de ação da linha (editar / ativar-inativar / excluir): estilo "vidro" com borda, igual ao botão de fechar do modal
+  .p-datatable-tbody .p-button-rounded {
+    margin-right: 3px;
+    background: rgba(255, 255, 255, 0.06) !important;
+    border: 1px solid rgba(255, 255, 255, 0.28) !important;
+    color: var(--ink-3) !important;
+    border-radius: 10px !important;
+  }
+  .p-datatable-tbody .p-button-rounded:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+    color: var(--ink) !important;
+  }
+
+  .p-paginator {
+    background: var(--bg-panel) !important;
+    color: var(--ink-2);
+    border-top: 1px solid var(--line);
+    margin-top: 8px;
+    padding-top: 16px;
+  }
+
+  .p-paginator,
+  .p-paginator-content {
+    justify-content: flex-end !important;
+  }
+
+  .p-paginator .p-paginator-page,
+  .p-paginator .p-paginator-next,
+  .p-paginator .p-paginator-prev,
+  .p-paginator .p-paginator-first,
+  .p-paginator .p-paginator-last {
+    color: var(--ink-3);
+    width: 2.2rem;
+    height: 2.2rem;
+    min-width: 2.2rem;
+    padding: 0;
+    border-radius: 8px !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .p-paginator .p-paginator-page.p-paginator-page-selected {
+    background: var(--brand-grad) !important;
+    color: #fff !important;
+    border-radius: 8px !important;
+  }
+
+  .p-select {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: var(--line-2);
+    color: var(--ink-2);
+  }
+
+  .p-select-overlay,
+  .p-paginator .p-select-overlay {
+    background: var(--bg-panel-2);
+    border: 1px solid var(--line-2);
+    color: var(--ink-2);
+  }
+
+  .p-select-option.p-select-option-selected {
+    background: rgba(255, 75, 18, 0.15) !important;
+    color: var(--syax) !important;
+  }
+  .p-select-option:not(.p-select-option-selected):hover {
+    background: rgba(255, 255, 255, 0.06) !important;
+  }
+
+  // Fundo da tela por trás do modal sem escurecimento — só o modal em si tem o vidro/blur
+  .p-dialog-mask {
+    background: transparent !important;
+  }
+
+  // Dialog de Cadastro de Cliente: vidro fosco (translúcido + blur forte)
+  .p-dialog {
+    background: rgba(40, 40, 50, 0.32);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 20px;
+    backdrop-filter: blur(35px) saturate(180%);
+    -webkit-backdrop-filter: blur(35px) saturate(180%);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  }
+
+  .p-dialog-header {
+    background: transparent;
+    color: var(--ink);
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 16px;
+  }
+
+  .p-dialog-header-icon,
+  .p-dialog-close-button {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px !important;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    color: var(--ink-3);
+  }
+  .p-dialog-header-icon:hover,
+  .p-dialog-close-button:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--ink);
+  }
+
+  .p-dialog-content {
+    background: transparent;
+    color: var(--ink-2);
+  }
+}
+
+.jb-dialog-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+}

@@ -16,7 +16,7 @@ $gray-secondary-bg: #F1F3F6;
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  font-family: 'Poppins', sans-serif;
+  font-family: "Inter Tight", Inter, -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 html,body{
@@ -130,6 +130,34 @@ app-root {
   --brand-grad-soft: linear-gradient(135deg, rgba(230, 57, 0, 0.15), rgba(255, 75, 18, 0.15), rgba(253, 182, 13, 0.15));
 }
 
+/* Tema claro: mesma paleta de acento (syax/brand-grad/ok/bad), só troca fundo/tinta */
+html.theme-light {
+  --bg: #F6F5EF;
+  --bg-1: #FFFFFF;
+  --bg-2: #F1F0E8;
+  --bg-panel: #FFFFFF;
+  --bg-panel-2: #F1F0E8;
+  --ink: #1A1A1A;
+  --ink-2: #3F3F46;
+  --ink-3: #6B6B76;
+  --muted: #8C8475;
+  --line: rgba(0, 0, 0, 0.08);
+  --line-2: rgba(0, 0, 0, 0.14);
+}
+
+html.theme-light .jb-topbar {
+  background: #FFFFFFB3;
+}
+
+html.theme-light .jb-sidebar {
+  background: #FFFFFFBF;
+}
+
+html.theme-light .p-inputtext::placeholder,
+html.theme-light .p-inputmask::placeholder {
+  color: rgba(255, 255, 255, 0.65) !important;
+}
+
 .mono {
   font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
 }
@@ -223,6 +251,15 @@ app-root {
 
 .jb-sidebar-foot {
   padding: 8px 0 12px;
+}
+
+.assinar-bp {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line);
+}
+
+.assiantura-cancelar {
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .jb-sidebar-promo {
@@ -760,4 +797,72 @@ app-root {
   font-weight: 900;
   font-size: 16px;
   box-shadow: 0 6px 16px -4px rgba(254, 75, 18, 0.5);
+}
+
+/* Overlays de p-select/p-datepicker com appendTo="body": ficam fora do escopo do
+   ::ng-deep do componente, então o "vidro" precisa ser global aqui. */
+.p-select-overlay,
+.p-datepicker-panel {
+  background: rgba(40, 40, 50, 0.24) !important;
+  backdrop-filter: blur(35px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(35px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
+  color: var(--ink-2) !important;
+}
+
+.p-select-list,
+.p-select-list-container,
+.p-select-option {
+  background: transparent !important;
+}
+
+.p-select-option {
+  color: var(--ink-2) !important;
+}
+
+.p-select-option.p-select-option-selected {
+  background: rgba(255, 75, 18, 0.15) !important;
+  color: var(--syax) !important;
+}
+
+.p-select-option:not(.p-select-option-selected):hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+.p-datepicker-panel {
+  .p-datepicker-header,
+  .p-datepicker-title,
+  .p-datepicker-day,
+  .p-datepicker-weekday,
+  .p-datepicker-next,
+  .p-datepicker-prev,
+  .p-datepicker-select-month,
+  .p-datepicker-select-year {
+    color: var(--ink-2);
+  }
+
+  .p-datepicker-header {
+    background: transparent !important;
+    border-color: rgba(255, 255, 255, 0.16) !important;
+  }
+
+  .p-datepicker-next:hover,
+  .p-datepicker-prev:hover {
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: var(--ink) !important;
+  }
+
+  .p-datepicker-day:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .p-datepicker-day-selected {
+    background: var(--brand-grad) !important;
+    color: #fff !important;
+  }
+
+  .p-datepicker-today > span {
+    background: rgba(255, 255, 255, 0.08);
+  }
 }

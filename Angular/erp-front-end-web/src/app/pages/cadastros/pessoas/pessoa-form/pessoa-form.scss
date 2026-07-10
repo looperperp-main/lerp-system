@@ -1,0 +1,98 @@
+.jb-label {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+:host ::ng-deep {
+  // Campos com o mesmo "vidro" translúcido do card de login
+  .p-inputtext,
+  .p-select,
+  .p-inputmask,
+  .p-datepicker input,
+  .p-checkbox .p-checkbox-box {
+    background: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(6px);
+    border: 1px solid var(--line-2);
+    border-radius: 12px;
+    color: var(--ink);
+  }
+
+  .p-button {
+    border-radius: 12px;
+  }
+
+  .p-button:not(.p-button-secondary):not(.p-button-success):not(.p-button-text) {
+    background: var(--brand-grad);
+    border-color: transparent;
+    color: #fff;
+  }
+
+  .p-inputtext::placeholder {
+    color: var(--muted);
+  }
+
+  .p-inputtext:enabled:focus,
+  .p-select:not(.p-disabled).p-focus,
+  .p-inputmask:enabled:focus {
+    border-color: var(--syax);
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .p-select-label { color: var(--ink); }
+  .p-select-overlay,
+  .p-datepicker-panel {
+    background: var(--bg-panel-2);
+    border: 1px solid var(--line-2);
+    color: var(--ink-2);
+  }
+
+  .p-checkbox-box.p-highlight {
+    background: var(--brand-grad);
+    border-color: transparent;
+  }
+
+  // Stepper (mesmo padrão do jb-step de referência: contorno fino, sem preenchimento até ficar ativo)
+  .p-stepper .p-step-header { background: transparent; }
+  .p-step-number {
+    background: transparent;
+    border: 1.5px solid var(--ink-3);
+    color: var(--ink-3);
+    font-weight: 700;
+  }
+  .p-step-title { color: var(--ink-3); font-weight: 600; }
+  .p-step-active .p-step-number {
+    background: var(--brand-grad);
+    border-color: transparent;
+    color: #fff;
+  }
+  .p-step-active .p-step-title { color: var(--ink); }
+  .p-stepper-separator { background: var(--line); }
+
+  // Tabelas de endereços/contatos (mesmo tratamento dark da listagem de pessoas)
+  .p-datatable, .p-datatable-table { background: transparent; }
+  .p-datatable-thead > tr > th {
+    background: transparent;
+    color: var(--ink-3);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    border-color: var(--line);
+  }
+  .p-datatable-tbody > tr {
+    background: transparent;
+    color: var(--ink-2);
+  }
+  .p-datatable-tbody > tr > td { border-color: var(--line); }
+  .p-datatable-tbody > tr:hover { background: rgba(255, 255, 255, 0.03); }
+
+  // Botão "Cancelar"/"Voltar" (severity secondary) — vidro em vez do cinza claro padrão
+  .p-button-secondary {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--line-2);
+    color: var(--ink-2);
+  }
+  .p-button-secondary:hover {
+    background: rgba(255, 255, 255, 0.09);
+  }
+}

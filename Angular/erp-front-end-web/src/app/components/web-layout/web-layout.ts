@@ -5,6 +5,7 @@ import { TenantLoginService } from '../../pages/login/service/tenant-login.servi
 import { ToastrService } from 'ngx-toastr';
 import { Toast } from 'primeng/toast';
 import { NgOptimizedImage } from '@angular/common';
+import { ThemeService } from '../../util/theme.service';
 
 @Component({
   selector: 'app-web-layout',
@@ -164,7 +165,7 @@ export class WebLayout {
         { label: 'Pagamentos', icon: 'pi pi-receipt', routerLink: '/web/cadastros/invoices' },
       ],
     },
-    { label: 'Relatórios', icon: 'pi pi-chart-bar', /*routerLink: '/web/relatorios'*/ },
+    { label: 'Relatórios', icon: 'pi pi-chart-bar' /*routerLink: '/web/relatorios'*/ },
   ];
 
   settingsItem: MenuItem = { label: 'Configurações', icon: 'pi pi-cog', routerLink: '/web/config' };
@@ -178,6 +179,7 @@ export class WebLayout {
     private logoutService: TenantLoginService,
     private messageService: MessageService,
     private toastService: ToastrService,
+    protected themeService: ThemeService,
   ) {
     this.checkScreenSize();
     window.addEventListener('resize', () => {

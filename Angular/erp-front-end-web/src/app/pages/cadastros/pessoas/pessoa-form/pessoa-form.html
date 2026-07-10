@@ -15,7 +15,7 @@
         <form [formGroup]="formPessoa" class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
           <div class="flex flex-col gap-2">
             <label for="tipo"
-                   class="font-semibold text-gray-700">Tipo de Pessoa <span class="text-red-500">*</span></label>
+                   class="jb-label">Tipo de Pessoa <span class="text-red-500">*</span></label>
             <p-select
               id="tipo"
               formControlName="tipo"
@@ -23,12 +23,13 @@
               optionLabel="label"
               optionValue="value"
               placeholder="Selecione..."
+              appendTo="body"
               [style]="{'width':'100%'}">
             </p-select>
             <small class="text-red-500" *ngIf="isFieldInvalid('tipo')">Campo obrigatório.</small>
           </div>
           <div class="flex flex-col gap-2">
-              <label for="nome" class="font-semibold text-gray-700">Nome <span class="text-red-500">*</span></label>
+              <label for="nome" class="jb-label">Nome <span class="text-red-500">*</span></label>
               <input
                 id="nome"
                 type="text"
@@ -36,25 +37,25 @@
                 formControlName="nomeRazao"
                 class="w-full"
                 [ngClass]="{'ng-invalid ng-dirty': isFieldInvalid('nome')}"
-                placeholder="Ex: Atacadistas">
+                placeholder="John Doe">
               <small *ngIf="isFieldInvalid('nome')" class="text-red-500">O nome é obrigatório.</small>
           </div>
 
           <div class="flex flex-col gap-2">
 
-            <label for="apelidoFantasia" class="font-semibold text-gray-700">Nome Fantasia</label>
+            <label for="apelidoFantasia" class="jb-label">Nome Fantasia</label>
             <input
               id="apelidoFantasia"
               type="text"
               pInputText
               formControlName="apelidoFantasia"
               class="w-full"
-              placeholder="Ex: Atacadistas">
+              placeholder="Ex: Loja Nome">
 
           </div>
           <div class="flex flex-col gap-2">
 
-            <label for="documento" class="font-semibold text-gray-700">Documento (CPF/CNPJ) <span class="text-red-500">*</span></label>
+            <label for="documento" class="jb-label">Documento (CPF/CNPJ) <span class="text-red-500">*</span></label>
             <p-inputmask
               id="documento"
               formControlName="documento"
@@ -69,7 +70,7 @@
 
           <div class="flex flex-col gap-2">
 
-            <label for="ie" class="font-semibold text-gray-700">Inscrição Estadual</label>
+            <label for="ie" class="jb-label">Inscrição Estadual</label>
             <input
               id="ie"
               type="text"
@@ -82,7 +83,7 @@
 
           <div class="flex flex-col gap-2">
 
-            <label for="im" class="font-semibold text-gray-700">Inscrição Municipal</label>
+            <label for="im" class="jb-label">Inscrição Municipal</label>
             <input
               id="im"
               type="text"
@@ -94,7 +95,7 @@
           </div>
           <div class="flex flex-col gap-2">
 
-            <label for="dataNascimento" class="font-semibold text-gray-700">Data de Nascimento</label>
+            <label for="dataNascimento" class="jb-label">Data de Nascimento</label>
             <p-datepicker
               formControlName="dataNascimento"
               dateFormat="dd/mm/yy"
@@ -104,7 +105,7 @@
             </p-datepicker>
           </div>
         </form>
-        <div class="flex justify-content-end mt-4">
+        <div class="flex justify-end gap-2 mt-4">
           <p-button label="Cancelar" severity="secondary" class="mr-2" (onClick)="onCanceled.emit()"></p-button>
           <!-- Em vez de passar o callback por evento, controlamos a etapa pela variável e a requisição POST no TS -->
           <p-button label="Salvar e Continuar" (onClick)="salvarPessoa()"></p-button>
@@ -118,7 +119,7 @@
         <form [formGroup]="formEndereco" class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
           <div class="flex flex-col gap-2">
             <label for="tipo"
-                   class="font-semibold text-gray-700">Tipo do Endereço<span class="text-red-500">*</span></label>
+                   class="jb-label">Tipo do Endereço<span class="text-red-500">*</span></label>
             <p-select
               id="tipo"
               formControlName="tipo"
@@ -126,11 +127,12 @@
               optionLabel="label"
               optionValue="value"
               placeholder="Selecione..."
+              appendTo="body"
               [style]="{'width':'100%'}">
             </p-select>
           </div>
           <div class="flex flex-col gap-2">
-            <label for="logradouro" class="font-semibold text-gray-700">Logradouro<span class="text-red-500">*</span></label>
+            <label for="logradouro" class="jb-label">Logradouro<span class="text-red-500">*</span></label>
             <input id="logradouro"
                    type="text"
                    pInputText
@@ -141,7 +143,7 @@
             <small *ngIf="isFieldInvalid('logradouro')" class="text-red-500">O Logradouro é obrigatório.</small>
           </div>
           <div class="flex flex-col gap-2">
-            <label for="numero" class="font-semibold text-gray-700">Número</label>
+            <label for="numero" class="jb-label">Número</label>
             <input
               pInputText
               formControlName="numero"
@@ -153,7 +155,7 @@
             />
           </div>
           <div class="flex flex-col gap-2">
-            <label for="complemento" class="font-semibold text-gray-700">Complemento</label>
+            <label for="complemento" class="jb-label">Complemento</label>
             <input
               pInputText
               formControlName="complemento"
@@ -163,7 +165,7 @@
               placeholder="Ex: Apartamento 101"/>
           </div>
           <div class="flex flex-col gap-2">
-            <label for="bairro" class="font-semibold text-gray-700">Bairro</label>
+            <label for="bairro" class="jb-label">Bairro</label>
             <input
               pInputText
               formControlName="bairro"
@@ -174,7 +176,7 @@
             />
           </div>
           <div class="flex flex-col gap-2">
-            <label for="cidade" class="font-semibold text-gray-700">Cidade<span class="text-red-500">*</span></label>
+            <label for="cidade" class="jb-label">Cidade<span class="text-red-500">*</span></label>
             <input
               pInputText
               formControlName="cidade"
@@ -186,7 +188,7 @@
             />
           </div>
           <div class="flex flex-col gap-2">
-            <label for="uf" class="font-semibold text-gray-700">UF<span class="text-red-500">*</span></label>
+            <label for="uf" class="jb-label">UF<span class="text-red-500">*</span></label>
             <input pInputText
                    formControlName="uf"
                    id="uf"
@@ -197,7 +199,7 @@
                    placeholder="Ex: São Paulo"/>
           </div>
           <div class="flex flex-col gap-2">
-            <label for="cep" class="font-semibold text-gray-700">CEP<span class="text-red-500">*</span></label>
+            <label for="cep" class="jb-label">CEP<span class="text-red-500">*</span></label>
             <p-inputmask
               formControlName="cep"
               id="cep"
@@ -208,7 +210,7 @@
             </p-inputmask>
           </div>
           <div class="flex flex-col gap-2">
-            <label for="ibgeCodigo" class="font-semibold text-gray-700">Código do IBGE</label>
+            <label for="ibgeCodigo" class="jb-label">Código do IBGE</label>
             <input pInputText formControlName="ibgeCodigo"
                    id="ibgeCodigo"
                    type="text"
@@ -217,7 +219,7 @@
                    placeholder="Ex: 000000" />
           </div>
           <div class="flex flex-col gap-2">
-            <label for="pais" class="font-semibold text-gray-700">País</label>
+            <label for="pais" class="jb-label">País</label>
             <input
               pInputText
               formControlName="pais"
@@ -232,9 +234,9 @@
               inputId="principal"
               formControlName="principal"
               [binary]="true"></p-checkbox>
-            <label for="principal" class="font-semibold text-gray-700 cursor-pointer">Principal</label>
+            <label for="principal" class="jb-label cursor-pointer">Principal</label>
           </div>
-          <div class="col-12 flex justify-content-end mb-3">
+          <div class="md:col-span-2 flex justify-end gap-2 mb-3">
             <p-button label="Adicionar Endereço" icon="pi pi-plus" (onClick)="salvarEndereco()" [disabled]="formEndereco.invalid"></p-button>
           </div>
         </form>
@@ -260,7 +262,7 @@
           </ng-template>
         </p-table>
 
-        <div class="flex justify-content-between mt-4">
+        <div class="flex justify-between mt-4">
           <p-button label="Voltar" severity="secondary" class="mr-2" (onClick)="activateCallback(1)"></p-button>
           <p-button label="Continuar para Contatos" (onClick)="activateCallback(3); carregarContatos()"></p-button>
         </div>
@@ -273,7 +275,7 @@
         <form [formGroup]="formContato" class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
           <div class="flex flex-col gap-2">
             <label for="tipo"
-                   class="font-semibold text-gray-700">Tipo do Contato<span class="text-red-500">*</span></label>
+                   class="jb-label">Tipo do Contato<span class="text-red-500">*</span></label>
             <p-select
               id="tipo"
               formControlName="tipo"
@@ -281,11 +283,12 @@
               optionLabel="label"
               optionValue="value"
               placeholder="Selecione..."
+              appendTo="body"
               [style]="{'width':'100%'}">
             </p-select>
           </div>
           <div class="flex flex-col gap-2">
-            <label for="nome" class="font-semibold text-gray-700">Descrição<span class="text-red-500">*</span></label>
+            <label for="nome" class="jb-label">Descrição<span class="text-red-500">*</span></label>
             <input id="nome"
                    type="text"
                    pInputText
@@ -297,7 +300,7 @@
           </div>
           <!--Cargo removido-->
           <div class="flex flex-col gap-2">
-            <label for="email" class="font-semibold text-gray-700">Email</label>
+            <label for="email" class="jb-label">Email</label>
             <input
               pInputText
               formControlName="email"
@@ -309,7 +312,7 @@
             <small *ngIf="isFieldInvalid('email')" class="text-red-500">Email com formato inválido.</small>
           </div>
           <div class="flex flex-col gap-2">
-            <label for="telefone" class="font-semibold text-gray-700">Telefone</label>
+            <label for="telefone" class="jb-label">Telefone</label>
             <p-inputmask
               formControlName="telefone"
               id="telefone"
@@ -323,16 +326,16 @@
               inputId="principal"
               formControlName="principal"
               [binary]="true"></p-checkbox>
-            <label for="principal" class="font-semibold text-gray-700 cursor-pointer">Principal</label>
+            <label for="principal" class="jb-label cursor-pointer">Principal</label>
           </div>
           <div class="flex flex-col gap-2">
             <p-checkbox
               inputId="ativo"
               formControlName="ativo"
               [binary]="true"></p-checkbox>
-            <label for="ativo" class="font-semibold text-gray-700 cursor-pointer">Ativo</label>
+            <label for="ativo" class="jb-label cursor-pointer">Ativo</label>
           </div>
-          <div class="col-12 flex justify-content-end mb-3">
+          <div class="md:col-span-2 flex justify-end gap-2 mb-3">
             <p-button label="Adicionar Contato" icon="pi pi-plus" (onClick)="salvarContato()" [disabled]="formContato.invalid"></p-button>
           </div>
         </form>
@@ -364,9 +367,9 @@
           </ng-template>
         </p-table>
 
-        <div class="flex justify-content-between mt-4">
+        <div class="flex justify-between mt-4">
           <p-button label="Voltar" severity="secondary" class="mr-2" (onClick)="activateCallback(2)"></p-button>
-          <p-button label="Finalizar" severity="success" (onClick)="salvarContato();onSaved.emit()"></p-button>
+          <p-button label="Finalizar" (onClick)="salvarContato();onSaved.emit()"></p-button>
         </div>
       </ng-template>
     </p-step-panel>

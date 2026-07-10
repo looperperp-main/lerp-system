@@ -123,6 +123,11 @@
       <!-- Right Actions -->
       <div class="flex items-center gap-3 ml-auto">
 
+        <!-- Theme Toggle -->
+        <button class="jb-icon-btn" (click)="themeService.toggle()">
+          <i class="pi" [class.pi-moon]="themeService.theme() === 'light'" [class.pi-sun]="themeService.theme() === 'dark'"></i>
+        </button>
+
         <!-- Notification Bell -->
         <button class="jb-icon-btn">
           <i class="pi pi-bell"></i>

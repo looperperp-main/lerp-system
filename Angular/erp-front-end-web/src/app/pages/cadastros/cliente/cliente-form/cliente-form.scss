@@ -1,0 +1,57 @@
+.jb-label {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+:host ::ng-deep {
+  // Campos com o mesmo "vidro" translúcido do card de login
+  .p-inputtext,
+  .p-select,
+  .p-inputnumber input,
+  .p-checkbox .p-checkbox-box {
+    background: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(6px);
+    border: 1px solid var(--line-2);
+    border-radius: 12px;
+    color: var(--ink);
+  }
+
+  .p-button {
+    border-radius: 12px;
+  }
+
+  .p-button:not(.p-button-secondary):not(.p-button-text) {
+    background: var(--brand-grad);
+    border-color: transparent;
+    color: #fff;
+  }
+
+  .p-inputtext::placeholder {
+    color: var(--muted);
+  }
+
+  .p-inputtext:enabled:focus,
+  .p-select:not(.p-disabled).p-focus,
+  .p-inputnumber input:enabled:focus {
+    border-color: var(--syax);
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .p-select-label { color: var(--ink); }
+
+  .p-checkbox-box.p-highlight {
+    background: var(--brand-grad);
+    border-color: transparent;
+  }
+
+  // Botão "Cancelar" (severity secondary) — vidro em vez do cinza claro padrão
+  .p-button-secondary {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--line-2);
+    color: var(--ink-2);
+  }
+  .p-button-secondary:hover {
+    background: rgba(255, 255, 255, 0.09);
+  }
+}

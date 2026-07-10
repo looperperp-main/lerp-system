@@ -1,24 +1,41 @@
-import {Component, inject, signal, OnInit} from '@angular/core';
-import {ColumnConfig} from '../../../components/table/data-table';
-import {MessageService} from "primeng/api";
-import {ClientesService} from './clientes.service';
-import {RouterModule} from '@angular/router';
-import {TableModule} from 'primeng/table';
-import {ButtonDirective, ButtonModule} from "primeng/button";
-import {CommonModule} from '@angular/common';
-import {Dialog} from 'primeng/dialog';
-import {HtmlDecodePipe} from '../../../util/pipe/html-decode.pipe';
-import {PrimaryButtonComponent} from '../../../components/primary-button/primary-button';
-import {Ripple} from 'primeng/ripple';
-import {Toast} from 'primeng/toast';
-import {Tooltip} from 'primeng/tooltip';
-import {ClienteForm} from './cliente-form/cliente-form';
-import {Cliente} from './clientes.model';
-import {HttpErrorResponse} from '@angular/common/http';
+import { Component, inject, signal, OnInit } from '@angular/core';
+import { ColumnConfig } from '../../../components/table/data-table';
+import { MessageService } from 'primeng/api';
+import { ClientesService } from './clientes.service';
+import { RouterModule } from '@angular/router';
+import { TableModule } from 'primeng/table';
+import { ButtonDirective, ButtonModule } from 'primeng/button';
+import { CommonModule } from '@angular/common';
+import { Dialog } from 'primeng/dialog';
+import { HtmlDecodePipe } from '../../../util/pipe/html-decode.pipe';
+import { PrimaryButtonComponent } from '../../../components/primary-button/primary-button';
+import { Ripple } from 'primeng/ripple';
+import { Toast } from 'primeng/toast';
+import { Tooltip } from 'primeng/tooltip';
+import { ClienteForm } from './cliente-form/cliente-form';
+import { Cliente } from './clientes.model';
+import { HttpErrorResponse } from '@angular/common/http';
+import { InputTextModule } from 'primeng/inputtext';
 
 @Component({
   selector: 'app-cliente',
-  imports: [CommonModule, RouterModule, TableModule, ButtonModule, Dialog, HtmlDecodePipe, PrimaryButtonComponent, Ripple, Toast, Tooltip, ClienteForm, ButtonDirective, Ripple, Tooltip],
+  imports: [
+    CommonModule,
+    RouterModule,
+    TableModule,
+    ButtonModule,
+    Dialog,
+    HtmlDecodePipe,
+    PrimaryButtonComponent,
+    Ripple,
+    Toast,
+    Tooltip,
+    ClienteForm,
+    ButtonDirective,
+    Ripple,
+    Tooltip,
+    InputTextModule,
+  ],
   templateUrl: './clientes.html',
   styleUrl: './clientes.scss',
 })
@@ -44,7 +61,7 @@ export class Clientes implements OnInit {
     { field: 'ativo', header: 'Ativo', type: 'status' },
     { field: 'createdAt', header: 'Criado Em', type: 'date' },
     { field: 'createdBy', header: 'Criado Por', type: 'text' },
-    { field: 'actions', header: 'Ações', type: 'actions' }
+    { field: 'actions', header: 'Ações', type: 'actions' },
   ];
 
   ngOnInit(): void {
@@ -73,9 +90,13 @@ export class Clientes implements OnInit {
       },
       error: (err) => {
         console.error('Erro ao buscar clientes', err);
-        this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao buscar clientes.' });
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Erro',
+          detail: 'Erro ao buscar clientes.',
+        });
         this.loading.set(false);
-      }
+      },
     });
   }
 
@@ -95,30 +116,50 @@ export class Clientes implements OnInit {
     this.clienteService.updateStatus(cliente.id).subscribe({
       next: () => {
         const acao = cliente.ativo ? 'inativado' : 'ativado';
-        this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: `Cliente ${acao} com sucesso.` });
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Sucesso',
+          detail: `Cliente ${acao} com sucesso.`,
+        });
         this.loadClientes({ first: this.page * this.size, rows: this.size }); // Recarrega a página atual
       },
       error: () => {
-        this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao alterar o status do cliente.' });
-      }
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Erro',
+          detail: 'Erro ao alterar o status do cliente.',
+        });
+      },
     });
   }
 
-  deleteCliente(cliente: Cliente):void{
+  deleteCliente(cliente: Cliente): void {
     if (!cliente.id) return;
     this.clienteService.delete(cliente.id).subscribe({
       next: () => {
-        this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: `Cliente removido com sucesso.` });
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Sucesso',
+          detail: `Cliente removido com sucesso.`,
+        });
         this.loadClientes({ first: this.page * this.size, rows: this.size }); // Recarrega a página atual
       },
       error: (err: HttpErrorResponse) => {
-        this.messageService.add({ severity: 'error', summary: 'Erro', detail: err.error.message || 'Erro ao remover cliente.' });
-      }
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Erro',
+          detail: err.error.message || 'Erro ao remover cliente.',
+        });
+      },
     });
   }
 
   exportData(): void {
-    this.messageService.add({ severity: 'info', summary: 'Info', detail: 'Exportação em desenvolvimento.' });
+    this.messageService.add({
+      severity: 'info',
+      summary: 'Info',
+      detail: 'Exportação em desenvolvimento.',
+    });
   }
 
   onFormSaved() {
