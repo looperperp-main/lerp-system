@@ -30,6 +30,7 @@ Aplique o redesign visual dark "jb-*" na pasta de CRUD indicada em `$ARGUMENTS`,
 
 ## 3. Checklist de estilização (modal — `<entidade>-form.html`/`.scss`)
 
+- `p-dialog` deve permanecer **arrastável**: `[draggable]="true"` (ou simplesmente omitir o atributo — esse é o default do PrimeNG). Nunca colocar `[draggable]="false"`.
 - `p-dialog-mask` transparente (sem escurecer o resto da página) — só o painel do modal tem vidro.
 - `.p-dialog` com glass: `rgba(40, 40, 50, 0.32)` + `backdrop-filter: blur(35px) saturate(180%)` + borda `rgba(255,255,255,0.16)`.
 - Botão de fechar: classe real `.p-dialog-close-button`, `border-radius: 8px !important` (vem `rounded: true` por padrão do PrimeNG).
