@@ -31,7 +31,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 public class RolesService {
@@ -201,7 +200,7 @@ public class RolesService {
         return rolePermissionRepository.findAllByRoleId(roleId)
                 .stream()
                 .map(RolePermission::getPermission)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     /**

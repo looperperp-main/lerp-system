@@ -18,6 +18,7 @@ public class Constants {
     public static final String EMAIL  = "email";
     public static final String ISSUER  = "L-ERP-auth-service";
 
+    public static final String STATUS = "status";
     public static final String STATUS_PENDENTE  = "PENDENTE";
     public static final String STATUS_ATIVO     = "ATIVO";
     public static final String STATUS_REPROVADO = "REPROVADO";
@@ -58,6 +59,7 @@ public class Constants {
     public static final String ASSINATURA_REPROCESS = "ASSINATURA_REPROCESS";
     public static final String ASAAS_EVENT_PAYMENT_RECEIVED = "PAYMENT_RECEIVED";
     public static final String ASSINATURA_CANCEL_ADMIN = "ASSINATURA_CANCEL_ADMIN";
+    public static final String ASSINATURA_NOT_FOUND = "Assinatura não encontrada";
     /** Status de cobrança do Asaas que contam como "pago" (webhook e reconciliação). */
     public static final java.util.Set<String> ASAAS_PAID_STATUSES = java.util.Set.of("RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH");
 

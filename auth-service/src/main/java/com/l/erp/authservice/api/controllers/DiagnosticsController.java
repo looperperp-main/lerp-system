@@ -64,6 +64,17 @@ public class DiagnosticsController {
         return ResponseEntity.ok(result);
     }
 
+    /**
+     * Probes the health status of a service by its service ID.
+     *
+     * This method retrieves instances of the specified service from the discovery client.
+     * It performs a health check on the service's first instance by querying its actuator health endpoint.
+     * The response is used to determine the status and any components that may be in a "DOWN" state.
+     * If no instances are found, or an exception occurs during the health check, the service is considered "DOWN".
+     *
+     * @param serviceId the unique identifier of the service to be probed
+     * @return a {@code ServiceHealthDTO} object containing the health status, instance count, and any components marked as "DOWN"
+     */
     private ServiceHealthDTO probe(String serviceId) {
         List<ServiceInstance> instances = discoveryClient.getInstances(serviceId);
         if (instances.isEmpty()) {
@@ -76,7 +87,7 @@ public class DiagnosticsController {
             Map<?, ?> body = restClient.get()
                     .uri(instances.get(0).getUri() + "/actuator/health")
                     .exchange((req, res) -> res.bodyTo(Map.class));
-            String status = body != null && body.get("status") != null ? body.get("status").toString() : "UNKNOWN";
+            String status = body != null && body.get(Constants.STATUS) != null ? body.get(Constants.STATUS).toString() : "UNKNOWN";
             return new ServiceHealthDTO(serviceId, status, instances.size(), downComponents(body));
         } catch (Exception e) {
             log.debug("Health check falhou para {}: {}", serviceId, e.getMessage());
@@ -93,7 +104,7 @@ public class DiagnosticsController {
         List<String> down = new ArrayList<>();
         for (Map.Entry<?, ?> entry : map.entrySet()) {
             if (entry.getValue() instanceof Map<?, ?> comp) {
-                Object st = comp.get("status");
+                Object st = comp.get(Constants.STATUS);
                 if (st != null && !"UP".equals(st.toString())) {
                     down.add(entry.getKey().toString());
                 }

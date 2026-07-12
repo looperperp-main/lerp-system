@@ -15,7 +15,7 @@
     <description>Partner service — onboarding, aprovação e gestão de contadores parceiros</description>
     <properties>
         <java.version>25</java.version>
-        <coverage.minimum>0.00</coverage.minimum>
+        <coverage.minimum>0.45</coverage.minimum>
     </properties>
     <dependencies>
         <!-- OpenAPI / Swagger UI -->

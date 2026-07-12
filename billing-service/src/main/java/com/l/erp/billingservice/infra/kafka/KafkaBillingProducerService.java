@@ -51,12 +51,12 @@ public class KafkaBillingProducerService {
 
     /** Fase 7 — propaga suspensão pro auth (Tenant.status = SUSPENSO). */
     public void sendSubscriptionSuspended(Long tenantId) {
-        publishLifecycle(SUSPENDED_TOPIC, tenantId, "billing.subscription.suspended");
+        publishLifecycle(SUSPENDED_TOPIC, tenantId, SUSPENDED_TOPIC);
     }
 
     /** Fase 7 — propaga cancelamento pro auth (Tenant.status = CANCELADO). */
     public void sendSubscriptionCancelled(Long tenantId) {
-        publishLifecycle(CANCELLED_TOPIC, tenantId, "billing.subscription.cancelled");
+        publishLifecycle(CANCELLED_TOPIC, tenantId, CANCELLED_TOPIC);
     }
 
     private void publishLifecycle(String topic, Long tenantId, String label) {

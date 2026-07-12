@@ -14,6 +14,7 @@ import com.l.erp.common.exception.custom.BusinessException;
 import com.l.erp.common.util.Constants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,24 +34,27 @@ public class AttributionsService {
     private final UserRoleRepository userRoleRepository;
 
     private final AuditService auditService;
+    private final AttributionsService self;
 
     public AttributionsService(
             UserAccountRepository userAccountRepository,
             RoleRepository roleRepository,
             UserRoleRepository userRoleRepository,
-            AuditService auditService
+            AuditService auditService,
+            @Lazy AttributionsService self
     ) {
         this.userAccountRepository = userAccountRepository;
         this.roleRepository = roleRepository;
         this.userRoleRepository = userRoleRepository;
         this.auditService = auditService;
+        this.self = self;
     }
 
     public List<RoleDTO> getRolesByUser(UUID userId) {
         logger.debug("Buscando Roles do Usuário: {}", userId);
 
         userAccountRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException("Usuário não encontrado", HttpStatus.BAD_REQUEST));
+                .orElseThrow(() -> new BusinessException(Constants.USER_NOT_FOUND, HttpStatus.BAD_REQUEST));
 
         return userRoleRepository.findAllByUserId(userId).stream()
                 .map(ur -> {
@@ -73,7 +77,7 @@ public class AttributionsService {
         logger.debug("Sincronizando {} roles para o Usuário: {}", requestRoleIds.size(), userId);
 
         UserAccount user = userAccountRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException("Usuário não encontrado", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(Constants.USER_NOT_FOUND, HttpStatus.NOT_FOUND));
 
         // 1. Busca o que o usuário já tem no banco
         List<UserRole> existingUserRoles = userRoleRepository.findAllByUserId(userId);
@@ -159,17 +163,17 @@ public class AttributionsService {
     public void assignRolesToUserForTenant(UUID userId, List<UUID> roleIds, Long tenantId) {
         assertUserInTenant(userId, tenantId);
         // assignRolesToUser já valida que cada role pertence ao mesmo tenant do usuário.
-        assignRolesToUser(userId, roleIds);
+        self.assignRolesToUser(userId, roleIds);
     }
 
     @Transactional
     public void removeRoleFromUserForTenant(UUID userId, UUID roleId, Long tenantId) {
         assertUserInTenant(userId, tenantId);
-        removeRoleFromUser(userId, roleId);
+        self.removeRoleFromUser(userId, roleId);
     }
 
     private void assertUserInTenant(UUID userId, Long tenantId) {
         userAccountRepository.findByIdAndTenantId(userId, tenantId)
-                .orElseThrow(() -> new BusinessException("Usuário não encontrado", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(Constants.USER_NOT_FOUND, HttpStatus.NOT_FOUND));
     }
 }

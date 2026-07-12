@@ -18,12 +18,12 @@ public interface AuthMapper {
     @Mapping(target = "refreshToken", source = "refreshToken")
     LoginResponse toLoginResponse(UserAccount user, String token, String refreshToken);
 
-    @Mapping(target = "username", source = "user.displayName")
+    @Mapping(target = "username", expression = "java(HtmlSanitizerUtil.sanitizePlainText(user.getDisplayName()))")
     @Mapping(target = "token", source = "token")
     @Mapping(target = "refreshToken", source = "refreshToken")
     @Mapping(target = "tenantId", source = "tenant.id")
-    @Mapping(target = "tenantName", source = "tenant.name")
-    @Mapping(target = "tenantCnpj", source = "tenant.cnpj")
+    @Mapping(target = "tenantName", expression = "java(HtmlSanitizerUtil.sanitizePlainText(tenant.getName()))")
+    @Mapping(target = "tenantCnpj", expression = "java(HtmlSanitizerUtil.sanitizePlainText(tenant.getCnpj()))")
     TenantLoginResponse toTenantLoginResponse(UserAccount user, String token, String refreshToken, Tenant tenant);
 
     TenantDTO toTenantDTO(Tenant tenant);

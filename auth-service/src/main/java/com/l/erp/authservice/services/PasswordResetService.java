@@ -127,13 +127,13 @@ public class PasswordResetService {
         }
 
         PasswordResetToken prt = tokenRepository.findByTokenHash(sha256Hex(token))
-                .orElseThrow(() -> new BusinessException(Constants.TOKEN_INVALIDO_EXPIRADO, HttpStatus.UNPROCESSABLE_ENTITY));
+                .orElseThrow(() -> new BusinessException(Constants.TOKEN_INVALIDO_EXPIRADO, HttpStatus.UNPROCESSABLE_CONTENT));
 
         if (prt.getUsedAt() != null) {
-            throw new BusinessException(Constants.TOKEN_INVALIDO_EXPIRADO, HttpStatus.UNPROCESSABLE_ENTITY);
+            throw new BusinessException(Constants.TOKEN_INVALIDO_EXPIRADO, HttpStatus.UNPROCESSABLE_CONTENT);
         }
         if (prt.getExpiresAt().isBefore(Instant.now())) {
-            throw new BusinessException(Constants.TOKEN_INVALIDO_EXPIRADO, HttpStatus.UNPROCESSABLE_ENTITY);
+            throw new BusinessException(Constants.TOKEN_INVALIDO_EXPIRADO, HttpStatus.UNPROCESSABLE_CONTENT);
         }
 
         UserAccount user = prt.getUser();

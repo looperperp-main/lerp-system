@@ -20,7 +20,7 @@ $muted: #8a8a8a;
   gap: 4rem;
   min-height: 100vh;
   width: 100%;
-  padding: 3rem 4.5rem 5rem;
+  padding: 7.5rem 4.5rem 5rem;
   background: $bg;
   color: #fff;
   font-family: $mono;
@@ -50,6 +50,42 @@ $muted: #8a8a8a;
   z-index: 1;
 }
 
+.topbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.2rem 4.5rem;
+  border-bottom: 1px solid $line;
+  background: rgba(0, 0, 0, 0.3);
+
+  .brand {
+    margin-bottom: 0;
+  }
+}
+
+.topbar-nav {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  font-family: 'Inter Tight', Inter, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.9rem;
+  color: #d0d0d5;
+
+  a {
+    color: inherit;
+    text-decoration: none;
+
+    &:hover {
+      color: #fff;
+    }
+  }
+}
+
 .dot {
   display: inline-block;
   width: 6px;
@@ -76,6 +112,7 @@ $muted: #8a8a8a;
 .hero {
   justify-self: stretch;
   width: 100%;
+  min-width: 0;
 }
 
 .brand {
@@ -140,11 +177,13 @@ $muted: #8a8a8a;
 }
 
 .feature-cards {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.9rem;
 
   .feat {
+    flex: 1 1 160px;
+    max-width: 203px;
     border: 1px solid $line;
     border-radius: 12px;
     padding: 1rem;
@@ -177,6 +216,7 @@ $muted: #8a8a8a;
 .auth {
   justify-self: stretch;
   width: 100%;
+  min-width: 0;
 }
 
 .auth-card {
@@ -307,7 +347,16 @@ $muted: #8a8a8a;
   .login-shell {
     grid-template-columns: 1fr;
     gap: 2.5rem;
-    padding: 2.5rem 1.5rem 5rem;
+    padding: 7.5rem 1.5rem 5rem;
+  }
+
+  .topbar {
+    padding: 1.2rem 1.5rem;
+  }
+
+  .topbar-nav {
+    gap: 1rem;
+    font-size: 0.8rem;
   }
 
   .hero,

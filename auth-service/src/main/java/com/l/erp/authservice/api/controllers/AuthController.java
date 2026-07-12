@@ -54,7 +54,7 @@ public class AuthController {
     }
 
     @PostMapping("/criar-conta")
-    public ResponseEntity<?> criarContaGratis(@RequestBody @Valid CriarContaGratisRequest request) {
+    public ResponseEntity<Object> criarContaGratis(@RequestBody @Valid CriarContaGratisRequest request) {
         Optional<TenantLoginResponse> result = authService.criarContaGratis(request);
         if (result.isEmpty()) {
             return ResponseEntity.ok(Map.of("message",

@@ -160,7 +160,7 @@ public class SubscriptionService {
     /** Reprocessamento manual pelo admin ({@code POST /{id}/reprocess}). Idempotente. */
     public ReprocessResultDTO reprocessar(UUID id) {
         Subscription sub = subscriptionRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Assinatura não encontrada"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, Constants.ASSINATURA_NOT_FOUND));
 
         if (SubscriptionStatus.ATIVA.equals(sub.getStatus())) {
             return new ReprocessResultDTO(false, sub.getStatus(), "Assinatura já está ativa");
@@ -183,7 +183,7 @@ public class SubscriptionService {
     /** Cobranças da assinatura direto do Asaas (drill-down do admin). */
     public List<CobrancaAdminDTO> listarCobrancas(UUID id) {
         Subscription sub = subscriptionRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Assinatura não encontrada"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, Constants.ASSINATURA_NOT_FOUND));
         if (sub.getAsaasSubscriptionId() == null) {
             return List.of();
         }
@@ -196,7 +196,7 @@ public class SubscriptionService {
     @Transactional
     public CancelSubscriptionResponse cancelForAdmin(UUID id) {
         Subscription sub = subscriptionRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Assinatura não encontrada"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, Constants.ASSINATURA_NOT_FOUND));
 
         // Idempotência: já cancelando/cancelada → devolve o estado atual.
         if (SubscriptionStatus.CANCELAMENTO_SOLICITADO.equals(sub.getStatus())
