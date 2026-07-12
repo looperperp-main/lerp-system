@@ -7,10 +7,15 @@ import java.util.regex.Pattern;
 
 public class NoHtmlValidator implements ConstraintValidator<NoHtml, String> {
 
-    // Detecta tags HTML de verdade (<tag>, </tag>, <!--comment-->) — NÃO usar round-trip por um
-    // sanitizer e comparar igualdade: o OWASP HTML-escapa aspas/& na serialização mesmo sem
-    // nenhuma tag presente, rejeitando falsamente nomes como "BRINK'S..." ou "Johnson & Johnson".
-    private static final Pattern HTML_TAG = Pattern.compile("<\\s*/?\\s*[a-zA-Z!][^>]*>");
+    /**
+     * Detecta tags HTML de verdade (<tag>, </tag>, <!--comment-->) — NÃO usar round-trip por um
+     * sanitizer e comparar igualdade: o OWASP HTML-escapa aspas/& na serialização mesmo sem
+     * nenhuma tag presente, rejeitando falsamente nomes como "BRINK'S..." ou "Johnson & Johnson".
+     * Quantifiers possessivos (*+/?+) evitam backtracking polinomial: sem eles, os dois \s*
+     * adjacentes em torno do /? geram ambiguidade de split (mesma sequência de espaços pode
+     * ser dividida entre os dois grupos de várias formas), custando O(n²) em input sem match.
+     */
+    private static final Pattern HTML_TAG = Pattern.compile("<\\s*+/?+\\s*+[a-zA-Z!][^>]*+>");
 
     @Override
     public boolean isValid(String value, ConstraintValidatorContext context) {

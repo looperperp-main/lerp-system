@@ -1,5 +1,6 @@
 $mono: 'JetBrains Mono', monospace;
 $bg: #0B0B0F;
+$text-card-color: rgb(140, 132, 117);
 $orange: #E63900;
 $orange-bright: #FF4B12;
 $amber: #FDB60D;
@@ -113,7 +114,7 @@ $muted: #8a8a8a;
     gap: 0.4rem;
     font-size: 0.7rem;
     letter-spacing: 0.04em;
-    color: $muted;
+    color: rgb(232, 232, 236);;
     padding: 0.35rem 0.7rem;
     border: 1px solid $line;
     border-radius: 999px;
@@ -132,9 +133,10 @@ $muted: #8a8a8a;
 .hero-sub {
   max-width: 460px;
   color: #b8b8b8;
-  font-size: 0.95rem;
+  //font-size: 0.95rem;
   line-height: 1.6;
   margin-bottom: 2.6rem;
+  font-size: 20px;
 }
 
 .feature-cards {
@@ -146,12 +148,13 @@ $muted: #8a8a8a;
     border: 1px solid $line;
     border-radius: 12px;
     padding: 1rem;
-    background: rgba(255, 255, 255, 0.015);
+    background: rgba(255, 255, 255, 0.03);
 
     .feat-idx {
       display: block;
       font-size: 0.65rem;
-      color: $orange-bright;
+      font-family: $mono;
+      color: $text-card-color;
       letter-spacing: 0.06em;
       margin-bottom: 0.7rem;
     }
@@ -182,7 +185,8 @@ $muted: #8a8a8a;
   border: 1px solid rgba(242, 68, 5, 0.55);
   border-radius: 18px;
   padding: 2.2rem 2.4rem;
-  background: linear-gradient(180deg, rgba(20, 14, 11, 0.9), rgba(10, 10, 10, 0.92));
+  //background: linear-gradient(180deg, rgba(20, 14, 11, 0.9), rgba(10, 10, 10, 0.92));
+  background: rgb(26, 26, 34);
   box-shadow:
     0 0 0 1px rgba(242, 68, 5, 0.08),
     0 30px 80px -20px rgba(242, 68, 5, 0.35),
@@ -198,11 +202,20 @@ $muted: #8a8a8a;
   color: $muted;
   margin-bottom: 1.6rem;
 
+  .auth-tag{
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+    font-size: 11px;
+    color: rgb(140, 132, 117);
+    font-weight: 400;
+    text-align: start;
+  }
+
   .auth-secure {
     color: #2ecc71;
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
   }
 }
 
