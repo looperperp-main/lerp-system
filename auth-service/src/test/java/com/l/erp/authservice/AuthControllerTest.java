@@ -291,6 +291,7 @@ class AuthControllerTest {
     void shouldRefreshSuccess() throws Exception {
         UserAccount user = new UserAccount();
         user.setId(UUID.randomUUID());
+        user.setActive(true);
         user.setFailedLoginAttempts(0);
 
         RefreshToken rt = new RefreshToken();
