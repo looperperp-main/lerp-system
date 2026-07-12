@@ -18,7 +18,7 @@
 <!-- Header -->
 <div class="jb-page-head">
   <div>
-    <span class="eyebrow"><i class="dot"></i> OVERVIEW</span>
+    <app-breadcrumb></app-breadcrumb>
     <h1>Olá, <span class="grad-text">{{ userEmail }}</span>.<br>Aqui está o resumo.</h1>
     <p class="sub">Confira os principais indicadores da sua operação este mês.</p>
   </div>
@@ -175,43 +175,68 @@
   </div>
 </div>
 
-<!-- Produtos + Notificações -->
+<!-- Faturamento mês vs anterior + Pedidos de venda por status -->
+<!-- ponytail: dados mockados, sem endpoint de indicadores ainda -->
+<div class="jb-row two">
+  <div class="jb-panel">
+    <div class="jb-panel-head">
+      <h3>Faturamento: Mês Atual vs Anterior</h3>
+    </div>
+    <div class="jb-figs">
+      <div class="jb-fig">
+        <span class="lbl"><span class="bullet" style="background: var(--syax);"></span> Este mês</span>
+        <span class="val">{{ faturamento.atual | currency:'BRL' }}</span>
+      </div>
+      <div class="jb-fig">
+        <span class="lbl"><span class="bullet" style="background: var(--grad-3);"></span> Mês anterior</span>
+        <span class="val">{{ faturamento.anterior | currency:'BRL' }}</span>
+      </div>
+    </div>
+    <span class="pct" [class.up]="faturamento.variacao >= 0" [class.down]="faturamento.variacao < 0">
+      <i class="pi" [class.pi-arrow-up]="faturamento.variacao >= 0" [class.pi-arrow-down]="faturamento.variacao < 0"></i>
+      {{ faturamento.variacao }}% em relação ao mês anterior
+    </span>
+  </div>
+
+  <div class="jb-panel">
+    <div class="jb-panel-head">
+      <h3>Pedidos de Venda por Status</h3>
+    </div>
+    <div class="jb-perf-list">
+      <div class="jb-perf-row" *ngFor="let s of pedidosPorStatus">
+        <div class="head">
+          <span class="name">{{ s.label }}</span>
+          <span class="pct up">{{ s.qty }}</span>
+        </div>
+        <div class="qty">{{ s.pct }}% do total</div>
+        <div class="jb-bar"><div class="fill up" [style.width.%]="s.pct"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Contas a receber/pagar (7 dias) + Compras pendentes de recebimento -->
 <div class="jb-row split">
   <div class="jb-panel">
     <div class="jb-panel-head">
-      <h3>Produtos Mais Vendidos</h3>
+      <h3>Vencimentos (Próximos 7 dias)</h3>
     </div>
     <div style="overflow-x: auto;">
       <table class="jb-table">
         <thead>
           <tr>
-            <th style="width: 30px;">Nº</th>
-            <th>Nome do Produto</th>
-            <th class="num">Preço</th>
-            <th class="num">Vendido</th>
-            <th class="num">Receita</th>
+            <th>Tipo</th>
+            <th>Pessoa</th>
+            <th>Vencimento</th>
+            <th class="num">Valor</th>
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let product of products; let i = index">
-            <td class="jb-idx">{{ i + 1 }}</td>
-            <td>
-              <div class="jb-prod">
-                <span class="jb-thumb">{{ product.name.substring(0, 2).toUpperCase() }}</span>
-                <div>
-                  <div class="jb-prod-name">{{ product.name }}</div>
-                  <div class="jb-prod-cat">{{ product.category }}</div>
-                </div>
-              </div>
-            </td>
-            <td class="num">{{ product.price | currency:'BRL' }}</td>
-            <td class="num">{{ product.sold }}</td>
-            <td class="num">
-              <span class="jb-rev-bar">
-                <span class="track"><span class="fill" [style.width.%]="(product.sold / 600) * 100"></span></span>
-                <span class="pct">{{ product.sales | currency:'BRL' }}</span>
-              </span>
-            </td>
+          <tr *ngFor="let c of contasVencendo">
+            <td><span class="pct" [class.up]="c.tipo === 'Receber'" [class.down]="c.tipo === 'Pagar'">{{ c.tipo }}</span></td>
+            <td>{{ c.pessoa }}</td>
+            <td class="mono">{{ c.vencimento }}</td>
+            <td class="num">{{ c.valor | currency:'BRL' }}</td>
           </tr>
         </tbody>
       </table>
@@ -220,15 +245,110 @@
 
   <div class="jb-panel">
     <div class="jb-panel-head">
-      <h3>Notificações</h3>
+      <h3>Compras Pendentes de Recebimento</h3>
     </div>
-    <div style="max-height: 500px; overflow-y: auto;" class="custom-scrollbar">
-      <div class="jb-notif" *ngFor="let note of notifications; let i = index" [class.g1]="i % 4 === 0" [class.g2]="i % 4 === 1" [class.g3]="i % 4 === 2" [class.g4]="i % 4 === 3">
-        <span class="icon"><i [class]="note.icon"></i></span>
-        <div>
-          <p class="text">{{ note.message }}</p>
-          <div class="time mono">{{ note.date }}</div>
+    <div class="jb-perf-list">
+      <div class="jb-perf-row" *ngFor="let p of comprasPendentes">
+        <div class="head">
+          <span class="name">{{ p.pedido }} — {{ p.fornecedor }}</span>
+          <span class="qty">{{ p.previsao }}</span>
         </div>
+        <div class="qty">{{ p.status }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Alertas de cadastro incompleto + Cadastros ativos -->
+<div class="jb-row split">
+  <div class="jb-panel">
+    <div class="jb-panel-head">
+      <h3>Alertas de Cadastro Incompleto</h3>
+    </div>
+    <div>
+      <div class="jb-notif" *ngFor="let a of alertasCadastro; let i = index" [class.g1]="i % 4 === 0" [class.g2]="i % 4 === 1" [class.g3]="i % 4 === 2" [class.g4]="i % 4 === 3">
+        <span class="icon"><i [class]="a.icon"></i></span>
+        <div>
+          <p class="text">{{ a.message }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="jb-panel">
+    <div class="jb-panel-head">
+      <h3>Cadastros Ativos</h3>
+    </div>
+    <div class="jb-figs">
+      <div class="jb-fig">
+        <span class="lbl"><span class="bullet" style="background: var(--syax);"></span> Clientes</span>
+        <span class="val">{{ cadastrosAtivos.clientes }}</span>
+      </div>
+      <div class="jb-fig">
+        <span class="lbl"><span class="bullet" style="background: var(--grad-3);"></span> Produtos</span>
+        <span class="val">{{ cadastrosAtivos.produtos }}</span>
+      </div>
+      <div class="jb-fig">
+        <span class="lbl"><span class="bullet" style="background: var(--grad-4);"></span> Fornecedores</span>
+        <span class="val">{{ cadastrosAtivos.fornecedores }}</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Usuários ativos + Notificações do sistema -->
+<div class="jb-row split">
+  <div class="jb-panel">
+    <div class="jb-panel-head">
+      <h3>Últimos Logins</h3>
+    </div>
+    <div style="overflow-x: auto;">
+      <table class="jb-table">
+        <thead>
+          <tr>
+            <th>Usuário</th>
+            <th>Último Acesso</th>
+            <th class="num">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let u of usuariosAtivos">
+            <td>{{ u.nome }}</td>
+            <td class="mono">{{ u.ultimoAcesso }}</td>
+            <td class="num"><span class="pct" [class.up]="u.online" [class.down]="!u.online">{{ u.online ? 'Online' : 'Offline' }}</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="jb-panel">
+    <div class="jb-panel-head">
+      <h3>Notificações do Sistema</h3>
+    </div>
+    <div>
+      <div class="jb-notif" *ngFor="let n of notificacoesSistema; let i = index" [class.g1]="i % 4 === 0" [class.g2]="i % 4 === 1" [class.g3]="i % 4 === 2" [class.g4]="i % 4 === 3">
+        <span class="icon"><i [class]="n.icon"></i></span>
+        <div>
+          <p class="text">{{ n.message }}</p>
+          <div class="time mono">{{ n.date }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Atividades recentes (auditoria) -->
+<div class="jb-panel" style="margin-bottom: 24px;">
+  <div class="jb-panel-head">
+    <h3>Atividades Recentes</h3>
+  </div>
+  <div>
+    <div class="jb-notif" *ngFor="let at of atividadesRecentes; let i = index" [class.g1]="i % 4 === 0" [class.g2]="i % 4 === 1" [class.g3]="i % 4 === 2" [class.g4]="i % 4 === 3">
+      <span class="icon"><i [class]="at.icon"></i></span>
+      <div>
+        <p class="text">{{ at.message }}</p>
+        <div class="time mono">{{ at.date }}</div>
       </div>
     </div>
   </div>

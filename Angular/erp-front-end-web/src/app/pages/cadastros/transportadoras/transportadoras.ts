@@ -13,9 +13,10 @@ import { MessageService } from 'primeng/api';
 
 import { Transportadora } from './transportadora.model';
 import { TransportadoraService } from './transportadora.service';
-import {HtmlDecodePipe} from '../../../util/pipe/html-decode.pipe';
-import {PrimaryButtonComponent} from '../../../components/primary-button/primary-button';
-import {TransportadoraForm} from './transportadoras-form/transportadoras-form';
+import { HtmlDecodePipe } from '../../../util/pipe/html-decode.pipe';
+import { PrimaryButtonComponent } from '../../../components/primary-button/primary-button';
+import { TransportadoraForm } from './transportadoras-form/transportadoras-form';
+import { Breadcrumb } from '../../../components/breadcrumb/breadcrumb';
 
 interface ColumnConfig {
   field: string;
@@ -25,7 +26,21 @@ interface ColumnConfig {
 
 @Component({
   selector: 'app-transportadoras',
-  imports: [CommonModule, RouterModule, TableModule, ButtonModule, InputTextModule, Dialog, HtmlDecodePipe, PrimaryButtonComponent, Ripple, Toast, Tooltip, TransportadoraForm],
+  imports: [
+    CommonModule,
+    RouterModule,
+    TableModule,
+    ButtonModule,
+    InputTextModule,
+    Dialog,
+    HtmlDecodePipe,
+    PrimaryButtonComponent,
+    Ripple,
+    Toast,
+    Tooltip,
+    TransportadoraForm,
+    Breadcrumb,
+  ],
   templateUrl: './transportadoras.html',
   styleUrl: './transportadoras.scss',
 })
@@ -46,10 +61,13 @@ export class Transportadoras implements OnInit {
     { field: 'modal', header: 'Modal', type: 'text' },
     { field: 'ativo', header: 'Ativo', type: 'status' },
     { field: 'createdAt', header: 'Data de Criação', type: 'date' },
-    { field: 'actions', header: 'Ações', type: 'actions' }
+    { field: 'actions', header: 'Ações', type: 'actions' },
   ];
 
-  constructor(private transportadoraService: TransportadoraService, private router: Router) {}
+  constructor(
+    private transportadoraService: TransportadoraService,
+    private router: Router,
+  ) {}
 
   ngOnInit(): void {
     this.loadTransportadoras();
@@ -76,14 +94,22 @@ export class Transportadoras implements OnInit {
       },
       error: (err) => {
         console.error('Erro ao buscar transportadoras', err);
-        this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao buscar transportadoras. ' + err });
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Erro',
+          detail: 'Erro ao buscar transportadoras. ' + err,
+        });
         this.loading.set(false);
-      }
+      },
     });
   }
 
   exportData(): void {
-    this.messageService.add({ severity: 'info', summary: 'Info', detail: 'Exportação em desenvolvimento.' });
+    this.messageService.add({
+      severity: 'info',
+      summary: 'Info',
+      detail: 'Exportação em desenvolvimento.',
+    });
   }
 
   editTransportadora(transportadora: Transportadora) {
@@ -94,12 +120,20 @@ export class Transportadoras implements OnInit {
   inativarTransportadora(rowData: any): void {
     this.transportadoraService.updateStatus(rowData.id).subscribe({
       next: () => {
-        this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Status atualizado.' });
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Sucesso',
+          detail: 'Status atualizado.',
+        });
         this.loadTransportadoras({ first: this.page * this.size, rows: this.size });
       },
       error: (err) => {
-        this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao inativar.' });
-      }
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Erro',
+          detail: 'Erro ao inativar.',
+        });
+      },
     });
   }
 

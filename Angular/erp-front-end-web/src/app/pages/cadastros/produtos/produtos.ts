@@ -15,13 +15,25 @@ import { ColumnConfig } from '../../../components/table/data-table';
 import { Produto } from './produto.model';
 import { ProdutoService } from './produto.service';
 import { ProdutosForm } from './produtos-form/produtos-form';
+import { Breadcrumb } from '../../../components/breadcrumb/breadcrumb';
 
 @Component({
   selector: 'app-produtos',
   standalone: true,
   imports: [
-    CommonModule, RouterModule, TableModule, ButtonModule, InputTextModule,
-    Dialog, HtmlDecodePipe, PrimaryButtonComponent, Ripple, Toast, Tooltip, ProdutosForm
+    CommonModule,
+    RouterModule,
+    TableModule,
+    ButtonModule,
+    InputTextModule,
+    Dialog,
+    HtmlDecodePipe,
+    PrimaryButtonComponent,
+    Ripple,
+    Toast,
+    Tooltip,
+    ProdutosForm,
+    Breadcrumb,
   ],
   templateUrl: './produtos.html',
   styleUrl: './produtos.scss',
@@ -44,10 +56,13 @@ export class Produtos implements OnInit {
     { field: 'createdAt', header: 'Criado Em', type: 'date' },
     { field: 'updatedAt', header: 'Atualizado Em', type: 'date' },
     { field: 'lastUpdatedBy', header: 'Atualizado Por', type: 'text' },
-    { field: 'actions', header: 'Ações', type: 'actions' }
+    { field: 'actions', header: 'Ações', type: 'actions' },
   ];
 
-  constructor(private readonly produtoService: ProdutoService, private router: Router) {}
+  constructor(
+    private readonly produtoService: ProdutoService,
+    private router: Router,
+  ) {}
 
   ngOnInit(): void {
     this.loadProdutos();
@@ -76,14 +91,22 @@ export class Produtos implements OnInit {
       },
       error: (err) => {
         console.error('Erro ao buscar produtos', err);
-        this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao buscar produtos. ' + err });
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Erro',
+          detail: 'Erro ao buscar produtos. ' + err,
+        });
         this.loading.set(false);
-      }
+      },
     });
   }
 
   exportData(): void {
-    this.messageService.add({ severity: 'info', summary: 'Info', detail: 'Exportação em desenvolvimento.' });
+    this.messageService.add({
+      severity: 'info',
+      summary: 'Info',
+      detail: 'Exportação em desenvolvimento.',
+    });
   }
 
   editProduto(produto: Produto) {
@@ -99,8 +122,12 @@ export class Produtos implements OnInit {
         });
       },
       error: () => {
-        this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Não foi possível carregar os detalhes do produto.' });
-      }
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Erro',
+          detail: 'Não foi possível carregar os detalhes do produto.',
+        });
+      },
     });
   }
 
@@ -109,12 +136,20 @@ export class Produtos implements OnInit {
     const updated = { ...rowData, ativo: !rowData.ativo };
     this.produtoService.updateStatus(rowData.id!).subscribe({
       next: () => {
-        this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Status atualizado.' });
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Sucesso',
+          detail: 'Status atualizado.',
+        });
         this.loadProdutos({ first: this.page * this.size, rows: this.size });
       },
       error: (err) => {
-        this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao alterar status.' });
-      }
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Erro',
+          detail: 'Erro ao alterar status.',
+        });
+      },
     });
   }
 

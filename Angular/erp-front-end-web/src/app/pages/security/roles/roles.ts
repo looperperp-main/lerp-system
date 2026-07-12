@@ -12,6 +12,7 @@ import { Ripple } from 'primeng/ripple';
 import { ToastModule } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
 import { RoleModel, SecurityService } from '../security.service';
+import { Breadcrumb } from '../../../components/breadcrumb/breadcrumb';
 
 @Component({
   selector: 'app-security-roles',
@@ -27,6 +28,7 @@ import { RoleModel, SecurityService } from '../security.service';
     TooltipModule,
     Ripple,
     ToastModule,
+    Breadcrumb,
   ],
   providers: [MessageService],
   templateUrl: './roles.html',

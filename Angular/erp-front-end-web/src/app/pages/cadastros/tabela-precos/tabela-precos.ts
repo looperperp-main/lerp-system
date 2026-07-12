@@ -15,6 +15,7 @@ import { TabelaPrecoService } from './tabela-preco.service';
 import { HtmlDecodePipe } from '../../../util/pipe/html-decode.pipe';
 import { PrimaryButtonComponent } from '../../../components/primary-button/primary-button';
 import { TabelaPrecosForm } from './tabela-precos-form/tabela-precos-form';
+import { Breadcrumb } from '../../../components/breadcrumb/breadcrumb';
 
 interface ColumnConfig {
   field: string;
@@ -24,7 +25,21 @@ interface ColumnConfig {
 
 @Component({
   selector: 'app-tabela-precos',
-  imports: [CommonModule, RouterModule, TableModule, ButtonModule, InputTextModule, Dialog, HtmlDecodePipe, PrimaryButtonComponent, Ripple, Toast, Tooltip, TabelaPrecosForm],
+  imports: [
+    CommonModule,
+    RouterModule,
+    TableModule,
+    ButtonModule,
+    InputTextModule,
+    Dialog,
+    HtmlDecodePipe,
+    PrimaryButtonComponent,
+    Ripple,
+    Toast,
+    Tooltip,
+    TabelaPrecosForm,
+    Breadcrumb,
+  ],
   templateUrl: './tabela-precos.html',
   styleUrl: './tabela-precos.scss',
 })
@@ -52,7 +67,7 @@ export class TabelaPrecos implements OnInit {
     { field: 'createdAt', header: 'Data de Criação', type: 'date' },
     { field: 'updatedAt', header: 'Data de Atualização', type: 'date' },
     { field: 'lastUpdatedBy', header: 'Atualizado Por', type: 'text' },
-    { field: 'actions', header: 'Ações', type: 'actions' }
+    { field: 'actions', header: 'Ações', type: 'actions' },
   ];
 
   ngOnInit(): void {
@@ -83,14 +98,22 @@ export class TabelaPrecos implements OnInit {
       },
       error: (err) => {
         console.error('Erro ao buscar tabelas de preço', err);
-        this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao buscar tabelas de preço.' });
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Erro',
+          detail: 'Erro ao buscar tabelas de preço.',
+        });
         this.loading.set(false);
-      }
+      },
     });
   }
 
   exportData(): void {
-    this.messageService.add({ severity: 'info', summary: 'Info', detail: 'Exportação em desenvolvimento.' });
+    this.messageService.add({
+      severity: 'info',
+      summary: 'Info',
+      detail: 'Exportação em desenvolvimento.',
+    });
   }
 
   editTabelaPreco(tabelaPreco: TabelaPreco) {
@@ -101,12 +124,20 @@ export class TabelaPrecos implements OnInit {
   inativarTabelaPreco(rowData: any): void {
     this.tabelaPrecoService.updateStatus(rowData.id).subscribe({
       next: () => {
-        this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Status atualizado com sucesso.' });
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Sucesso',
+          detail: 'Status atualizado com sucesso.',
+        });
         this.loadTabelasPreco({ first: this.page * this.size, rows: this.size });
       },
       error: () => {
-        this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao inativar/ativar tabela de preço.' });
-      }
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Erro',
+          detail: 'Erro ao inativar/ativar tabela de preço.',
+        });
+      },
     });
   }
 

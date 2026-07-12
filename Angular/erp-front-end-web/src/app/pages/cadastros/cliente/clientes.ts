@@ -16,6 +16,7 @@ import { ClienteForm } from './cliente-form/cliente-form';
 import { Cliente } from './clientes.model';
 import { HttpErrorResponse } from '@angular/common/http';
 import { InputTextModule } from 'primeng/inputtext';
+import { Breadcrumb } from '../../../components/breadcrumb/breadcrumb';
 
 @Component({
   selector: 'app-cliente',
@@ -35,6 +36,7 @@ import { InputTextModule } from 'primeng/inputtext';
     Ripple,
     Tooltip,
     InputTextModule,
+    Breadcrumb,
   ],
   templateUrl: './clientes.html',
   styleUrl: './clientes.scss',

@@ -1,21 +1,22 @@
-import {Component, inject, OnInit, signal} from '@angular/core';
-import {GrupoClienteService} from './grupo-cliente.service';
-import {ToastrService} from 'ngx-toastr';
-import {GrupoCliente} from './grupo-cliente.model';
-import {Dialog} from 'primeng/dialog';
-import {MessageService, PrimeTemplate} from 'primeng/api';
-import {DatePipe, NgClass, NgForOf, NgIf} from '@angular/common';
-import {Button, ButtonDirective} from 'primeng/button';
-import {TableModule} from 'primeng/table';
-import {GrupoClienteForm} from './grupo-cliente-form/grupo-cliente-form';
-import {ColumnConfig} from '../../../components/table/data-table';
-import {Ripple} from 'primeng/ripple';
-import {Tooltip} from 'primeng/tooltip';
-import {HtmlDecodePipe} from '../../../util/pipe/html-decode.pipe';
-import {Toast} from 'primeng/toast';
-import {HttpErrorResponse} from '@angular/common/http';
-import {PrimaryButtonComponent} from '../../../components/primary-button/primary-button';
-import {Deposito} from '../deposito/deposito.model';
+import { Component, inject, OnInit, signal } from '@angular/core';
+import { GrupoClienteService } from './grupo-cliente.service';
+import { ToastrService } from 'ngx-toastr';
+import { GrupoCliente } from './grupo-cliente.model';
+import { Dialog } from 'primeng/dialog';
+import { MessageService, PrimeTemplate } from 'primeng/api';
+import { DatePipe, NgClass, NgForOf, NgIf } from '@angular/common';
+import { Button, ButtonDirective } from 'primeng/button';
+import { TableModule } from 'primeng/table';
+import { GrupoClienteForm } from './grupo-cliente-form/grupo-cliente-form';
+import { ColumnConfig } from '../../../components/table/data-table';
+import { Ripple } from 'primeng/ripple';
+import { Tooltip } from 'primeng/tooltip';
+import { HtmlDecodePipe } from '../../../util/pipe/html-decode.pipe';
+import { Toast } from 'primeng/toast';
+import { HttpErrorResponse } from '@angular/common/http';
+import { PrimaryButtonComponent } from '../../../components/primary-button/primary-button';
+import { Deposito } from '../deposito/deposito.model';
+import { Breadcrumb } from '../../../components/breadcrumb/breadcrumb';
 
 @Component({
   selector: 'app-grupo-clientes',
@@ -34,14 +35,14 @@ import {Deposito} from '../deposito/deposito.model';
     Ripple,
     Tooltip,
     Toast,
-    PrimaryButtonComponent
+    PrimaryButtonComponent,
+    Breadcrumb,
   ],
   providers: [MessageService],
   templateUrl: './grupo-clientes.html',
   styleUrl: './grupo-clientes.scss',
 })
 export class GrupoClientes implements OnInit {
-
   private grupoService = inject(GrupoClienteService);
   private messageService = inject(MessageService);
 
@@ -55,7 +56,7 @@ export class GrupoClientes implements OnInit {
     { field: 'ativo', header: 'Ativo', type: 'status' },
     { field: 'createdAt', header: 'Data Criação', type: 'date' },
     { field: 'updatedAt', header: 'Data Atualização', type: 'date' },
-    { field: 'actions', header: 'Ações', type: 'actions' }
+    { field: 'actions', header: 'Ações', type: 'actions' },
   ];
 
   // Controle do Modal de Formulário
@@ -85,7 +86,7 @@ export class GrupoClientes implements OnInit {
       error: (err: HttpErrorResponse) => {
         this.handleError(err, 'Erro ao carregar os grupos de clientes.');
         this.loading.set(false);
-      }
+      },
     });
   }
 
@@ -110,7 +111,11 @@ export class GrupoClientes implements OnInit {
   }
 
   exportData(): void {
-    this.messageService.add({ severity: 'info', summary: 'Info', detail: 'Exportação em desenvolvimento.' });
+    this.messageService.add({
+      severity: 'info',
+      summary: 'Info',
+      detail: 'Exportação em desenvolvimento.',
+    });
   }
 
   inativarAtivarGrupoCliente(rowData: Deposito): void {
@@ -118,15 +123,22 @@ export class GrupoClientes implements OnInit {
     const updated = { ...rowData, ativo: !rowData.ativo };
     this.grupoService.updateStatus(rowData.id!).subscribe({
       next: () => {
-        this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Status atualizado.' });
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Sucesso',
+          detail: 'Status atualizado.',
+        });
         this.loadGrupos({ first: 0, rows: 10 });
       },
       error: (err) => {
-        this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao alterar status.' });
-      }
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Erro',
+          detail: 'Erro ao alterar status.',
+        });
+      },
     });
   }
-
 
   private handleError(err: HttpErrorResponse, defaultSummary: string) {
     if (err.error && err.error.message && err.error.error && err.error.status) {
@@ -135,14 +147,14 @@ export class GrupoClientes implements OnInit {
         severity: 'error',
         summary: defaultSummary,
         detail: detailMsg,
-        life: 5000
+        life: 5000,
       });
     } else {
       this.messageService.add({
         severity: 'error',
         summary: defaultSummary,
         detail: 'Erro inesperado de comunicação com o servidor.',
-        life: 5000
+        life: 5000,
       });
     }
   }

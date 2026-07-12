@@ -14,6 +14,7 @@ import { ColumnConfig } from '../../../components/table/data-table';
 import { HtmlDecodePipe } from '../../../util/pipe/html-decode.pipe';
 import { Ripple } from 'primeng/ripple';
 import { Tooltip } from 'primeng/tooltip';
+import { Breadcrumb } from '../../../components/breadcrumb/breadcrumb';
 
 @Component({
   selector: 'app-pessoas',
@@ -33,6 +34,7 @@ import { Tooltip } from 'primeng/tooltip';
     ButtonDirective,
     Ripple,
     Tooltip /*, PessoaForm*/,
+    Breadcrumb,
   ],
   providers: [MessageService],
   templateUrl: './pessoas.html',

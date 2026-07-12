@@ -11,6 +11,7 @@ import { ToastModule } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
 import { SecurityService, UserModel } from '../security.service';
 import { UserForm } from './user-form/user-form';
+import { Breadcrumb } from '../../../components/breadcrumb/breadcrumb';
 
 @Component({
   selector: 'app-security-users',
@@ -26,6 +27,7 @@ import { UserForm } from './user-form/user-form';
     Ripple,
     ToastModule,
     UserForm,
+    Breadcrumb,
   ],
   providers: [MessageService],
   templateUrl: './users.html',

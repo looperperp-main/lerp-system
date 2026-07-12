@@ -1,21 +1,22 @@
-import {Component, inject, OnInit, signal} from '@angular/core';
-import {ButtonDirective} from 'primeng/button';
-import {DatePipe, NgForOf, NgIf} from '@angular/common';
-import {Dialog} from 'primeng/dialog';
-import {HtmlDecodePipe} from '../../../util/pipe/html-decode.pipe';
-import {PrimaryButtonComponent} from '../../../components/primary-button/primary-button';
-import {MessageService, PrimeTemplate} from 'primeng/api';
-import {Ripple} from 'primeng/ripple';
-import {TableModule} from 'primeng/table';
-import {Toast} from 'primeng/toast';
-import {Tooltip} from 'primeng/tooltip';
-import {DepositoService} from './deposito.service';
-import {ColumnConfig} from '../../../components/table/data-table';
-import {HttpErrorResponse} from '@angular/common/http';
-import {GrupoCliente} from '../grupo-clientes/grupo-cliente.model';
-import {Deposito} from './deposito.model';
-import {DepositoForm} from './deposito-form/deposito-form';
-import {Produto} from '../produtos/produto.model';
+import { Component, inject, OnInit, signal } from '@angular/core';
+import { ButtonDirective } from 'primeng/button';
+import { DatePipe, NgForOf, NgIf } from '@angular/common';
+import { Dialog } from 'primeng/dialog';
+import { HtmlDecodePipe } from '../../../util/pipe/html-decode.pipe';
+import { PrimaryButtonComponent } from '../../../components/primary-button/primary-button';
+import { MessageService, PrimeTemplate } from 'primeng/api';
+import { Ripple } from 'primeng/ripple';
+import { TableModule } from 'primeng/table';
+import { Toast } from 'primeng/toast';
+import { Tooltip } from 'primeng/tooltip';
+import { DepositoService } from './deposito.service';
+import { ColumnConfig } from '../../../components/table/data-table';
+import { HttpErrorResponse } from '@angular/common/http';
+import { GrupoCliente } from '../grupo-clientes/grupo-cliente.model';
+import { Deposito } from './deposito.model';
+import { DepositoForm } from './deposito-form/deposito-form';
+import { Produto } from '../produtos/produto.model';
+import { Breadcrumb } from '../../../components/breadcrumb/breadcrumb';
 
 @Component({
   selector: 'app-deposito',
@@ -32,13 +33,14 @@ import {Produto} from '../produtos/produto.model';
     TableModule,
     Toast,
     Tooltip,
-    DepositoForm
+    DepositoForm,
+    Breadcrumb,
   ],
   providers: [MessageService],
   templateUrl: './depositos.html',
   styleUrl: './depositos.scss',
 })
-export class Depositos implements OnInit{
+export class Depositos implements OnInit {
   private depositoService = inject(DepositoService);
   private messageService = inject(MessageService);
 
@@ -53,7 +55,7 @@ export class Depositos implements OnInit{
     { field: 'ativo', header: 'Ativo', type: 'status' },
     { field: 'createdAt', header: 'Data Criação', type: 'date' },
     { field: 'updatedAt', header: 'Data Atualização', type: 'date' },
-    { field: 'actions', header: 'Ações', type: 'actions' }
+    { field: 'actions', header: 'Ações', type: 'actions' },
   ];
 
   displayForm = false;
@@ -82,7 +84,7 @@ export class Depositos implements OnInit{
       error: (err: HttpErrorResponse) => {
         this.handleError(err, 'Erro ao carregar os Depositos.');
         this.loading.set(false);
-      }
+      },
     });
   }
 
@@ -111,17 +113,29 @@ export class Depositos implements OnInit{
     const updated = { ...rowData, ativo: !rowData.ativo };
     this.depositoService.updateStatus(rowData.id!).subscribe({
       next: () => {
-        this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Status atualizado.' });
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Sucesso',
+          detail: 'Status atualizado.',
+        });
         this.loadDepositos({ first: 0, rows: 10 });
       },
       error: (err) => {
-        this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao alterar status.' });
-      }
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Erro',
+          detail: 'Erro ao alterar status.',
+        });
+      },
     });
   }
 
   exportData(): void {
-    this.messageService.add({ severity: 'info', summary: 'Info', detail: 'Exportação em desenvolvimento.' });
+    this.messageService.add({
+      severity: 'info',
+      summary: 'Info',
+      detail: 'Exportação em desenvolvimento.',
+    });
   }
 
   private handleError(err: HttpErrorResponse, defaultSummary: string) {
@@ -131,14 +145,14 @@ export class Depositos implements OnInit{
         severity: 'error',
         summary: defaultSummary,
         detail: detailMsg,
-        life: 5000
+        life: 5000,
       });
     } else {
       this.messageService.add({
         severity: 'error',
         summary: defaultSummary,
         detail: 'Erro inesperado de comunicação com o servidor.',
-        life: 5000
+        life: 5000,
       });
     }
   }

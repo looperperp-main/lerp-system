@@ -10,8 +10,9 @@ import { GrupoCliente } from '../grupo-clientes/grupo-cliente.model';
 import { GrupoClienteService } from '../grupo-clientes/grupo-cliente.service';
 import { ColumnConfig } from '../../../components/table/data-table';
 import { GrupoClienteTabelaPrecoFormComponent } from './grupo-cliente-tabela-preco-form/grupo-cliente-tabela-preco-form';
-import {PrimaryButtonComponent} from '../../../components/primary-button/primary-button';
-import {HtmlDecodePipe} from '../../../util/pipe/html-decode.pipe';
+import { PrimaryButtonComponent } from '../../../components/primary-button/primary-button';
+import { HtmlDecodePipe } from '../../../util/pipe/html-decode.pipe';
+import { Breadcrumb } from '../../../components/breadcrumb/breadcrumb';
 
 @Component({
   selector: 'app-grupo-cliente-tabela-preco',
@@ -25,11 +26,12 @@ import {HtmlDecodePipe} from '../../../util/pipe/html-decode.pipe';
     Tooltip,
     GrupoClienteTabelaPrecoFormComponent,
     PrimaryButtonComponent,
-    HtmlDecodePipe
+    HtmlDecodePipe,
+    Breadcrumb,
   ],
   templateUrl: './grupo-cliente-tabela-preco.html',
   styleUrl: './grupo-cliente-tabela-preco.scss',
-  providers: [MessageService]
+  providers: [MessageService],
 })
 export class GrupoClienteTabelaPrecoComponent implements OnInit {
   private messageService = inject(MessageService);
@@ -49,7 +51,7 @@ export class GrupoClienteTabelaPrecoComponent implements OnInit {
     { field: 'id', header: 'ID', type: 'text' },
     { field: 'nome', header: 'Nome do Grupo', type: 'text' },
     { field: 'ativo', header: 'Ativo', type: 'status' },
-    { field: 'actions', header: 'Ações', type: 'actions' }
+    { field: 'actions', header: 'Ações', type: 'actions' },
   ];
 
   ngOnInit(): void {
@@ -79,9 +81,13 @@ export class GrupoClienteTabelaPrecoComponent implements OnInit {
       },
       error: (err) => {
         console.error('Erro ao buscar grupos de cliente', err);
-        this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao buscar grupos de cliente.' });
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Erro',
+          detail: 'Erro ao buscar grupos de cliente.',
+        });
         this.loading.set(false);
-      }
+      },
     });
   }
 
@@ -98,6 +104,10 @@ export class GrupoClienteTabelaPrecoComponent implements OnInit {
   }
 
   exportData(): void {
-    this.messageService.add({ severity: 'info', summary: 'Info', detail: 'Exportação em desenvolvimento.' });
+    this.messageService.add({
+      severity: 'info',
+      summary: 'Info',
+      detail: 'Exportação em desenvolvimento.',
+    });
   }
 }

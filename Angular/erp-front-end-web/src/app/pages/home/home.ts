@@ -4,11 +4,12 @@ import { MessageService } from 'primeng/api';
 import { ToastModule } from 'primeng/toast';
 import { Router } from '@angular/router';
 import { TenantService } from '../../services/tenant.service';
+import { Breadcrumb } from '../../components/breadcrumb/breadcrumb';
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [NgIf, NgForOf, CurrencyPipe, ToastModule],
+  imports: [NgIf, NgForOf, CurrencyPipe, ToastModule, Breadcrumb],
   providers: [MessageService],
   templateUrl: './home.html',
   styleUrl: './home.scss',
@@ -58,116 +59,108 @@ export class Home implements OnInit {
     },
   ];
 
-  // Mock Data para Produtos Mais Vendidos
-  products = [
+  // Mock Data: Faturamento mês atual vs anterior
+  faturamento = {
+    atual: 96534.2,
+    anterior: 78200.5,
+    variacao: 23.4,
+  };
+
+  // Mock Data: Pedidos de venda por status (funil)
+  pedidosPorStatus = [
+    { label: 'Orçamento', qty: 142, pct: 100 },
+    { label: 'Pedido', qty: 98, pct: 69 },
+    { label: 'Expedição', qty: 61, pct: 43 },
+    { label: 'Faturado', qty: 47, pct: 33 },
+  ];
+
+  // Mock Data: contas a receber/pagar vencendo em 7 dias
+  contasVencendo = [
+    { tipo: 'Receber', pessoa: 'Comercial Alvorada Ltda', vencimento: '13/07/2026', valor: 4230.0 },
     {
-      name: 'T-shirt estampada azul',
-      category: 'T-shirt',
-      price: 60.0,
-      sold: 520,
-      sales: 31200,
-      image: 'assets/images/tshirt.png', // Placeholder path
+      tipo: 'Pagar',
+      pessoa: 'Distribuidora Rio Fornecimentos',
+      vencimento: '14/07/2026',
+      valor: 1890.5,
+    },
+    { tipo: 'Receber', pessoa: 'Mercado Boa Vista', vencimento: '15/07/2026', valor: 2650.0 },
+    { tipo: 'Pagar', pessoa: 'Transportes Rápido SA', vencimento: '17/07/2026', valor: 980.0 },
+    { tipo: 'Receber', pessoa: 'Loja Center Norte', vencimento: '18/07/2026', valor: 3120.75 },
+  ];
+
+  // Mock Data: compras pendentes de recebimento
+  comprasPendentes = [
+    {
+      pedido: 'PC-1042',
+      fornecedor: 'Insumos Sul Ltda',
+      previsao: '14/07/2026',
+      status: 'Aguardando entrega',
     },
     {
-      name: 'Bermuda jeans escuro',
-      category: 'Bermuda',
-      price: 95.0,
-      sold: 250,
-      sales: 23750,
-      image: 'assets/images/shorts.png',
+      pedido: 'PC-1047',
+      fornecedor: 'Embalagens Prime',
+      previsao: '16/07/2026',
+      status: 'Em trânsito',
     },
     {
-      name: 'Camisa polo amarelo claro',
-      category: 'Camisa Polo',
-      price: 75.0,
-      sold: 120,
-      sales: 9000,
-      image: 'assets/images/polo.png',
-    },
-    {
-      name: 'Tênis casual branco',
-      category: 'Tênis',
-      price: 250.0,
-      sold: 30,
-      sales: 7500,
-      image: 'assets/images/sneakers.png',
-    },
-    {
-      name: 'Calça social preta',
-      category: 'Calça',
-      price: 150.0,
-      sold: 15,
-      sales: 2250,
-      image: 'assets/images/pants.png',
+      pedido: 'PC-1051',
+      fornecedor: 'Matéria-Prima Central',
+      previsao: '20/07/2026',
+      status: 'Aguardando entrega',
     },
   ];
 
-  // Mock Data para Notificações
-  notifications = [
+  // Mock Data: alertas de cadastro incompleto
+  alertasCadastro = [
+    { message: '8 clientes sem e-mail cadastrado', icon: 'pi pi-exclamation-triangle' },
+    { message: '15 produtos sem NCM informado', icon: 'pi pi-exclamation-triangle' },
+    { message: '3 fornecedores sem CNPJ validado', icon: 'pi pi-exclamation-triangle' },
+  ];
+
+  // Mock Data: contagem de cadastros ativos
+  cadastrosAtivos = {
+    clientes: 1245,
+    produtos: 356,
+    fornecedores: 87,
+  };
+
+  // Mock Data: últimos logins / usuários ativos
+  usuariosAtivos = [
+    { nome: 'vitorff1234@gmail.com', ultimoAcesso: 'Hoje, 09:12', online: true },
+    { nome: 'financeiro@empresa.com', ultimoAcesso: 'Hoje, 08:47', online: true },
+    { nome: 'vendas1@empresa.com', ultimoAcesso: 'Ontem, 18:30', online: false },
+    { nome: 'estoque@empresa.com', ultimoAcesso: 'Ontem, 14:05', online: false },
+  ];
+
+  // Mock Data: notificações do sistema
+  notificacoesSistema = [
+    { message: 'Sua assinatura vence em 5 dias.', date: 'Hoje', icon: 'pi pi-credit-card' },
+    { message: 'Trial de um novo módulo expira em 2 dias.', date: 'Hoje', icon: 'pi pi-clock' },
     {
-      type: 'sale',
-      message: 'Jonas comprou uma T-shirt estampada azul por R$60,00',
-      date: 'Hoje',
-      icon: 'pi pi-dollar',
-      color: 'text-orange-500',
-      bg: 'bg-orange-100',
-    },
-    {
-      type: 'sale',
-      message: 'Lucas comprou uma Calça social preta por R$150,00',
-      date: 'Hoje',
-      icon: 'pi pi-dollar',
-      color: 'text-orange-500',
-      bg: 'bg-orange-100',
-    },
-    {
-      type: 'alert',
-      message: 'Sua solicitação de saque no valor de R$2.500,00 foi iniciada.',
-      date: 'Hoje',
-      icon: 'pi pi-exclamation-triangle',
-      color: 'text-orange-500',
-      bg: 'bg-orange-100',
-    },
-    {
-      type: 'sale',
-      message: 'Renato comprou uma Bermuda jeans escuro por R$95,00',
+      message: 'Backup automático concluído com sucesso.',
       date: 'Ontem',
-      icon: 'pi pi-dollar',
-      color: 'text-orange-500',
-      bg: 'bg-orange-100',
+      icon: 'pi pi-check-circle',
+    },
+  ];
+
+  // Mock Data: atividades recentes (auditoria resumida)
+  atividadesRecentes = [
+    {
+      message: 'Vitor criou o pedido de venda PV-2201.',
+      date: 'Há 12 min',
+      icon: 'pi pi-plus-circle',
     },
     {
-      type: 'comment',
-      message: 'Maria postou um comentário sobre o seu produto',
-      date: 'Ontem',
-      icon: 'pi pi-comment',
-      color: 'text-orange-500',
-      bg: 'bg-orange-100',
+      message: 'Renato alterou o cadastro do cliente Mercado Boa Vista.',
+      date: 'Há 40 min',
+      icon: 'pi pi-pencil',
     },
     {
-      type: 'sale',
-      message: 'Vanessa comprou 2 Tênis casual branco por R$500,00',
-      date: 'Ontem',
-      icon: 'pi pi-dollar',
-      color: 'text-orange-500',
-      bg: 'bg-orange-100',
+      message: 'Lucas aprovou o pedido de compra PC-1047.',
+      date: 'Hoje, 08:15',
+      icon: 'pi pi-check',
     },
-    {
-      type: 'trend',
-      message: 'Sua receita teve um aumento de 25%',
-      date: 'Última Semana',
-      icon: 'pi pi-chart-line',
-      color: 'text-orange-500',
-      bg: 'bg-orange-100',
-    },
-    {
-      type: 'like',
-      message: '20 usuários adicionaram seus produtos a lista de favoritos',
-      date: 'Última Semana',
-      icon: 'pi pi-heart',
-      color: 'text-orange-500',
-      bg: 'bg-orange-100',
-    },
+    { message: 'Maria fez login no sistema.', date: 'Hoje, 08:02', icon: 'pi pi-sign-in' },
   ];
 
   constructor(

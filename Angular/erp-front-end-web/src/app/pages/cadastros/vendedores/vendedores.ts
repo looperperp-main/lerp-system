@@ -1,25 +1,39 @@
-import {Component, inject, OnInit, signal} from '@angular/core';
-import {CommonModule} from '@angular/common';
-import {Router, RouterModule} from '@angular/router';
-import {TableModule} from 'primeng/table';
-import {ButtonModule} from 'primeng/button';
-import {InputTextModule} from 'primeng/inputtext';
-import {Vendedor} from './vendedor.model';
-import {VendedorService} from './vendedor.service';
-import {Dialog} from 'primeng/dialog';
-import {HtmlDecodePipe} from '../../../util/pipe/html-decode.pipe';
-import {PrimaryButtonComponent} from '../../../components/primary-button/primary-button';
-import {Ripple} from 'primeng/ripple';
-import {Toast} from 'primeng/toast';
-import {Tooltip} from 'primeng/tooltip';
-import {MessageService} from 'primeng/api';
-import {ColumnConfig} from '../../../components/table/data-table';
-import {VendedorForm} from './vendedor-form/vendedor-form';
-
+import { Component, inject, OnInit, signal } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { Router, RouterModule } from '@angular/router';
+import { TableModule } from 'primeng/table';
+import { ButtonModule } from 'primeng/button';
+import { InputTextModule } from 'primeng/inputtext';
+import { Vendedor } from './vendedor.model';
+import { VendedorService } from './vendedor.service';
+import { Dialog } from 'primeng/dialog';
+import { HtmlDecodePipe } from '../../../util/pipe/html-decode.pipe';
+import { PrimaryButtonComponent } from '../../../components/primary-button/primary-button';
+import { Ripple } from 'primeng/ripple';
+import { Toast } from 'primeng/toast';
+import { Tooltip } from 'primeng/tooltip';
+import { MessageService } from 'primeng/api';
+import { ColumnConfig } from '../../../components/table/data-table';
+import { VendedorForm } from './vendedor-form/vendedor-form';
+import { Breadcrumb } from '../../../components/breadcrumb/breadcrumb';
 
 @Component({
   selector: 'app-vendedores',
-  imports: [CommonModule, RouterModule, TableModule, ButtonModule, InputTextModule, Dialog, HtmlDecodePipe, PrimaryButtonComponent, Ripple, Toast, Tooltip, VendedorForm],
+  imports: [
+    CommonModule,
+    RouterModule,
+    TableModule,
+    ButtonModule,
+    InputTextModule,
+    Dialog,
+    HtmlDecodePipe,
+    PrimaryButtonComponent,
+    Ripple,
+    Toast,
+    Tooltip,
+    VendedorForm,
+    Breadcrumb,
+  ],
   templateUrl: './vendedores.html',
   styleUrl: './vendedores.scss',
 })
@@ -40,10 +54,13 @@ export class Vendedores implements OnInit {
     { field: 'comissaoPercentual', header: 'Comissão', type: 'percent' },
     { field: 'createdAt', header: 'Data de Criação', type: 'date' },
     { field: 'updatedAt', header: 'Data de Atualização', type: 'date' },
-    { field: 'actions', header: 'Ações', type: 'actions' }
+    { field: 'actions', header: 'Ações', type: 'actions' },
   ];
 
-  constructor(private vendedorService: VendedorService, private router: Router) {}
+  constructor(
+    private vendedorService: VendedorService,
+    private router: Router,
+  ) {}
 
   ngOnInit(): void {
     this.loadVendedores();
@@ -69,14 +86,22 @@ export class Vendedores implements OnInit {
       },
       error: (err) => {
         console.error('Erro ao buscar vendedores', err);
-        this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao buscar vendedores. ' + err });
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Erro',
+          detail: 'Erro ao buscar vendedores. ' + err,
+        });
         this.loading.set(false);
-      }
+      },
     });
   }
 
   exportData(): void {
-    this.messageService.add({ severity: 'info', summary: 'Info', detail: 'Exportação em desenvolvimento.' });
+    this.messageService.add({
+      severity: 'info',
+      summary: 'Info',
+      detail: 'Exportação em desenvolvimento.',
+    });
   }
 
   editVendedor(vendedor: Vendedor) {
@@ -85,7 +110,11 @@ export class Vendedores implements OnInit {
   }
 
   inativarVendedor(id: string): void {
-    this.messageService.add({ severity: 'info', summary: 'Info', detail: 'Inativação em desenvolvimento.' });
+    this.messageService.add({
+      severity: 'info',
+      summary: 'Info',
+      detail: 'Inativação em desenvolvimento.',
+    });
   }
 
   onFormSaved() {

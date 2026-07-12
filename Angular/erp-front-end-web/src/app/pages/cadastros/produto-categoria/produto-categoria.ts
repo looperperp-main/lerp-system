@@ -1,26 +1,37 @@
-import {Component, inject, signal} from '@angular/core';
-import {ColumnConfig, DataTableComponent} from '../../../components/table/data-table';
-import {CommonModule} from '@angular/common';
-import {RouterModule} from '@angular/router';
-import {TableModule} from 'primeng/table';
-import {ButtonModule} from 'primeng/button';
-import {Dialog} from 'primeng/dialog';
-import {HtmlDecodePipe} from '../../../util/pipe/html-decode.pipe';
-import {PrimaryButtonComponent} from '../../../components/primary-button/primary-button';
-import {Ripple} from 'primeng/ripple';
-import {Toast} from 'primeng/toast';
-import {Tooltip} from 'primeng/tooltip';
-import { ProdutoCategoriaForm } from "./produto-categoria-form/produto-categoria-form";
-import {MessageService} from 'primeng/api';
-import {ProdutoCategoriaService} from './produto-categoria.service';
-import {ProdutoCat} from './produto-categoria.model';
+import { Component, inject, signal } from '@angular/core';
+import { ColumnConfig, DataTableComponent } from '../../../components/table/data-table';
+import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
+import { TableModule } from 'primeng/table';
+import { ButtonModule } from 'primeng/button';
+import { Dialog } from 'primeng/dialog';
+import { HtmlDecodePipe } from '../../../util/pipe/html-decode.pipe';
+import { PrimaryButtonComponent } from '../../../components/primary-button/primary-button';
+import { Ripple } from 'primeng/ripple';
+import { Toast } from 'primeng/toast';
+import { Tooltip } from 'primeng/tooltip';
+import { ProdutoCategoriaForm } from './produto-categoria-form/produto-categoria-form';
+import { MessageService } from 'primeng/api';
+import { ProdutoCategoriaService } from './produto-categoria.service';
+import { ProdutoCat } from './produto-categoria.model';
+import { Breadcrumb } from '../../../components/breadcrumb/breadcrumb';
 
 @Component({
   selector: 'app-produto-categoria',
   imports: [
-    CommonModule, RouterModule, TableModule, ButtonModule, Dialog,
-    HtmlDecodePipe, PrimaryButtonComponent, Ripple, Toast, Tooltip,
-    ProdutoCategoriaForm, DataTableComponent
+    CommonModule,
+    RouterModule,
+    TableModule,
+    ButtonModule,
+    Dialog,
+    HtmlDecodePipe,
+    PrimaryButtonComponent,
+    Ripple,
+    Toast,
+    Tooltip,
+    ProdutoCategoriaForm,
+    DataTableComponent,
+    Breadcrumb,
   ],
   templateUrl: './produto-categoria.html',
   styleUrl: './produto-categoria.scss',
@@ -45,7 +56,7 @@ export class ProdutoCategoria {
     { field: 'ativa', header: 'Ativa', type: 'status' }, // Reutilizando a prop 'ativo' -> 'ativa'
     { field: 'createdAt', header: 'Criado Em', type: 'date' },
     { field: 'createdBy', header: 'Criado Por', type: 'text' },
-    { field: 'actions', header: 'Ações', type: 'actions' }
+    { field: 'actions', header: 'Ações', type: 'actions' },
   ];
 
   ngOnInit(): void {
@@ -75,9 +86,13 @@ export class ProdutoCategoria {
       },
       error: (err) => {
         console.error('Erro ao buscar categorias', err);
-        this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao buscar categorias.' });
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Erro',
+          detail: 'Erro ao buscar categorias.',
+        });
         this.loading.set(false);
-      }
+      },
     });
   }
 
@@ -97,17 +112,29 @@ export class ProdutoCategoria {
     this.categoriaService.updateStatus(categoria.id).subscribe({
       next: () => {
         const acao = categoria.ativa ? 'inativada' : 'ativada';
-        this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: `Categoria ${acao} com sucesso.` });
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Sucesso',
+          detail: `Categoria ${acao} com sucesso.`,
+        });
         this.loadCategorias({ first: this.page * this.size, rows: this.size });
       },
       error: () => {
-        this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao alterar o status da categoria.' });
-      }
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Erro',
+          detail: 'Erro ao alterar o status da categoria.',
+        });
+      },
     });
   }
 
   exportData(): void {
-    this.messageService.add({ severity: 'info', summary: 'Info', detail: 'Exportação em desenvolvimento.' });
+    this.messageService.add({
+      severity: 'info',
+      summary: 'Info',
+      detail: 'Exportação em desenvolvimento.',
+    });
   }
 
   onFormSaved() {

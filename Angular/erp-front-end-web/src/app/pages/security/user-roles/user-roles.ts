@@ -12,6 +12,7 @@ import { ToastModule } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
 import { forkJoin, of } from 'rxjs';
 import { RoleModel, SecurityService, UserModel } from '../security.service';
+import { Breadcrumb } from '../../../components/breadcrumb/breadcrumb';
 
 @Component({
   selector: 'app-security-user-roles',
@@ -27,6 +28,7 @@ import { RoleModel, SecurityService, UserModel } from '../security.service';
     TooltipModule,
     Ripple,
     ToastModule,
+    Breadcrumb,
   ],
   providers: [MessageService],
   templateUrl: './user-roles.html',
