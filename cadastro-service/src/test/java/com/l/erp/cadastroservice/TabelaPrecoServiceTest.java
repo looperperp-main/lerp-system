@@ -105,7 +105,6 @@ class TabelaPrecoServiceTest {
     @Test
     void save_sucesso() {
         when(repository.existsByNomeIgnoreCaseAndTenantId("Promo", TENANT_ID)).thenReturn(false);
-        when(repository.existsByPadraoIsTrueAndTenantId(TENANT_ID)).thenReturn(false);
         when(repository.save(any(TabelaPreco.class))).thenAnswer(inv -> {
             TabelaPreco t = inv.getArgument(0);
             t.setId(UUID.randomUUID());
