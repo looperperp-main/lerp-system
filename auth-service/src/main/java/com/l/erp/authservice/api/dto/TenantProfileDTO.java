@@ -13,5 +13,6 @@ public record TenantProfileDTO(
         String email,
         String status,
         Instant trialStartedAt,
-        Instant trialExpiresAt
+        Instant trialExpiresAt,
+        String planType
 ) {}

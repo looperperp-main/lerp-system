@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { BillingService, Plan, CheckoutResponse } from '../../services/billing.service';
 import { TenantService, TenantProfile } from '../../services/tenant.service';
@@ -25,6 +25,13 @@ export class Assinar implements OnInit {
 
   readonly cancelando = signal(false);
   readonly cancelMsg = signal<string | null>(null);
+
+  /** Plano atualmente contratado, resolvido cruzando tenant.planType com a lista de planos. */
+  readonly planoAtual = computed(() => {
+    const planType = this.tenant()?.planType;
+    if (!planType) return null;
+    return this.planos().find((p) => p.planType === planType) ?? null;
+  });
 
   ngOnInit(): void {
     this.billing.getPlans().subscribe({

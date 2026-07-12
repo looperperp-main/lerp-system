@@ -2,6 +2,7 @@ package com.l.erp.authservice.services;
 
 import com.l.erp.authservice.api.dto.CurrentUser;
 import com.l.erp.authservice.api.dto.TenantDTO;
+import com.l.erp.authservice.api.dto.TenantProfileDTO;
 import com.l.erp.authservice.api.mappers.AuthMapper;
 import com.l.erp.authservice.dominio.Tenant;
 import com.l.erp.authservice.dominio.enumerators.EnumTenantStatus;
@@ -17,6 +18,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
@@ -79,7 +81,7 @@ public class TenantService {
     }
 
     /**
-     * Retorna todos os tenants cadastrados
+     * Retorna todos os tenants cadastrados e ativos
      *
      * @return lista de tenants
      */
@@ -90,9 +92,11 @@ public class TenantService {
     }
 
     /**
-     * Retorna um tenant pelo id
-     * @param tenantId id do tenant
-     * @return tenant
+     * Retrieves a tenant by its unique identifier.
+     *
+     * @param tenantId the unique identifier of the tenant to retrieve
+     * @return a TenantDTO object representing the tenant with the specified ID
+     * @throws ResponseStatusException if the tenant is not found
      */
     public TenantDTO getTenantById(Long tenantId) {
         logger.debug("REST request to get Tenant : {}", tenantId);
@@ -102,15 +106,32 @@ public class TenantService {
         );
     }
 
-    /** Perfil do tenant logado (GET /auth/tenant/me) — leitura simples, sem permissão especial. */
-    public com.l.erp.authservice.api.dto.TenantProfileDTO getTenantProfile(Long tenantId) {
+    /**
+     * Retrieves the tenant profile based on the provided tenant ID.
+     *
+     * @param tenantId the unique identifier of the tenant whose profile is to be retrieved
+     * @return a {@code TenantProfileDTO} containing details of the tenant, including ID, name, CNPJ,
+     *         email, status, trial start date, and trial expiration date
+     * @throws ResponseStatusException if the tenant is not found in the repository
+     */
+    public TenantProfileDTO getTenantProfile(Long tenantId) {
         Tenant t = tenantRepository.findById(tenantId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, ENTITY_NAME + " : " + Constants.TENANT_NOT_FOUND));
-        return new com.l.erp.authservice.api.dto.TenantProfileDTO(
+        return new TenantProfileDTO(
                 t.getId(), t.getName(), t.getCnpj(), t.getEmail(),
-                t.getStatus().name(), t.getTrialStartedAt(), t.getTrialExpiresAt());
+                t.getStatus().name(), t.getTrialStartedAt(), t.getTrialExpiresAt(), t.getPlanType());
     }
 
+    /**
+     * Updates an existing tenant with provided details. The method validates whether the tenant can
+     * be updated based on its current status and performs necessary operations to save the updated tenant information.
+     *
+     * @param tenantDTO The data transfer object containing updated tenant details.
+     * @return A TenantDTO object reflecting the updated tenant details.
+     * @throws ResponseStatusException If the tenant with the provided ID is not found.
+     * @throws BusinessException If attempting to update a tenant in a canceled state or if a data integrity
+     *                            violation occurs (e.g., duplicate records).
+     */
     public TenantDTO updateTenant(TenantDTO tenantDTO) {
         logger.debug("REST request to update Tenant : {}", tenantDTO);
         UUID correlationId = getCorrelationIdFromRequest(logger);
@@ -139,6 +160,13 @@ public class TenantService {
         }
     }
 
+    /**
+     * Sanitizes the fields of a given TenantDTO object to prevent security issues such as XSS
+     * by cleaning potentially unsafe characters from text fields.
+     *
+     * @param dto the TenantDTO object to be sanitized
+     * @return a new TenantDTO object with sanitized field values
+     */
     private TenantDTO sanitizeDto(TenantDTO dto) {
         return new TenantDTO(
             dto.id(),
@@ -175,7 +203,7 @@ public class TenantService {
      * @param planType tipo de plano contratado (pode ser nulo)
      * @param asaasSubscriptionId id da assinatura no Asaas (pode ser nulo)
      */
-    @org.springframework.transaction.annotation.Transactional
+    @Transactional
     public void activateSubscription(Long tenantId, String planType, String asaasSubscriptionId) {
         Tenant tenant = tenantRepository.findById(tenantId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, ENTITY_NAME + " : " + Constants.TENANT_NOT_FOUND));
@@ -235,6 +263,16 @@ public class TenantService {
         logger.info("Tenant {} atualizado para {} via billing", tenantId, newStatus);
     }
 
+    /**
+     * Updates the status of a tenant identified by the given tenantId.
+     * If the tenant is in a "CANCELADO" status, the operation is not allowed and a {@code BusinessException} is thrown.
+     * Logs audit events for both successful and failed attempts to update the tenant status.
+     *
+     * @param tenantId The unique identifier of the tenant whose status is being updated.
+     * @param status The new status to be set for the tenant. It should match the {@code EnumTenantStatus} values.
+     * @throws ResponseStatusException if the tenant is not found in the repository.
+     * @throws BusinessException if an attempt is made to update the status of a tenant in a "CANCELADO" state.
+     */
     public void updateTenantStatusById(Long tenantId, String status) {
         logger.debug("REST request to update the status of the given tenant : {}", tenantId);
         Tenant tenant = tenantRepository.findById(tenantId)

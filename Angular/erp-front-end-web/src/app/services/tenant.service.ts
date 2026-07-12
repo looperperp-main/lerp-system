@@ -11,6 +11,7 @@ export interface TenantProfile {
   status: string;
   trialStartedAt: string | null;
   trialExpiresAt: string | null;
+  planType: string | null;
 }
 
 @Injectable({ providedIn: 'root' })

@@ -58,6 +58,16 @@
       </div>
     }
 
+    @if (planoAtual(); as pa) {
+      <div class="mb-6 bg-orange-50 border border-orange-100 rounded-2xl p-5 flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <p class="text-xs font-medium text-orange-600 mb-1">Seu plano atual</p>
+          <p class="text-lg font-bold assinar-ink">{{ pa.name }}</p>
+        </div>
+        <div class="text-xl font-bold assinar-ink">{{ pa.value | currency: 'BRL' }}</div>
+      </div>
+    }
+
     <!-- Grade de planos -->
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-6">
       @for (p of planos(); track p.id) {
