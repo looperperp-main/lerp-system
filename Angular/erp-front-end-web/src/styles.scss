@@ -259,8 +259,16 @@ html.theme-light .p-textarea::placeholder {
   border: 1px solid var(--line);
 }
 
+.assinar-ink { color: var(--ink); }
+.assinar-divider { border-color: var(--ink); }
+
 .assiantura-cancelar {
-  background: rgba(255, 255, 255, 0.03);
+  background: #dc2626;
+  color: #fff;
+  border-color: #dc2626 !important;
+}
+.assiantura-cancelar:hover:not(:disabled) {
+  background: #b91c1c;
 }
 
 .jb-sidebar-promo {

@@ -1,0 +1,21 @@
+databaseChangeLog:
+  - changeSet:
+      id: "auth-015-role-descricao"
+      author: vitor fernandes ferreira
+      comment: "Adiciona coluna descricao à tabela role (auth) para permitir uma descrição opcional da role."
+      changes:
+        - addColumn:
+            schemaName: auth
+            tableName: role
+            columns:
+              - column:
+                  name: descricao
+                  type: VARCHAR(500)
+                  remarks: "Descrição opcional da role"
+                  constraints:
+                    nullable: true
+      rollback:
+        - dropColumn:
+            schemaName: auth
+            tableName: role
+            columnName: descricao

@@ -14,6 +14,7 @@ export interface PageResponse<T> {
 export interface RoleModel {
   id?: string;
   name: string;
+  descricao?: string;
   tenantId?: number;
   createdDate?: string;
   createdBy?: string;
@@ -55,7 +56,12 @@ export class SecurityService {
   constructor(private http: HttpClient) {}
 
   // ----- Roles -----
-  searchRoles(page: number, size: number, filters: any, sort = 'name,asc'): Observable<PageResponse<RoleModel>> {
+  searchRoles(
+    page: number,
+    size: number,
+    filters: any,
+    sort = 'name,asc',
+  ): Observable<PageResponse<RoleModel>> {
     const params = new HttpParams().set('page', page).set('size', size).set('sort', sort);
     return this.http.post<PageResponse<RoleModel>>(`${this.api}/roles/search`, filters, { params });
   }
@@ -64,8 +70,15 @@ export class SecurityService {
     return this.http.get<RoleModel[]>(`${this.api}/roles`);
   }
 
-  createRole(name: string): Observable<RoleModel> {
-    return this.http.post<RoleModel>(`${this.api}/roles`, { name });
+  createRole(name: string, descricao?: string): Observable<RoleModel> {
+    return this.http.post<RoleModel>(`${this.api}/roles`, { name, descricao: descricao || null });
+  }
+
+  updateRole(id: string, name: string, descricao?: string): Observable<RoleModel> {
+    return this.http.put<RoleModel>(`${this.api}/roles/${id}`, {
+      name,
+      descricao: descricao || null,
+    });
   }
 
   deleteRole(id: string): Observable<void> {
@@ -77,7 +90,10 @@ export class SecurityService {
   }
 
   assignPermissions(roleId: string, permissionIds: string[]): Observable<void> {
-    return this.http.post<void>(`${this.api}/roles/${roleId}/permissions`, { roleId, permissionIds });
+    return this.http.post<void>(`${this.api}/roles/${roleId}/permissions`, {
+      roleId,
+      permissionIds,
+    });
   }
 
   removePermission(roleId: string, permissionId: string): Observable<void> {
@@ -91,16 +107,28 @@ export class SecurityService {
   }
 
   // ----- Users -----
-  searchUsers(page: number, size: number, filters: any, sort = 'displayName,asc'): Observable<PageResponse<UserModel>> {
+  searchUsers(
+    page: number,
+    size: number,
+    filters: any,
+    sort = 'displayName,asc',
+  ): Observable<PageResponse<UserModel>> {
     const params = new HttpParams().set('page', page).set('size', size).set('sort', sort);
     return this.http.post<PageResponse<UserModel>>(`${this.api}/users/search`, filters, { params });
   }
 
-  createUser(user: { email: string; displayName: string; passwordHash: string }): Observable<UserModel> {
+  createUser(user: {
+    email: string;
+    displayName: string;
+    passwordHash: string;
+  }): Observable<UserModel> {
     return this.http.post<UserModel>(`${this.api}/users`, user);
   }
 
-  updateUser(userId: string, user: { email: string; displayName: string; passwordHash?: string }): Observable<UserModel> {
+  updateUser(
+    userId: string,
+    user: { email: string; displayName: string; passwordHash?: string },
+  ): Observable<UserModel> {
     return this.http.put<UserModel>(`${this.api}/users/${userId}`, user);
   }
 

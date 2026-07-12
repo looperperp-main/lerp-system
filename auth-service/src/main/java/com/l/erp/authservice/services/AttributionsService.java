@@ -59,7 +59,8 @@ public class AttributionsService {
                     return new RoleDTO(role.getId(),
                             role.getName(), role.getTenant().getId(),
                             role.getCreatedDate(), role.getCreatedBy(),
-                            role.getLastUpdateDate(),role.getLastUpdateBy());
+                            role.getLastUpdateDate(), role.getLastUpdateBy(),
+                            role.getDescricao());
                 })
                 .toList();
     }

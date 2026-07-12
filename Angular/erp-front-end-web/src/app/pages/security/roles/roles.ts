@@ -6,6 +6,7 @@ import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
+import { Textarea } from 'primeng/textarea';
 import { TooltipModule } from 'primeng/tooltip';
 import { Ripple } from 'primeng/ripple';
 import { ToastModule } from 'primeng/toast';
@@ -22,6 +23,7 @@ import { RoleModel, SecurityService } from '../security.service';
     ButtonModule,
     DialogModule,
     InputTextModule,
+    Textarea,
     TooltipModule,
     Ripple,
     ToastModule,
@@ -38,7 +40,9 @@ export class SecurityRoles {
   filterName: string | null = null;
 
   createDialog = false;
+  editingRole: RoleModel | null = null;
   newName = '';
+  newDescricao = '';
   submitted = false;
 
   deleteDialog = false;
@@ -72,7 +76,17 @@ export class SecurityRoles {
   }
 
   openNew() {
+    this.editingRole = null;
     this.newName = '';
+    this.newDescricao = '';
+    this.submitted = false;
+    this.createDialog = true;
+  }
+
+  openEdit(role: RoleModel) {
+    this.editingRole = role;
+    this.newName = role.name;
+    this.newDescricao = role.descricao || '';
     this.submitted = false;
     this.createDialog = true;
   }
@@ -81,13 +95,29 @@ export class SecurityRoles {
     this.submitted = true;
     const name = this.newName?.trim();
     if (!name) return;
-    this.service.createRole(name.toUpperCase().replace(/\s/g, '_')).subscribe({
+    const descricao = this.newDescricao?.trim();
+    const request = this.editingRole
+      ? this.service.updateRole(
+          this.editingRole.id!,
+          name.toUpperCase().replace(/\s/g, '_'),
+          descricao,
+        )
+      : this.service.createRole(name.toUpperCase().replace(/\s/g, '_'), descricao);
+    request.subscribe({
       next: () => {
-        this.messages.add({ severity: 'success', summary: 'Sucesso', detail: 'Role criada!' });
+        this.messages.add({
+          severity: 'success',
+          summary: 'Sucesso',
+          detail: this.editingRole ? 'Role atualizada!' : 'Role criada!',
+        });
         this.createDialog = false;
         this.load();
       },
-      error: (err: HttpErrorResponse) => this.handleError(err, 'Falha ao criar a Role'),
+      error: (err: HttpErrorResponse) =>
+        this.handleError(
+          err,
+          this.editingRole ? 'Falha ao atualizar a Role' : 'Falha ao criar a Role',
+        ),
     });
   }
 

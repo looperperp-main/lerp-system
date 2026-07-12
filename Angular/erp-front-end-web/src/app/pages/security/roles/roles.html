@@ -42,7 +42,11 @@
         <ng-template pTemplate="header">
           <tr>
             <th pSortableColumn="name">Nome da Role <p-sortIcon field="name"></p-sortIcon></th>
+            <th>Descrição</th>
             <th>Criado Por</th>
+            <th>Data de Criação</th>
+            <th>Atualizado Por</th>
+            <th>Data de Atualização</th>
             <th>Ações</th>
           </tr>
         </ng-template>
@@ -50,8 +54,21 @@
         <ng-template pTemplate="body" let-role>
           <tr>
             <td><span class="jb-strong">{{ role.name }}</span></td>
-            <td>{{ role.createdBy }}</td>
+            <td>{{ role.descricao || '-' }}</td>
+            <td>{{ role.createdBy || '-' }}</td>
+            <td>{{ role.createdDate | date:'dd/MM/yyyy HH:mm' }}</td>
+            <td>{{ role.lastUpdateBy || '-' }}</td>
+            <td>{{ (role.lastUpdateDate | date:'dd/MM/yyyy HH:mm') || '-' }}</td>
             <td>
+              <button
+                pButton
+                pRipple
+                icon="pi pi-pencil"
+                class="p-button-rounded p-button-text p-button-sm w-8 h-8"
+                pTooltip="Editar"
+                (click)="openEdit(role)"
+                tooltipPosition="top">
+              </button>
               <button
                 pButton
                 pRipple
@@ -67,7 +84,7 @@
 
         <ng-template pTemplate="emptymessage">
           <tr>
-            <td colspan="3" style="text-align: center; padding: 24px; color: var(--muted);">
+            <td colspan="5" style="text-align: center; padding: 24px; color: var(--muted);">
               Nenhuma role encontrada.
             </td>
           </tr>
@@ -88,7 +105,7 @@
   <ng-template pTemplate="header">
     <div class="jb-dialog-head">
       <span class="eyebrow">SEGURANÇA · ROLES</span>
-      <h2>Nova Role</h2>
+      <h2>{{ editingRole ? 'Editar Role' : 'Nova Role' }}</h2>
     </div>
   </ng-template>
   <div class="flex flex-col gap-2 pt-2">
@@ -98,6 +115,9 @@
       <small class="text-red-500">Informe um nome.</small>
     }
     <small class="jb-muted">O nome é convertido para MAIÚSCULAS_COM_UNDERLINE.</small>
+
+    <label class="jb-label">Descrição</label>
+    <textarea pInputTextarea [(ngModel)]="newDescricao" placeholder="Descreva o propósito desta role (opcional)" class="w-full" rows="3"></textarea>
   </div>
   <ng-template pTemplate="footer">
     <button pButton pRipple label="Cancelar" icon="pi pi-times" class="p-button-text p-button-secondary" (click)="createDialog = false"></button>

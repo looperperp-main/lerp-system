@@ -55,5 +55,8 @@ public class Role {
     @Column(name = "last_update_by", length = 200)
     private String lastUpdateBy;
 
+    @Size(max = 500)
+    @Column(name = "descricao", length = 500)
+    private String descricao;
 
 }

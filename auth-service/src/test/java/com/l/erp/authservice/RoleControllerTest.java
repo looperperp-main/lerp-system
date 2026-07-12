@@ -89,7 +89,7 @@ class RoleControllerTest {
         role.setId(UUID.randomUUID());
         role.setName("ADMIN");
 
-        RoleDTO dto = new RoleDTO(role.getId(), "ADMIN", 1L, Instant.now(), "seed", null, null);
+        RoleDTO dto = new RoleDTO(role.getId(), "ADMIN", 1L, Instant.now(), "seed", null, null, null);
 
         when(roleRepository.findAll()).thenReturn(List.of(role));
         when(roleMapper.toRoleDTOs(any())).thenReturn(List.of(dto));
@@ -106,7 +106,7 @@ class RoleControllerTest {
         role.setId(UUID.randomUUID());
         role.setName("VIEWER");
 
-        RoleDTO dto = new RoleDTO(role.getId(), "VIEWER", 1L, Instant.now(), "seed", null, null);
+        RoleDTO dto = new RoleDTO(role.getId(), "VIEWER", 1L, Instant.now(), "seed", null, null, null);
 
         Page<Role> page = new PageImpl<>(List.of(role));
         when(roleRepository.findAll(any(Pageable.class))).thenReturn(page);
@@ -123,7 +123,7 @@ class RoleControllerTest {
         role.setId(UUID.randomUUID());
         role.setName("EDITOR");
 
-        RoleDTO dto = new RoleDTO(role.getId(), "EDITOR", 1L, Instant.now(), "seed", null, null);
+        RoleDTO dto = new RoleDTO(role.getId(), "EDITOR", 1L, Instant.now(), "seed", null, null, null);
 
         Page<Role> page = new PageImpl<>(List.of(role));
         when(roleRepository.findWithFilters(any(), any(Pageable.class))).thenReturn(page);
@@ -152,8 +152,8 @@ class RoleControllerTest {
         saved.setCreatedBy("test@test.com");
         saved.setCreatedDate(Instant.now());
 
-        RoleDTO input = new RoleDTO(null, "GESTOR", 1L, null, null, null, null);
-        RoleDTO output = new RoleDTO(roleId, "GESTOR", 1L, Instant.now(), "test@test.com", null, null);
+        RoleDTO input = new RoleDTO(null, "GESTOR", 1L, null, null, null, null, "Responsável pela gestão do time");
+        RoleDTO output = new RoleDTO(roleId, "GESTOR", 1L, Instant.now(), "test@test.com", null, null, "Responsável pela gestão do time");
 
         when(roleRepository.findByNameAndTenant_Id("GESTOR", 1L)).thenReturn(Optional.empty());
         when(tenantRepository.findById(1L)).thenReturn(Optional.of(tenant));
@@ -171,7 +171,8 @@ class RoleControllerTest {
                             .content(objectMapper.writeValueAsString(input)))
                     .andDo(print())
                     .andExpect(status().isCreated())
-                    .andExpect(jsonPath("$.name").value("GESTOR"));
+                    .andExpect(jsonPath("$.name").value("GESTOR"))
+                    .andExpect(jsonPath("$.descricao").value("Responsável pela gestão do time"));
         }
     }
 
@@ -182,7 +183,7 @@ class RoleControllerTest {
         existing.setId(UUID.randomUUID());
         existing.setName("GESTOR");
 
-        RoleDTO input = new RoleDTO(null, "GESTOR", 1L, null, null, null, null);
+        RoleDTO input = new RoleDTO(null, "GESTOR", 1L, null, null, null, null, null);
 
         when(roleRepository.findByNameAndTenant_Id("GESTOR", 1L)).thenReturn(Optional.of(existing));
 

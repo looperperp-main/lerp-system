@@ -44,6 +44,11 @@
             <th pSortableColumn="displayName">Nome <p-sortIcon field="displayName"></p-sortIcon></th>
             <th>Email</th>
             <th>Status</th>
+            <th>Lockado Até</th>
+            <th>Criado Por</th>
+            <th>Data de Criação</th>
+            <th>Atualizado Por</th>
+            <th>Data de Atualização</th>
             <th>Ações</th>
           </tr>
         </ng-template>
@@ -57,6 +62,11 @@
                 {{ user.active ? 'ATIVO' : 'INATIVO' }}
               </span>
             </td>
+            <td>{{ (user.lockedUntil | date:'dd/MM/yyyy HH:mm') || '-' }}</td>
+            <td>{{ user.createdBy || '-' }}</td>
+            <td>{{ user.createdDate | date:'dd/MM/yyyy HH:mm' }}</td>
+            <td>{{ user.lastUpdatedBy || '-' }}</td>
+            <td>{{ (user.lastUpdateDate | date:'dd/MM/yyyy HH:mm') || '-' }}</td>
             <td>
               <button
                 pButton

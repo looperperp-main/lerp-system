@@ -233,18 +233,21 @@
     color: var(--ink-2);
   }
 
-  // Campo "Nome da Role" no dialog de criar — mesmo vidro translúcido do card de login
-  .p-dialog .p-inputtext {
+  // Campos "Nome da Role" / "Descrição" no dialog de criar — mesmo vidro translúcido do card de login
+  .p-dialog .p-inputtext,
+  .p-dialog .p-textarea {
     background: rgba(255, 255, 255, 0.04);
     backdrop-filter: blur(6px);
     border: 1px solid var(--line-2);
     border-radius: 12px;
     color: var(--ink);
   }
-  .p-dialog .p-inputtext::placeholder {
+  .p-dialog .p-inputtext::placeholder,
+  .p-dialog .p-textarea::placeholder {
     color: var(--muted);
   }
-  .p-dialog .p-inputtext:enabled:focus {
+  .p-dialog .p-inputtext:enabled:focus,
+  .p-dialog .p-textarea:enabled:focus {
     border-color: var(--syax);
     background: rgba(255, 255, 255, 0.06);
   }

@@ -1,7 +1,7 @@
 <div class="max-w-5xl mx-auto py-6">
 
   <header class="mb-6">
-    <h1 class="text-2xl font-bold text-white">Assinar plano</h1>
+    <h1 class="text-2xl font-bold assinar-ink">Assinar plano</h1>
     <p class="text-gray-500 text-sm mt-1">
       Escolha o plano ideal e ative sua conta. Planos anuais já vêm com 2 meses grátis no valor.
     </p>
@@ -68,10 +68,10 @@
           [class.ring-orange-200]="selecionado()?.id === p.id"
           [class.border-gray-100]="selecionado()?.id !== p.id">
           <div class="flex items-center justify-between mb-2">
-            <span class="text-sm font-semibold text-white-900">{{ p.name }}</span>
+            <span class="text-sm font-semibold assinar-ink">{{ p.name }}</span>
             <span class="text-xs text-gray-400">{{ p.billingCycle == 'MONTHLY' ? 'Mensal' : 'Anual' }}</span>
           </div>
-          <div class="text-2xl font-bold text-gray-100">{{ p.value | currency: 'BRL' }}</div>
+          <div class="text-2xl font-bold assinar-ink">{{ p.value | currency: 'BRL' }}</div>
           @if (p.description) {
             <p class="text-xs text-gray-500 mt-2">{{ p.description }}</p>
           }
@@ -91,8 +91,8 @@
   }
 
   <!-- Cancelar assinatura -->
-  <div class="mt-10 border-t border-gray-100 pt-6">
-    <h2 class="text-sm font-semibold text-white-700 mb-1">Cancelar assinatura</h2>
+  <div class="mt-10 border-t assinar-divider pt-6">
+    <h2 class="text-sm font-semibold assinar-ink mb-1">Cancelar assinatura</h2>
     <p class="text-xs text-gray-500 mb-3">
       Você para as próximas cobranças, mas mantém o acesso até o fim do período já pago (sem reembolso).
     </p>
@@ -102,7 +102,7 @@
       </div>
     }
     <button type="button" (click)="cancelar()" [disabled]="cancelando()"
-      class="assiantura-cancelar px-4 py-2 border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50 rounded-lg text-sm font-semibold">
+      class="assiantura-cancelar px-4 py-2 border disabled:opacity-50 rounded-lg text-sm font-semibold">
       {{ cancelando() ? 'Cancelando...' : 'Cancelar assinatura' }}
     </button>
   </div>

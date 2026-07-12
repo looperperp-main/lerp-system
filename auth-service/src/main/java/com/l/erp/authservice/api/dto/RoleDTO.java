@@ -10,6 +10,7 @@ public record RoleDTO(
         Instant createdDate,
         String createdBy,
         Instant lastUpdateDate,
-        String lastUpdateBy
+        String lastUpdateBy,
+        String descricao
 ) {
 }

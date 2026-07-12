@@ -88,6 +88,14 @@ public class TenantSecurityController {
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
+    @PutMapping("/roles/{roleId}")
+    @PreAuthorize("hasAuthority('ROLE_UPDATE')")
+    public ResponseEntity<RoleDTO> updateRole(@RequestHeader(Constants.HEADER_TENANT_ID) Long tenantId,
+                                              @PathVariable UUID roleId,
+                                              @Valid @RequestBody RoleDTO roleDTO) {
+        return ResponseEntity.ok(rolesService.updateRoleForTenant(roleId, roleDTO, tenantId));
+    }
+
     @DeleteMapping("/roles/{roleId}")
     @PreAuthorize("hasAuthority('ROLE_DELETE')")
     public ResponseEntity<Void> deleteRole(@RequestHeader(Constants.HEADER_TENANT_ID) Long tenantId,

@@ -67,7 +67,7 @@ class TenantSecurityControllerTest {
     @Test
     @WithMockUser(authorities = "ROLE_READ")
     void searchRolesPassesTenantFromHeader() throws Exception {
-        RoleDTO role = new RoleDTO(UUID.randomUUID(), "GESTOR", TENANT, null, null, null, null);
+        RoleDTO role = new RoleDTO(UUID.randomUUID(), "GESTOR", TENANT, null, null, null, null, null);
         when(rolesService.searchRolesByTenant(any(), any(), eq(TENANT)))
                 .thenReturn(new PageImpl<>(List.of(role)));
 

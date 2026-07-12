@@ -115,6 +115,7 @@ public class RolesService {
         role.setTenant(tenant);
         role.setCreatedBy(createdBy);
         role.setCreatedDate(Instant.now());
+        role.setDescricao(roleDTO.descricao());
 
         Role saved = roleRepository.save(role);
 
@@ -294,6 +295,46 @@ public class RolesService {
     }
 
     /**
+     * Atualiza nome e descrição de uma Role existente.
+     *
+     * @param roleId  ID da Role a ser atualizada
+     * @param roleDTO Novo nome/descrição
+     * @return Role atualizada
+     */
+    @Transactional
+    public RoleDTO updateRole(UUID roleId, RoleDTO roleDTO) {
+        logger.debug("Atualizando Role ID: {}", roleId);
+
+        Role role = roleRepository.findById(roleId)
+                .orElseThrow(() -> new BusinessException(Constants.ROLE_NOT_FOUND, HttpStatus.NOT_FOUND));
+
+        roleRepository.findByNameAndTenant_Id(roleDTO.name(), role.getTenant().getId())
+                .filter(existing -> !existing.getId().equals(roleId))
+                .ifPresent(existing -> {
+                    throw new BusinessException("Já existe uma Role com este nome neste Tenant", HttpStatus.BAD_REQUEST);
+                });
+
+        CurrentUser currentUser = SecurityUtils.getCurrentUserInfo();
+        String updatedBy = Optional.of(currentUser).map(CurrentUser::email)
+                .orElseThrow(() -> new BusinessException("Usuário não Autenticado", HttpStatus.UNAUTHORIZED));
+
+        role.setName(roleDTO.name());
+        role.setDescricao(roleDTO.descricao());
+        role.setLastUpdateBy(updatedBy);
+        role.setLastUpdateDate(Instant.now());
+
+        Role saved = roleRepository.save(role);
+
+        UUID correlationId = SecurityUtils.getCorrelationIdFromRequest(logger);
+        auditService.logAuditEvent(Constants.ROLE_UPDATE,
+                Constants.ROLE,
+                saved.getId(), Constants.SUCCESS,
+                null, correlationId);
+
+        return roleMapper.toRoleDTO(saved);
+    }
+
+    /**
      * Deleta uma Role fisicamente do banco de dados
      *
      * @param roleId ID da Role a ser deletada
@@ -346,7 +387,7 @@ public class RolesService {
     /** Cria role forçando o tenant do header (ignora qualquer tenantId vindo do body). */
     @Transactional
     public RoleDTO createRoleForTenant(RoleDTO roleDTO, Long tenantId) {
-        RoleDTO scoped = new RoleDTO(null, roleDTO.name(), tenantId, null, null, null, null);
+        RoleDTO scoped = new RoleDTO(null, roleDTO.name(), tenantId, null, null, null, null, roleDTO.descricao());
         return createRole(scoped);
     }
 
@@ -355,6 +396,13 @@ public class RolesService {
     public void deleteRoleForTenant(UUID roleId, Long tenantId) {
         assertRoleInTenant(roleId, tenantId);
         deleteRole(roleId);
+    }
+
+    /** Atualiza role garantindo que ela é do tenant. */
+    @Transactional
+    public RoleDTO updateRoleForTenant(UUID roleId, RoleDTO roleDTO, Long tenantId) {
+        assertRoleInTenant(roleId, tenantId);
+        return updateRole(roleId, roleDTO);
     }
 
     public List<PermissionDTO> getPermissionsByRoleForTenant(UUID roleId, Long tenantId) {
