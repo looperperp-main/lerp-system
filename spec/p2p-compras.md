@@ -176,7 +176,7 @@ A resposta é **digitada pelo comprador** (fornecedor não tem acesso ao sistema
 | `requisicao_id` | UUID FK, nullable | origem, se veio de requisição |
 | `cotacao_fornecedor_id` | UUID FK → `cotacao_compra_fornecedor`, nullable | origem, se veio de cotação |
 | `status` | VARCHAR(25) NOT NULL | enum `StatusPedidoCompra` (máquina de estados abaixo) |
-| `data_emissao` | DATE NOT NULL | data em que foi ENVIADO ao fornecedor |
+| `data_emissao` | DATE, nullable | preenchida na transição `enviar()` (RASCUNHO/APROVADO → ENVIADO) — é a data em que foi enviado ao fornecedor, não a data de criação. Fica `null` enquanto o pedido não passou por `ENVIADO`. |
 | `data_previsao_entrega` | DATE | sugestão: `data_emissao + ProdutoFornecedor.lead_time_dias` do item de maior lead time |
 | `valor_frete` | NUMERIC(15,2) NOT NULL DEFAULT 0 | |
 | `valor_total` | NUMERIC(15,2) NOT NULL | soma dos itens + frete; recalculado no service a cada alteração |
@@ -270,7 +270,7 @@ Dono: o módulo de estoque dentro do `operacoes-service`. O módulo de compras c
 | `produto_id` + `deposito_id` | UUID NOT NULL FKs | UNIQUE (`tenant_id`, `produto_id`, `deposito_id`) |
 | `quantidade` | NUMERIC(15,4) NOT NULL DEFAULT 0 | atualizado com `SELECT ... FOR UPDATE` (upsert) na mesma transação do movimento, dentro do módulo de estoque |
 
-CHECK `quantidade >= 0` **não** é aplicado — decisão fechada no o2c-vendas.md: estoque negativo sistêmico é aceitável no MVP (venda/expedição não valida saldo). **Flag temporária:** quando o controle real de disponibilidade for implementado (mesmo módulo, mesmo serviço), essa checagem passa a existir na expedição e no recebimento; não muda de serviço nem de schema, só liga a validação.
+CHECK `quantidade >= 0` **não** é aplicado — decisão fechada no o2c-vendas.md: estoque negativo sistêmico é aceitável no MVP (venda/expedição não valida saldo). **Flag temporária (expedição):** quando o controle real de disponibilidade for implementado (mesmo módulo, mesmo serviço), a checagem de saldo suficiente passa a existir na expedição; não muda de serviço nem de schema, só liga a validação. O recebimento não usa essa mesma checagem — receber mercadoria só *aumenta* saldo, então "saldo insuficiente" não se aplica; a validação futura equivalente no recebimento é outra, de **capacidade física do depósito** (espaço disponível), não de saldo do produto.
 
 ### Migrações Liquibase
 
@@ -328,6 +328,8 @@ stateDiagram-v2
     ENVIADO --> CANCELADO : cancelar (sem recebimento confirmado)
     RECEBIDO_PARCIAL --> RECEBIDO_PARCIAL : novo recebimento parcial
     RECEBIDO_PARCIAL --> RECEBIDO_TOTAL : completa as quantidades
+    RECEBIDO_TOTAL --> RECEBIDO_PARCIAL : cancelar recebimento CONFIRMADO\n(devolve quantidade_recebida)
+    RECEBIDO_PARCIAL --> ENVIADO : cancelar último recebimento CONFIRMADO\n(quantidade_recebida volta a 0)
     RECEBIDO_PARCIAL --> ENCERRADO : encerrar saldo remanescente (motivo)
     RECEBIDO_TOTAL --> ENCERRADO : todos recebimentos FATURADOS
     RECEBIDO_PARCIAL --> ENCERRADO : todos recebimentos FATURADOS + saldo encerrado

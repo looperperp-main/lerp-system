@@ -1,11 +1,11 @@
-# O2C — Vendas (Order-to-Cash): cotação → pedido → expedição → faturamento — Plano de implementação
+# O2C — Vendas (Order-to-Cash): orçamento → pedido → expedição → faturamento — Plano de implementação
 
 **Status:** PLANEJADO (não iniciado) · **Data:** 2026-07-10 · **Rev.:** 2026-07-11 (decisões do usuário aplicadas) · **Rev. 2:** 2026-07-11 (arquitetura consolidada) · **Serviços:** `operacoes-service` (**novo**, foco — também dono de P2P e estoque, ver `p2p-compras.md`) · `cadastro-service` (validação de referências + motor de preço, via API) · `fiscal-service` (**novo** — dono futuro de NF-e/motor fiscal) · `liquibase-service` (migração) · `auth-service` (seed de permissões) · `Angular/erp-front-end-web` (última fase)
 
 **Decisões fechadas (rev. 2026-07-11):**
-- **[Rev. 2] O módulo nasce dentro de um único microsserviço novo, `operacoes-service`** — decisão revista do usuário: em vez de 4 serviços separados (venda/compra/estoque/fiscal), **vendas, compras e estoque vivem juntos num só serviço** (`operacoes-service`, schemas `vendas`/`compras`/`estoque` no mesmo Postgres `loop-erp`), porque os três domínios compartilhariam banco mesmo sendo serviços distintos — juntar evita pagar o custo de 3 infra novas (Maven/Docker/Eureka/gateway/Jenkins × 3) sem ganhar isolamento real. Só o **`fiscal-service`** continua separado (ciclo de vida próprio — NF-e/SEFAZ). Consequências na seção "Onde o módulo vive".
+- **[Rev. 2] O módulo nasce dentro de um único microsserviço novo, `operacoes-service`** — decisão revista do usuário: em vez de 3 serviços separados (venda/compra/estoque), **vendas, compras e estoque vivem juntos num só serviço** (`operacoes-service`, schemas `vendas`/`compras`/`estoque` no mesmo Postgres `loop-erp`), porque os três domínios compartilhariam banco mesmo sendo serviços distintos — juntar evita pagar o custo de 3 infra novas (Maven/Docker/Eureka/gateway/Jenkins × 3) sem ganhar isolamento real. Só o **`fiscal-service`** continua separado (ciclo de vida próprio — NF-e/SEFAZ). Consequências na seção "Onde o módulo vive".
 - Referências a cadastros (`cliente`, `produto`, `vendedor`, `condicao_pagamento`, `transportadora`, `deposito`, `tabela_preco`) são **UUIDs sem FK física** — validação de existência/atividade via HTTP ao `cadastro-service` (`RestClient` `@LoadBalanced` via Eureka, ver §2/§7). Essa fronteira continua existindo porque cadastro-service segue sendo serviço separado.
-- Precificação de item via **`GET /api/v1/precos/resolver` por HTTP** no `cadastro-service` (o `PrecoResolverService` mora lá — deixa de ser chamada in-process), com **snapshot congelado no item** (preço, tabela, origem). Resolver 404 → permite preço manual com flag `preco_manual = true`.
+- Precificação de item via **`GET /api/v1/precos/resolver` por HTTP** no `cadastro-service` (o `PrecoResolverService` mora lá, junto com `Produto`/`Cliente`/`TabelaPreco` — chamada HTTP entre serviços, não in-process, porque o motor de preço não faz parte do `operacoes-service`), com **snapshot congelado no item** (preço, tabela, origem). Resolver 404 → permite preço manual com flag `preco_manual = true`.
 - Máquina de estados: `ORCAMENTO → CONFIRMADO → EXPEDIDO → FATURADO`, com `CANCELADO` alcançável de qualquer estado pré-faturamento e **novo estado `BLOQUEADO_CREDITO`** (bloqueio SOFT de limite — decisão do usuário, §4/§7). Sem estado de separação/picking no MVP.
 - Integração com o financeiro: **evento Kafka `venda.pedido.faturado`** no faturamento; o futuro `financeiro-service` consome e cria N títulos a receber com `origem = 'NF_SAIDA'` (consistente com Fin.md §11.2 e F4.3). Enquanto o financeiro não existir, o evento fica publicado e ignorado (sem consumer) — zero acoplamento. Publicação sempre **após commit** da transação de faturamento (§8) — nunca publicar título de um faturamento que sofreu rollback.
 - NF-e/NFC-e e o motor fiscal IBS/CBS são responsabilidade do **`fiscal-service`** (único serviço que permanece separado, spec próprio futuro). Os pontos de integração reservados neste spec apontam para ele (§8).
@@ -130,6 +130,8 @@ Insert em **toda** transição (inclusive criação). Sem update/delete — appe
 
 `PedidoNumeroService`: `SELECT proximo_numero FROM vendas.pedido_sequencia WHERE tenant_id = ? FOR UPDATE` → incrementa → retorna. Linha criada on-demand (upsert) no primeiro pedido do tenant. Número atribuído **na criação do orçamento** (orçamento e pedido compartilham a numeração — o que distingue é o `status`).
 
+> **Por que não reaproveita `compra_numeracao` (p2p-compras.md §"Modelagem de dados")?** O P2P tem 4 tipos de documento com numeração independente (requisição, cotação, pedido, recebimento), por isso sua tabela tem PK composta `tenant_id + tipo_documento`. O O2C tem um único tipo de documento numerado (orçamento/pedido, mesma sequência), então a PK simples `tenant_id` já resolve — não é duplicação de padrão por descuido, é o formato mais simples pro caso de uso de vendas.
+
 ### 3.5 Enum `StatusPedido` (Java, `EnumType.STRING`)
 
 `ORCAMENTO`, `BLOQUEADO_CREDITO`, `CONFIRMADO`, `EXPEDIDO`, `FATURADO`, `CANCELADO`.
@@ -160,7 +162,7 @@ stateDiagram-v2
     CONFIRMADO --> CANCELADO : cancelar(motivo)
 
     EXPEDIDO --> FATURADO : faturar()\n• gera parcelas (condição pgto)\n• publica venda.pedido.faturado
-    EXPEDIDO --> CANCELADO : cancelar(motivo)\n(mercadoria retorna — sem estoque no MVP,\nsó registro/motivo)
+    EXPEDIDO --> CANCELADO : cancelar(motivo)\n(estorna estoque in-process:\nESTORNO_SAIDA_VENDA, mesma transação)
 
     FATURADO --> [*]
     CANCELADO --> [*]
@@ -193,10 +195,10 @@ Rota nova no gateway: `Path=/api/v1/pedidos/**` → `lb://operacoes-service`, de
 | 3 | `/api/v1/pedidos/{id}` | GET | front web | Detalhe com itens + histórico de status. |
 | 4 | `/api/v1/pedidos` | GET | front web | Lista paginada (HATEOAS, padrão dos demais CRUDs). Filtros: `status`, `clienteId`, `vendedorId`, `numero`, `dataEmissaoDe/Ate`. |
 | 5 | `/api/v1/pedidos/{id}/confirmar` | POST | front web | De `ORCAMENTO` ou `BLOQUEADO_CREDITO`. Validações §7. Sem body. Com estouro de limite: usuário **com** `PEDIDO_CONFIRMACAO_SEM_LIMITE` → `CONFIRMADO`; **sem** → `BLOQUEADO_CREDITO` (200, não 400). |
-| 6 | `/api/v1/pedidos/{id}/expedir` | POST | front web | Transição → `EXPEDIDO`. Body: `{ depositoId, transportadoraId?, valorFrete?, modalidadeFrete? }`. Publica `venda.pedido.expedido`. |
+| 6 | `/api/v1/pedidos/{id}/expedir` | POST | front web | Transição → `EXPEDIDO`. Body: `{ depositoId, transportadoraId?, valorFrete?, modalidadeFrete? }`. Aciona in-process o módulo de estoque (registra `SAIDA_VENDA`, baixa saldo — mesma transação, §7); não publica evento Kafka. |
 | 7 | `/api/v1/pedidos/{id}/faturar` | POST | front web | Transição → `FATURADO`. Sem body. Calcula parcelas e publica `venda.pedido.faturado` (§8). |
 | 8 | `/api/v1/pedidos/{id}/cancelar` | POST | front web | Body: `{ motivo }` (obrigatório). Qualquer estado exceto `FATURADO`/`CANCELADO`. |
-| 9 | `/api/v1/pedidos/{id}/recalcular-precos` | POST | front web (botão "Recalcular preços") | Só em `ORCAMENTO`: re-executa o resolver para todos os itens **não-manuais** com a `dataEmissao` atual e atualiza snapshots. Uso: orçamento antigo cuja tabela mudou. |
+| 9 | `/api/v1/pedidos/{id}/recalcular-precos` | POST | front web (botão "Recalcular preços") | Só em `ORCAMENTO`: re-executa o resolver para todos os itens **não-manuais** usando a `dataEmissao` **do próprio pedido** (imutável, não a data de hoje) e atualiza snapshots. Uso: tabela de preço mudou depois da criação do orçamento; se a vigência já expirou para essa `dataEmissao`, o resolver retorna 404 no item (mesmo tratamento do §6). |
 | 10 | `/api/v1/pedidos/{id}/reabrir` | POST | front web | `BLOQUEADO_CREDITO → ORCAMENTO` (volta a editar itens/valor). Permissão `PEDIDO_ESCRITA`. |
 
 DTOs novos: `PedidoRequestDTO`, `PedidoItemRequestDTO`, `PedidoResponseDTO`, `PedidoItemResponseDTO`, `PedidoStatusHistoricoDTO`, `ExpedirPedidoRequestDTO`, `CancelarPedidoRequestDTO` + MapStruct `PedidoMapper`. Camadas: `PedidoService` (máquina de estados + validações), `PedidoNumeroService`, repositories Spring Data (`PedidoRepository`, `PedidoStatusHistoricoRepository`, `PedidoSequenciaRepository`).
@@ -248,6 +250,7 @@ DTOs novos: `PedidoRequestDTO`, `PedidoItemRequestDTO`, `PedidoResponseDTO`, `Pe
 ### No cancelamento
 - `motivo` obrigatório (≤ 500).
 - Estado ∉ {`FATURADO`, `CANCELADO`}.
+- Se o estado era `EXPEDIDO`: na mesma transação do `cancelar()`, chamada in-process ao módulo de estoque grava `ESTORNO_SAIDA_VENDA` (devolve a quantidade baixada). Se o estado era `ORCAMENTO`/`BLOQUEADO_CREDITO`/`CONFIRMADO` (nunca expediu), não há estoque a estornar.
 
 ---
 
@@ -300,14 +303,15 @@ Quando o `fiscal-service` (dono da emissão NF-e/NFC-e e do motor fiscal IBS/CBS
 
 ### Demais eventos de domínio
 
+**`venda.pedido.expedido` NÃO é evento Kafka** (Rev. 2): a baixa de estoque na expedição é chamada in-process ao módulo de estoque do mesmo `operacoes-service`, dentro da mesma transação (endpoint 6, §7) — não há fronteira de serviço a desacoplar, então não existe tópico para essa transição.
+
 | Tópico | Quando | Consumidor previsto |
 |---|---|---|
-| `venda.pedido.confirmado` | transição → CONFIRMADO | BI/engajamento; módulo de estoque in-process (reserva, upgrade) |
-| `venda.pedido.expedido` | transição → EXPEDIDO | Chamada in-process ao módulo de **estoque** do mesmo `operacoes-service` (movimento `SAIDA_VENDA` + baixa de saldo por depósito) — não é mais evento Kafka (Rev. 2), é chamada Java direta na mesma transação |
-| `venda.pedido.faturado` | transição → FATURADO | futuro financeiro-service (títulos) |
-| `venda.pedido.cancelado` | transição → CANCELADO | Módulo de estoque in-process (estorno de movimento, se pós-expedição) |
+| `venda.pedido.confirmado` | transição → CONFIRMADO | BI/engajamento. (Reserva de estoque na confirmação é upgrade futuro; quando existir, é validação in-process na própria transição `confirmar()`, não consumo deste evento.) |
+| `venda.pedido.faturado` | transição → FATURADO | futuro financeiro-service (títulos), ver mecanismo acima |
+| `venda.pedido.cancelado` | transição → CANCELADO | BI/auditoria. (Estorno de estoque pós-expedição acontece in-process na própria transição `cancelar()` — ver "No cancelamento", §7 — não via consumo deste evento.) |
 
-Payloads dos três primeiros compartilham o envelope (`event_id`, `tenant_id`, `pedido_id`, `numero`, itens). Sem consumidores hoje, publicar é barato e congela o contrato. Nomes em `Constants.java`, registro em `spec/kafka-topics.md`.
+Payloads dos três compartilham o envelope (`event_id`, `tenant_id`, `pedido_id`, `numero`, itens). Sem consumidor real hoje (exceto o futuro financeiro-service), publicar é barato e congela o contrato. Nomes em `Constants.java`, registro em `spec/kafka-topics.md`.
 
 ---
 
@@ -330,7 +334,7 @@ Mesma checagem do spec do motor de preço: 3 workspaces Angular.
 2. **Domínio + repositories** — entidades `Pedido`, `PedidoItem`, `PedidoStatusHistorico`, `PedidoSequencia`, enums `StatusPedido` (com `BLOQUEADO_CREDITO`)/`ModalidadeFrete`; repositories; `ddl-auto=validate` contra o schema da fase 1.
 3. **Services** — `PedidoNumeroService`; `PedidoService`: CRUD do orçamento, máquina de estados (tabela de transições válidas), validações §7 (limite de crédito com query de exposição), cálculo de totais e parcelas. Integração com `PrecoResolverService` (§6) — **depende da fase 3 do motor de preço**; até lá, stub que força `preco_manual`. Testes unitários: transições válidas/inválidas, limite de crédito (com/sem limite, estouro, exposição acumulada), arredondamento de parcelas (soma exata), resolver 404 + preço manual, numeração concorrente.
 4. **API** — DTOs, `PedidoMapper` (MapStruct), `PedidoController` (10 endpoints), permissões, OpenAPI, `@WebMvcTest`.
-5. **Eventos** — 4 producers Kafka + payloads, constantes em `common/Constants.java`, registro em `spec/kafka-topics.md`, eventos de auditoria (`AuditEventDTO`) nas transições.
+5. **Eventos** — 3 producers Kafka (`confirmado`/`faturado`/`cancelado`; `expedido` é in-process, não Kafka) + payloads, constantes em `common/Constants.java`, registro em `spec/kafka-topics.md`, eventos de auditoria (`AuditEventDTO`) nas transições.
 6. **Frontend web** — 3 telas + rotas + guards de permissão.
 
 ```mermaid
@@ -353,7 +357,7 @@ flowchart LR
 | Item | Upgrade path |
 |---|---|
 | **NF-e / NFC-e** | Dono: **`fiscal-service`** (spec próprio futuro; alinhado a Fin.md §8 fase 2). Ponto de integração reservado no §8: gatilho de título migra para `nfe.saida.autorizada`; pedido ganha `nfe_chave`. Interina: emissor externo + DANFE anexado (ressalva operacional §7/§8). |
-| **Validação de saldo / reserva de estoque** | O módulo de estoque (mesmo `operacoes-service`) já registra movimento nas transições `confirmado` (reserva, upgrade), `expedido` (baixa), `cancelado` (estorno). Upgrade: checagem de disponibilidade antes da transição de expedição, quando o negócio pedir bloqueio — é a flag "estoque não bloqueante" (decisão 3) sendo desativada; mesma base, mesmo serviço, só liga a validação. |
+| **Validação de saldo / reserva de estoque** | O módulo de estoque (mesmo `operacoes-service`) já registra movimento in-process nas transições `expedido` (baixa) e `cancelado` pós-expedição (estorno); `confirmado` ainda não mexe em estoque — reserva na confirmação é upgrade futuro. Upgrade: checagem de disponibilidade antes da transição de expedição, quando o negócio pedir bloqueio — é a flag "estoque não bloqueante" (decisão 3) sendo desativada; mesma base, mesmo serviço, só liga a validação. |
 | **Expedição / faturamento parcial** | Exige `quantidade_expedida` por item + N eventos parciais. Modelo atual (transição única) não bloqueia: adicionar colunas de quantidade atendida e permitir múltiplas expedições por pedido. |
 | **Alçada de aprovação (desconto máximo / faixas de crédito)** | MVP: desconto livre + bloqueio SOFT de crédito com `BLOQUEADO_CREDITO` e bypass por permissão. Upgrade: perfil de alçada por vendedor/faixa de valor (padrão `approval_regra` do Fin.md §4.10). |
 | **Devolução / RMA** | Fluxo próprio pós-`FATURADO`, com estorno no financeiro (Fin.md §4/§5) e entrada de estoque. |
