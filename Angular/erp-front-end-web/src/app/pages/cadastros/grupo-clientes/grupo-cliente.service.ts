@@ -30,4 +30,8 @@ export class GrupoClienteService {
     }
     return this.http.post<GrupoCliente>(this.apiUrl, grupo);
   }
+
+  updateStatus(id: string): Observable<void> {
+    return this.http.patch<void>(`${this.apiUrl}/${id}/status`, null);
+  }
 }

@@ -1,25 +1,24 @@
-<div class="page-container">
+<div>
   <p-toast></p-toast>
 
-  <div class="page-header">
+  <div class="jb-page-head">
     <div>
-      <h1 class="page-title">Associação de Tabelas de Preço</h1>
-      <p class="page-subtitle">Crie e gerencie as Associações</p>
+      <span class="eyebrow"><i class="dot"></i> CADASTROS</span>
+      <h1>Associação de Tabelas de Preço</h1>
+      <p class="sub">Crie e gerencie as Associações entre Grupos de Cliente e Tabelas de Preço</p>
     </div>
   </div>
 
-  <div class="content-card rounded-xl p-6 bg-white shadow-sm mt-4">
-    <div class="content-toolbar flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-      <h3 class="content-toolbar-title text-xl font-bold text-gray-800 flex items-center gap-2 m-0">
-        <i class="pi pi-arrow-circle-right text-gray-700"></i> Ações
-      </h3>
-      <div class="content-toolbar-actions">
+  <div class="jb-panel">
+    <div class="jb-panel-head">
+      <h3><i class="pi pi-arrow-circle-right"></i> Grupos de Cliente</h3>
+      <div class="jb-panel-actions">
         <app-primary-button
+          class="jb-btn-paginator-style"
           icon="pi pi-upload"
           padding="0.5rem 0.8rem"
           tooltip="Exportar"
           tooltipPosition="bottom"
-          backgroundColor="#f28705"
           (onClick)="exportData()">
         </app-primary-button>
       </div>
@@ -35,50 +34,46 @@
         [totalRecords]="totalRecords()"
         [lazy]="true"
         (onLazyLoad)="loadGrupos($event)"
-        [showCurrentPageReport]="true" [tableStyle]="{ 'min-width': '60rem' }"
-        currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords} registros"
-        [rowsPerPageOptions]="[10, 25, 50]" [paginatorDropdownAppendTo]="'body'"
+        [tableStyle]="{ 'min-width': '60rem' }"
+        [rowsPerPageOptions]="[10, 25, 50]"
+        [paginatorDropdownAppendTo]="'body'"
         styleClass="p-datatable-sm text-sm">
 
         <ng-template pTemplate="header" let-columns>
           <tr>
-            <th *ngFor="let col of columns" [pSortableColumn]="col.field !== 'actions' ? col.field : ''" class="text-xs uppercase text-gray-400 font-semibold border-b border-gray-100 pb-3">
+            <th *ngFor="let col of columns" [pSortableColumn]="col.field !== 'actions' ? col.field : ''">
               {{col.header}} <p-sortIcon *ngIf="col.field !== 'actions'" [field]="col.field"></p-sortIcon>
             </th>
           </tr>
         </ng-template>
 
         <ng-template pTemplate="body" let-rowData let-columns="columns">
-          <tr lass="hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-colors">
-            <td *ngFor="let col of columns" class="py-3 text-gray-600">
+          <tr>
+            <td *ngFor="let col of columns">
 
               <!-- Status -->
               <ng-container *ngIf="col.type === 'status'">
-                <span [class]="'px-2 py-1 rounded text-xs font-medium ' +
-                    (rowData[col.field] === true ? 'bg-green-100 text-green-700' :
-                     'bg-red-100 text-red-700')">
-                    {{rowData[col.field] === true ? 'ATIVO' : 'INATIVA'}}
+                <span class="jb-status" [class.active]="rowData[col.field] === true" [class.inactive]="rowData[col.field] !== true">
+                    {{rowData[col.field] === true ? 'ATIVO' : 'INATIVO'}}
                 </span>
               </ng-container>
 
               <!-- Ações -->
               <ng-container *ngIf="col.type === 'actions'">
-                <div class="flex gap-2">
-                  <p-button
-                    icon="pi pi-tags"
-                    pTooltip="Associar Tabelas"
-                    tooltipPosition="top"
-                    severity="info"
-                    [text]="true"
-                    [rounded]="true"
-                    (onClick)="abrirAssociacao(rowData)">
-                  </p-button>
-                </div>
+                <button
+                  pButton
+                  pRipple
+                  icon="pi pi-tags"
+                  class="p-button-rounded p-button-text p-button-info p-button-sm w-8 h-8"
+                  pTooltip="Associar Tabelas"
+                  (click)="abrirAssociacao(rowData)"
+                  tooltipPosition="top">
+                </button>
               </ng-container>
 
               <!-- Texto Padrão -->
               <ng-container *ngIf="col.type === 'text'">
-                <span class="font-medium" [class.text-gray-900]="col.field === 'id'">
+                <span [class.jb-strong]="col.field === 'nome'">
                   {{ rowData[col.field] || '-' | htmlDecode }}
                 </span>
               </ng-container>
@@ -89,8 +84,8 @@
 
         <ng-template pTemplate="emptymessage">
           <tr>
-            <td [attr.colspan]="cols.length" class="text-center py-6 text-gray-500">
-              Nenhuma Tabela de Preço encontrada.
+            <td [attr.colspan]="cols.length" style="text-align: center; padding: 24px; color: var(--muted);">
+              Nenhum Grupo de Cliente encontrado.
             </td>
           </tr>
         </ng-template>
@@ -98,6 +93,10 @@
     </div>
   </div>
 
+  <footer class="jb-list-footer">
+    <span>© 2026 SYAX TECNOLOGIA · BUILD 26.04.01</span>
+    <span>{{ totalRecords() }} {{ totalRecords() === 1 ? 'GRUPO CADASTRADO' : 'GRUPOS CADASTRADOS' }}</span>
+  </footer>
 
 </div>
 

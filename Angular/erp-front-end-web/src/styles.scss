@@ -154,7 +154,8 @@ html.theme-light .jb-sidebar {
 }
 
 html.theme-light .p-inputtext::placeholder,
-html.theme-light .p-inputmask::placeholder {
+html.theme-light .p-inputmask::placeholder,
+html.theme-light .p-textarea::placeholder {
   color: rgba(255, 255, 255, 0.65) !important;
 }
 

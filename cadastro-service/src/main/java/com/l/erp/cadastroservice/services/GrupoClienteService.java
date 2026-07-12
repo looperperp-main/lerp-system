@@ -2,6 +2,7 @@ package com.l.erp.cadastroservice.services;
 
 import com.l.erp.cadastroservice.api.dto.GrupoClienteDTO;
 import com.l.erp.cadastroservice.api.mappers.GrupoClienteMapper;
+import com.l.erp.cadastroservice.domain.Deposito;
 import com.l.erp.cadastroservice.domain.GrupoCliente;
 import com.l.erp.cadastroservice.repository.GrupoClienteRepository;
 import com.l.erp.common.util.Constants;
@@ -158,6 +159,39 @@ public class GrupoClienteService {
     }
 
     /**
+     * Updates the status of a specified GrupoCliente entity by toggling its active state.
+     * Logs the operation and emits audit events for tracking changes.
+     *
+     * @param id the unique identifier of the GrupoCliente entity to be updated
+     * @param tenantId the identifier of the tenant associated with the GrupoCliente entity
+     * @param userId the identifier of the user performing the update operation
+     * @throws BusinessException if the GrupoCliente entity is not found
+     */
+    @Transactional
+    public void updateStatus(UUID id, Long tenantId, UUID userId) {
+        UUID correlationId = getCorrelationIdFromRequest(logger);
+        logger.info("Atualizando status do Grupo de cliente ID: {}", id);
+        GrupoCliente gc = repository.findByIdAndTenantId(id, tenantId).orElseThrow(() -> {
+            sendAuditEvent(Constants.GROUP_C_UPDATE, userId, id, Constants.ERROR, "{Error: Grupo de Cliente não encontrado}", correlationId);
+            return new BusinessException(Constants.GROUP_C_NOT_FOUND, HttpStatus.NOT_FOUND);
+        });
+
+        gc.setAtivo(!gc.getAtivo());
+        gc.setUpdatedAt(Instant.now());
+        gc.setLastUpdatedBy(userId);
+        repository.save(gc);
+
+        sendAuditEvent(
+                Constants.GROUP_C_UPDATE,
+                userId,
+                id,
+                Constants.SUCCESS,
+                "{Status Alterado: " + gc.getAtivo() + "}",
+                correlationId
+        );
+    }
+
+    /**
      * Sends an audit event to the audit producer, containing information about an action performed in the system.
      *
      * @param actorId       The unique identifier of the actor performing the action.
@@ -182,4 +216,6 @@ public class GrupoClienteService {
 
         auditProducer.sendAuditEvent(auditEvent);
     }
+
+
 }

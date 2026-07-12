@@ -16,9 +16,21 @@ import { PermissionModel, RoleModel, SecurityService } from '../security.service
 @Component({
   selector: 'app-security-role-permissions',
   standalone: true,
-  imports: [CommonModule, FormsModule, TableModule, ButtonModule, DialogModule, InputTextModule, PickListModule, TooltipModule, Ripple, ToastModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    TableModule,
+    ButtonModule,
+    DialogModule,
+    InputTextModule,
+    PickListModule,
+    TooltipModule,
+    Ripple,
+    ToastModule,
+  ],
   providers: [MessageService],
   templateUrl: './role-permissions.html',
+  styleUrl: './role-permissions.scss',
 })
 export class SecurityRolePermissions {
   roles = signal<RoleModel[]>([]);
@@ -33,7 +45,11 @@ export class SecurityRolePermissions {
   target: PermissionModel[] = []; // atribuídas
   private originalIds = new Set<string>();
 
-  constructor(private service: SecurityService, private messages: MessageService, private cdr: ChangeDetectorRef) {}
+  constructor(
+    private service: SecurityService,
+    private messages: MessageService,
+    private cdr: ChangeDetectorRef,
+  ) {}
 
   onLazyLoad(event: any) {
     const page = event.first / event.rows;
@@ -71,7 +87,12 @@ export class SecurityRolePermissions {
         this.source = allPerms.filter((p) => !this.originalIds.has(p.id!));
         this.cdr.detectChanges();
       },
-      error: () => this.messages.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao carregar permissões' }),
+      error: () =>
+        this.messages.add({
+          severity: 'error',
+          summary: 'Erro',
+          detail: 'Erro ao carregar permissões',
+        }),
     });
   }
 
@@ -86,7 +107,11 @@ export class SecurityRolePermissions {
     const finalize = () => {
       this.service.assignPermissions(roleId, targetIds).subscribe({
         next: () => {
-          this.messages.add({ severity: 'success', summary: 'Sucesso', detail: 'Permissões salvas!' });
+          this.messages.add({
+            severity: 'success',
+            summary: 'Sucesso',
+            detail: 'Permissões salvas!',
+          });
           this.saving = false;
           this.dialog = false;
         },

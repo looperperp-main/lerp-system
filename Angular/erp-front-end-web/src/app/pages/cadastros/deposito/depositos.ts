@@ -15,6 +15,7 @@ import {HttpErrorResponse} from '@angular/common/http';
 import {GrupoCliente} from '../grupo-clientes/grupo-cliente.model';
 import {Deposito} from './deposito.model';
 import {DepositoForm} from './deposito-form/deposito-form';
+import {Produto} from '../produtos/produto.model';
 
 @Component({
   selector: 'app-deposito',
@@ -103,6 +104,20 @@ export class Depositos implements OnInit{
 
   onFormCanceled(): void {
     this.displayForm = false;
+  }
+
+  inativarAtivarDeposito(rowData: Deposito): void {
+    // Para mudar o status apenas alteramos e atualizamos. Depende de como é feito no backend
+    const updated = { ...rowData, ativo: !rowData.ativo };
+    this.depositoService.updateStatus(rowData.id!).subscribe({
+      next: () => {
+        this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Status atualizado.' });
+        this.loadDepositos({ first: 0, rows: 10 });
+      },
+      error: (err) => {
+        this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao alterar status.' });
+      }
+    });
   }
 
   exportData(): void {

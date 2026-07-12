@@ -118,6 +118,7 @@ public class UserService {
         user.setFailedLoginAttempts(0);
         user.setCreatedDate(Instant.now());
         user.setTenant(tenant);
+        user.setUserType(Constants.TENANT_USER);
 
         // Criptografando a senha recebida
         user.setPasswordHash(passwordEncoder.encode(userDTO.passwordHash()));

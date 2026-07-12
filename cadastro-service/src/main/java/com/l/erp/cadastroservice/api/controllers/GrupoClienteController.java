@@ -14,6 +14,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -66,6 +67,23 @@ public class GrupoClienteController {
         UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new BusinessException(Constants.USUARIO_UUID_NAO_ENCONTRADO, HttpStatus.UNAUTHORIZED));
         GrupoClienteDTO salvo = service.update(id, dto, tenantID, userId);
         return ResponseEntity.ok(salvo);
+    }
+
+    /**
+     * Updates the status of a given entity identified by its ID.
+     *
+     * @param id the unique identifier of the entity whose status is being updated
+     * @return a {@code ResponseEntity} with no content (HTTP status 204) indicating the update operation was successful
+     * @throws BusinessException if the tenant or user ID cannot be resolved
+     */
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<Void> updateStatus(@PathVariable UUID id){
+        logger.info("Atualizando status do Grupo de Cliente ID: {}", id);
+        Long tenantId = SecurityUtils.getCurrentTenantId().orElseThrow(() -> new BusinessException(Constants.TENANT_NOT_FOUND, HttpStatus.UNAUTHORIZED));
+        UUID userId = SecurityUtils.getCurrentUserId().orElseThrow(() -> new BusinessException(Constants.USER_NOT_FOUND, HttpStatus.UNAUTHORIZED));
+
+        service.updateStatus(id, tenantId, userId);
+        return ResponseEntity.noContent().build();
     }
 
 }

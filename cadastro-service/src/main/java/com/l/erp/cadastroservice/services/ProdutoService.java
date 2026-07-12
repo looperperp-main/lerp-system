@@ -2,6 +2,7 @@ package com.l.erp.cadastroservice.services;
 
 import com.l.erp.cadastroservice.api.dto.ProdutoDTO;
 import com.l.erp.cadastroservice.api.mappers.ProdutoMapper;
+import com.l.erp.cadastroservice.domain.Pessoa;
 import com.l.erp.cadastroservice.domain.Produto;
 import com.l.erp.cadastroservice.domain.ProdutoEstoqueConfig;
 import com.l.erp.cadastroservice.domain.ProdutoFornecedor;
@@ -122,13 +123,19 @@ public class ProdutoService {
     }
 
     @Transactional
-    public void delete(UUID id, UUID userId, Long tenantId) {
-        UUID correlationID = getCorrelationIdFromRequest(logger);
-        long deleted = produtoRepository.deleteByIdAndTenantId(id, tenantId);
-        if (deleted == 0) {
-            throw new BusinessException(Constants.PRODUTO_NOT_FOUND, HttpStatus.NOT_FOUND);
-        }
-        sendAuditEvent(Constants.PRODUTO_DELETE, userId, id, Constants.SUCCESS, null, correlationID);
+    public void updateStatus(UUID id, Long tenantId, UUID userId) {
+        UUID correlationId = getCorrelationIdFromRequest(logger);
+        logger.info("Atualizando status do Produto ID: {}", id);
+        Produto produto = produtoRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> {
+                    sendAuditEvent(Constants.PRODUTO_UPDATE, userId, id, Constants.ERROR, "{Error: Produto não encontrado}", correlationId);
+                    return new BusinessException(Constants.PRODUTO_NOT_FOUND, HttpStatus.NOT_FOUND);
+                });
+        produto.setAtivo(!produto.getAtivo());
+        produto.setLastUpdatedBy(userId);
+        produto.setUpdatedAt(Instant.now());
+        produtoRepository.save(produto);
+        sendAuditEvent(Constants.PRODUTO_UPDATE, userId, id, Constants.SUCCESS, "{Status Alterado: " + produto.getAtivo() + "}", correlationId);
     }
 
     private void processarSubEntidades(Produto produto, ProdutoDTO dto, Long tenantId, UUID userId, boolean isCreate) {
@@ -145,7 +152,7 @@ public class ProdutoService {
                 ProdutoEstoqueConfig config = new ProdutoEstoqueConfig();
                 config.setTenantId(tenantId);
                 config.setProduto(produto);
-                // VINVULA O DEPÓSITO (Obrigatório)
+                // VINCULA O DEPÓSITO (Obrigatório)
                 if(configDto.depositoId() != null) {
                     config.setDeposito(depositoRepository.findByTenantIdAndId(tenantId, configDto.depositoId()).orElseThrow(() -> new BusinessException("Depósito não encontrado", HttpStatus.BAD_REQUEST)));
                 } else {
@@ -229,4 +236,6 @@ public class ProdutoService {
         );
         auditProducer.sendAuditEvent(auditEvent);
     }
+
+
 }

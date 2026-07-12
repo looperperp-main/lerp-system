@@ -1,4 +1,3 @@
-
 import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CommonModule } from '@angular/common';
@@ -11,12 +10,21 @@ import { DatePickerModule } from 'primeng/datepicker';
 import { TabelaPreco } from '../tabela-preco.model';
 import { TabelaPrecoService } from '../tabela-preco.service';
 import { PrimaryButtonComponent } from '../../../../components/primary-button/primary-button';
-import {HttpErrorResponse} from '@angular/common/http';
+import { HttpErrorResponse } from '@angular/common/http';
 
 @Component({
   selector: 'app-tabela-precos-form',
-  imports: [CommonModule, ReactiveFormsModule, ButtonModule, InputTextModule, CheckboxModule, DatePickerModule, PrimaryButtonComponent],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    ButtonModule,
+    InputTextModule,
+    CheckboxModule,
+    DatePickerModule,
+    PrimaryButtonComponent,
+  ],
   templateUrl: './tabela-precos-form.html',
+  styleUrl: './tabela-precos-form.scss',
 })
 export class TabelaPrecosForm implements OnInit {
   @Input() tabelaPrecoData: TabelaPreco | null = null;
@@ -29,7 +37,7 @@ export class TabelaPrecosForm implements OnInit {
   constructor(
     private fb: FormBuilder,
     private tabelaPrecoService: TabelaPrecoService,
-    private messageService: MessageService
+    private messageService: MessageService,
   ) {}
 
   ngOnInit(): void {
@@ -46,15 +54,19 @@ export class TabelaPrecosForm implements OnInit {
       ativa: [true],
       padrao: [false],
       inicioVigencia: [null, [Validators.required]],
-      fimVigencia: [null]
+      fimVigencia: [null],
     });
   }
 
   private loadFormData(): void {
     this.form.patchValue({
       ...this.tabelaPrecoData,
-      inicioVigencia: this.tabelaPrecoData?.inicioVigencia ? new Date(this.tabelaPrecoData.inicioVigencia) : null,
-      fimVigencia: this.tabelaPrecoData?.fimVigencia ? new Date(this.tabelaPrecoData.fimVigencia) : null
+      inicioVigencia: this.tabelaPrecoData?.inicioVigencia
+        ? new Date(this.tabelaPrecoData.inicioVigencia)
+        : null,
+      fimVigencia: this.tabelaPrecoData?.fimVigencia
+        ? new Date(this.tabelaPrecoData.fimVigencia)
+        : null,
     });
   }
 
@@ -70,7 +82,9 @@ export class TabelaPrecosForm implements OnInit {
     // Converte datas para ISO yyyy-MM-dd
     const payload: TabelaPreco = {
       ...formValue,
-      inicioVigencia: formValue.inicioVigencia ? formValue.inicioVigencia.toISOString().split('T')[0] : null,
+      inicioVigencia: formValue.inicioVigencia
+        ? formValue.inicioVigencia.toISOString().split('T')[0]
+        : null,
       fimVigencia: formValue.fimVigencia ? formValue.fimVigencia.toISOString().split('T')[0] : null,
     };
 
@@ -80,15 +94,23 @@ export class TabelaPrecosForm implements OnInit {
 
     request$.subscribe({
       next: () => {
-        this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Tabela de Preço salva com sucesso!' });
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Sucesso',
+          detail: 'Tabela de Preço salva com sucesso!',
+        });
         this.loading = false;
         this.saved.emit();
       },
       error: (errHttpE: HttpErrorResponse) => {
         console.error('Erro ao salvar', errHttpE);
-        this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Falha ao salvar a Tabela de Preço: ' + errHttpE.error.message });
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Erro',
+          detail: 'Falha ao salvar a Tabela de Preço: ' + errHttpE.error.message,
+        });
         this.loading = false;
-      }
+      },
     });
   }
 

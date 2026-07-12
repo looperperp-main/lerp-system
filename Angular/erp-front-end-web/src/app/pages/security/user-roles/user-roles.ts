@@ -16,9 +16,21 @@ import { RoleModel, SecurityService, UserModel } from '../security.service';
 @Component({
   selector: 'app-security-user-roles',
   standalone: true,
-  imports: [CommonModule, FormsModule, TableModule, ButtonModule, DialogModule, InputTextModule, PickListModule, TooltipModule, Ripple, ToastModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    TableModule,
+    ButtonModule,
+    DialogModule,
+    InputTextModule,
+    PickListModule,
+    TooltipModule,
+    Ripple,
+    ToastModule,
+  ],
   providers: [MessageService],
   templateUrl: './user-roles.html',
+  styleUrl: './user-roles.scss',
 })
 export class SecurityUserRoles {
   users = signal<UserModel[]>([]);
@@ -32,7 +44,11 @@ export class SecurityUserRoles {
   source: RoleModel[] = []; // roles disponíveis
   target: RoleModel[] = []; // roles do usuário
 
-  constructor(private service: SecurityService, private messages: MessageService, private cdr: ChangeDetectorRef) {}
+  constructor(
+    private service: SecurityService,
+    private messages: MessageService,
+    private cdr: ChangeDetectorRef,
+  ) {}
 
   onLazyLoad(event: any) {
     const page = event.first / event.rows;
@@ -43,17 +59,23 @@ export class SecurityUserRoles {
 
   load(page = 0, size = 10, sort = '') {
     this.loading.set(true);
-    this.service.searchUsers(page, size, { displayName: this.filterName || null, active: true }, sort).subscribe({
-      next: (res) => {
-        this.users.set(res.content || []);
-        this.totalRecords.set(res.totalElements || 0);
-        this.loading.set(false);
-      },
-      error: () => {
-        this.messages.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao carregar usuários' });
-        this.loading.set(false);
-      },
-    });
+    this.service
+      .searchUsers(page, size, { displayName: this.filterName || null, active: true }, sort)
+      .subscribe({
+        next: (res) => {
+          this.users.set(res.content || []);
+          this.totalRecords.set(res.totalElements || 0);
+          this.loading.set(false);
+        },
+        error: () => {
+          this.messages.add({
+            severity: 'error',
+            summary: 'Erro',
+            detail: 'Erro ao carregar usuários',
+          });
+          this.loading.set(false);
+        },
+      });
   }
 
   openConfig(user: UserModel) {
@@ -69,7 +91,8 @@ export class SecurityUserRoles {
         this.source = all.filter((r) => !targetIds.has(r.id));
         this.cdr.detectChanges();
       },
-      error: () => this.messages.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao carregar roles' }),
+      error: () =>
+        this.messages.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao carregar roles' }),
     });
   }
 

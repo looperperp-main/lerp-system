@@ -1,11 +1,15 @@
 <p-dialog
-  header="Associar Tabelas de Preço"
   [(visible)]="visible"
   (onHide)="fechar()"
   [modal]="true"
-  [style]="{ width: '60vw' }"
-  [draggable]="false"
-  [resizable]="false">
+  [style]="{ width: '60vw' }">
+
+  <ng-template pTemplate="header">
+    <div class="jb-dialog-head">
+      <span class="eyebrow">CADASTROS · ASSOCIAÇÕES</span>
+      <h2>Associar Tabelas de Preço — {{ grupoClienteNome }}</h2>
+    </div>
+  </ng-template>
 
   <div *ngIf="loading()" class="flex justify-center items-center h-40">
     <i class="pi pi-spin pi-spinner text-3xl text-primary"></i>
@@ -25,8 +29,8 @@
       <ng-template let-tabela pTemplate="item">
         <div class="flex items-center gap-2 p-2">
           <div>
-            <span class="font-bold block">{{ tabela.nome }}</span>
-            <span class="text-sm text-gray-500">Moeda: {{ tabela.moeda }}</span>
+            <span class="jb-strong block">{{ tabela.nome }}</span>
+            <span class="text-sm jb-muted">Moeda: {{ tabela.moeda }}</span>
           </div>
         </div>
       </ng-template>

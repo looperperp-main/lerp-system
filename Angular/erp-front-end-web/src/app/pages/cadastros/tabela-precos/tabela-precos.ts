@@ -49,6 +49,9 @@ export class TabelaPrecos implements OnInit {
     { field: 'inicioVigencia', header: 'Início', type: 'dateonly' },
     { field: 'fimVigencia', header: 'Fim', type: 'dateonly' },
     { field: 'ativa', header: 'Ativa', type: 'status' },
+    { field: 'createdAt', header: 'Data de Criação', type: 'date' },
+    { field: 'updatedAt', header: 'Data de Atualização', type: 'date' },
+    { field: 'lastUpdatedBy', header: 'Atualizado Por', type: 'text' },
     { field: 'actions', header: 'Ações', type: 'actions' }
   ];
 

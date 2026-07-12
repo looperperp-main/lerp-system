@@ -6,14 +6,16 @@
 
 :host ::ng-deep {
   // Campos com o mesmo "vidro" translúcido do card de login
-  .p-inputtext,
-  .p-textarea,
-  .p-checkbox .p-checkbox-box {
+  .p-inputtext {
     background: rgba(255, 255, 255, 0.04);
     backdrop-filter: blur(6px);
     border: 1px solid var(--line-2);
     border-radius: 12px;
     color: var(--ink);
+  }
+
+  .p-inputtext:disabled {
+    opacity: 0.6;
   }
 
   .p-button {
@@ -26,20 +28,13 @@
     color: #fff;
   }
 
-  .p-inputtext::placeholder,
-  .p-textarea::placeholder {
+  .p-inputtext::placeholder {
     color: var(--muted);
   }
 
-  .p-inputtext:enabled:focus,
-  .p-textarea:enabled:focus {
+  .p-inputtext:enabled:focus {
     border-color: var(--syax);
     background: rgba(255, 255, 255, 0.06);
-  }
-
-  .p-checkbox-box.p-highlight {
-    background: var(--brand-grad);
-    border-color: transparent;
   }
 
   // Botão "Cancelar" (severity secondary) — vidro em vez do cinza claro padrão

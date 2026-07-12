@@ -1,0 +1,22 @@
+<form [formGroup]="form" (ngSubmit)="onSubmit()" class="flex flex-col gap-3 pt-2">
+  <div class="flex flex-col gap-1">
+    <label for="email" class="jb-label">Email</label>
+    <input id="email" pInputText formControlName="email" [disabled]="editing" placeholder="email@empresa.com" class="w-full" />
+    <small *ngIf="isFieldInvalid('email')" class="text-red-500">Informe o email.</small>
+  </div>
+  <div class="flex flex-col gap-1">
+    <label for="displayName" class="jb-label">Nome</label>
+    <input id="displayName" pInputText formControlName="displayName" placeholder="Nome do usuário" class="w-full" />
+    <small *ngIf="isFieldInvalid('displayName')" class="text-red-500">Informe o nome.</small>
+  </div>
+  <div class="flex flex-col gap-1">
+    <label for="passwordHash" class="jb-label">{{ editing ? 'Nova senha (deixe vazio para manter)' : 'Senha' }}</label>
+    <input id="passwordHash" type="password" pInputText formControlName="passwordHash" placeholder="••••••••" class="w-full" />
+    <small *ngIf="isFieldInvalid('passwordHash')" class="text-red-500">Informe a senha.</small>
+  </div>
+
+  <div class="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-100">
+    <button pButton type="button" label="Cancelar" icon="pi pi-times" class="p-button-text p-button-secondary" (click)="onCancel()"></button>
+    <button pButton type="submit" label="Salvar" icon="pi pi-check" [loading]="isSaving"></button>
+  </div>
+</form>

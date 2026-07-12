@@ -5,14 +5,15 @@ import { ButtonModule } from 'primeng/button';
 import { MessageService } from 'primeng/api';
 import { GrupoClienteTabelaPrecoService } from '../grupo-cliente-tabela-preco.service';
 import { DialogModule } from 'primeng/dialog';
-import {TabelaPrecoService} from '../../tabela-precos/tabela-preco.service';
-import {TabelaPreco} from '../../tabela-precos/tabela-preco.model';
+import { TabelaPrecoService } from '../../tabela-precos/tabela-preco.service';
+import { TabelaPreco } from '../../tabela-precos/tabela-preco.model';
 
 @Component({
   selector: 'app-grupo-cliente-tabela-preco-form',
   standalone: true,
   imports: [CommonModule, PickListModule, ButtonModule, DialogModule],
-  templateUrl: './grupo-cliente-tabela-preco-form.html'
+  templateUrl: './grupo-cliente-tabela-preco-form.html',
+  styleUrl: './grupo-cliente-tabela-preco-form.scss',
 })
 export class GrupoClienteTabelaPrecoFormComponent implements OnInit {
   @Input() grupoClienteId!: string;
@@ -50,17 +51,17 @@ export class GrupoClienteTabelaPrecoFormComponent implements OnInit {
             const associadosIds = associacoes.map((a: any) => a.tabelaPrecoId);
 
             // 3. Separa as listas Source (disponíveis) e Target (selecionadas)
-            const target = todasTabelas.filter(t => t.id && associadosIds.includes(t.id));
-            const source = todasTabelas.filter(t => t.id && !associadosIds.includes(t.id));
+            const target = todasTabelas.filter((t) => t.id && associadosIds.includes(t.id));
+            const source = todasTabelas.filter((t) => t.id && !associadosIds.includes(t.id));
 
             this.targetTabelas.set(target);
             this.sourceTabelas.set(source);
             this.loading.set(false);
           },
-          error: () => this.handleError('Erro ao carregar associações.')
+          error: () => this.handleError('Erro ao carregar associações.'),
         });
       },
-      error: () => this.handleError('Erro ao carregar tabelas de preço.')
+      error: () => this.handleError('Erro ao carregar tabelas de preço.'),
     });
   }
 
@@ -68,17 +69,25 @@ export class GrupoClienteTabelaPrecoFormComponent implements OnInit {
     this.loading.set(true);
 
     // Pega apenas os IDs das tabelas que estão no target (selecionadas)
-    const requestIds = this.targetTabelas().map(t => t.id).filter(id => id !== undefined) as string[];
+    const requestIds = this.targetTabelas()
+      .map((t) => t.id)
+      .filter((id) => id !== undefined) as string[];
 
-    this.associacaoService.sincronizarAssociacoes(this.grupoClienteId, { tabelaPrecoIds: requestIds }).subscribe({
-      next: () => {
-        this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Tabelas de preço sincronizadas.' });
-        this.loading.set(false);
-        this.fechar();
-        this.onSaved.emit();
-      },
-      error: () => this.handleError('Erro ao salvar as associações.')
-    });
+    this.associacaoService
+      .sincronizarAssociacoes(this.grupoClienteId, { tabelaPrecoIds: requestIds })
+      .subscribe({
+        next: () => {
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Sucesso',
+            detail: 'Tabelas de preço sincronizadas.',
+          });
+          this.loading.set(false);
+          this.fechar();
+          this.onSaved.emit();
+        },
+        error: () => this.handleError('Erro ao salvar as associações.'),
+      });
   }
 
   fechar(): void {

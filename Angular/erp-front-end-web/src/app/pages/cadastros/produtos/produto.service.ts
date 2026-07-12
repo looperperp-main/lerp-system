@@ -35,8 +35,8 @@ export class ProdutoService {
     return this.http.put<Produto>(`${this.apiUrl}/${id}`, produto);
   }
 
-  delete(id: string): Observable<void> {
-    return this.http.delete<void>(`${this.apiUrl}/${id}`);
+  updateStatus(id: string): Observable<void> {
+    return this.http.patch<void>(`${this.apiUrl}/${id}/status`, null);
   }
 
   getDepositosDropdown(): Observable<any> {

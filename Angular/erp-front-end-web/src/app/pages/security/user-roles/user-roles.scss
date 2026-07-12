@@ -1,9 +1,27 @@
-.jb-panel-actions {
+.jb-filters-panel {
+  margin-bottom: 16px;
+
+  h3 {
+    margin: 0 0 12px;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+}
+
+.jb-filters-row {
   display: flex;
   gap: 8px;
 }
 
-// Botão "Nova Categoria"/"Exportar": mesmo visual do número de página selecionado no paginador
+:host ::ng-deep .jb-filters-row .p-inputtext {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  color: var(--ink);
+}
+
+// Botão "Filtrar": mesmo visual do número de página selecionado no paginador
 :host ::ng-deep .jb-btn-paginator-style,
 :host ::ng-deep .jb-btn-paginator-style button {
   background: var(--brand-grad) !important;
@@ -45,16 +63,15 @@
   color: var(--ink);
 }
 
-.jb-status {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
+.jb-muted {
+  color: var(--ink-3);
+}
 
-  &.active { background: rgba(33, 215, 137, 0.15); color: var(--ok); }
-  &.inactive { background: rgba(255, 92, 92, 0.15); color: var(--bad); }
+.jb-code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--syax);
 }
 
 :host ::ng-deep {
@@ -101,15 +118,14 @@
     color: var(--ink-3);
   }
 
-  // Botões de ação da linha (editar / ativar-inativar): estilo "vidro" com borda, igual ao botão de fechar do modal
-  .p-datatable-tbody .p-button-rounded {
-    margin-right: 3px;
+  // Botão "Acessos" da linha: estilo "vidro" com borda
+  .p-datatable-tbody .p-button-outlined {
     background: rgba(255, 255, 255, 0.06) !important;
     border: 1px solid rgba(255, 255, 255, 0.28) !important;
-    color: var(--ink-3) !important;
+    color: var(--ink-2) !important;
     border-radius: 10px !important;
   }
-  .p-datatable-tbody .p-button-rounded:hover {
+  .p-datatable-tbody .p-button-outlined:hover {
     background: rgba(255, 255, 255, 0.1) !important;
     color: var(--ink) !important;
   }
@@ -175,7 +191,7 @@
     background: transparent !important;
   }
 
-  // Dialog de Cadastro de Categoria: vidro fosco (translúcido + blur forte)
+  // Dialog de Acessos: vidro fosco (translúcido + blur forte)
   .p-dialog {
     background: rgba(40, 40, 50, 0.32);
     border: 1px solid rgba(255, 255, 255, 0.16);
@@ -210,6 +226,76 @@
   .p-dialog-content {
     background: transparent;
     color: var(--ink-2);
+  }
+
+  .p-dialog .p-button {
+    border-radius: 12px;
+  }
+  .p-dialog .p-button:not(.p-button-secondary):not(.p-button-text):not(.p-button-danger) {
+    background: var(--brand-grad);
+    border-color: transparent;
+    color: #fff;
+  }
+  .p-dialog .p-button-secondary {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--line-2);
+    color: var(--ink-2);
+  }
+  .p-dialog .p-button-secondary:hover {
+    background: rgba(255, 255, 255, 0.09);
+  }
+
+  // PickList em vidro — internamente o PrimeNG monta cada lista com <p-listbox>,
+  // então as classes reais a sobrescrever são .p-listbox-*, não .p-picklist-list/-item
+  .p-picklist-list-container {
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .p-picklist-controls {
+    background: transparent !important;
+  }
+
+  .p-listbox {
+    background: rgba(255, 255, 255, 0.04) !important;
+    border: 1px solid var(--line-2) !important;
+    border-radius: 12px;
+    color: var(--ink-2) !important;
+  }
+
+  .p-listbox-header {
+    background: transparent !important;
+    color: var(--ink-2) !important;
+    border-bottom: 1px solid var(--line) !important;
+  }
+
+  .p-listbox-header .p-inputtext {
+    background: rgba(255, 255, 255, 0.04) !important;
+    border: 1px solid var(--line-2) !important;
+    color: var(--ink) !important;
+  }
+
+  .p-listbox-list-container,
+  .p-listbox-list {
+    background: transparent !important;
+  }
+
+  .p-listbox-option {
+    background: transparent !important;
+    color: var(--ink-2) !important;
+  }
+
+  .p-listbox-option:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
+  }
+
+  .p-listbox-option.p-listbox-option-selected {
+    background: rgba(255, 75, 18, 0.15) !important;
+    color: var(--syax) !important;
+  }
+
+  .p-listbox-empty-message {
+    color: var(--muted) !important;
   }
 
 }

@@ -1,0 +1,152 @@
+.jb-strong {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.jb-muted {
+  color: var(--muted);
+}
+
+:host ::ng-deep {
+  // Fundo da tela por trás do modal sem escurecimento — só o modal em si tem o vidro/blur
+  .p-dialog-mask {
+    background: transparent !important;
+  }
+
+  // Dialog de Associação: vidro fosco (translúcido + blur forte)
+  .p-dialog {
+    background: rgba(40, 40, 50, 0.32);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 20px;
+    backdrop-filter: blur(35px) saturate(180%);
+    -webkit-backdrop-filter: blur(35px) saturate(180%);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  }
+
+  .p-dialog-header {
+    background: transparent;
+    color: var(--ink);
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 16px;
+  }
+
+  .p-dialog-header-icon,
+  .p-dialog-close-button {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px !important;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    color: var(--ink-3);
+  }
+  .p-dialog-header-icon:hover,
+  .p-dialog-close-button:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--ink);
+  }
+
+  .p-dialog-content {
+    background: transparent;
+    color: var(--ink-2);
+  }
+
+  // PickList em vidro — internamente o PrimeNG monta cada lista com <p-listbox>,
+  // então as classes reais a sobrescrever são .p-listbox-*, não .p-picklist-list/-item
+  .p-picklist-list-container {
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .p-picklist-controls {
+    background: transparent !important;
+  }
+
+  .p-listbox {
+    background: rgba(255, 255, 255, 0.04) !important;
+    border: 1px solid var(--line-2) !important;
+    border-radius: 12px;
+    color: var(--ink-2) !important;
+  }
+
+  .p-listbox-header {
+    background: transparent !important;
+    color: var(--ink-2) !important;
+    border-bottom: 1px solid var(--line) !important;
+  }
+
+  .p-listbox-list-container,
+  .p-listbox-list {
+    background: transparent !important;
+  }
+
+  .p-listbox-option {
+    background: transparent !important;
+    color: var(--ink-2) !important;
+  }
+
+  .p-listbox-option:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
+  }
+
+  .p-listbox-option.p-listbox-option-selected {
+    background: rgba(255, 75, 18, 0.15) !important;
+    color: var(--syax) !important;
+  }
+
+  .p-listbox-empty-message {
+    color: var(--muted) !important;
+  }
+
+  .p-picklist-buttons .p-button {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    color: var(--ink-3);
+    border-radius: 8px;
+  }
+  .p-picklist-buttons .p-button:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--ink);
+  }
+
+  .p-button {
+    border-radius: 12px;
+  }
+
+  .p-button:not(.p-button-secondary):not(.p-button-text) {
+    background: var(--brand-grad);
+    border-color: transparent;
+    color: #fff;
+  }
+
+  .p-button-secondary {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--line-2);
+    color: var(--ink-2);
+  }
+  .p-button-secondary:hover {
+    background: rgba(255, 255, 255, 0.09);
+  }
+}
+
+.jb-dialog-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+}

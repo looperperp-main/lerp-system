@@ -42,6 +42,8 @@ export class Produtos implements OnInit {
     { field: 'unidade', header: 'UN', type: 'text' },
     { field: 'ativo', header: 'Status', type: 'status' },
     { field: 'createdAt', header: 'Criado Em', type: 'date' },
+    { field: 'updatedAt', header: 'Atualizado Em', type: 'date' },
+    { field: 'lastUpdatedBy', header: 'Atualizado Por', type: 'text' },
     { field: 'actions', header: 'Ações', type: 'actions' }
   ];
 
@@ -102,10 +104,10 @@ export class Produtos implements OnInit {
     });
   }
 
-  inativarProduto(rowData: Produto): void {
+  inativarAtivarProduto(rowData: Produto): void {
     // Para mudar o status apenas alteramos e atualizamos. Depende de como é feito no backend
     const updated = { ...rowData, ativo: !rowData.ativo };
-    this.produtoService.update(rowData.id!, updated).subscribe({
+    this.produtoService.updateStatus(rowData.id!).subscribe({
       next: () => {
         this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Status atualizado.' });
         this.loadProdutos({ first: this.page * this.size, rows: this.size });

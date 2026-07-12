@@ -1,20 +1,27 @@
-<div class="card">
+<div>
   <p-toast></p-toast>
 
-  <div class="page-header">
+  <div class="jb-page-head">
     <div>
-      <h1 class="page-title">Roles</h1>
-      <p class="page-subtitle">Crie e gerencie as roles da sua empresa</p>
+      <span class="eyebrow"><i class="dot"></i> SEGURANÇA</span>
+      <h1>Roles</h1>
+      <p class="sub">Crie e gerencie as roles da sua empresa</p>
     </div>
   </div>
 
-  <div class="content-card">
-    <div class="content-toolbar">
-      <h3 class="content-toolbar-title">Ações</h3>
-      <div class="content-toolbar-actions">
-        <input pInputText type="text" placeholder="Filtrar por nome" [(ngModel)]="filterName" (keydown.enter)="load()" />
-        <button pButton pRipple label="Filtrar" icon="pi pi-search" class="p-button-sm" (click)="load()"></button>
-        <button pButton pRipple label="Nova Role" icon="pi pi-plus" class="p-button-success p-button-sm" (click)="openNew()"></button>
+  <div class="jb-panel jb-filters-panel">
+    <h3>Filtros</h3>
+    <div class="jb-filters-row">
+      <input type="text" pInputText placeholder="Filtrar por nome" [(ngModel)]="filterName" (keydown.enter)="load()" />
+      <button pButton label="Filtrar" icon="pi pi-search" class="jb-btn-paginator-style" (click)="load()"></button>
+    </div>
+  </div>
+
+  <div class="jb-panel">
+    <div class="jb-panel-head">
+      <h3><i class="pi pi-arrow-circle-right"></i> Roles Cadastradas</h3>
+      <div class="jb-panel-actions">
+        <button pButton label="Nova Role" icon="pi pi-plus" class="jb-btn-paginator-style" (click)="openNew()"></button>
       </div>
     </div>
 
@@ -29,7 +36,8 @@
         [rows]="10"
         [rowsPerPageOptions]="[10, 25, 50]"
         [tableStyle]="{ 'min-width': '40rem' }"
-        styleClass="p-datatable-sm text-sm">
+        styleClass="p-datatable-sm text-sm"
+        [paginatorDropdownAppendTo]="'body'">
 
         <ng-template pTemplate="header">
           <tr>
@@ -41,47 +49,76 @@
 
         <ng-template pTemplate="body" let-role>
           <tr>
-            <td class="font-medium text-gray-900">{{ role.name }}</td>
-            <td class="text-gray-600">{{ role.createdBy }}</td>
+            <td><span class="jb-strong">{{ role.name }}</span></td>
+            <td>{{ role.createdBy }}</td>
             <td>
-              <button pButton pRipple icon="pi pi-trash" class="p-button-rounded p-button-text p-button-danger p-button-sm"
-                      pTooltip="Excluir" (click)="askDelete(role)"></button>
+              <button
+                pButton
+                pRipple
+                icon="pi pi-trash"
+                class="p-button-rounded p-button-text p-button-danger p-button-sm w-8 h-8"
+                pTooltip="Excluir"
+                (click)="askDelete(role)"
+                tooltipPosition="top">
+              </button>
             </td>
           </tr>
         </ng-template>
 
         <ng-template pTemplate="emptymessage">
-          <tr><td colspan="3" class="text-center py-6 text-gray-500">Nenhuma role encontrada.</td></tr>
+          <tr>
+            <td colspan="3" style="text-align: center; padding: 24px; color: var(--muted);">
+              Nenhuma role encontrada.
+            </td>
+          </tr>
         </ng-template>
       </p-table>
     </div>
   </div>
 
-  <!-- Criar -->
-  <p-dialog [(visible)]="createDialog" [style]="{ width: '420px' }" header="Nova Role" [modal]="true">
-    <div class="flex flex-col gap-2 pt-2">
-      <label class="text-sm text-gray-600">Nome da Role</label>
-      <input pInputText [(ngModel)]="newName" placeholder="Ex.: GESTOR" />
-      @if (submitted && !newName?.trim()) {
-        <small class="text-red-500">Informe um nome.</small>
-      }
-      <small class="text-gray-400">O nome é convertido para MAIÚSCULAS_COM_UNDERLINE.</small>
-    </div>
-    <ng-template pTemplate="footer">
-      <button pButton pRipple label="Cancelar" icon="pi pi-times" class="p-button-text" (click)="createDialog = false"></button>
-      <button pButton pRipple label="Salvar" icon="pi pi-check" class="p-button-success" (click)="save()"></button>
-    </ng-template>
-  </p-dialog>
+  <footer class="jb-list-footer">
+    <span>© 2026 SYAX TECNOLOGIA · BUILD 26.04.01</span>
+    <span>{{ totalRecords() }} {{ totalRecords() === 1 ? 'ROLE CADASTRADA' : 'ROLES CADASTRADAS' }}</span>
+  </footer>
 
-  <!-- Excluir -->
-  <p-dialog [(visible)]="deleteDialog" [style]="{ width: '450px' }" header="Confirmar Exclusão" [modal]="true">
-    <div class="flex items-start gap-3 pt-2">
-      <i class="pi pi-exclamation-triangle text-2xl text-red-500 mt-1"></i>
-      <span class="text-gray-700">Excluir a role <b>{{ roleToDelete?.name }}</b>?</span>
-    </div>
-    <ng-template pTemplate="footer">
-      <button pButton pRipple label="Cancelar" icon="pi pi-times" class="p-button-text" (click)="deleteDialog = false"></button>
-      <button pButton pRipple label="Excluir" icon="pi pi-trash" class="p-button-danger" (click)="confirmDelete()"></button>
-    </ng-template>
-  </p-dialog>
 </div>
+
+<!-- Criar -->
+<p-dialog [(visible)]="createDialog" [style]="{ width: '420px' }" [modal]="true">
+  <ng-template pTemplate="header">
+    <div class="jb-dialog-head">
+      <span class="eyebrow">SEGURANÇA · ROLES</span>
+      <h2>Nova Role</h2>
+    </div>
+  </ng-template>
+  <div class="flex flex-col gap-2 pt-2">
+    <label class="jb-label">Nome da Role</label>
+    <input pInputText [(ngModel)]="newName" placeholder="Ex.: GESTOR" class="w-full" />
+    @if (submitted && !newName?.trim()) {
+      <small class="text-red-500">Informe um nome.</small>
+    }
+    <small class="jb-muted">O nome é convertido para MAIÚSCULAS_COM_UNDERLINE.</small>
+  </div>
+  <ng-template pTemplate="footer">
+    <button pButton pRipple label="Cancelar" icon="pi pi-times" class="p-button-text p-button-secondary" (click)="createDialog = false"></button>
+    <button pButton pRipple label="Salvar" icon="pi pi-check" (click)="save()"></button>
+  </ng-template>
+</p-dialog>
+
+<!-- Excluir -->
+<p-dialog [(visible)]="deleteDialog" [style]="{ width: '450px' }" [modal]="true">
+  <ng-template pTemplate="header">
+    <div class="jb-dialog-head">
+      <span class="eyebrow">SEGURANÇA · ROLES</span>
+      <h2>Confirmar Exclusão</h2>
+    </div>
+  </ng-template>
+  <div class="flex items-start gap-3 pt-2">
+    <i class="pi pi-exclamation-triangle text-2xl" style="color: var(--bad);"></i>
+    <span class="jb-muted">Excluir a role <b class="jb-strong">{{ roleToDelete?.name }}</b>?</span>
+  </div>
+  <ng-template pTemplate="footer">
+    <button pButton pRipple label="Cancelar" icon="pi pi-times" class="p-button-text p-button-secondary" (click)="deleteDialog = false"></button>
+    <button pButton pRipple label="Excluir" icon="pi pi-trash" class="p-button-danger" (click)="confirmDelete()"></button>
+  </ng-template>
+</p-dialog>

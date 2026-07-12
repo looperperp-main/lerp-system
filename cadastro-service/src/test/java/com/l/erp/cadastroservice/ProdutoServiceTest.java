@@ -53,30 +53,6 @@ class ProdutoServiceTest {
     }
 
     @Test
-    void delete_crossTenant_lanca404_eNaoEmiteAudit() {
-        UUID id = UUID.randomUUID();
-        when(produtoRepository.deleteByIdAndTenantId(id, TENANT_ID)).thenReturn(0L);
-
-        assertThatThrownBy(() -> produtoService.delete(id, USER_ID, TENANT_ID))
-                .isInstanceOf(BusinessException.class)
-                .extracting(e -> ((BusinessException) e).getStatus())
-                .isEqualTo(HttpStatus.NOT_FOUND);
-
-        verify(auditProducer, never()).sendAuditEvent(org.mockito.ArgumentMatchers.any());
-    }
-
-    @Test
-    void delete_mesmoTenant_removeEEmiteAudit() {
-        UUID id = UUID.randomUUID();
-        when(produtoRepository.deleteByIdAndTenantId(id, TENANT_ID)).thenReturn(1L);
-
-        produtoService.delete(id, USER_ID, TENANT_ID);
-
-        verify(produtoRepository).deleteByIdAndTenantId(id, TENANT_ID);
-        verify(auditProducer).sendAuditEvent(org.mockito.ArgumentMatchers.any());
-    }
-
-    @Test
     void findById_mesmoTenant_usaQueryComEscopoDeTenant() {
         UUID id = UUID.randomUUID();
         com.l.erp.cadastroservice.domain.Produto produto = new com.l.erp.cadastroservice.domain.Produto();

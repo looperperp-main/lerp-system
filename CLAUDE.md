@@ -16,6 +16,8 @@ ERP-VSD is a multi-tenant ERP system built as a Spring Boot microservices monore
 | `cadastro-service` | 8086 | Master data CRUD (clients, products, suppliers, etc.) |
 | `partner-service` | 8087 | Partner onboarding, approval, referral codes, trial engagement |
 | `billing-service` | 8088 | Subscriptions, Asaas webhooks, commission payouts |
+| `operacoes-service` | 8089 (planejado) | O2C + P2P + estoque num serviço só (schemas `vendas`/`compras`/`estoque`): orçamento→pedido→expedição→faturamento (`spec/o2c-vendas.md`) e requisição→cotação→pedido→recebimento→faturamento de NF de entrada (`spec/p2p-compras.md`) — ainda não criado |
+| `fiscal-service` | 8093 (planejado) | Emissão NF-e/NFC-e + motor fiscal IBS/CBS — spec futuro, ainda não criado |
 | `liquibase-service` | — | Standalone app that runs all Liquibase migrations on startup |
 | `common` | — | Shared library: `GlobalExceptionHandler`, `BusinessException`, `AuditEventDTO`, `Constants` |
 | `Angular/erp-front-end-web` | 4200 | Angular 21 SPA |

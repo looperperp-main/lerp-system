@@ -37,6 +37,7 @@ Aplique o redesign visual dark "jb-*" na pasta de CRUD indicada em `$ARGUMENTS`,
 - Todo `p-select`/`p-datepicker` dentro do modal recebe `appendTo="body"` (evita overlay preso atrás dos campos seguintes por causa do `backdrop-filter`).
 - Estilo dos overlays (`p-select-overlay`, `p-datepicker-panel`) já é global em `src/styles.scss` — não duplicar por componente; só usar se precisar de algo específico dessa tela.
 - Botão "Finalizar"/"Salvar" sem `severity="success"` (verde) — manter o botão no estilo padrão laranja do app.
+- `p-pickList` (ex.: telas de associação N:N) renderiza cada lado internamente como um `<p-listbox>` — as classes reais a sobrescrever são `.p-listbox`, `.p-listbox-header`, `.p-listbox-list-container`/`.p-listbox-list`, `.p-listbox-option`, `.p-listbox-option-selected`, `.p-listbox-empty-message` (com `!important`, pois os tokens do tema Aura vêm com alta especificidade). **Não** existem `.p-picklist-list`/`.p-picklist-item`/`.p-picklist-header` como elementos estilizáveis — só `.p-picklist-list-container` (wrapper) e `.p-picklist-controls` no nível do próprio picklist.
 
 ## 4. Fonte e cores globais
 

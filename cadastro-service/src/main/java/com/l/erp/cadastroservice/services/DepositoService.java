@@ -7,6 +7,7 @@ import com.l.erp.cadastroservice.repository.DepositoRepository;
 import com.l.erp.common.util.Constants;
 import com.l.erp.common.api.dto.AuditEventDTO;
 import com.l.erp.common.exception.custom.BusinessException;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -106,7 +107,10 @@ public class DepositoService {
         UUID correlationId = getCorrelationIdFromRequest(logger);
 
         Deposito oldDeposito = repository.findById(id)
-                .orElseThrow(() -> new BusinessException(Constants.DEPOSITO_NOT_FOUND, HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> {
+                    sendAuditEvent(Constants.PRODUTO_UPDATE, userId, id, Constants.ERROR, "{Error: Depósito não encontrado}", correlationId);
+                    return new BusinessException(Constants.PRODUTO_NOT_FOUND, HttpStatus.NOT_FOUND);
+                });
 
         if(!oldDeposito.getTenantId().equals(tenantID)){
             sendAuditEvent(
@@ -139,6 +143,29 @@ public class DepositoService {
         );
 
         return mapper.toDto(saved);
+    }
+
+    public void updateStatus(UUID id, Long tenantId, UUID userId) {
+        UUID correlationId = getCorrelationIdFromRequest(logger);
+        logger.info("Atualizando status do Depósito ID: {}", id);
+        Deposito deposito = repository.findByTenantIdAndId(tenantId, id).orElseThrow(() -> {
+            sendAuditEvent(Constants.DEPOSITO_UPDATE, userId, id, Constants.ERROR, "{Error: Depósito não encontrado}", correlationId);
+            return new BusinessException(Constants.DEPOSITO_NOT_FOUND, HttpStatus.NOT_FOUND);
+        });
+
+        deposito.setAtivo(!deposito.getAtivo());
+        deposito.setUpdatedAt(Instant.now());
+        deposito.setLastUpdatedBy(userId);
+        repository.save(deposito);
+
+        sendAuditEvent(
+                Constants.DEPOSITO_UPDATE,
+                userId,
+                id,
+                Constants.SUCCESS,
+                "{Status Alterado: " + deposito.getAtivo() + "}",
+                correlationId
+        );
     }
 
     /**

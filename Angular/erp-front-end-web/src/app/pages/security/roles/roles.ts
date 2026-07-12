@@ -15,9 +15,20 @@ import { RoleModel, SecurityService } from '../security.service';
 @Component({
   selector: 'app-security-roles',
   standalone: true,
-  imports: [CommonModule, FormsModule, TableModule, ButtonModule, DialogModule, InputTextModule, TooltipModule, Ripple, ToastModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    TableModule,
+    ButtonModule,
+    DialogModule,
+    InputTextModule,
+    TooltipModule,
+    Ripple,
+    ToastModule,
+  ],
   providers: [MessageService],
   templateUrl: './roles.html',
+  styleUrl: './roles.scss',
 })
 export class SecurityRoles {
   roles = signal<RoleModel[]>([]);
@@ -33,7 +44,10 @@ export class SecurityRoles {
   deleteDialog = false;
   roleToDelete: RoleModel | null = null;
 
-  constructor(private service: SecurityService, private messages: MessageService) {}
+  constructor(
+    private service: SecurityService,
+    private messages: MessageService,
+  ) {}
 
   onLazyLoad(event: any) {
     const page = event.first / event.rows;
@@ -96,7 +110,9 @@ export class SecurityRoles {
   }
 
   private handleError(err: HttpErrorResponse, summary: string) {
-    const detail = err.error?.message ? `[${err.error.status}] ${err.error.error} - ${err.error.message}` : 'Erro de comunicação com o servidor.';
+    const detail = err.error?.message
+      ? `[${err.error.status}] ${err.error.error} - ${err.error.message}`
+      : 'Erro de comunicação com o servidor.';
     this.messages.add({ severity: 'error', summary, detail, life: 5000 });
   }
 }
