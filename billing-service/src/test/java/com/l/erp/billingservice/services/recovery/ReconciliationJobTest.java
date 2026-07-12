@@ -2,22 +2,17 @@ package com.l.erp.billingservice.services.recovery;
 
 import com.l.erp.billingservice.domain.Subscription;
 import com.l.erp.billingservice.domain.SubscriptionStatus;
-import com.l.erp.billingservice.infra.asaas.AsaasGateway;
-import com.l.erp.billingservice.infra.asaas.dto.AsaasPaymentResponse;
-import com.l.erp.billingservice.infra.asaas.dto.AsaasWebhookPayload;
 import com.l.erp.billingservice.infra.redis.DistributedLockService;
 import com.l.erp.billingservice.repository.SubscriptionRepository;
-import com.l.erp.billingservice.services.webhook.handler.PaymentReceivedHandler;
+import com.l.erp.billingservice.services.JobExecutionRecorder;
+import com.l.erp.billingservice.services.SubscriptionService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.math.BigDecimal;
 import java.util.List;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -25,8 +20,8 @@ class ReconciliationJobTest {
 
     @Mock DistributedLockService lockService;
     @Mock SubscriptionRepository subscriptionRepository;
-    @Mock AsaasGateway asaasGateway;
-    @Mock PaymentReceivedHandler paymentReceivedHandler;
+    @Mock SubscriptionService subscriptionService;
+    @Mock JobExecutionRecorder recorder;
 
     private Subscription aguardando(long tenantId, String asaasSubId) {
         Subscription s = new Subscription();
@@ -36,35 +31,50 @@ class ReconciliationJobTest {
         return s;
     }
 
-    @Test
-    void pagamentoConfirmadoSemWebhook_ativaViaHandler() {
-        ReconciliationJob job = new ReconciliationJob(lockService, subscriptionRepository, asaasGateway, paymentReceivedHandler);
-        when(lockService.acquire(anyString(), anyString(), anyLong())).thenReturn(true);
-        when(subscriptionRepository.findByStatus(SubscriptionStatus.AGUARDANDO_PAGAMENTO))
-                .thenReturn(List.of(aguardando(5L, "sub_x")));
-        when(asaasGateway.getFirstPayment("sub_x"))
-                .thenReturn(new AsaasPaymentResponse("pay_x", "RECEIVED", new BigDecimal("99.90"), null, null, null));
-
-        job.run();
-
-        ArgumentCaptor<AsaasWebhookPayload> captor = ArgumentCaptor.forClass(AsaasWebhookPayload.class);
-        verify(paymentReceivedHandler).handle(captor.capture());
-        assertThat(captor.getValue().getEvent()).isEqualTo("PAYMENT_RECEIVED");
-        assertThat(captor.getValue().getPayment().getId()).isEqualTo("pay_x");
-        assertThat(captor.getValue().getPayment().getSubscription()).isEqualTo("sub_x");
+    private void runRecorder() {
+        doAnswer(invocation -> {
+            Runnable work = invocation.getArgument(1);
+            work.run();
+            return null;
+        }).when(recorder).record(anyString(), any());
     }
 
     @Test
-    void pagamentoNaoPago_naoAtiva() {
-        ReconciliationJob job = new ReconciliationJob(lockService, subscriptionRepository, asaasGateway, paymentReceivedHandler);
+    void pendenteComAsaasSubscriptionId_reprocessaViaService() {
+        runRecorder();
+        ReconciliationJob job = new ReconciliationJob(lockService, subscriptionRepository, subscriptionService, recorder);
         when(lockService.acquire(anyString(), anyString(), anyLong())).thenReturn(true);
+        Subscription sub = aguardando(5L, "sub_x");
         when(subscriptionRepository.findByStatus(SubscriptionStatus.AGUARDANDO_PAGAMENTO))
-                .thenReturn(List.of(aguardando(5L, "sub_y")));
-        when(asaasGateway.getFirstPayment("sub_y"))
-                .thenReturn(new AsaasPaymentResponse("pay_y", "PENDING", new BigDecimal("99.90"), null, null, null));
+                .thenReturn(List.of(sub));
 
         job.run();
 
-        verify(paymentReceivedHandler, never()).handle(any());
+        verify(subscriptionService).reprocessarPagamento(sub);
+        verify(lockService).release(anyString(), anyString());
+    }
+
+    @Test
+    void semAsaasSubscriptionId_naoReprocessa() {
+        runRecorder();
+        ReconciliationJob job = new ReconciliationJob(lockService, subscriptionRepository, subscriptionService, recorder);
+        when(lockService.acquire(anyString(), anyString(), anyLong())).thenReturn(true);
+        Subscription sub = aguardando(5L, null);
+        when(subscriptionRepository.findByStatus(SubscriptionStatus.AGUARDANDO_PAGAMENTO))
+                .thenReturn(List.of(sub));
+
+        job.run();
+
+        verify(subscriptionService, never()).reprocessarPagamento(any());
+    }
+
+    @Test
+    void semLock_naoFaz() {
+        ReconciliationJob job = new ReconciliationJob(lockService, subscriptionRepository, subscriptionService, recorder);
+        when(lockService.acquire(anyString(), anyString(), anyLong())).thenReturn(false);
+
+        job.run();
+
+        verifyNoInteractions(subscriptionService, subscriptionRepository, recorder);
     }
 }

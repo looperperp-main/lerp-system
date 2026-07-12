@@ -4,6 +4,7 @@ import com.l.erp.billingservice.domain.WebhookLog;
 import com.l.erp.billingservice.infra.asaas.dto.AsaasWebhookPayload;
 import com.l.erp.billingservice.infra.redis.DistributedLockService;
 import com.l.erp.billingservice.repository.WebhookLogRepository;
+import com.l.erp.billingservice.services.JobExecutionRecorder;
 import com.l.erp.billingservice.services.webhook.WebhookProcessor;
 import com.l.erp.common.util.Constants;
 import org.junit.jupiter.api.Test;
@@ -21,10 +22,20 @@ class WebhookRecoveryJobTest {
     @Mock DistributedLockService lockService;
     @Mock WebhookLogRepository webhookLogRepository;
     @Mock WebhookProcessor webhookProcessor;
+    @Mock JobExecutionRecorder recorder;
+
+    private void runRecorder() {
+        doAnswer(invocation -> {
+            Runnable work = invocation.getArgument(1);
+            work.run();
+            return null;
+        }).when(recorder).record(anyString(), any());
+    }
 
     @Test
     void reprocessaWebhookPreso() {
-        WebhookRecoveryJob job = new WebhookRecoveryJob(lockService, webhookLogRepository, webhookProcessor);
+        runRecorder();
+        WebhookRecoveryJob job = new WebhookRecoveryJob(lockService, webhookLogRepository, webhookProcessor, recorder);
         when(lockService.acquire(anyString(), anyString(), anyLong())).thenReturn(true);
 
         WebhookLog wl = new WebhookLog();
@@ -41,7 +52,7 @@ class WebhookRecoveryJobTest {
 
     @Test
     void semLock_naoFaz() {
-        WebhookRecoveryJob job = new WebhookRecoveryJob(lockService, webhookLogRepository, webhookProcessor);
+        WebhookRecoveryJob job = new WebhookRecoveryJob(lockService, webhookLogRepository, webhookProcessor, recorder);
         when(lockService.acquire(anyString(), anyString(), anyLong())).thenReturn(false);
 
         job.run();
