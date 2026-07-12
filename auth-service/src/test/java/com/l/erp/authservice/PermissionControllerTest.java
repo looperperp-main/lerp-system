@@ -134,7 +134,7 @@ class PermissionControllerTest {
                             .content(objectMapper.writeValueAsString(input)))
                     .andDo(print())
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.error").value("Erro de Negocio"));
+                    .andExpect(jsonPath("$.error").value("Erro de Negócio"));
         }
     }
 
@@ -170,7 +170,7 @@ class PermissionControllerTest {
         mockMvc.perform(get("/auth/permissions/{permissionId}", permId))
                 .andDo(print())
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.error").value("Erro de Negocio"));
+                .andExpect(jsonPath("$.error").value("Erro de Negócio"));
     }
 
     @Test
@@ -244,7 +244,7 @@ class PermissionControllerTest {
                             .content(objectMapper.writeValueAsString(input)))
                     .andDo(print())
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.error").value("Erro de Negocio"));
+                    .andExpect(jsonPath("$.error").value("Erro de Negócio"));
         }
     }
 
@@ -285,7 +285,7 @@ class PermissionControllerTest {
             mockMvc.perform(delete("/auth/permissions/{permissionId}", permId))
                     .andDo(print())
                     .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.error").value("Erro de Negocio"));
+                    .andExpect(jsonPath("$.error").value("Erro de Negócio"));
         }
     }
 }

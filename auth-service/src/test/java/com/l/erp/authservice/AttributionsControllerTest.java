@@ -108,7 +108,7 @@ class AttributionsControllerTest {
         mockMvc.perform(get("/auth/users/{userId}/roles", userId))
                 .andDo(print())
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("Erro de Negocio"));
+                .andExpect(jsonPath("$.error").value("Erro de Negócio"));
     }
 
     @Test
@@ -188,7 +188,7 @@ class AttributionsControllerTest {
                             .content(objectMapper.writeValueAsString(request)))
                     .andDo(print())
                     .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.error").value("Erro de Negocio"));
+                    .andExpect(jsonPath("$.error").value("Erro de Negócio"));
         }
     }
 
@@ -230,7 +230,7 @@ class AttributionsControllerTest {
                             .content(objectMapper.writeValueAsString(request)))
                     .andDo(print())
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.error").value("Erro de Negocio"));
+                    .andExpect(jsonPath("$.error").value("Erro de Negócio"));
         }
     }
 
@@ -269,7 +269,7 @@ class AttributionsControllerTest {
             mockMvc.perform(delete("/auth/users/{userId}/roles/{roleId}", userId, roleId))
                     .andDo(print())
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.error").value("Erro de Negocio"));
+                    .andExpect(jsonPath("$.error").value("Erro de Negócio"));
         }
     }
 }

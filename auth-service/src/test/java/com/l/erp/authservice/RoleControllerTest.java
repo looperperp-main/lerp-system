@@ -196,7 +196,7 @@ class RoleControllerTest {
                             .content(objectMapper.writeValueAsString(input)))
                     .andDo(print())
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.error").value("Erro de Negocio"));
+                    .andExpect(jsonPath("$.error").value("Erro de Negócio"));
         }
     }
 
@@ -251,7 +251,7 @@ class RoleControllerTest {
         mockMvc.perform(get("/auth/roles/{roleId}/permissions", roleId))
                 .andDo(print())
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.error").value("Erro de Negocio"));
+                .andExpect(jsonPath("$.error").value("Erro de Negócio"));
     }
 
     @Test
@@ -350,7 +350,7 @@ class RoleControllerTest {
             mockMvc.perform(delete("/auth/roles/{roleId}/permissions/{permissionId}", roleId, permId))
                     .andDo(print())
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.error").value("Erro de Negocio"));
+                    .andExpect(jsonPath("$.error").value("Erro de Negócio"));
         }
     }
 
@@ -398,7 +398,7 @@ class RoleControllerTest {
             mockMvc.perform(delete("/auth/roles/{id}/delete", roleId))
                     .andDo(print())
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.error").value("Erro de Negocio"));
+                    .andExpect(jsonPath("$.error").value("Erro de Negócio"));
         }
     }
 
@@ -422,7 +422,7 @@ class RoleControllerTest {
             mockMvc.perform(delete("/auth/roles/{id}/delete", roleId))
                     .andDo(print())
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.error").value("Erro de Negocio"));
+                    .andExpect(jsonPath("$.error").value("Erro de Negócio"));
         }
     }
 
@@ -440,7 +440,7 @@ class RoleControllerTest {
             mockMvc.perform(delete("/auth/roles/{id}/delete", roleId))
                     .andDo(print())
                     .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.error").value("Erro de Negocio"));
+                    .andExpect(jsonPath("$.error").value("Erro de Negócio"));
         }
     }
 }

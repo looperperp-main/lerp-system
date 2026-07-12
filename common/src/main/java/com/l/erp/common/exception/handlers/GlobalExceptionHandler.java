@@ -110,7 +110,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<StandardError> handleBussinessException(BusinessException e, HttpServletRequest request) {
         logClientError(e.getStatus().value(), request, e.getMessage());
         return ResponseEntity.status(e.getStatus())
-                .body(body(e.getStatus().value(), "Erro de negócio", e.getMessage(), request));
+                .body(body(e.getStatus().value(), "Erro de Negócio", e.getMessage(), request));
     }
 
     @ExceptionHandler(AccessDeniedException.class)

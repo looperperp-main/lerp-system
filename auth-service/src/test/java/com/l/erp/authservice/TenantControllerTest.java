@@ -218,7 +218,7 @@ class TenantControllerTest {
                             .param(csrfToken.getParameterName(), csrfToken.getToken()))
                     .andDo(print())
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.error").value("Erro de Negocio"))
+                    .andExpect(jsonPath("$.error").value("Erro de Negócio"))
                     .andExpect(jsonPath("$.message").value("Tenant : Registro em duplicidade"));
         }
     }
@@ -251,7 +251,7 @@ class TenantControllerTest {
                             .param(csrfToken.getParameterName(), csrfToken.getToken()))
                     .andDo(print())
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.error").value("Erro de Negocio"));
+                    .andExpect(jsonPath("$.error").value("Erro de Negócio"));
         }
     }
 
@@ -279,7 +279,7 @@ class TenantControllerTest {
                             .param(csrfToken.getParameterName(), csrfToken.getToken()))
                     .andDo(print())
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.error").value("Erro de Negocio"));
+                    .andExpect(jsonPath("$.error").value("Erro de Negócio"));
         }
     }
 
