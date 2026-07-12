@@ -66,7 +66,7 @@ class AttributionsControllerTest {
     private AuditService auditService;
 
     @Test
-    @WithMockUser(roles = "APP_OWNER")
+    @WithMockUser(authorities = "USER_READ")
     void shouldGetRolesByUser() throws Exception {
         UUID userId = UUID.randomUUID();
         UUID roleId = UUID.randomUUID();
@@ -99,7 +99,7 @@ class AttributionsControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "APP_OWNER")
+    @WithMockUser(authorities = "USER_READ")
     void shouldGetRolesByUserNotFound() throws Exception {
         UUID userId = UUID.randomUUID();
 
@@ -112,7 +112,7 @@ class AttributionsControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "APP_OWNER")
+    @WithMockUser(authorities = "USER_UPDATE")
     void shouldAssignRolesToUser() throws Exception {
         UUID userId = UUID.randomUUID();
         UUID roleId = UUID.randomUUID();
@@ -154,7 +154,7 @@ class AttributionsControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "APP_OWNER")
+    @WithMockUser(authorities = "USER_UPDATE")
     void shouldAssignRolesToUserMismatch() throws Exception {
         UUID userId = UUID.randomUUID();
         UUID differentUserId = UUID.randomUUID();
@@ -170,7 +170,7 @@ class AttributionsControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "APP_OWNER")
+    @WithMockUser(authorities = "USER_UPDATE")
     void shouldAssignRolesToUserNotFound() throws Exception {
         UUID userId = UUID.randomUUID();
         UUID roleId = UUID.randomUUID();
@@ -193,7 +193,7 @@ class AttributionsControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "APP_OWNER")
+    @WithMockUser(authorities = "USER_UPDATE")
     void shouldAssignRolesToUserCrossTenantError() throws Exception {
         UUID userId = UUID.randomUUID();
         UUID roleId = UUID.randomUUID();
@@ -235,7 +235,7 @@ class AttributionsControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "APP_OWNER")
+    @WithMockUser(authorities = "USER_UPDATE")
     void shouldRemoveRoleFromUser() throws Exception {
         UUID userId = UUID.randomUUID();
         UUID roleId = UUID.randomUUID();
@@ -255,7 +255,7 @@ class AttributionsControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "APP_OWNER")
+    @WithMockUser(authorities = "USER_UPDATE")
     void shouldRemoveRoleFromUserNotFound() throws Exception {
         UUID userId = UUID.randomUUID();
         UUID roleId = UUID.randomUUID();
