@@ -35,29 +35,43 @@
       @for (item of menuItems; track item.label; let i = $index) {
         <div>
           <!-- Main Item -->
-          <div
-            class="jb-nav-item"
-            [class.active]="item?.['active'] || item.expanded"
-            (click)="item.items ? toggleSubmenu(item) : null"
-            [routerLink]="item.items ? null : item.routerLink"
-            routerLinkActive="active"
-            [routerLinkActiveOptions]="{exact: false}"
-          >
-            <i [class]="item.icon"></i>
-            <span>{{ item.label }}</span>
+          @if (item.disabled) {
+            <div class="jb-nav-item" style="opacity: 0.55; cursor: default; display: flex; justify-content: space-between; align-items: center;">
+              <span><i [class]="item.icon"></i> {{ item.label }}</span>
+              <small style="font-size: 0.65rem; white-space: nowrap;">em breve</small>
+            </div>
+          } @else {
+            <div
+              class="jb-nav-item"
+              [class.active]="item?.['active'] || item.expanded"
+              (click)="item.items ? toggleSubmenu(item) : null"
+              [routerLink]="item.items ? null : item.routerLink"
+              routerLinkActive="active"
+              [routerLinkActiveOptions]="{exact: false}"
+            >
+              <i [class]="item.icon"></i>
+              <span>{{ item.label }}</span>
 
-            @if (item.items) {
-              <i class="pi pi-chevron-right chevron" [class.open]="item.expanded"></i>
-            }
-          </div>
+              @if (item.items) {
+                <i class="pi pi-chevron-right chevron" [class.open]="item.expanded"></i>
+              }
+            </div>
+          }
 
           <!-- Submenu Items -->
           @if (item.items && item.expanded) {
             @for (subItem of item.items; track subItem.label) {
-              <a [routerLink]="subItem.routerLink" routerLinkActive="active" class="jb-nav-item sub">
-                <i [class]="subItem.icon"></i>
-                {{ subItem.label }}
-              </a>
+              @if (subItem.disabled) {
+                <div class="jb-nav-item sub" style="opacity: 0.55; cursor: default; display: flex; justify-content: space-between; align-items: center;">
+                  <span><i [class]="subItem.icon"></i> {{ subItem.label }}</span>
+                  <small style="font-size: 0.65rem; white-space: nowrap;">em breve</small>
+                </div>
+              } @else {
+                <a [routerLink]="subItem.routerLink" routerLinkActive="active" class="jb-nav-item sub">
+                  <i [class]="subItem.icon"></i>
+                  {{ subItem.label }}
+                </a>
+              }
             }
           }
         </div>

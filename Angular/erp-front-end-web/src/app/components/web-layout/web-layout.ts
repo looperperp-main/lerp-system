@@ -84,21 +84,29 @@ export class WebLayout {
       icon: 'pi pi-arrow-left',
       path: '/web/financeiro/pagaveis',
       items: [
-        { label: 'Títulos a Pagar', icon: 'pi pi-file', routerLink: '/web/financeiro/pagaveis' },
+        {
+          label: 'Títulos a Pagar',
+          icon: 'pi pi-file',
+          routerLink: '/web/financeiro/pagaveis',
+          disabled: true,
+        },
         {
           label: 'Pagamentos / Baixas',
           icon: 'pi pi-money-bill',
           routerLink: '/web/financeiro/pagaveis/baixas',
+          disabled: true,
         },
         {
           label: 'Adiantamentos a Fornecedores',
           icon: 'pi pi-arrow-up-right',
           routerLink: '/web/financeiro/pagaveis/adiantamentos',
+          disabled: true,
         },
         {
           label: 'Empréstimos / Financiamentos',
           icon: 'pi pi-percentage',
           routerLink: '/web/financeiro/emprestimos',
+          disabled: true,
         },
       ],
     },
@@ -111,26 +119,31 @@ export class WebLayout {
           label: 'Títulos a Receber',
           icon: 'pi pi-file',
           routerLink: '/web/financeiro/recebiveis',
+          disabled: true,
         },
         {
           label: 'Recebimentos / Baixas',
           icon: 'pi pi-wallet',
           routerLink: '/web/financeiro/recebiveis/baixas',
+          disabled: true,
         },
         {
           label: 'Cobrança',
           icon: 'pi pi-megaphone',
           routerLink: '/web/financeiro/recebiveis/cobranca',
+          disabled: true,
         },
         {
           label: 'Adiantamentos de Clientes',
           icon: 'pi pi-arrow-down-left',
           routerLink: '/web/financeiro/recebiveis/adiantamentos',
+          disabled: true,
         },
         {
           label: 'Antecipação / Desconto',
           icon: 'pi pi-bolt',
           routerLink: '/web/financeiro/recebiveis/antecipacao',
+          disabled: true,
         },
       ],
     },
@@ -138,6 +151,7 @@ export class WebLayout {
       label: 'Compensações',
       icon: 'pi pi-arrow-right-arrow-left',
       /*routerLink: '/web/financeiro/compensacoes',*/
+      disabled: true,
     },
 
     {
@@ -160,9 +174,19 @@ export class WebLayout {
       icon: 'pi pi-barcode',
       path: '/web/subscriptions',
       items: [
-        { label: 'Planos', icon: 'pi pi-book', routerLink: '/web/cadastros/plans' },
-        { label: 'Assinaturas', icon: 'pi pi-wallet', routerLink: '/web/cadastros/subscription' },
-        { label: 'Pagamentos', icon: 'pi pi-receipt', routerLink: '/web/cadastros/invoices' },
+        { label: 'Planos', icon: 'pi pi-book', routerLink: '/web/cadastros/plans', disabled: true },
+        {
+          label: 'Assinaturas',
+          icon: 'pi pi-wallet',
+          routerLink: '/web/cadastros/subscription',
+          disabled: true,
+        },
+        {
+          label: 'Pagamentos',
+          icon: 'pi pi-receipt',
+          routerLink: '/web/cadastros/invoices',
+          disabled: true,
+        },
       ],
     },
     { label: 'Relatórios', icon: 'pi pi-chart-bar' /*routerLink: '/web/relatorios'*/ },

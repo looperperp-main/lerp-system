@@ -3,6 +3,7 @@ package com.l.erp.cadastroservice.services;
 import com.l.erp.cadastroservice.api.dto.CondicaoPagamentoDTO;
 import com.l.erp.cadastroservice.api.mappers.CondicaoPagamentoMapper;
 import com.l.erp.cadastroservice.domain.CondicaoPagamento;
+import com.l.erp.cadastroservice.domain.Deposito;
 import com.l.erp.cadastroservice.repository.CondicaoPagamentoRepository;
 import com.l.erp.common.util.Constants;
 import com.l.erp.common.api.dto.AuditEventDTO;
@@ -157,6 +158,29 @@ public class CondicaoPagamentoService {
         );
 
         return mapper.toDto(saved);
+    }
+
+    public void updateStatus(UUID id, Long tenantId, UUID userId) {
+        UUID correlationId = getCorrelationIdFromRequest(logger);
+        logger.info("Atualizando status da Condição de Pagamento ID: {}", id);
+        CondicaoPagamento cPag = repository.findByIdAndTenantId(id, tenantId).orElseThrow(() -> {
+            sendAuditEvent(Constants.COND_PAG_UPDATE, userId, id, Constants.ERROR, "{Error: Condição de Pagamento não encontrada}", correlationId);
+            return new BusinessException(Constants.COND_PAG_NOT_FOUND, HttpStatus.NOT_FOUND);
+        });
+
+        cPag.setAtivo(!cPag.getAtivo());
+        cPag.setUpdatedAt(Instant.now());
+        cPag.setLastUpdatedBy(userId);
+        repository.save(cPag);
+
+        sendAuditEvent(
+                Constants.COND_PAG_UPDATE,
+                userId,
+                id,
+                Constants.SUCCESS,
+                "{Status Alterado: " + cPag.getAtivo() + "}",
+                correlationId
+        );
     }
 
     /**

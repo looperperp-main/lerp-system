@@ -173,12 +173,4 @@ Angular 21, standalone components (no NgModules). Pages in `src/app/pages/` (`lo
 
 **Padrão de erros/logs (backend):** tratamento de erro passa pelo `common/GlobalExceptionHandler`. Regras: (1) status correto — erro de cliente (4xx) nunca vira 500 (`NoResourceFound`→404, validação→400, `AccessDenied`→403); (2) log por classe — 4xx → `WARN`, uma linha, **sem** stacktrace; 5xx → `ERROR` **com** stacktrace (único lugar que loga stack); (3) mensagens em **PT-BR**; (4) 5xx nunca vaza detalhe interno pro cliente; (5) corpo `StandardError` = `{timestamp, status, error, message, path, correlationId}`, com `correlationId` vindo do MDC (`CorrelationIdFilter` lê o header `X-Correlation-ID`). Pra correlationId sair em toda linha de log, falta `[%X{correlationId}]` no pattern do logback de cada serviço.
 
-After every set of code changes, propose a short commit message in the format:
-
-```
-<type>: <short description>
-
-- bullet summarizing each changed file/area
-```
-
-Types: `fix` (bug/security), `feat` (new feature), `refactor`, `chore` (config/tooling), `docs`.
+**Não gerar mensagem de commit:** o Claude não deve propor/gerar mensagens de commit ao final das mudanças, a menos que o usuário peça explicitamente.

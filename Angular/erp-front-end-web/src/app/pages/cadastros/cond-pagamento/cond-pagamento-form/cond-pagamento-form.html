@@ -2,7 +2,7 @@
 <form [formGroup]="form" (ngSubmit)="onSubmit()" class="flex flex-col gap-4 mt-2">
 
   <div class="flex flex-col gap-2">
-    <label for="nome" class="font-semibold text-gray-700">Nome <span class="text-red-500">*</span></label>
+    <label for="nome" class="jb-label">Nome <span class="text-red-500">*</span></label>
     <input
       id="nome"
       type="text"
@@ -15,7 +15,7 @@
   </div>
 
   <div class="flex flex-col gap-2">
-    <label for="descricao" class="font-semibold text-gray-700">Descrição</label>
+    <label for="descricao" class="jb-label">Descrição</label>
     <textarea
       id="descricao"
       rows="3"
@@ -30,42 +30,42 @@
       inputId="ativo"
       formControlName="ativo"
       [binary]="true"></p-checkbox>
-    <label for="ativo" class="font-semibold text-gray-700 cursor-pointer">Condição de Pagamento Ativa</label>
+    <label for="ativo" class="jb-label cursor-pointer">Condição de Pagamento Ativa</label>
   </div>
 
   <!-- SEÇÃO DE PARCELAS -->
-  <div class="mt-4 pt-4 border-t border-gray-200" formArrayName="parcelas">
+  <div class="mt-4 pt-4 jb-parcelas-section" formArrayName="parcelas">
     <div class="flex justify-between items-center mb-3">
-      <h3 class="font-bold text-gray-800 m-0">Regras de Parcelamento</h3>
+      <h3 class="jb-section-title m-0">Regras de Parcelamento</h3>
       <p-button icon="pi pi-plus" label="Adicionar Parcela" size="small" styleClass="p-button-outlined p-button-sm" (onClick)="addParcela()"></p-button>
     </div>
 
-    <div class="text-sm text-gray-500 mb-2">A soma dos percentuais deve totalizar 100%.</div>
+    <div class="text-sm jb-hint mb-2">A soma dos percentuais deve totalizar 100%.</div>
 
     <div class="flex flex-col gap-3">
-      <div *ngFor="let pCtrl of parcelasArray.controls; let i = index" [formGroupName]="i" class="flex gap-2 items-center bg-gray-50 p-2 rounded border border-gray-200">
+      <div *ngFor="let pCtrl of parcelasArray.controls; let i = index" [formGroupName]="i" class="flex gap-2 items-center jb-parcela-row">
 
         <!-- Numero (Readonly pois é calculado) -->
         <div class="w-16">
-          <label class="text-xs font-semibold text-gray-600 block mb-1">Nº</label>
+          <label class="jb-label-sm block mb-1">Nº</label>
           <input type="number" pInputText formControlName="numeroParcela" class="w-full text-center" readonly>
         </div>
 
         <!-- Dias de Prazo -->
         <div class="flex-1">
-          <label class="text-xs font-semibold text-gray-600 block mb-1">Prazo (Dias)</label>
+          <label class="jb-label-sm block mb-1">Prazo (Dias)</label>
           <input type="number" pInputText formControlName="diasPrazo" class="w-full" placeholder="Ex: 30">
         </div>
 
         <!-- Percentual -->
         <div class="flex-1">
-          <label class="text-xs font-semibold text-gray-600 block mb-1">Percentual (%)</label>
+          <label class="jb-label-sm block mb-1">Percentual (%)</label>
           <input type="number" pInputText formControlName="percentual" step="0.01" class="w-full" placeholder="Ex: 33.33">
         </div>
 
         <!-- Forma de Pagamento (Dropdown) -->
         <div class="flex-1">
-          <label class="text-[10px] font-semibold text-gray-600 block mb-1">Forma de Pagamento</label>
+          <label class="jb-label-sm block mb-1">Forma de Pagamento</label>
           <p-select
             [options]="formasPagamento"
             formControlName="formaPagamento"
@@ -83,13 +83,13 @@
         </div>
       </div>
 
-      <div *ngIf="parcelasArray.length === 0" class="text-center text-sm text-gray-400 py-3 bg-gray-50 border border-dashed rounded">
+      <div *ngIf="parcelasArray.length === 0" class="text-center text-sm jb-hint py-3 jb-parcelas-empty">
         Nenhuma parcela adicionada.
       </div>
     </div>
   </div>
 
-  <div class="flex justify-end gap-2 mt-6 pt-4 border-t border-gray-200">
+  <div class="flex justify-end gap-2 mt-6 pt-4 jb-form-footer">
     <p-button
       label="Cancelar"
       icon="pi pi-times"

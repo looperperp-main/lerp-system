@@ -14,6 +14,7 @@ import {HtmlDecodePipe} from '../../../util/pipe/html-decode.pipe';
 import {Toast} from 'primeng/toast';
 import {HttpErrorResponse} from '@angular/common/http';
 import {PrimaryButtonComponent} from '../../../components/primary-button/primary-button';
+import {Deposito} from '../deposito/deposito.model';
 
 @Component({
   selector: 'app-grupo-clientes',
@@ -106,6 +107,21 @@ export class CondPagamentos implements OnInit {
   onFormCanceled(): void {
     this.displayForm = false;
   }
+
+  inativarAtivarCPag(rowData: Deposito): void {
+    // Para mudar o status apenas alteramos e atualizamos. Depende de como é feito no backend
+    const updated = { ...rowData, ativo: !rowData.ativo };
+    this.cPagService.updateStatus(rowData.id!).subscribe({
+      next: () => {
+        this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Status atualizado.' });
+        this.loadcPags({ first: 0, rows: 10 });
+      },
+      error: (err) => {
+        this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao alterar status.' });
+      }
+    });
+  }
+
 
   exportData(): void {
     this.messageService.add({ severity: 'info', summary: 'Info', detail: 'Exportação em desenvolvimento.' });

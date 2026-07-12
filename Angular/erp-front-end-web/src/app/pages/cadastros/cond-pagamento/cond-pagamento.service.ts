@@ -24,6 +24,10 @@ export class CondPagamentoService {
     return this.http.get<CondPagamento>(`${this.apiUrl}/${id}`);
   }
 
+  updateStatus(id: string): Observable<void> {
+    return this.http.patch<void>(`${this.apiUrl}/${id}/status`, null);
+  }
+
   salvar(grupo: CondPagamento): Observable<CondPagamento> {
     if (grupo.id) {
       return this.http.put<CondPagamento>(`${this.apiUrl}/${grupo.id}`, grupo);
