@@ -61,6 +61,13 @@ public class RoleController {
         return ResponseEntity.ok(roles);
     }
 
+    /**
+     * Searches for roles based on the provided filter criteria and pagination details.
+     *
+     * @param filter the filter criteria for searching roles, encapsulated in a {@link RoleSearchFilterDTO}.
+     * @param pageable the pagination and sorting information, encapsulated in a {@link Pageable}.
+     * @return a {@link ResponseEntity} containing a {@link Page} of {@link RoleDTO} objects that match the search criteria.
+     */
     @PostMapping("/search")
     @PreAuthorize("hasAuthority('ROLE_READ')")
     public ResponseEntity<Page<RoleDTO>> searchRoles(
