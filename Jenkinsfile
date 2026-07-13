@@ -45,6 +45,9 @@ pipeline {
         }
 
         stage('SonarQube Analysis') {
+            // SonarQube Community Edition não suporta Branch/PR Analysis: rodar isso em PR
+            // sobrescreveria a análise da main sem trazer decoration nenhuma no PR.
+            when { not { changeRequest() } }
             steps {
                 withSonarQubeEnv('SonarQube') {
                     sh './mvnw sonar:sonar -pl auth-service,cadastro-service,partner-service,billing-service -am -Dsonar.token=${SONAR_TOKEN} --batch-mode --no-transfer-progress'
@@ -53,6 +56,7 @@ pipeline {
         }
 
         stage('Quality Gate') {
+            when { not { changeRequest() } }
             steps {
                 timeout(time: 5, unit: 'MINUTES') {
                     waitForQualityGate abortPipeline: true
@@ -61,6 +65,8 @@ pipeline {
         }
 
         stage('Docker Build & Push') {
+            // PR não deve gerar/pushar imagem: isso só acontece após merge na main.
+            when { not { changeRequest() } }
             steps {
                 sh '''
                     # gateway e registry herdam de spring-boot-starter-parent (fora do verify/Sonar dos apps);
