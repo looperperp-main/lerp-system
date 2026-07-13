@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
@@ -54,7 +55,10 @@ class TrialEngagementServiceTest {
                 .upsertFeatureAccess(anyLong(), org.mockito.ArgumentMatchers.anyString(), any());
 
         // não deve propagar a exceção — apenas loga
-        engagementService.registrar(TENANT_ID, "nfe");
+        assertThatCode(() -> engagementService.registrar(TENANT_ID, "nfe"))
+                .doesNotThrowAnyException();
+
+        verify(repository).upsertFeatureAccess(eq(TENANT_ID), eq("nfe"), any(OffsetDateTime.class));
     }
 
     @Test
@@ -78,8 +82,9 @@ class TrialEngagementServiceTest {
         when(repository.findByTenantId(TENANT_ID)).thenReturn(List.of());
 
         List<FeatureStatDTO> result = engagementService.getEngagement(TENANT_ID);
-
-        assertThat(result).allMatch(f -> f.accessCount() == 0 && f.lastAccessedAt() == null);
+        assertThat(result)
+                .hasSize(TrialEngagementService.FEATURE_CATALOG.size())
+                .allMatch(f -> f.accessCount() == 0 && f.lastAccessedAt() == null);
     }
 
     @Test
@@ -91,9 +96,10 @@ class TrialEngagementServiceTest {
 
         List<String> gaps = engagementService.getAdoptionGaps(TENANT_ID);
 
-        assertThat(gaps).doesNotContain(TrialEngagementService.FEATURE_CATALOG.get("nfe"));
-        assertThat(gaps).contains(TrialEngagementService.FEATURE_CATALOG.get("relatorios"));
-        assertThat(gaps).hasSize(TrialEngagementService.FEATURE_CATALOG.size() - 1);
+        assertThat(gaps)
+                .doesNotContain(TrialEngagementService.FEATURE_CATALOG.get("nfe"))
+                .contains(TrialEngagementService.FEATURE_CATALOG.get("relatorios"))
+                .hasSize(TrialEngagementService.FEATURE_CATALOG.size() - 1);
     }
 
     @Test

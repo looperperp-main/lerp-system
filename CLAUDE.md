@@ -42,6 +42,9 @@ ERP-VSD is a multi-tenant ERP system built as a Spring Boot microservices monore
 # Run a specific service
 ./mvnw spring-boot:run -pl auth-service
 
+# Run a service with capped heap + lazy bean init (recommended locally when running multiple services at once)
+JAVA_TOOL_OPTIONS="-Xmx256m -Xss512k" SPRING_PROFILES_ACTIVE=dev ./mvnw spring-boot:run -pl auth-service
+
 # Build Docker image for a service
 ./mvnw spring-boot:build-image -pl auth-service -DskipTests
 
