@@ -4993,7 +4993,7 @@ DIAGRAMA 2 — P2P / O2C
 | `fornecedor` | via `pessoa` | Tem documento |
 | `transportadora` | via `pessoa` | CT-e gera crédito IBS/CBS |
 | `condicao_pagamento` | `forma_pagamento` nas parcelas | Base para split payment |
-| `condicao_pagamento_parcela` | `forma_pagamento` | PIX/cartão = split, boleto/cheque = sem split |
+| `condicao_pagamento_parcela` | `forma_pagamento` | PIX/cartão/**boleto** = split (liquidação via arranjo — MF-05); dinheiro/cheque = sem split |
 
 #### Schema `billing` — intocável
 
@@ -5265,8 +5265,13 @@ SPRINT 6 — Apuração Fiscal
 SPRINT 7 — Análises
 └── financeiro/v1/030  pdd-config + seed
 
-Total: ~76 migrations em 3 schemas novos
-(53 dos sprints acima + 14 do §12.10-B + 9 do §1.8.12)
+SPRINT 8 — Split Payment (pós-MVP antecipado — §14.2)
+├── financeiro/v1/031  addcol-split-payment
+├── financeiro/v1/032  seed-tipo-baixa-split
+└── contabil/v1/009    conta-transitoria-split
+
+Total: ~79 migrations em 3 schemas novos
+(56 dos sprints acima + 14 do §12.10-B + 9 do §1.8.12)
 ```
 
 ---
@@ -5982,9 +5987,14 @@ Complementa o que está em §10.2.
 | 1 | Módulos I–VI (este documento) | Agora |
 | 2 | Emissão NF-e com campos IBS/CBS obrigatórios | Antes de agosto/2026 |
 | 3 | Motor fiscal: alíquotas IBS/CBS por NCM e destino | 2026/2027 |
-| 4 | Split payment em `conta_movimentacao` + `titulo_baixa` | Antes de 2027 |
+| 4 | Split payment em `conta_movimentacao` + `titulo_baixa` | **Primeira entrega pós-MVP** (antecipada — §14.2); vigência em produção: 2027 |
 | 5 | Apuração IBS/CBS, DCTFWeb, declaração CGIBS | 2027–2033 |
 | 6 | ICMS/ISS → extinção progressiva nos relatórios | 2029–2033 |
+
+> **Ordem de execução ≠ numeração (decisão jul/2026).** A Fase 4 foi **antecipada** para
+> primeira entrega após o MVP (Sprints 1–7) — ordem real de execução: **1 → 4 → 2 → 3 → 5 → 6**.
+> A numeração das fases é preservada porque o documento a referencia em vários pontos
+> (§11.1, §11.2 e outros). Racional da antecipação, análise de dependência e plano: **§14.2**.
 
 **Roadmap não-fiscal (decisões registradas nesta revisão):**
 
@@ -6002,10 +6012,10 @@ Complementa o que está em §10.2.
 
 ```sql
 financeiro.titulo.impostos JSONB                    -- absorve IBS/CBS/IS
--- Adicionar em conta_movimentacao (migration futura):
+-- Adicionar em conta_movimentacao (Sprint 8 — §14.2):
 valor_retido_governo  NUMERIC(15,2) DEFAULT 0
 tipo_retencao         VARCHAR(20)   -- 'IBS' | 'CBS' | 'IBS_CBS'
--- Adicionar em titulo_baixa (migration futura):
+-- Adicionar em titulo_baixa (Sprint 8 — §14.2):
 valor_split_payment   NUMERIC(15,2) DEFAULT 0
 ```
 
@@ -6067,6 +6077,76 @@ valor_split_payment   NUMERIC(15,2) DEFAULT 0
 > tipado numérico no leiaute FEBRABAN — tenant com CNPJ alfanumérico depende de atualização
 > do leiaute bancário (limitação externa, monitorar FEBRABAN; ver §IV-CNAB.1).
 > O manual v1.5.1.3 (2021), obsoleto, foi removido da pasta.
+
+---
+
+### 14.2 Split Payment — Implementação Antecipada (Fase 4 → primeira entrega pós-MVP)
+
+> **Decisão (jul/2026):** o split payment (Fase 4 do §14) é a **primeira entrega após o
+> MVP**, executando **antes** das Fases 2 (emissão NF-e) e 3 (motor fiscal por NCM/destino).
+> Entra no plano de migrations como **Sprint 8** (§12.11). Implementado agora, fica
+> **dormente em produção** atrás de `vigencia_tributo.split_payment_ativo` (seed: 2027);
+> em sandbox, testável alterando a vigência do tenant de teste.
+
+#### Por que as Fases 2 e 3 não bloqueiam
+
+| Suposto bloqueador | Bloqueia? | Motivo |
+|---|---|---|
+| Fase 2 — emissão NF-e com IBS/CBS | ❌ | O split ocorre na **liquidação do pagamento**, não na emissão do documento. A baixa não lê XML |
+| Fase 3 — motor por NCM/destino | ❌ | O Sprint 1 (MVP) já entrega o motor base com o Passo 8 (§1.4.2): `valor_split_ibs/cbs` são **teto de referência** — o valor efetivamente segregado **vem da liquidação** (retorno do arranjo). A Fase 3 refina a precisão da referência, não o mecanismo |
+| `titulo.impostos JSONB` null/parcial | ❌ | Mesma dependência "mole" do AP/AR: a baixa split grava o retido informado pela liquidação; sem referência, apenas pula a validação (WARN em log) |
+| Apuração mensal (Sprint 6 / Fase 5) | ⚠️ Parcial | Não bloqueia **registrar** o split; apenas a **compensação da conta transitória** contra o IBS/CBS a recolher permanece na Fase 5 (§37, nota Q-conciliação) — a transitória acumula saldo até lá |
+
+**Pré-requisitos reais (todos no MVP):** Sprint 1 (motor fiscal base — Passo 8,
+`vigencia_tributo.split_payment_ativo`, `parametro_fiscal` `split.modelo`), Sprint 2
+(`titulo_baixa` + `tipo_baixa`), Sprint 3 (`conta_movimentacao` + conciliação) e Sprint 5
+(GL + `mapeamento`). O Sprint 4 (CNAB/PIX) é pré-requisito apenas do **canal automático**
+de liquidação — a baixa split manual funciona sem ele.
+
+#### Migrations — Sprint 8
+
+| Arquivo | Operação | Descrição |
+|---|---|---|
+| `financeiro/v1/031-addcol-split-payment.yaml` | `addColumn` | Adiciona `titulo_baixa.valor_split_payment NUMERIC(15,2) NOT NULL DEFAULT 0` com `CHECK (valor_split_payment >= 0)`; `conta_movimentacao.valor_retido_governo NUMERIC(15,2) NOT NULL DEFAULT 0`; `conta_movimentacao.tipo_retencao VARCHAR(20)` nullable com `CHECK (tipo_retencao IN ('IBS','CBS','IBS_CBS'))`. São os campos reservados do §14 — migration puramente aditiva |
+| `financeiro/v1/032-seed-tipo-baixa-split.yaml` | `sql` | Insere `tipo_baixa` com `meio = 'SPLIT_PAYMENT'` (natureza AMBOS) para os tenants existentes e adiciona o tipo ao template de onboarding de tenant. O enum de `meio` (§2.x) já prevê o valor |
+| `contabil/v1/009-conta-transitoria-split.yaml` | `sql` | Adiciona ao `plano_contas_template` a conta **"IBS/CBS Recolhido na Liquidação"** (grupo 1.1.x — ativo, transitória, crédito a compensar na apuração) e o `mapeamento` default `TIPO_BAIXA (meio SPLIT_PAYMENT) → transitória` |
+
+Schema `fiscal`: **nada novo** — `operacao_fiscal` (com `valor_split_ibs/cbs` do Passo 8),
+`vigencia_tributo.split_payment_ativo` e `split.modelo` já nascem no Sprint 1.
+
+#### Fluxo fim a fim
+
+```
+1. Motor fiscal (Passo 8, §1.4.2) calcula valor_split_ibs/cbs (referência/teto)
+     → fiscal.operacao_fiscal + resumo em titulo.impostos JSONB
+2. Liquidação chega — retorno CNAB / webhook PIX / arquivo adquirente / manual —
+     com valor LÍQUIDO creditado + valor retido pelo arranjo
+3. BaixaService: titulo_baixa com tipo_baixa.meio = 'SPLIT_PAYMENT'
+     valor = BRUTO · valor_split_payment = retido efetivo
+     valida retido ≤ referência de impostos JSONB (se houver; senão WARN)
+4. conta_movimentacao: valor = LÍQUIDO · valor_retido_governo = retido
+     · tipo_retencao = 'IBS_CBS'
+5. Conciliação (§III): extrato × movimentação casam pelo LÍQUIDO —
+     sem quebra de centavos (desenho do §37)
+6. GL (§37): D Caixa/Banco (líquido) + D IBS/CBS Recolhido na Liquidação (retido)
+     × C Clientes (bruto) — AP com D/C invertidos
+7. Fase 5 (futuro): apuração compensa a transitória contra IBS/CBS a recolher
+```
+
+#### Sequência executável
+
+| Passo | Entrega | Depende de |
+|---|---|---|
+| 8.1 | As 3 migrations acima | Sprints 2/3/5 aplicados |
+| 8.2 | `BaixaService`: caminho split (AR primeiro, AP em seguida), null-tolerante a `impostos JSONB` | 8.1 |
+| 8.3 | GL: template de 3 partidas no `GeracaoLancamentoService` (linha "Baixa com split payment" do §37) via `mapeamento` | 8.1 · Sprint 5 |
+| 8.4 | Teste E2E de conciliação: extrato líquido × movimentação líquida × baixa bruta (prova dos centavos) | 8.2 |
+| 8.5 | Canal automático: valor retido no retorno CNAB/PIX/adquirente como Strategy (§IV-CNAB); até o leiaute oficial do CGIBS/RFB sair, o retido é campo informado na baixa manual | Sprint 4 |
+
+> ⚠️ O leiaute oficial de liquidação com split ainda depende de regulamentação CGIBS/RFB
+> (mesmo alerta do §1.4.2 Passo 8). Por isso o passo 8.5 é um **adapter trocável** — o
+> contrato interno (líquido + retido + tipo_retencao) fecha agora; o parser do leiaute
+> oficial pluga depois sem tocar em baixa, conciliação ou GL.
 
 ---
 
