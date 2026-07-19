@@ -12,6 +12,7 @@ import org.springframework.data.web.PagedResourcesAssembler;
 import org.springframework.hateoas.IanaLinkRelations;
 import org.springframework.hateoas.PagedModel;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -56,6 +57,7 @@ public class PlanController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAuthority('PLANO_MANAGE')")
     public ResponseEntity<PlanResponse> criar(
             @RequestHeader(Constants.HEADER_USER_ID) String userId,
             @RequestHeader(Constants.HEADER_TENANT_ID) String tenantId,
@@ -65,6 +67,7 @@ public class PlanController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('PLANO_MANAGE')")
     public ResponseEntity<PlanResponse> atualizar(
             @PathVariable UUID id,
             @RequestHeader(Constants.HEADER_USER_ID) String userId,
@@ -74,6 +77,7 @@ public class PlanController {
     }
 
     @PatchMapping("/{id}/status")
+    @PreAuthorize("hasAuthority('PLANO_MANAGE')")
     public ResponseEntity<PlanResponse> toggleStatus(
             @PathVariable UUID id,
             @RequestHeader(Constants.HEADER_USER_ID) String userId,

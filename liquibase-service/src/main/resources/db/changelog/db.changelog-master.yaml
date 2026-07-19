@@ -50,6 +50,12 @@ databaseChangeLog:
       file: auth/auth-schema-015.yaml
       relativeToChangelogFile: true
   - include:
+      file: auth/auth-schema-016.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: auth/auth-schema-017.yaml
+      relativeToChangelogFile: true
+  - include:
       file: audit/audit-schema-001.yaml
       relativeToChangelogFile: true
   - include:
@@ -162,4 +168,7 @@ databaseChangeLog:
       relativeToChangelogFile: true
   - include:
       file: billing/billing-schema-017.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: billing/billing-schema-018.yaml
       relativeToChangelogFile: true

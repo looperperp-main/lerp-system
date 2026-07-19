@@ -30,10 +30,9 @@ rodando, **falsifica repasses no banco**.~~
 **Feito (Fase 4):** removido o `@Scheduled` e o corpo que chamava o stub; `processarRepasses()` virou no-op.
 **Atualizado (Fase 6, 2026-06-28):** o stub `AsaasClient.java` foi **DELETADO** (código morto/perigoso — "SIMULADO-"). O payout real vive em `CommissionPayoutService`/`CommissionPayoutJob` via `AsaasTransferClient` (`POST /v3/transfers`, sem retry — §28.4). `processarRepasses()` agora dispara o payout real do período atual (trigger manual de dev). Comissão só vira `PAGO` no webhook `TRANSFER_COMPLETED` — nunca por chamada falsa.
 
-**2.2 — `TokenService.validateSecret` (auth-service): check de ≥32 chars está COMENTADO.**
-`if (secret == null /*|| secret.length() < 32*/)`. O `CLAUDE.md` afirma que o secret é validado no startup
-(mín. 32 chars). Doc divergente do código + proteção real desligada (JWT_SECRET fraco passaria).
-**Ação:** reativar o check.
+**2.2 — `TokenService.validateSecret` (auth-service): check de ≥32 chars está COMENTADO.** ✅ **RESOLVIDO — doc estava desatualizada, corrigido em 2026-07-14.**
+~~`if (secret == null /*|| secret.length() < 32*/)`. O `CLAUDE.md` afirma que o secret é validado no startup (mín. 32 chars). Doc divergente do código + proteção real desligada (JWT_SECRET fraco passaria).~~
+**Verificado em 2026-07-14:** o check já está ativo no código (`if (secret == null || secret.length() < 32) throw new IllegalStateException(...)`), sem comentário — corrigido no commit `1973eb0` ("fix: reativa validação de tamanho mínimo do JWT_SECRET no startup"), anterior a esta auditoria. Este item ficou marcado como pendente nas seções 3/5 abaixo por desatualização do documento, não por o problema seguir existindo no código.
 
 ### 🟡 Médio
 **2.3 — `TenantStatusCacheService` write-through sem leitor.** Cache é atualizado (`put`) mas nada consome
@@ -101,11 +100,15 @@ sempre retorna `null`. Chamada extra ao Asaas sem efeito (tratada sem quebrar, m
 
 ### 🟢 Menor
 
-**4.6 — `JwtFilter` (auth-service) nunca retorna 401 explícito.** Sem `Bearer`, ele só não popula o SecurityContext e delega ao `SecurityConfig` negar. Funciona, mas um token inválido estoura `JWTVerificationException` sem catch → 500 em vez de 401. Tratar a exceção e responder 401.
+**4.6 — `JwtFilter` (auth-service) nunca retorna 401 explícito.** ✅ **RESOLVIDO (2026-07-14).**
+~~Sem `Bearer`, ele só não popula o SecurityContext e delega ao `SecurityConfig` negar. Funciona, mas um token inválido estoura `JWTVerificationException` sem catch → 500 em vez de 401.~~
+**Feito:** `doFilterInternal` agora envolve `verify(token)`/parsing de claims em `try/catch`, no mesmo molde do `SecurityFilter` do gateway — `TokenExpiredException` → 401 + header `X-Token-Expired`, `JWTVerificationException` (assinatura/issuer inválidos) → 401.
 
-**4.7 — `SecurityFilter` do gateway responde `OPTIONS` com 200 seco antes do CORS.** O preflight retorna 200 sem passar pelo `CorsFilter` do Spring dependendo da ordem da chain — se o CORS funciona hoje é porque o filter do Spring roda antes; a curto-circuito no filtro é redundante e pode mascarar config errada. Verificar ordem e remover o atalho se redundante.
+**4.7 — `SecurityFilter` do gateway responde `OPTIONS` com 200 seco antes do CORS.** ✅ **RESOLVIDO (2026-07-14).**
+~~O preflight retorna 200 sem passar pelo `CorsFilter` do Spring dependendo da ordem da chain — se o CORS funciona hoje é porque o filter do Spring roda antes; a curto-circuito no filtro é redundante e pode mascarar config errada.~~
+**Feito:** confirmado que o preflight real é resolvido pelo `CorsFilter` do Spring Security (`HttpSecurity.cors(...)` em `SecurityConfig`), que roda antes do `SecurityFilter` na chain e encerra a request sem chegar a ele — atalho removido. De caminho, corrigido um double-registration não documentado: `SecurityFilter` é `@Component` (necessário para injeção em `SecurityConfig` via `addFilterBefore`) mas isso também fazia o Spring Boot auto-registrá-lo como filtro de servlet standalone — toda request passava pelo filtro duas vezes. Desligado via `FilterRegistrationBean<SecurityFilter>.setEnabled(false)`.
 
-**4.8 — `PaymentReceivedHandler`/`DunningService` escrevem no `TenantStatusCacheService` (agora 2 escritores) e continua sem nenhum leitor** — reforça o 2.3: ou nasce o `get()` interno, ou remover os `put()`.
+**4.8 — `PaymentReceivedHandler`/`DunningService` escrevem no `TenantStatusCacheService` (agora 2 escritores) e continua sem nenhum leitor** — reforça o 2.3: ou nasce o `get()` interno, ou remover os `put()`. **Pendente** — aguardando revisão da spec de payments antes de decidir entre plugar um leitor ou remover o cache.
 
 ### Melhorias (não-segurança)
 
@@ -122,7 +125,7 @@ sempre retorna `null`. Chamada extra ao Asaas sem efeito (tratada sem quebrar, m
 **Feito:** novo método `resolveRoles(userId, isOwner)` em `AuthService.java` busca as roles reais via `userRoleRepository.findAllByUserId(userId).stream().map(ur -> ur.getRole().getName()).distinct().toList()`; `isOwner` entra só como flag adicional (`APP_OWNER`), sem mais sobrescrever com `"ROLE_USER"` fixo nem forçar `TENANT_OWNER`. Aplicado nas duas ocorrências (`login()` e `generateJwtForUser()`), TODO removido. Detalhado em `spec/seguranca-tenant-scoping.md` (M7).
 
 ### Prioridade sugerida (2026-07-03)
-1. ✅ **4.1 resolvido** (filtro no cadastro-service). **2.2** (descomentar check do JWT_SECRET) segue pendente, reconfirmado hoje.
+1. ✅ **4.1 resolvido** (filtro no cadastro-service). **2.2** (descomentar check do JWT_SECRET) — ✅ resolvido (o registro aqui estava desatualizado; ver §5, corrigido em 2026-07-14).
 2. ✅ **4.2/4.3 resolvidos** (fail-fast de secrets do billing) — fecha o vetor de webhook forjado.
 3. ✅ **4.4/4.5 resolvidos** (endurecimento do gateway).
 4. ✅ **4.9/4.10/4.11 resolvidos** (constantes de header centralizadas, exceptions 401 coerentes, claim `roles` real). 4.6–4.8 seguem conforme oportunidade.
@@ -133,7 +136,7 @@ sempre retorna `null`. Chamada extra ao Asaas sem efeito (tratada sem quebrar, m
 
 | Item | Status em 2026-07-03 |
 |---|---|
-| 2.2 JWT_SECRET check comentado | ❌ **Ainda pendente** — `TokenService.java:28` segue com `/*|| secret.length() < 32*/` |
+| 2.2 JWT_SECRET check comentado | ✅ **Resolvido** — commit `1973eb0` reativou a validação de tamanho mínimo no startup; confirmado ativo em 2026-07-14 |
 | 2.3 Cache sem leitor | ❌ **Ainda pendente** — ganhou 2º escritor (`DunningService.put` em SUSPENSO/CANCELADO), mas `get()` continua sem caller |
 | 2.4 `annualGuard` morto | ❌ **Ainda pendente** — bean `annualGuardScript` em `RedisConfig.java:58` sem caller |
 | 2.7 `getPixQrCode` com UNDEFINED | Sem mudança |
@@ -155,3 +158,115 @@ sempre retorna `null`. Chamada extra ao Asaas sem efeito (tratada sem quebrar, m
 | **4.11** | `auth-service/.../infra/AuthService.java` | Novo `resolveRoles(userId, isOwner)` busca roles reais via `userRoleRepository.findAllByUserId`; `isOwner` vira flag adicional (`APP_OWNER`) em vez de sobrescrever com `"ROLE_USER"` fixo. Aplicado em `login()` e `generateJwtForUser()`. |
 
 **Não incluído neste round** (fora do escopo pedido): 2.2 (JWT_SECRET check comentado), 2.3/2.4 (cache/annualGuard mortos), 4.6–4.8 (menores). Os `RuntimeException` de entidade-não-encontrada na camada de serviço (`ClienteService`, `ProdutoCategoriaService`, `GrupoClienteTabelaPrecoService`) também ficaram de fora — semântica correta é 404, não 401/403, então não foram tocados junto com o 4.10.
+
+---
+
+## 7. Auditoria — abuso de cobrança e negação de serviço — 2026-07-14
+
+**Escopo:** `billing-service` (autorização/lógica financeira) + `gateway`/`auth-service` (rate-limit e esgotamento de recursos). **Método:** callers e configs confirmados lendo o código real; achados abaixo verificados manualmente (arquivo:linha) antes de entrar nesta lista.
+
+### 🔴 Crítico
+
+**7.1 — Qualquer usuário autenticado (de qualquer tenant) pode reescrever o catálogo de planos e pagar centavos.** ✅ **RESOLVIDO (2026-07-14).**
+~~Gateway `SecurityFilter.java` só marca `GET /billing/api/v1/plans` como público (`PUBLIC_METHOD_PATHS`); `POST`/`PUT` em `/billing/api/v1/plans` caem em `anyRequest().authenticated()`. `PlanController.java` (`@PostMapping` linha 58, `@PutMapping("/{id}")` linha 67) não tem **nenhum** `@PreAuthorize`, e o `billing-service` `SecurityConfig` é `anyRequest().permitAll()` — o único gate real é o `InternalRequestFilter`, que só exige o header `X-User-Id` (qualquer usuário logado, de qualquer tenant, sem checar role). `PlanRequest.value` só valida `@Positive`, então `0.01` passa.~~
+~~**Cenário:** um usuário comum de um tenant qualquer faz `PUT /billing/api/v1/plans/{id}` baixando o `value` do plano PRO pra R$0,01 (ou cria um plano próprio com `value=0.01 active=true`), depois `POST /billing/api/v1/checkout` com aquele `planType`. `CheckoutService` busca o plano por `findByPlanTypeAndActiveTrue` e cria a assinatura no Asaas com o valor adulterado — paga 1 centavo, ganha acesso completo. Como o `PUT` altera a linha global do plano, afeta **todos os tenants** (pode zerar receita geral). Era o item mais grave de toda a auditoria.~~
+**Feito:** nova permission `PLATFORM` `PLANO_MANAGE` semeada via Liquibase (`liquibase-service/.../auth/auth-schema-016.yaml`, mesmo molde do `REPASSE_EXECUTE` em `auth-schema-011.yaml` — scope `PLATFORM`, não atribuível pelo portal de tenant). `@PreAuthorize("hasAuthority('PLANO_MANAGE')")` adicionado em `PlanController.criar`/`.atualizar`/`.toggleStatus` (POST/PUT/PATCH); infra de authorities via header `X-Authorities` já existia (`InternalRequestFilter`), reusada sem mudança. Mensagem do `SecurityExceptionHandler` generalizada (não é mais hardcoded pra "repasses"). **Pendente operacional (fora do código):** atribuir `PLANO_MANAGE` a uma role de admin Syax — ninguém tem essa permission ainda até isso ser feito manualmente (via SQL ou portal admin).
+
+**7.2 — Rate-limit do gateway é anulável via `X-Forwarded-For` forjado (amplifica todos os itens de DoS abaixo).** ✅ **RESOLVIDO (2026-07-14).**
+~~`RateLimitFilter.java:75-88` (`resolveKey`/`isTrustedProxy`) trata qualquer `remoteAddr` de faixa RFC-1918/loopback como proxy confiável e usa o primeiro valor de `X-Forwarded-For` como chave do bucket, sem validar quantos hops nem allowlist de proxy conhecido. No deploy real (Angular → nginx/LB OCI → gateway, ver `CLAUDE.md`), o `remoteAddr` que o gateway enxerga **é** o IP privado do LB — ou seja, toda requisição cai no ramo "confiável" e a chave do bucket passa a ser 100% controlada pelo atacante. Também impactava dev local: qualquer origem em faixa privada (docker bridge, loopback) já entrava no ramo "confiável".~~
+**Feito:** `isTrustedProxy`/`PRIVATE_PREFIXES` removidos. `resolveKey` só confia em `X-Forwarded-For` se `remoteAddr` estiver na allowlist explícita `gateway.trusted-proxies` (nova propriedade, `application.yml`, default **vazio** — em prod configurar via env var `GATEWAY_TRUSTED_PROXIES` com o(s) IP(s) exato(s) do LB/nginx). Default vazio também resolve o bloqueio observado em dev local, já que nada é tratado como proxy confiável sem configuração explícita. O `Map<String, Bucket>` (linha 25) virou um `LinkedHashMap` com `removeEldestEntry` (LRU, teto de 50 000 entradas) em vez de `ConcurrentHashMap` sem limite — cobre o esgotamento de heap sem depender de allowlist correta. `/actuator/**` também ficou fora do rate-limit (health checks/Prometheus não devem contar pro mesmo bucket de tráfego de API). Testes novos em `RateLimitFilterTest.java` cobrem allowlist vazia/preenchida e o bypass de `/actuator`.
+
+**7.3 — `/auth/criar-conta` (público) dispara Argon2 memory-hard + 2 INSERTs sem rate-limit dedicado.** ✅ **RESOLVIDO (2026-07-14).**
+~~`AuthController` → `AuthService.criarContaGratis` (`AuthService.java:467-502`), endpoint em `PUBLIC_PATHS` do gateway. Cada chamada roda `passwordEncoder.encode()` com Argon2id (16 MB RAM + 2 iterações por chamada) mais INSERTs em `tenant`+`users_account`, bootstrap de roles e evento Kafka. Sem o item 7.2 resolvido, o único limite era o rate-limit genérico do gateway.~~
+**Feito:** `RateLimitFilter` do gateway ganhou um segundo bucket Bucket4j, dedicado e mais restrito, só pra esse path (janela de 10 min, default 3 tentativas/IP — configurável via `rate-limit.criar-conta.*`), independente do limite genérico por IP.
+
+### 🟡 Médio
+
+**7.4 — IDOR: cancelar/reprocessar assinatura e ler cobranças de qualquer tenant.** ✅ **RESOLVIDO (2026-07-14).**
+~~`SubscriptionController.java`: `/{id}/reprocess`, `/{id}/cobrancas`, `/{id}/cancel` recebiam o UUID da assinatura direto no path, sem `@PreAuthorize` e sem checar se pertence ao tenant autenticado.~~
+**Feito:** nova permission `PLATFORM` `ASSINATURA_MANAGE` (`auth-schema-017.yaml`) + `@PreAuthorize("hasAuthority('ASSINATURA_MANAGE')")` em `listar`, `/mrr`, `/{id}/reprocess`, `/{id}/cobrancas`, `/{id}/cancel`. `/me/cancel` (self-service, escopado por `X-Tenant-Id`) não mudou.
+
+**7.5 — Vazamento cross-tenant de MRR e extrato de comissões.** ✅ **RESOLVIDO (2026-07-14).**
+~~`SubscriptionController.java:32-42` (`GET /subscriptions` aceita `tenantId` livre por query param) e `CommissionController.java` (`GET /commissions`, `GET /commissions/extrato?partnerId=`) — nenhum tinha `@PreAuthorize` nem validava dono.~~
+**Feito:** `GET /subscriptions` coberto pela mesma `ASSINATURA_MANAGE` do 7.4. Nova permission `PLATFORM` `COMISSAO_MANAGE` (`auth-schema-017.yaml`) + `@PreAuthorize` em `listar`, `/summary`, `/extrato` do `CommissionController`. Confirmado no código que `/extrato` não é chamado pelo partner-service via HTTP (o comentário estava desatualizado) — a integração real é por Kafka (`BillingClient.getExtrato` → `partner.extrato.request`/`ExtratoRequestConsumer`), então travar com permission de admin não quebra nada.
+
+**7.6 — Webhook do Asaas confia no `amount` do payload sem revalidar contra o valor esperado.** ✅ **RESOLVIDO (2026-07-14).**
+~~`PaymentReceivedHandler.java:92-96` — divergência entre valor esperado e valor recebido no payload só gerava `WARN`, e a comissão era calculada sobre `payment.getValue()` do corpo do webhook (autenticado só por token estático, não HMAC por payload).~~
+**Feito:** a ativação continua acontecendo mesmo com divergência (o pagamento já ocorreu no Asaas — bloquear ativação seria pior), mas o valor usado pro evento `subscription.activated`/comissão passou a ser sempre `sub.getValue()` (DB, dado de origem interna) — o `amount` do payload nunca mais alimenta cálculo financeiro, só o log de `WARN` continua comparando os dois pra observabilidade.
+
+**7.7 — Trial gratuito ilimitado por rotação de CNPJ.** — pendente, decisão de produto (não é fix de código: validar DV do CNPJ contra a Receita, limitar por IP/telefone, etc.).
+`AuthService.java:467-495` (`criarContaGratis`, endpoint público). Dedup só por CNPJ exato + e-mail exato; sem validação de DV do CNPJ contra a Receita, sem cartão, sem limite por IP/telefone. Cada par CNPJ+e-mail novo (mesmo descartável) gera novo TRIAL de 15 dias (`trialExpiresAt`, linha 482). Não recria com o *mesmo* CNPJ, mas nada impede rotacionar CNPJs válidos-porém-descartáveis + e-mail temporário pra manter acesso grátis indefinidamente.
+
+**Decisão (2026-07-14):** linha 468 (`cnpjDigits = req.cnpj().replaceAll("\\D", "")`) precisa sair — o strip-pra-só-dígito quebra quando o CNPJ alfanumérico (NT 2026.004, já suportado em `partner-service` via `CnpjService.java`/pipe Angular base-36, produção 01/07/2026) chegar nesse fluxo. Escopo decidido pra essa correção, por enquanto: validar só o dígito verificador (algoritmo mod 11, sem chamada externa) — **não** consultar Receita/BrasilAPI, porque isso introduz fricção pra testar o próprio fluxo de cadastro. `CnpjService.java` hoje vive só em `partner-service` (não em `common`), então precisa decidir mover/duplicar a lógica de DV pro auth-service quando isso for implementado.
+**Feito parcialmente (2026-07-14):** `criarContaGratis` normaliza mantendo letras (`replaceAll("[.\-/\s]", "").toUpperCase()`) e valida o CNPJ via `cnpjTemDvValido`/`calcularDigitoVerificadorCnpj` (novo, `AuthService.java`), algoritmo alfanumérico-ready (valor de cada caractere = ASCII - 48, pesos oficiais, 2 DVs sempre numéricos). CNPJ sem DV válido → 400. **Não implementado ainda:** limite por IP/telefone e qualquer verificação de posse (SMS/e-mail) — o achado original de rotação de CNPJ+e-mail descartável pra farmar TRIAL continua de pé, só a porta "CNPJ com DV inválido/mal formado" foi fechada. **Não testado** — sem suíte de testes cobrindo o método (privado, precisaria de reflection ou expor pra testar isolado); a aritmética do algoritmo não foi executada, só escrita a partir da especificação publicada.
+
+**7.8 — Checkout sem guarda de assinatura existente nem idempotência.** ✅ **RESOLVIDO (2026-07-14).**
+~~`CheckoutService.java:52-79` (`createCheckout`) não verificava se o tenant já tinha assinatura `ATIVA`/`AGUARDANDO_PAGAMENTO` antes de criar customer+subscription no Asaas, e não tinha lock/idempotency-key. Chamadas repetidas ou em paralelo criavam múltiplas assinaturas Asaas + múltiplas linhas locais pro mesmo tenant.~~
+**Feito:** guard fail-fast no início de `createCheckout` (rejeita com 409 antes de gastar chamada no Asaas) + índice único parcial `billing.subscription(tenant_id) WHERE status IN ('ATIVA','AGUARDANDO_PAGAMENTO')` (`billing-schema-018.yaml`) — é o índice que garante de verdade sob concorrência (o guard sozinho tem uma corrida TOCTOU). `saveAndFlush` (não `save`) força o INSERT dentro do `try`, com `catch (DataIntegrityViolationException)` → 409 em vez de vazar 500.
+
+**7.9 — `billing-service` sem `max-page-size` configurado (inconsistente com os outros 3 serviços).** ✅ **RESOLVIDO (2026-07-14).**
+~~`billing-service/src/main/resources/application.yaml` não tinha bloco `spring.data.web.pageable` — `GET /subscriptions` recebia `Pageable` cru, valendo o default do Spring (2000).~~
+**Feito:** `spring.data.web.pageable.max-page-size: 100` adicionado, mesmo valor dos outros 3 serviços.
+
+### 🟢 Menor
+
+**7.10 — `SubscriptionController /mrr` faz `findAll()` sem filtro.** ✅ **RESOLVIDO (2026-07-14).**
+~~`SubscriptionController.java:51` carrega a tabela `subscription` inteira e itera 6× em streams a cada chamada (já tem comentário `ponytail:` reconhecendo a dívida). Cresce linearmente com o total de assinaturas de todos os tenants; admin-only, por isso severidade menor.~~
+**Feito:** novo `findByActivatedAtIsNotNull()` no repositório, usado em vez de `findAll()` — corta as assinaturas que nunca ativaram (`AGUARDANDO_PAGAMENTO` morta) do full scan. Continua agregando em memória (mesmo `ponytail:` de antes, teto documentado: query nativa com `generate_series` se a tabela crescer).
+
+**7.11 — `RolesService.getAllRoles()` sem paginação.** ✅ **RESOLVIDO (2026-07-14).**
+~~`auth-service/.../services/RolesService.java:71`. Tabela `roles` é pequena por natureza — impacto baixo, mas inconsistente com o padrão paginado do resto do CRUD.~~
+**Feito:** `findAll()` trocado por `findAll(PageRequest.of(0, 500))` — cap defensivo de 500, mantendo o contrato `List<RoleDTO>` do endpoint (`GET /auth/roles`, usado em dropdowns/picklists). Listagem paginada de verdade já existe em `GET /auth/roles/pages`.
+
+**7.12 — Login público roda Argon2 (16 MB/chamada) antes de qualquer CAPTCHA.** ✅ **RESOLVIDO (2026-07-14).**
+~~`AuthService.java` (`login`/`loginPartner`/`loginWithTenant`, linhas 115/154/221) — mitigado parcialmente por `isUserLocked()` rodar antes do hash e pelo lock após `MAX_FAILED_ATTEMPTS` (`:361-366`), e por short-circuit em e-mail inexistente (`:134`, sem hash). Combinado com o bypass do rate-limit (7.2) e uma lista de e-mails válidos conhecidos, ainda dá pra sustentar carga de Argon2 suficiente pra pressionar CPU/heap.~~
+**Feito:** o bucket dedicado do 7.3 foi generalizado — `RateLimitFilter` agora cobre `/auth/login`, `/auth/tenant/login`, `/auth/partner/login` além de `/auth/criar-conta` (mesmo mecanismo, `rate-limit.argon2.*`, janela 10min, default 5/IP). `/auth/refresh` e `/auth/logout` ficam de fora — não tocam em hash de senha.
+
+### Verificado e sem vetor (fecha o escopo, não repetir em auditorias futuras)
+
+- **Upload de arquivo:** não existe endpoint multipart hoje (só na spec futura `spec/Fin.md`, importação OFX/CNAB) — quando implementar, configurar `max-file-size`/`max-request-size`.
+- **ReDoS:** nenhum `Pattern.compile`/`.matches()` com input do usuário; buscas usam JPA/Spring Data, não regex.
+- **JSON gigante/aninhado:** defaults do Jackson (profundidade 1000, string 20 MB) não foram sobrescritos — contido, embora sem cap explícito de tamanho de body JSON (só multipart tem).
+- **Pools (HikariCP/Tomcat/Kafka):** `maximum-pool-size` default 10 nos 4 serviços; nenhuma transação longa em loop nem N+1 sobre lista vinda do client encontrada. Kafka producers usam defaults (`acks=all`, `delivery.timeout.ms=120000`), sends são fire-and-forget (não bloqueiam thread HTTP); sem poison-pill/retry infinito identificado.
+- **Auto-inflação de comissão pelo parceiro:** o `amount` da comissão vem pronto do evento Kafka `partner.commission.calculated` (`RecurrentCommissionStrategy.java:33`) e a idempotência por `asaasPaymentId` (`CommissionEngine.java:42-46`) impede duplicata pelo mesmo pagamento. Eventual auto-inflação teria que vir do cálculo no partner-service — fora do escopo do billing, não investigado aqui.
+
+### Resumo de prioridade
+
+1. ~~**7.1** (plano a R$0,01)~~ — ✅ resolvido (2026-07-14). Falta só atribuir `PLANO_MANAGE` a uma role de admin (passo operacional, fora do código).
+2. ~~**7.2** (bypass do rate-limit)~~ — ✅ resolvido (2026-07-14).
+3. ~~**7.3** (flood no criar-conta)~~ — ✅ resolvido (2026-07-14).
+4. ~~**7.4/7.5** (IDOR/vazamento cross-tenant billing)~~ — ✅ resolvido (2026-07-14). Falta atribuir `ASSINATURA_MANAGE`/`COMISSAO_MANAGE` a uma role de admin (mesmo passo operacional pendente do 7.1).
+5. ~~**7.6/7.8** (webhook amount / checkout duplicado)~~ — ✅ resolvido (2026-07-14). **7.7** parcialmente resolvido (validação de DV do CNPJ) — a rotação CNPJ+e-mail descartável em si segue sem limite (decisão de produto: IP/telefone/verificação de posse).
+6. ~~**7.9/7.10/7.11/7.12**~~ — ✅ resolvido (2026-07-14).
+
+### Correções aplicadas — 2026-07-14
+
+| Item | Arquivo(s) alterado(s) | O que mudou |
+|---|---|---|
+| **7.1** | `liquibase-service/.../auth/auth-schema-016.yaml` (+ `db.changelog-master.yaml`), `billing-service/.../PlanController.java`, `billing-service/.../SecurityExceptionHandler.java` | Nova permission `PLATFORM` `PLANO_MANAGE`; `@PreAuthorize("hasAuthority('PLANO_MANAGE')")` em criar/atualizar/toggle de plano; mensagem 403 generalizada. |
+| **7.2** | `gateway/.../filter/RateLimitFilter.java`, `gateway/src/main/resources/application.yml`, `gateway/.../filter/RateLimitFilterTest.java` | Trust de `X-Forwarded-For` trocado de "qualquer IP RFC1918" pra allowlist explícita (`gateway.trusted-proxies`, default vazio); `Map` de buckets virou LRU limitado (50k entradas) em vez de crescer sem teto; `/actuator/**` isento do rate-limit. |
+| **2.2** | (nenhum — doc corrigida) | Achado já estava resolvido no código (commit `1973eb0`, anterior a esta auditoria); `spec/auditoria.md` só não refletia isso. |
+| **4.6** | `auth-service/.../infra/config/JwtFilter.java` | `try/catch` em volta do `verify(token)`/parsing de claims — `TokenExpiredException`/`JWTVerificationException` agora respondem 401 em vez de estourar 500. |
+| **4.7** | `gateway/.../security/SecurityFilter.java`, `gateway/.../SecurityConfig.java`, `gateway/.../security/SecurityFilterTest.java` | Removido o atalho de `OPTIONS` (preflight real já é resolvido pelo `CorsFilter` do Spring, que roda antes na chain); corrigido double-registration do `SecurityFilter` como filtro standalone via `FilterRegistrationBean.setEnabled(false)`. |
+| **7.3** | `gateway/.../filter/RateLimitFilter.java`, `gateway/.../filter/RateLimitFilterTest.java` | Segundo bucket Bucket4j dedicado só pra `/auth/criar-conta` (janela 10min, default 3/IP), independente do bucket genérico. |
+| **7.4/7.5** | `liquibase-service/.../auth/auth-schema-017.yaml` (+ `db.changelog-master.yaml`), `billing-service/.../SubscriptionController.java`, `billing-service/.../CommissionController.java` | Novas permissions `PLATFORM` `ASSINATURA_MANAGE`/`COMISSAO_MANAGE`; `@PreAuthorize` em todos os endpoints admin dos dois controllers (`/me/cancel` do tenant não mudou). |
+| **7.6** | `billing-service/.../webhook/handler/PaymentReceivedHandler.java` | Comissão/evento `subscription.activated` passam a usar sempre `sub.getValue()` (DB) — nunca mais o `amount` do payload do webhook. |
+| **7.8** | `liquibase-service/.../billing/billing-schema-018.yaml` (+ `db.changelog-master.yaml`), `billing-service/.../repository/SubscriptionRepository.java`, `billing-service/.../services/CheckoutService.java` | Índice único parcial (1 assinatura ativa/pendente por tenant); guard fail-fast + `saveAndFlush`/catch de `DataIntegrityViolationException` → 409 em vez de duplicata ou 500. |
+| **7.9** | `billing-service/src/main/resources/application.yaml` | `spring.data.web.pageable.max-page-size: 100`, alinhado com os outros 3 serviços. |
+| **7.7** (parcial) | `auth-service/.../infra/AuthService.java` | `cnpjTemDvValido`/`calcularDigitoVerificadorCnpj` novos — CNPJ sem DV válido → 400 antes de tocar o banco. Normalização mantém letras (alfanumérico-ready). Limite por IP/telefone e verificação de posse seguem pendentes (decisão de produto). |
+| **7.10** | `billing-service/.../repository/SubscriptionRepository.java`, `billing-service/.../SubscriptionController.java` | `findByActivatedAtIsNotNull()` no lugar de `findAll()` no `/mrr`. |
+| **7.11** | `auth-service/.../services/RolesService.java` | `getAllRoles()` (sem paginação) agora usa `findAll(PageRequest.of(0, 500))` — cap defensivo, contrato inalterado. |
+| **7.12** | `gateway/.../filter/RateLimitFilter.java`, `gateway/.../filter/RateLimitFilterTest.java` | Bucket dedicado do 7.3 generalizado (`CRIAR_CONTA_PATH` → `ARGON2_PATHS`) pra cobrir também `/auth/login`, `/auth/tenant/login`, `/auth/partner/login`. |
+| **7.7 teste** | `auth-service/.../infra/AuthService.java` (visibilidade), `auth-service/.../infra/AuthServiceTest.java` | `cnpjTemDvValido`/`calcularDigitoVerificadorCnpj` viraram package-private (eram `private`) só pra testar sem reflection. 6 casos novos: DV válido (CNPJ de exemplo oficial Serpro `11.222.333/0001-81`), DV inválido, alfanumérico (auto-consistente, sem vetor oficial), tamanho errado, `null`, DVs não-numéricos. |
+
+## 8. Onde validar 2.3 e 2.4 (pendentes, não mexidos nesta sessão)
+
+**2.3 — `TenantStatusCacheService` sem leitor** (mesmo achado do 7.8 original antes de renumerar; hoje é o mesmo problema descrito em 2.3 e em §4.8 acima — duas entradas pro mesmo achado):
+- `billing-service/src/main/java/com/l/erp/billingservice/infra/redis/TenantStatusCacheService.java` — o `get(Long tenantId)` (linha 36) é o método sem caller.
+- Escritores confirmados: `billing-service/.../services/webhook/handler/PaymentReceivedHandler.java` (`tenantStatusCache.put(...)`, ativação) e `billing-service/.../services/dunning/DunningService.java` (`tenantStatusCache.put(...)`, suspensão/cancelamento).
+- Pra validar: `grep -rn "tenantStatusCache\.get\|TenantStatusCacheService" billing-service/src/main/java` — se continuar só achando `put`/`evict` e a declaração da classe, o `get()` segue morto. Decisão pendente (já adiada por você nesta sessão, aguardando revisão da spec de payments): plugar um leitor de verdade ou remover o cache inteiro.
+
+**2.4 — `annualGuardScript` morto:**
+- `billing-service/src/main/java/com/l/erp/billingservice/infra/config/RedisConfig.java:58-60` — bean `@Bean("annualGuardScript")` que carrega `lua/annualCommissionGuard.lua` via `RedisScript.of(...)`.
+- Script em si: `billing-service/src/main/resources/lua/annualCommissionGuard.lua` (se existir no classpath — confirmar path exato com `find billing-service -iname "annualCommissionGuard.lua"`).
+- Pra validar que está morto: `grep -rn "annualGuardScript" billing-service/src/main/java` — se o único resultado for a própria declaração do bean (`RedisConfig.java:58`), não tem injeção/uso em nenhum service. O motivo documentado (linha 17 deste arquivo) é que o modelo de comissão anual nunca existiu — comissão é sempre recorrente, criada via Kafka.

@@ -161,4 +161,44 @@ class AuthServiceTest {
 
         assertThat(roles).containsExactlyInAnyOrder(Constants.OWNER_ROLE_NAME, Roles.APP_OWNER);
     }
+
+    // ── CNPJ: dígito verificador (spec/auditoria.md §7.7) ──
+
+    @Test
+    void cnpj_numericoComDvValido_exemploOficialSerpro_passa() {
+        // 11.222.333/0001-81 — CNPJ de exemplo publicado pela Receita/Serpro em documentação
+        // oficial; vetor conhecido, não inventado, então confirma o algoritmo mod-11 batendo
+        // com um valor real, não só consigo mesmo.
+        assertThat(AuthService.cnpjTemDvValido("11222333000181")).isTrue();
+    }
+
+    @Test
+    void cnpj_numericoComDvInvalido_falha() {
+        assertThat(AuthService.cnpjTemDvValido("11222333000180")).isFalse();
+    }
+
+    @Test
+    void cnpj_alfanumericoComDvValido_passa() {
+        // Não é um vetor oficial publicado (não achei um caso de teste oficial da NT 2026.004
+        // pra citar) — é auto-consistente: DV calculado à mão com o mesmo algoritmo
+        // (valor de cada caractere = ASCII - 48) que o código usa. Confirma que letra na base
+        // não quebra o cálculo, mas não é prova independente de que bate com a Receita.
+        assertThat(AuthService.cnpjTemDvValido("1234567A000104")).isTrue();
+    }
+
+    @Test
+    void cnpj_tamanhoErrado_falha() {
+        assertThat(AuthService.cnpjTemDvValido("1122233300018")).isFalse(); // 13 chars
+        assertThat(AuthService.cnpjTemDvValido("112223330001811")).isFalse(); // 15 chars
+    }
+
+    @Test
+    void cnpj_null_falha() {
+        assertThat(AuthService.cnpjTemDvValido(null)).isFalse();
+    }
+
+    @Test
+    void cnpj_digitosVerificadoresNaoNumericos_falha() {
+        assertThat(AuthService.cnpjTemDvValido("112223330001AB")).isFalse();
+    }
 }

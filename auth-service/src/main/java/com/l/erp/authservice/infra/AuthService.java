@@ -465,7 +465,14 @@ public class AuthService {
 
     @Transactional
     public Optional<TenantLoginResponse> criarContaGratis(CriarContaGratisRequest req) {
-        String cnpjDigits = req.cnpj().replaceAll("\\D", "");
+        // Normaliza mantendo letras (7.7, spec/auditoria.md): replaceAll("\\D", "") descartava
+        // qualquer letra silenciosamente — quebra na chegada do CNPJ alfanumérico (NT 2026.004).
+        // Valida só o dígito verificador (algoritmo oficial, alfanumérico-ready) — sem consultar
+        // Receita/BrasilAPI de propósito, isso adicionaria fricção pra testar o próprio cadastro.
+        String cnpjDigits = req.cnpj().replaceAll("[.\\-/\\s]", "").toUpperCase();
+        if (!cnpjTemDvValido(cnpjDigits)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "CNPJ inválido");
+        }
 
         if (tenantRepository.findByCnpj(cnpjDigits).isPresent()) {
             publishJaExisteConta(req.email());
@@ -523,6 +530,31 @@ public class AuthService {
         RefreshTokenService.TokenPair tokenPair = refreshTokenService.issue(user, null);
 
         return Optional.of(authMapper.toTenantLoginResponse(user, jwt, tokenPair.rawToken(), tenant));
+    }
+
+    // Dígito verificador do CNPJ (numérico hoje, alfanumérico-ready pra NT 2026.004 — Receita
+    // trata cada caractere da base pelo valor ASCII - 48, então dígitos '0'-'9' valem 0-9 e
+    // letras 'A'-'Z' valem 17-42; os 2 DVs em si continuam sempre numéricos).
+    // Package-private (não private) só pra dar pra testar direto sem reflection (spec/auditoria.md §7.7).
+    static boolean cnpjTemDvValido(String cnpj) {
+        if (cnpj == null || cnpj.length() != 14
+                || !cnpj.substring(0, 12).matches("[0-9A-Z]{12}")
+                || !cnpj.substring(12).matches("[0-9]{2}")) {
+            return false;
+        }
+        String base = cnpj.substring(0, 12);
+        int dv1 = calcularDigitoVerificadorCnpj(base, new int[]{5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2});
+        int dv2 = calcularDigitoVerificadorCnpj(base + dv1, new int[]{6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2});
+        return (cnpj.charAt(12) - '0') == dv1 && (cnpj.charAt(13) - '0') == dv2;
+    }
+
+    private static int calcularDigitoVerificadorCnpj(String base, int[] pesos) {
+        int soma = 0;
+        for (int i = 0; i < base.length(); i++) {
+            soma += (base.charAt(i) - 48) * pesos[i];
+        }
+        int resto = soma % 11;
+        return resto < 2 ? 0 : 11 - resto;
     }
 
     private void publishJaExisteConta(String email) {

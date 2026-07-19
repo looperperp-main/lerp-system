@@ -17,6 +17,12 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, UUID
     Optional<Subscription> findByAsaasSubscriptionId(String asaasSubscriptionId);
     Optional<Subscription> findByTenantIdAndStatus(Long tenantId, String status);
 
+    /** Guard de checkout (7.8): já existe assinatura ativa/aguardando pagamento pro tenant? */
+    boolean existsByTenantIdAndStatusIn(Long tenantId, Collection<String> statuses);
+
+    /** MRR (7.10): só assinaturas que já ativaram algum dia — corta o ruído de AGUARDANDO_PAGAMENTO. */
+    List<Subscription> findByActivatedAtIsNotNull();
+
     /** Assinaturas num status (Fase 7 — ReconciliationJob varre AGUARDANDO_PAGAMENTO). */
     List<Subscription> findByStatus(String status);
 

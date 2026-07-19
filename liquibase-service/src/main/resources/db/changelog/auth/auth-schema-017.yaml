@@ -1,0 +1,18 @@
+databaseChangeLog:
+  - changeSet:
+      id: "auth-017-permission-assinatura-comissao-manage"
+      author: vitor fernandes ferreira
+      comment: "Permissões de plataforma ASSINATURA_MANAGE e COMISSAO_MANAGE — gate para o drill-down admin de assinaturas/comissões do billing-service (spec/auditoria.md §7.4/§7.5). Scope PLATFORM: não atribuível pelo portal de tenant, só admin Syax."
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO auth.permission (id, code, domain, description, scope, created_by) VALUES
+              (gen_random_uuid(), 'ASSINATURA_MANAGE', 'ASSINATURA', 'Listar/gerenciar assinaturas de qualquer tenant (admin) — inclui MRR, cobranças, reprocessar e cancelar', 'PLATFORM', 'system-seed'),
+              (gen_random_uuid(), 'COMISSAO_MANAGE', 'COMISSAO', 'Listar comissões e extratos de qualquer parceiro (admin)', 'PLATFORM', 'system-seed')
+              ON CONFLICT (code) DO NOTHING;
+      rollback:
+        - sql:
+            dbms: postgresql
+            sql: DELETE FROM auth.permission WHERE code IN ('ASSINATURA_MANAGE', 'COMISSAO_MANAGE');

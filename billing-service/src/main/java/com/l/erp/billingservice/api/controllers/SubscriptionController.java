@@ -9,6 +9,7 @@ import com.l.erp.billingservice.services.SubscriptionService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -30,6 +31,7 @@ public class SubscriptionController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAuthority('ASSINATURA_MANAGE')")
     public ResponseEntity<Page<SubscriptionAdminDTO>> listar(
             @org.springframework.web.bind.annotation.RequestParam(required = false) Long tenantId,
             Pageable pageable) {
@@ -46,9 +48,12 @@ public class SubscriptionController {
      * (ativada até lá e não suspensa/cancelada antes; reativação conta pela activatedAt mais recente).
      */
     @GetMapping("/mrr")
+    @PreAuthorize("hasAuthority('ASSINATURA_MANAGE')")
     public ResponseEntity<java.util.List<MrrMensalDTO>> mrr() {
-        // ponytail: agrega em memória via findAll(); query nativa com generate_series se a tabela crescer
-        java.util.List<com.l.erp.billingservice.domain.Subscription> subs = subscriptionRepository.findAll();
+        // ponytail: agrega em memória; query nativa com generate_series se a tabela crescer.
+        // findByActivatedAtIsNotNull (7.10) já corta as nunca-ativadas (AGUARDANDO_PAGAMENTO) —
+        // reduz o full scan, mas o teto continua sendo "cresce com o total de tenants ativados".
+        java.util.List<com.l.erp.billingservice.domain.Subscription> subs = subscriptionRepository.findByActivatedAtIsNotNull();
         java.util.List<MrrMensalDTO> meses = new java.util.ArrayList<>();
         java.time.YearMonth atual = java.time.YearMonth.now();
         for (int i = 5; i >= 0; i--) {
@@ -76,6 +81,7 @@ public class SubscriptionController {
 
     /** Reprocessa a ativação (webhook perdido): consulta o Asaas e, se pago, ativa pelo fluxo normal. */
     @PostMapping("/{id}/reprocess")
+    @PreAuthorize("hasAuthority('ASSINATURA_MANAGE')")
     public ResponseEntity<com.l.erp.billingservice.api.dto.ReprocessResultDTO> reprocessar(
             @org.springframework.web.bind.annotation.PathVariable java.util.UUID id) {
         return ResponseEntity.ok(subscriptionService.reprocessar(id));
@@ -83,6 +89,7 @@ public class SubscriptionController {
 
     /** Cobranças da assinatura direto do Asaas (drill-down do admin). */
     @GetMapping("/{id}/cobrancas")
+    @PreAuthorize("hasAuthority('ASSINATURA_MANAGE')")
     public ResponseEntity<java.util.List<com.l.erp.billingservice.api.dto.CobrancaAdminDTO>> cobrancas(
             @org.springframework.web.bind.annotation.PathVariable java.util.UUID id) {
         return ResponseEntity.ok(subscriptionService.listarCobrancas(id));
@@ -90,6 +97,7 @@ public class SubscriptionController {
 
     /** Cancelamento pelo admin (mesmas regras do self-service + auditoria). */
     @PostMapping("/{id}/cancel")
+    @PreAuthorize("hasAuthority('ASSINATURA_MANAGE')")
     public ResponseEntity<CancelSubscriptionResponse> cancelarAdmin(
             @org.springframework.web.bind.annotation.PathVariable java.util.UUID id) {
         return ResponseEntity.ok(subscriptionService.cancelForAdmin(id));

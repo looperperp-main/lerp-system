@@ -88,7 +88,7 @@ class UserControllerTest {
     private EmailNotificationService emailNotificationService;
 
     @Test
-    @WithMockUser(authorities = {"USER_READ", "USER_INSERT", "USER_UPDATE", "USER_STATUS"})
+    @WithMockUser(authorities = {"USER_READ", "USER_INSERT", "USER_UPDATE", "USER_STATUS", "ROLE_APP_OWNER"})
     void shouldCreateUser() throws Exception {
         var tokenAttrName = "_csrf";
         var httpSessionCsrfTokenRepository = new HttpSessionCsrfTokenRepository();
@@ -130,7 +130,7 @@ class UserControllerTest {
     }
 
     @Test
-    @WithMockUser(authorities = {"USER_READ", "USER_INSERT", "USER_UPDATE", "USER_STATUS"})
+    @WithMockUser(authorities = {"USER_READ", "USER_INSERT", "USER_UPDATE", "USER_STATUS", "ROLE_APP_OWNER"})
     void shouldntCreateUserDuplicated() throws Exception {
         var tokenAttrName = "_csrf";
         var httpSessionCsrfTokenRepository = new HttpSessionCsrfTokenRepository();
@@ -156,7 +156,7 @@ class UserControllerTest {
     }
 
     @Test
-    @WithMockUser(authorities = {"USER_READ", "USER_INSERT", "USER_UPDATE", "USER_STATUS"})
+    @WithMockUser(authorities = {"USER_READ", "USER_INSERT", "USER_UPDATE", "USER_STATUS", "ROLE_APP_OWNER"})
     void shouldntCreateUserWithoutTenant() throws Exception {
         var tokenAttrName = "_csrf";
         var httpSessionCsrfTokenRepository = new HttpSessionCsrfTokenRepository();
@@ -180,7 +180,7 @@ class UserControllerTest {
     }
 
     @Test
-    @WithMockUser(authorities = {"USER_READ", "USER_INSERT", "USER_UPDATE", "USER_STATUS"})
+    @WithMockUser(authorities = {"USER_READ", "USER_INSERT", "USER_UPDATE", "USER_STATUS", "ROLE_APP_OWNER"})
     void shouldSearchUsers() throws Exception {
         UserAccountPageDTO user = new UserAccountPageDTO(
                 null, null, null, null,
@@ -200,6 +200,13 @@ class UserControllerTest {
 
     @Test
     @WithMockUser(authorities = {"USER_READ", "USER_INSERT", "USER_UPDATE", "USER_STATUS"})
+    void shouldDenyAccessWithoutAppOwnerRole() throws Exception {
+        mockMvc.perform(get("/auth/users/active?page=0&size=10"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(authorities = {"USER_READ", "USER_INSERT", "USER_UPDATE", "USER_STATUS", "ROLE_APP_OWNER"})
     void shouldReturnActiveUsers() throws Exception {
         UserAccountPageDTO user = new UserAccountPageDTO(
                 null, null, null, null,
@@ -214,7 +221,7 @@ class UserControllerTest {
     }
 
     @Test
-    @WithMockUser(authorities = {"USER_READ", "USER_INSERT", "USER_UPDATE", "USER_STATUS"})
+    @WithMockUser(authorities = {"USER_READ", "USER_INSERT", "USER_UPDATE", "USER_STATUS", "ROLE_APP_OWNER"})
     void shouldUpdateUserStatusById() throws Exception {
         UUID id = UUID.randomUUID();
         var tokenAttrName = "_csrf";
@@ -241,7 +248,7 @@ class UserControllerTest {
     }
 
     @Test
-    @WithMockUser(authorities = {"USER_READ", "USER_INSERT", "USER_UPDATE", "USER_STATUS"})
+    @WithMockUser(authorities = {"USER_READ", "USER_INSERT", "USER_UPDATE", "USER_STATUS", "ROLE_APP_OWNER"})
     void shouldntUpdateUserStatusByIdUserNotFound() throws Exception {
         UUID id = UUID.randomUUID();
         var tokenAttrName = "_csrf";
@@ -263,7 +270,7 @@ class UserControllerTest {
     }
 
     @Test
-    @WithMockUser(authorities = {"USER_READ", "USER_INSERT", "USER_UPDATE", "USER_STATUS"})
+    @WithMockUser(authorities = {"USER_READ", "USER_INSERT", "USER_UPDATE", "USER_STATUS", "ROLE_APP_OWNER"})
     void shouldntUpdateUserStatusByIdOwnerMarker() throws Exception {
         UUID id = UUID.randomUUID();
         var tokenAttrName = "_csrf";

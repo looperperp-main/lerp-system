@@ -38,7 +38,7 @@ public class RoleController {
     }
 
     @PostMapping("")
-    @PreAuthorize("hasAuthority('ROLE_INSERT')")
+    @PreAuthorize("hasRole('APP_OWNER') and hasAuthority('ROLE_INSERT')")
     public ResponseEntity<RoleDTO> createRole(@Valid @RequestBody RoleDTO roleDTO){
         log.debug("REST request to create a role: {}",roleDTO.name());
         RoleDTO created = roleService.createRole(roleDTO);
@@ -46,7 +46,7 @@ public class RoleController {
     }
 
     @GetMapping("")
-    @PreAuthorize("hasAuthority('ROLE_READ')")
+    @PreAuthorize("hasRole('APP_OWNER') and hasAuthority('ROLE_READ')")
     public ResponseEntity<List<RoleDTO>> getAllRoles(){
         log.debug("REST request to get all roles");
         List<RoleDTO> roles = roleService.getAllRoles();
@@ -54,7 +54,7 @@ public class RoleController {
     }
 
     @GetMapping("/pages")
-    @PreAuthorize("hasAuthority('ROLE_READ')")
+    @PreAuthorize("hasRole('APP_OWNER') and hasAuthority('ROLE_READ')")
     public ResponseEntity<Page<RoleDTO>> getAllRolesPages(@PageableDefault(size = 10, sort = "name") Pageable pageable){
         log.debug("REST request to get all roles by page");
         Page<RoleDTO> roles = roleService.getAllRoles(pageable);
@@ -69,7 +69,7 @@ public class RoleController {
      * @return a {@link ResponseEntity} containing a {@link Page} of {@link RoleDTO} objects that match the search criteria.
      */
     @PostMapping("/search")
-    @PreAuthorize("hasAuthority('ROLE_READ')")
+    @PreAuthorize("hasRole('APP_OWNER') and hasAuthority('ROLE_READ')")
     public ResponseEntity<Page<RoleDTO>> searchRoles(
             @RequestBody RoleSearchFilterDTO filter,
             @PageableDefault(size = 10, sort = "name") Pageable pageable) {
@@ -79,35 +79,35 @@ public class RoleController {
     }
 
     @GetMapping("/{Id}")
-    @PreAuthorize("hasAuthority('ROLE_READ')")
+    @PreAuthorize("hasRole('APP_OWNER') and hasAuthority('ROLE_READ')")
     public ResponseEntity<String> getRoleById(@PathVariable UUID Id){
         log.debug("REST request to get a role by id {}", Id);
         return ResponseEntity.ok().build();
     }
 
     @PutMapping("/{Id}")
-    @PreAuthorize("hasAuthority('ROLE_UPDATE')")
+    @PreAuthorize("hasRole('APP_OWNER') and hasAuthority('ROLE_UPDATE')")
     public ResponseEntity<String> updateRoleById(@PathVariable UUID Id){
         log.debug("REST request to update a role by id {}", Id);
         return ResponseEntity.ok().build();
     }
 
     @DeleteMapping("/{Id}")
-    @PreAuthorize("hasAuthority('ROLE_DELETE')")
+    @PreAuthorize("hasRole('APP_OWNER') and hasAuthority('ROLE_DELETE')")
     public ResponseEntity<String> deleteRoleById(@PathVariable UUID Id){
         log.debug("REST request to delete a role by id {}", Id);
         return ResponseEntity.ok().build();
     }
 
     @GetMapping("/{roleId}/permissions")
-    @PreAuthorize("hasAuthority('PERMISSION_READ')")
+    @PreAuthorize("hasRole('APP_OWNER') and hasAuthority('PERMISSION_READ')")
     public ResponseEntity<List<PermissionDTO>> getRolePermissions(@PathVariable UUID roleId) {
         log.debug("REST request to get permissions for role: {}", roleId);
         return ResponseEntity.ok(roleService.getPermissionsByRole(roleId));
     }
 
     @PostMapping("/{roleId}/permissions")
-    @PreAuthorize("hasAuthority('PERMISSION_UPDATE')")
+    @PreAuthorize("hasRole('APP_OWNER') and hasAuthority('PERMISSION_UPDATE')")
     public ResponseEntity<Void> assignPermissionsToRole(
             @PathVariable UUID roleId,
             @Valid @RequestBody RolePermissionRequestDTO request) {
@@ -124,7 +124,7 @@ public class RoleController {
     }
 
     @DeleteMapping("/{roleId}/permissions/{permissionId}")
-    @PreAuthorize("hasAuthority('PERMISSION_UPDATE')")
+    @PreAuthorize("hasRole('APP_OWNER') and hasAuthority('PERMISSION_UPDATE')")
     public ResponseEntity<Void> removePermissionFromRole(
             @PathVariable UUID roleId,
             @PathVariable UUID permissionId) {
@@ -135,7 +135,7 @@ public class RoleController {
     }
 
     @DeleteMapping("/{id}/delete")
-    @PreAuthorize("hasAuthority('ROLE_DELETE')")
+    @PreAuthorize("hasRole('APP_OWNER') and hasAuthority('ROLE_DELETE')")
     public ResponseEntity<Void> deleteRole(@PathVariable UUID id) {
         log.debug("REST request to delete role: {}", id);
         roleService.deleteRole(id);

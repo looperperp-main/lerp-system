@@ -30,6 +30,14 @@ spring:
 rate-limit:
   replenish-rate: 20
   burst-capacity: 40
+
+gateway:
+  # IP(s) real(is) do LB/nginx em produção, separados por vírgula. Vazio (default) = nunca
+  # confia em X-Forwarded-For, sempre usa o IP de conexão real — seguro em dev local sem
+  # configurar nada. Em prod, setar via env var pro(s) IP(s) exato(s) do proxy, nunca uma
+  # faixa de rede inteira (spec/auditoria.md §7.2).
+  trusted-proxies: ${GATEWAY_TRUSTED_PROXIES:}
+
 server:
   port: 8090
 
