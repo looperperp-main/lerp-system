@@ -170,6 +170,8 @@ Angular 21, standalone components (no NgModules). Pages in `src/app/pages/` (`lo
 
 **Specs com Fable:** trabalho em specs (`spec/*.md`) deve ser feito com o modelo **Fable** enquanto ele estiver disponível. Se a sessão estiver em outro modelo e a tarefa for mexer em spec, sugerir ao usuário trocar com `/model Fable` antes de começar.
 
+**Data no header dos docs:** todo doc em `spec/*.md` que tenha um header de "Última atualização" deve trazer a **data completa** (dia + mês + ano, ex. `20 de julho de 2026`), nunca só mês/ano. Ao editar qualquer doc desse tipo, atualizar esse header pra data corrente da edição.
+
 **Constantes:** todo valor constante (strings de ação/auditoria, tipos de evento, mensagens reutilizáveis, códigos) deve ser declarado em `common/src/main/java/com/l/erp/common/util/Constants.java` e referenciado de lá — não usar literais "soltos" no código dos serviços.
 
 **Nunca rodar build:** o Claude **não executa nenhum comando de build** — nem backend (`mvnw compile/verify/test/package/spring-boot:run`, Docker) nem frontend (`npm run build`, `ng build/serve`, `npm test`). O usuário roda tudo isso. Confiar na leitura do código pra verificar; marcar sempre o que não foi rodado como "não testado".

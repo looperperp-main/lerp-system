@@ -46,7 +46,7 @@ build/
 Thumbs.db
 *.log
 .env
-.env.example
+# .env.example is committed on purpose — template with placeholder values
 *.pem
 *.p12
 package-lock.json
