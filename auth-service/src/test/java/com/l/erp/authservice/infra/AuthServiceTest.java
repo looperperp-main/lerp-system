@@ -201,4 +201,11 @@ class AuthServiceTest {
     void cnpj_digitosVerificadoresNaoNumericos_falha() {
         assertThat(AuthService.cnpjTemDvValido("112223330001AB")).isFalse();
     }
+
+    @Test
+    void normalizeCnpj_removePontuacaoEUppercase() {
+        // Cadastro e login precisam gravar/buscar o mesmo formato — sem pontuação, uppercase.
+        assertThat(AuthService.normalizeCnpj("12.abc.678/0001-95")).isEqualTo("12ABC678000195");
+        assertThat(AuthService.normalizeCnpj(null)).isNull();
+    }
 }
