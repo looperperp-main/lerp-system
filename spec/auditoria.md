@@ -272,3 +272,16 @@ sempre retorna `null`. Chamada extra ao Asaas sem efeito (tratada sem quebrar, m
 - `billing-service/src/main/java/com/l/erp/billingservice/infra/config/RedisConfig.java:58-60` — bean `@Bean("annualGuardScript")` que carrega `lua/annualCommissionGuard.lua` via `RedisScript.of(...)`.
 - Script em si: `billing-service/src/main/resources/lua/annualCommissionGuard.lua` (se existir no classpath — confirmar path exato com `find billing-service -iname "annualCommissionGuard.lua"`).
 - Pra validar que está morto: `grep -rn "annualGuardScript" billing-service/src/main/java` — se o único resultado for a própria declaração do bean (`RedisConfig.java:58`), não tem injeção/uso em nenhum service. O motivo documentado (linha 17 deste arquivo) é que o modelo de comissão anual nunca existiu — comissão é sempre recorrente, criada via Kafka.
+---
+
+## 9. Follow-ups da re-revisão do commit `c2ae6d5` — 2026-07-21
+
+Re-revisão manual do commit de correções da §7 (`c2ae6d5`). Três achados, todos corrigidos na branch `fix-audit-review` (**não rodado em CI** — testes locais verdes pelo usuário; ver `CLAUDE.md`).
+
+| # | Achado | Correção | Teste |
+|---|---|---|---|
+| **9.1** | **Assinatura Asaas órfã no 409 do checkout (§7.8).** O `catch (DataIntegrityViolationException)` já tinha criado a subscription no Asaas antes do INSERT local estourar sob corrida TOCTOU — ela seguia cobrando o cliente sem linha local correspondente. | `CheckoutService.createCheckout`: o `catch` chama `asaasGateway.cancelSubscription(asaasSub.id())` antes de devolver 409; falha do cancel só loga (`log.error`) pra ação manual, ainda devolve 409. Customer criado é benigno (não cobra sozinho) → sem compensação. | `CheckoutServiceTest.concurrentCheckout_...cancelsOrphanAsaasSubscription_andReturns409` (+ `happyPath` passou a verificar `saveAndFlush`). |
+| **9.2** | **Login de tenant não normalizava o CNPJ (§7.7-adjacente).** `criarContaGratis` grava o CNPJ sem pontuação e em maiúsculas, mas `loginWithTenant` fazia `findByCnpj(cnpj)` com o valor cru do request — quem digitasse `11.222.333/0001-81` no login não achava o próprio tenant (gravado `11222333000181`). | `AuthService.normalizeCnpj(String)` (sem pontuação + uppercase, alfanumérico-ready) extraído e usado nos **dois** caminhos (`loginWithTenant` e `criarContaGratis`). `TenantLoginRequest` regex passou a aceitar base `[A-Za-z0-9]{12}` + 2 DVs numéricos. | `AuthServiceTest.normalizeCnpj_removePontuacaoEUppercase`. |
+| **9.3** | **Param tipado mal-formado virava 500.** Path/query var tipada (UUID/Long/enum/data) inválida estourava `MethodArgumentTypeMismatchException` sem handler → 500 (viola o padrão de erros: erro de cliente nunca vira 5xx). | `common/GlobalExceptionHandler`: handler novo → **400** com `StandardError` PT-BR (WARN 1 linha, sem stacktrace). | Sem teste dedicado (mapeamento trivial em infra do `common`; validado manualmente via curl). |
+
+> Achado **falso-positivo** descartado na mesma revisão: a trava `hasRole('APP_OWNER')` nas rotas planas `/auth/roles`/`/auth/users` (M7) **não** quebra o portal do tenant — o `erp-front-end-web` usa só `/auth/tenant/security/**` (escopado). Confirmado por grep no frontend; ver `spec/seguranca-tenant-scoping.md` §M7. Nenhuma mudança necessária.
