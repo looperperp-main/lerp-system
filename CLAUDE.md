@@ -168,7 +168,7 @@ Angular 21, standalone components (no NgModules). Pages in `src/app/pages/` (`lo
 
 ## Workflow Directives
 
-**Specs com Fable:** trabalho em specs (`spec/*.md`) deve ser feito com o modelo **Fable** enquanto ele estiver disponível. Se a sessão estiver em outro modelo e a tarefa for mexer em spec, sugerir ao usuário trocar com `/model Fable` antes de começar.
+**Specs com Fable (SUSPENSO por ora — 2026-07-22):** o Fable **não está no plano atual**, então trabalho em specs (`spec/*.md`) segue no modelo disponível (Opus 4.8) sem trocar de modelo. Não sugerir `/model Fable`. Reavaliar/reativar esta diretiva se o Fable voltar ao plano.
 
 **Data no header dos docs:** todo doc em `spec/*.md` que tenha um header de "Última atualização" deve trazer a **data completa** (dia + mês + ano, ex. `20 de julho de 2026`), nunca só mês/ano. Ao editar qualquer doc desse tipo, atualizar esse header pra data corrente da edição.
 
