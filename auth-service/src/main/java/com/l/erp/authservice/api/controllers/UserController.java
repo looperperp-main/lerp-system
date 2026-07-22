@@ -37,7 +37,7 @@ public class UserController {
     }
 
     @PostMapping("")
-    @PreAuthorize("hasAuthority('USER_INSERT')")
+    @PreAuthorize("hasRole('APP_OWNER') and hasAuthority('USER_INSERT')")
     public ResponseEntity<UserAccountDTO> createUser(@Valid @RequestBody UserAccountDTO userDTO){
         log.debug("REST request to save User : {}", userDTO.email());
         UserAccountDTO createdUser = userService.createUser(userDTO);
@@ -45,7 +45,7 @@ public class UserController {
     }
 
     @PutMapping("/{userId}")
-    @PreAuthorize("hasAuthority('USER_UPDATE')")
+    @PreAuthorize("hasRole('APP_OWNER') and hasAuthority('USER_UPDATE')")
     public ResponseEntity<UserAccountDTO> updateUserById(@PathVariable UUID userId, @Valid @RequestBody UserAccountDTO userDTO){
         log.debug("REST request to update a user by id: {}", userId);
         UserAccountDTO updatedUser = userService.updateUserById(userId, userDTO);
@@ -53,28 +53,28 @@ public class UserController {
     }
 
     @PostMapping("/search")
-    @PreAuthorize("hasAuthority('USER_READ')")
+    @PreAuthorize("hasRole('APP_OWNER') and hasAuthority('USER_READ')")
     public ResponseEntity<Page<UserAccountPageDTO>> searchUsers(@RequestBody UserSearchFilterDTO filter, @PageableDefault(size = 10, sort = "displayName") Pageable pageable){
         log.debug("REST request to get all users");
         return ResponseEntity.ok(userService.searchAccounts(filter, pageable));
     }
 
     @GetMapping("/active")
-    @PreAuthorize("hasAuthority('USER_READ')")
+    @PreAuthorize("hasRole('APP_OWNER') and hasAuthority('USER_READ')")
     public ResponseEntity<Page<UserAccountPageDTO>> getAllUsersActive(@PageableDefault(size = 10, sort = "displayName") Pageable pageable){
         log.debug("REST request to get all active users");
         return ResponseEntity.ok(userService.getAllAccountsActive(pageable));
     }
 
     @GetMapping("/{userId}")
-    @PreAuthorize("hasAuthority('USER_READ')")
+    @PreAuthorize("hasRole('APP_OWNER') and hasAuthority('USER_READ')")
     public ResponseEntity<String> getUserById(@PathVariable UUID userId){
         log.debug("REST request to get a user by id {}", userId);
         return ResponseEntity.ok().build();
     }
 
     @PatchMapping("/{userId}/status")
-    @PreAuthorize("hasAuthority('USER_STATUS')")
+    @PreAuthorize("hasRole('APP_OWNER') and hasAuthority('USER_STATUS')")
     public ResponseEntity<Void> updateUserStatusById(@PathVariable UUID userId){
         log.debug("REST request to update the status of the given user");
 

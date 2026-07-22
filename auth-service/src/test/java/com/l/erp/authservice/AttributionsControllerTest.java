@@ -67,6 +67,15 @@ class AttributionsControllerTest {
 
     @Test
     @WithMockUser(authorities = "USER_READ")
+    void shouldDenyAccessWithoutAppOwnerRole() throws Exception {
+        UUID userId = UUID.randomUUID();
+
+        mockMvc.perform(get("/auth/users/{userId}/roles", userId))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(authorities = {"USER_READ", "ROLE_APP_OWNER"})
     void shouldGetRolesByUser() throws Exception {
         UUID userId = UUID.randomUUID();
         UUID roleId = UUID.randomUUID();
@@ -99,7 +108,7 @@ class AttributionsControllerTest {
     }
 
     @Test
-    @WithMockUser(authorities = "USER_READ")
+    @WithMockUser(authorities = {"USER_READ", "ROLE_APP_OWNER"})
     void shouldGetRolesByUserNotFound() throws Exception {
         UUID userId = UUID.randomUUID();
 
@@ -112,7 +121,7 @@ class AttributionsControllerTest {
     }
 
     @Test
-    @WithMockUser(authorities = "USER_UPDATE")
+    @WithMockUser(authorities = {"USER_UPDATE", "ROLE_APP_OWNER"})
     void shouldAssignRolesToUser() throws Exception {
         UUID userId = UUID.randomUUID();
         UUID roleId = UUID.randomUUID();
@@ -154,7 +163,7 @@ class AttributionsControllerTest {
     }
 
     @Test
-    @WithMockUser(authorities = "USER_UPDATE")
+    @WithMockUser(authorities = {"USER_UPDATE", "ROLE_APP_OWNER"})
     void shouldAssignRolesToUserMismatch() throws Exception {
         UUID userId = UUID.randomUUID();
         UUID differentUserId = UUID.randomUUID();
@@ -170,7 +179,7 @@ class AttributionsControllerTest {
     }
 
     @Test
-    @WithMockUser(authorities = "USER_UPDATE")
+    @WithMockUser(authorities = {"USER_UPDATE", "ROLE_APP_OWNER"})
     void shouldAssignRolesToUserNotFound() throws Exception {
         UUID userId = UUID.randomUUID();
         UUID roleId = UUID.randomUUID();
@@ -193,7 +202,7 @@ class AttributionsControllerTest {
     }
 
     @Test
-    @WithMockUser(authorities = "USER_UPDATE")
+    @WithMockUser(authorities = {"USER_UPDATE", "ROLE_APP_OWNER"})
     void shouldAssignRolesToUserCrossTenantError() throws Exception {
         UUID userId = UUID.randomUUID();
         UUID roleId = UUID.randomUUID();
@@ -235,7 +244,7 @@ class AttributionsControllerTest {
     }
 
     @Test
-    @WithMockUser(authorities = "USER_UPDATE")
+    @WithMockUser(authorities = {"USER_UPDATE", "ROLE_APP_OWNER"})
     void shouldRemoveRoleFromUser() throws Exception {
         UUID userId = UUID.randomUUID();
         UUID roleId = UUID.randomUUID();
@@ -255,7 +264,7 @@ class AttributionsControllerTest {
     }
 
     @Test
-    @WithMockUser(authorities = "USER_UPDATE")
+    @WithMockUser(authorities = {"USER_UPDATE", "ROLE_APP_OWNER"})
     void shouldRemoveRoleFromUserNotFound() throws Exception {
         UUID userId = UUID.randomUUID();
         UUID roleId = UUID.randomUUID();

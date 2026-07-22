@@ -4,7 +4,7 @@
 **Versão:** 12.0 — revisão fiscal/AP-AR (crédito Simples, IS na base, redução de alíquota, split; retenções, estorno, alçada, dunning, PIX, estabelecimento)
 **Stack:** Spring Boot (Java) · PostgreSQL · Angular
 **Schema financeiro:** `financeiro` · `fiscal` · `contabil`
-**Última atualização:** Julho 2026
+**Última atualização:** 20 de julho de 2026
 
 ---
 
@@ -122,13 +122,13 @@ Os dois nunca se comunicam diretamente.
 
 | Decisão | Escolha | Impacto |
 |---|---|---|
-| Schema fiscal | `fiscal` (não `tax`) | Todos os 16 migrations do Módulo I usam `fiscal.*`. A conversa de reforma tributária usou `tax` — ignorar |
-| Changelog Liquibase | Separado por módulo no `liquibase-service` | `db-changelog/financeiro/`, `db-changelog/fiscal/`, `db-changelog/contabil/` |
+| Schema fiscal | `fiscal` | Todos os migrations do Módulo I usam `fiscal.*` |
+| Changelog Liquibase | Separado por schema no `liquibase-service` (pastas ≠ serviços — `liquibase-service` roda tudo) | `db-changelog/financeiro/`, `db-changelog/fiscal/`, `db-changelog/contabil/` (schema `contabil` vive dentro do deploy do `financeiro-service`) |
 | Multi-tenancy | `BaseTenantEntity` + `TenantFilterAspect` | Toda entidade nova estende `BaseTenantEntity`. Filtro via AOP em todos os services e repositories |
 | RBAC | No `auth-service` com granularidade por operação | O `financeiro-service` não tem tabelas de permissão. Lê `permissions[]` do JWT propagado pelo `gateway` |
 | Plano de contas | Template versionado (base: elenco oficial, `spec/elenco-de-contas-contabil.pdf`) copiado na ativação; tenant edita livremente contas sem lançamento | Sem bloqueio — regras de imutabilidade (§F6.2) protegem o histórico |
 | JWT / Auth | `gateway` valida — `financeiro-service` recebe headers propagados | Não chamar `auth-service` direto do financeiro |
-| Serviços separados | `financeiro-service` + `fiscal-service` + `contabil-service` | Decisão pendente: começar dentro do financeiro, extrair quando necessário |
+| Serviços separados | `fiscal-service` separado desde já (motor fiscal + emissão NF-e/NFC-e — mesmo domínio: comunicação com SEFAZ); `contabil-service` **não existe** — GL fica dentro de `financeiro-service` até haver sinal real de deploy/escala independente | ADR fechado — ver nota em §13.1 |
 | `user_account.id` | UUID (não BIGINT) | `audit_log.user_id` deve ser `UUID` |
 
 ---
@@ -623,6 +623,7 @@ public class TenantAtivacaoListener {
 1.1.6.04      PIS/COFINS a Recuperar (transição)   [lançamento]
 1.1.6.05      Tributos Retidos na Fonte a Recuperar[lançamento]
 1.1.6.06      IRPJ/CSLL — Antecipações             [lançamento]
+1.1.6.07      IBS/CBS Recolhido na Liquidação (Split Payment) [lançamento] (transitória — §14.2)
 1.2       Ativo Não Circulante
 1.2.1       Realizável a Longo Prazo
 1.2.1.01      Depósitos Judiciais                  [lançamento]
@@ -710,6 +711,47 @@ public class TenantAtivacaoListener {
 ### F6.6 Estratégia de seed
 
 Seed direto com `versao = 1, ativo = true` — a estrutura F6.5 vem do elenco oficial e o tenant pode ajustar a própria cópia. Se uma revisão (interna ou de contador) alterar o template depois, cria-se `versao = 2`: tenants novos recebem a v2, tenants existentes permanecem na versão registrada em `periodo.template_versao`.
+
+### F6.7 Seed default de `contabil.mapeamento`
+
+De-para padrão semeado na ativação do tenant, na mesma passada que copia `plano_contas_template`
+→ `conta` e `tipo_baixa` (§F6.6/§12). Como `mapeamento.origem_id`/`conta_id` são FKs para linhas
+**por tenant** (criadas nesse exato momento), o seed **não é uma migration Liquibase de dado
+estático** — é lógica de aplicação no `TenantAtivacaoListener`: resolve `conta_id` por `codigo`
+(contra a cópia recém-criada de `conta`) e `origem_id` por `meio`/`tributo`, e só então insere
+`mapeamento`. A migration `contabil/v1/006` cria a tabela; quem povoa é o listener.
+
+**`tipo_origem = 'TIPO_BAIXA'`** (chave: `tipo_baixa.meio` → conta em `conta` pelo `codigo` F6.5):
+
+| `meio` | Conta (código F6.5) | Observação |
+|---|---|---|
+| `DINHEIRO` | `1.1.1.01` Caixa Geral / Fundo Fixo | — |
+| `PIX` | `1.1.1.02` Banco Conta Movimento | Baixa ocorre na liquidação (crédito em conta) |
+| `BOLETO` | `1.1.1.02` Banco Conta Movimento | Idem — liquidação bancária |
+| `CARTAO` | `1.1.1.02` Banco Conta Movimento | Assume baixa no repasse da adquirente; se o tenant quiser modelar o intervalo D+1/D+30 como recebível em trânsito, reaponta para `1.1.2.02` Cartões e Meios Eletrônicos (F6.5) editando a própria cópia |
+| `CREDITO_CONTA` | `1.1.1.02` Banco Conta Movimento | — |
+| `CHEQUE` | `1.1.1.02` Banco Conta Movimento | Baixa ocorre na compensação (§17.8), não no recebimento físico do cheque |
+| `ANTECIPACAO` (título AP) | `1.1.5.01` Adiantamentos a Fornecedores | — |
+| `ANTECIPACAO` (título AR) | `2.1.2.02` Adiantamentos de Clientes | Resolução por `natureza` do `adiantamento_saldo` (§2.13), não por uma segunda linha de `mapeamento` |
+| `COMPENSACAO` | **sem linha** | Não movimenta caixa/banco — `GeracaoLancamentoService` lança direto `2.1.2.01` Fornecedores × `1.1.2.01` Clientes pelo valor compensado (mesma pessoa). Caso especial, documentado aqui para não parecer gap |
+| `RETENCAO` | **sem linha** | A conta vem do mapeamento `TRIBUTO` abaixo, não deste; `titulo_retencao.tributo` é quem decide a conta, `meio = 'RETENCAO'` só marca que a baixa não passa pelo caixa |
+| `SPLIT_PAYMENT` | `1.1.1.02` (líquido) **+** `1.1.6.07` (retido) | Única entrada com 2 contas — §14.2/§37, partida de 3 pernas |
+
+**`tipo_origem = 'TRIBUTO'`** (chave: `titulo_retencao.tributo` → conta):
+
+| `tributo` | Conta (código F6.5) | Observação |
+|---|---|---|
+| `IRRF` | `2.1.3.05` Retenções na Fonte a Recolher (IRRF/CSRF/INSS) | — |
+| `CSRF` | `2.1.3.05` Retenções na Fonte a Recolher (IRRF/CSRF/INSS) | Mesma conta combinada do template F6.5 |
+| `INSS` | `2.1.3.05` Retenções na Fonte a Recolher (IRRF/CSRF/INSS) | Mesma conta combinada do template F6.5 |
+| `ISS` | `2.1.3.05` Retenções na Fonte a Recolher (IRRF/CSRF/INSS) | Template F6.5 não separa ISS (municipal) — mesmo default; tenant/contador que precise de granularidade por tributo edita a própria cópia e ajusta o `mapeamento` |
+| `IBS_CBS` | `2.1.3.05` Retenções na Fonte a Recolher (IRRF/CSRF/INSS) | Idem — reforma tributária pós-data o desenho original do template; default seguro até existir conta dedicada |
+
+> **Por que um default único para os 5 tributos é aceitável:** o próprio F6.5 já modela
+> IRRF/CSRF/INSS como uma conta combinada (decisão de simplicidade do template, não erro) —
+> estender esse mesmo default para ISS/IBS_CBS mantém a consistência. Nada impede o tenant
+> (ou o seed de uma v2 do template, §F6.6) de separar por tributo depois; é ajuste de dado,
+> não de schema.
 
 ---
 
@@ -1749,6 +1791,431 @@ o `parametro_fiscal` cobre o restante da mecânica.
 
 ---
 
+### 1.10 Campos Obrigatórios de NF-e/NFC-e — IBS/CBS
+
+> **Fonte:** grupos e campos abaixo refletem a estrutura pública dos drafts de NT da Reforma
+> Tributária para NF-e/NFC-e associados ao **RT 2025.002 v1.10** (Portal NF-e, abril/2026), mesma
+> fonte já usada em §1.8. **Nomenclatura de grupo (`gIBSCBS`, `gIBSCBSTot` etc.) tem confiança
+> moderada — confirmada em drafts públicos, mas não conferida aqui contra o XSD/schema XML
+> oficial final.** Onde a incerteza é maior (ID de campo, cardinalidade exata, ordem de elementos),
+> o item está marcado explicitamente como **placeholder — validar contra XSD oficial**. Antes de
+> codificar o parser/gerador de XML, validar a íntegra contra o schema `.xsd` publicado no Portal
+> Nacional da NF-e para a versão de layout vigente na data da implementação — o schema pode ter
+> mudado entre a redação deste documento e a implementação.
+
+#### 1.10.1 Grupos/Campos Afetados — NF-e (modelo 55) e NFC-e (modelo 65)
+
+Ambos os modelos compartilham o mesmo schema XML de base (`nfeProc`/`NFe`); a reforma adiciona
+grupos dentro de `det/imposto` (por item) e um espelho totalizador em `total` — válido para os
+dois modelos. NFC-e mantém as mesmas obrigatoriedades, exceto onde a legislação já dispensa campo
+por modelo (ex.: destinatário simplificado) — isso é regra pré-existente do modelo 65 e não muda
+com a reforma.
+
+**Nível item (`det/imposto`) — novo grupo irmão de `ICMS`/`PIS`/`COFINS`:**
+
+| Grupo/Campo | Cardinalidade | Descrição | Confiança |
+|---|---|---|---|
+| `gIBSCBS` | 1-1 por item | Grupo raiz IBS/CBS do item — contém CST, cClassTrib e os subgrupos abaixo | Moderada — nome consistente entre drafts públicos |
+| `CST` (dentro de `gIBSCBS`) | 1-1, 3 dígitos | Código de Situação Tributária IBS/CBS — já seedado em `fiscal.cst_ibs_cbs` (§1.8) | Alta — confirmado pela RT 2025.002 |
+| `cClassTrib` | 1-1, N dígitos (3 primeiros = CST) | Classificação tributária granular — já seedado em `fiscal.c_class_trib` (§1.8) | Alta — confirmado pela RT 2025.002 |
+| `gTribRegular` | 0-1 | Dados do regime regular: `vBC`, `pIBSUF`, `vIBSUF`, `pIBSMun`, `vIBSMun`, `pCBS`, `vCBS` | Moderada — placeholder para nomes exatos de sub-tags de alíquota/valor |
+| `gTribSN` | 0-1 | Dados do emitente optante pelo Simples Nacional — percentuais efetivos por faixa (§1.8.11) | Moderada — mutuamente exclusivo com `gTribRegular` |
+| `gIBSCBSMono` | 0-1 | Tributação monofásica (combustíveis e afins, CST `620`) | **Placeholder — validar contra XSD**; estrutura interna não conferida |
+| `gIBSCredPres` (alguns drafts nomeiam `gCredPresIBSZFM`) | 0-N | Crédito presumido aplicado ao item — `cCredPres` (código, já seedado em `fiscal.c_cred_pres`, §1.8.3), `pCredPres`, `vCredPres` | Moderada no conceito, **placeholder no nome exato do grupo** (drafts divergem entre nome genérico e nome específico-ZFM) |
+| `gTransfCred` | 0-1 | Transferência de crédito acumulado entre estabelecimentos/operações (CST `800`) | **Placeholder — validar contra XSD**; só se aplica quando `cst_ibs_cbs.codigo = '800'` |
+| `gIS` | 0-1 | Imposto Seletivo — `CSTIS`, `cClassTribIS`, `vBCIS`, `pIS`, `vIS` | Moderada — mapeia diretamente para seed do Anexo XVII (§1.8.7) |
+
+**Nível totais (`total`) — novo grupo irmão de `ICMSTot`:**
+
+| Grupo/Campo | Cardinalidade | Descrição | Confiança |
+|---|---|---|---|
+| `gIBSCBSTot` | 1-1 | Totalizador do documento | Moderada |
+| `vBCIBSCBS` | 1-1 | Base de cálculo total IBS/CBS | Moderada |
+| `vIBS`, `vIBSUF`, `vIBSMun` | 1-1 cada | IBS total / parcela UF / parcela município | Moderada |
+| `vCBS` | 1-1 | CBS total | Moderada |
+| `vIS` | 0-1 | Imposto Seletivo total (se houver item com `gIS`) | Moderada |
+| `vTotTrib` (extensão do campo já existente para ICMS) | 1-1 | Valor aproximado de tributos totais — passa a incluir IBS/CBS/IS | Alta no conceito (campo já existe hoje), moderada no formato exato pós-reforma |
+
+**Campo declaratório de regime (nível `emit`/`ide` — não confirmado onde exatamente):**
+
+| Campo | Descrição | Confiança |
+|---|---|---|
+| indicador de regime do emitente (Regular/Simples) | Determina se o motor gera `gTribRegular` ou `gTribSN` no XML | **Placeholder — validar contra XSD**; pode já derivar do CRT existente (`emit/CRT`), sem campo novo |
+
+> **Não coberto com confiança:** tagueamento de split payment dentro do grupo `pag`/`detPag`
+> (MF-05 já implementado no motor fiscal, §1.6) — não há confirmação pública de campo XML
+> dedicado na NF-e para declarar "este pagamento teve split aplicado"; **placeholder — validar
+> contra XSD oficial e contra o layout do arranjo de pagamento (PIX/cartão) quando publicado**.
+
+#### 1.10.2 Mapeamento Motor Fiscal → Campos NF-e
+
+O `MotorFiscalService.calcular()` (§1.4.10) já produz todos os valores necessários — a emissão de
+NF-e é **serialização**, não novo cálculo:
+
+| Já calculado pelo motor fiscal (`OperacaoFiscalDTO` / `fiscal.operacao_fiscal`) | Campo XML de destino |
+|---|---|
+| `cst` | `gIBSCBS/CST` |
+| `c_class_trib` | `gIBSCBS/cClassTrib` |
+| `p_red_ibs`, `p_red_cbs` | usados no cálculo de `pIBSUF`/`pCBS` finais dentro de `gTribRegular` (não são campo próprio no XML — já aplicados na alíquota) |
+| `c_cred_pres_id` → `fiscal.c_cred_pres.codigo` | `gIBSCredPres/cCredPres` |
+| valor calculado de IBS (UF + município) | `gTribRegular/vIBSUF` + `gTribRegular/vIBSMun`, somado em `gIBSCBSTot/vIBS` |
+| valor calculado de CBS | `gTribRegular/vCBS`, somado em `gIBSCBSTot/vCBS` |
+| valor de Imposto Seletivo (quando NCM cai no Anexo XVII, §1.8.7) | `gIS/vIS`, somado em `gIBSCBSTot/vIS` |
+| alíquota efetiva do Simples Nacional por faixa (§1.8.11) | `gTribSN` (em vez de `gTribRegular`) |
+| `regime_empresa = 'MEI'` ou `'SIMPLES'` em 2026 (CST/cClassTrib null) | `gIBSCBS` **omitido** do item — regra já implementada no motor (§1.8.1) |
+
+O `financeiro-service` **não participa** desse mapeamento — recebe o resultado já pronto via
+`titulo.impostos JSONB` (payload do Kafka, §F4.2), mesmo JSON que alimenta o XML. O `impostos
+JSONB` e os campos `gIBSCBS*`/`gIBSCBSTot` do XML têm a **mesma origem** — `OperacaoFiscalDTO` —
+só o formato de serialização difere (JSON para Kafka, XML assinado para SEFAZ).
+
+#### 1.10.3 Estrutura de Dados no `fiscal-service` — Documento Fiscal Emitido
+
+Escopo mínimo para sustentar o fluxo do ADR de §3/§13.1 (`fiscal-service` assina, transmite, e
+publica os três eventos Kafka). Armazenamento de XML como `TEXT` no MVP — migrar para object
+storage (S3/MinIO, guardando só o path) é otimização futura se o volume/tamanho justificar.
+
+```sql
+-- fiscal-service — schema fiscal, migration nova (após as de §1.8)
+CREATE TABLE fiscal.documento_fiscal (
+    id                      BIGSERIAL PRIMARY KEY,
+    tenant_id               BIGINT NOT NULL,
+    operacao_fiscal_id      BIGINT REFERENCES fiscal.operacao_fiscal(id),
+    tipo_documento          VARCHAR(4)  NOT NULL CHECK (tipo_documento IN ('NFe', 'NFCe')),
+    modelo                  VARCHAR(2)  NOT NULL CHECK (modelo IN ('55', '65')),
+    serie                   VARCHAR(3)  NOT NULL,
+    numero                  VARCHAR(9)  NOT NULL,
+    chave_acesso            CHAR(44)    NOT NULL UNIQUE,  -- UF+AAMM+CNPJ+mod+serie+num+tpEmis+cNF+cDV — padrão MOC, não específico da reforma
+    ambiente                VARCHAR(1)  NOT NULL CHECK (ambiente IN ('1', '2')), -- 1=produção 2=homologação
+    versao_layout           VARCHAR(10) NOT NULL, -- ex.: '4.00-RT2025' — placeholder até nome oficial de versão ser publicado
+    status                  VARCHAR(20) NOT NULL CHECK (status IN (
+        'GERADO', 'ASSINADO', 'ENVIADO', 'AUTORIZADO',
+        'DENEGADO', 'REJEITADO', 'CANCELADO', 'INUTILIZADO', 'CONTINGENCIA'
+    )),
+    xml_assinado            TEXT,          -- XML assinado (A1/A3) — só populado a partir de status ASSINADO
+    protocolo_autorizacao   VARCHAR(15),   -- só populado em AUTORIZADO/DENEGADO
+    data_autorizacao        TIMESTAMPTZ,
+    motivo_status           VARCHAR(500),  -- motivo de rejeição/denegação retornado pela SEFAZ
+    pessoa_id               UUID,          -- desnormalizado, mesmo padrão de titulo.pessoa_id (F4.2)
+    valor_total             NUMERIC(15,2) NOT NULL,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_by              VARCHAR(120),
+    updated_by              VARCHAR(120),
+    UNIQUE (tenant_id, modelo, serie, numero)
+);
+
+CREATE INDEX idx_documento_fiscal_tenant_status ON fiscal.documento_fiscal(tenant_id, status);
+CREATE INDEX idx_documento_fiscal_chave ON fiscal.documento_fiscal(chave_acesso);
+
+-- Histórico de eventos pós-autorização (cancelamento, CC-e, inutilização de numeração)
+CREATE TABLE fiscal.documento_fiscal_evento (
+    id                      BIGSERIAL PRIMARY KEY,
+    documento_fiscal_id     BIGINT NOT NULL REFERENCES fiscal.documento_fiscal(id),
+    tipo_evento             VARCHAR(30) NOT NULL CHECK (tipo_evento IN (
+        'CANCELAMENTO', 'CARTA_CORRECAO', 'INUTILIZACAO'
+    )),
+    protocolo               VARCHAR(15),
+    justificativa           VARCHAR(500) NOT NULL, -- SEFAZ exige mínimo 15 caracteres — validar na aplicação
+    xml_evento              TEXT,
+    data_evento             TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_by              VARCHAR(120)
+);
+```
+
+**Fluxo (encaixa no ADR fechado de §3/§13.1 — fiscal-service assina e transmite):**
+
+1. `fiscal.operacao_fiscal` calculado (motor fiscal, já implementado) → cria `documento_fiscal`
+   status `GERADO`.
+2. Assinatura XML (certificado A1/A3 — ver §1.10.4, decisão pendente) → status `ASSINADO`.
+3. Transmissão à SEFAZ → status `ENVIADO` → resposta síncrona/lote atualiza para `AUTORIZADO`
+   (grava `protocolo_autorizacao`, `data_autorizacao`, `chave_acesso` confirmada) ou `DENEGADO`/
+   `REJEITADO` (grava `motivo_status`).
+4. Em `AUTORIZADO`: publica `nfe.saida.autorizada` (venda) ou consome confirmação equivalente do
+   fornecedor para `nfe.entrada.aprovada` (compra) — payload conforme F4.2/F4.3, reaproveitando
+   `OperacaoFiscalDTO` já calculado.
+5. Cancelamento dentro do prazo legal → novo registro em `documento_fiscal_evento`
+   (`CANCELAMENTO`) + `documento_fiscal.status = 'CANCELADO'` → publica `nfe.cancelada` (F4.4).
+6. Falha de comunicação com SEFAZ → status `CONTINGENCIA` (grava justificativa) — modalidade de
+   contingência (SVC-AN/SVC-RS) depende da decisão operacional de §1.10.4.
+
+#### 1.10.4 Decisões Fora do Escopo de Especificação — Ação do Dono do Produto
+
+| Item | Tipo | Por quê não decidir aqui |
+|---|---|---|
+| Emissão via webservice SEFAZ direto (SOAP, certificado A1/A3, contingência SVC-AN/SVC-RS) **vs.** plataforma terceirizada (Focus NFe, eNotas, Arquivei, NFe.io etc.) | Negócio + arquitetura | Trade-off é custo recorrente vs. controle/latência vs. esforço de manutenção do parser XML/SOAP — decisão de produto, não técnica |
+| Certificado digital de teste (A1 ou A3) para o ambiente de homologação | Operacional | Requer compra/emissão junto a autoridade certificadora, CPF/CNPJ responsável e custo real |
+| Cadastro no ambiente de homologação da SEFAZ | Operacional | Depende do estado piloto escolhido (item abaixo) — cada SEFAZ tem processo próprio de credenciamento |
+| Estado piloto de homologação | Negócio | Depende de onde estão os primeiros tenants pagantes (mesmo critério já usado para o banco piloto em §IV-CNAB.3) |
+| Custo recorrente de emissão (por documento ou por plataforma, se optar por terceirizar) | Negócio | Impacta precificação do plano/tenant |
+| Modalidade de contingência a implementar (SVC-AN, SVC-RS, EPEC, FS-DA) | Operacional | Depende da escolha acima — webservice direto exige implementar contingência; plataforma terceirizada normalmente já abstrai isso |
+| Confirmação final de nomenclatura de grupo/campo XML contra o XSD oficial da versão de layout vigente na data da implementação | Especificação/engenharia | Pode ser feito quando for codificar — os grupos marcados "placeholder" acima precisam dessa conferência antes do parser ser escrito |
+
+---
+
+### 1.11 — Ingestão de NFS-e — Registry Dinâmico de Templates
+
+> **Fonte:** ao contrário de NF-e/NFC-e (schema federal único, §1.10) e da tabela NCM (fonte
+> única, §1.8), NFS-e **não tem fonte oficial única**. Cada linha de `fiscal.nfse_template` tem
+> como fonte o XML de exemplo e/ou o manual de integração do provedor/prefeitura específica —
+> adquirida caso a caso, geralmente fornecida pelo próprio fornecedor de serviço ou baixada do
+> portal da prefeitura emissora. A "NFS-e Nacional" (ADN — Ambiente de Dados Nacional) tende a
+> unificar isso ao longo da transição, mas convive com ABRASF v1, ABRASF v2 e layouts
+> proprietários por um período indeterminado — este registry existe justamente para não
+> depender de quando (ou se) essa unificação se completa.
+
+**Problema:** no fluxo de Contas a Pagar, um fornecedor de serviço emite a NFS-e no XML da
+prefeitura dele. Diferente do XML de NF-e (schema único, §1.10), o ERP não pode assumir nenhum
+layout fixo — só descobre o formato quando o XML chega. Codificar um parser Java por município
+é inviável (milhares de prefeituras, cada uma podendo trocar de provedor). A solução: um
+**registry dinâmico** onde cada layout conhecido é cadastrado como dados (XPath por campo), não
+como código.
+
+#### 1.11.1 Estrutura Canônica — `NfseCanonicaDTO`
+
+Conjunto mínimo de campos que qualquer XML de NFS-e — de qualquer prefeitura — precisa produzir
+para virar título a pagar. É o alvo de todo mapeamento XPath, independente do template de
+origem.
+
+| Campo canônico | Tipo | Obrigatório | Descrição | Destino no financeiro |
+|---|---|---|---|---|
+| `numero_nfse` | VARCHAR | Sim | Número do documento na prefeitura emissora | `titulo.origem_documento_id` (compõe) |
+| `codigo_verificacao` | VARCHAR | Sim | Código de autenticidade/verificação da NFS-e | `titulo.origem_documento_id` (compõe) |
+| `data_emissao` | DATE | Sim | Data de emissão do documento | `titulo.data_emissao` |
+| `competencia` | DATE | Não | Competência do serviço, quando distinta da emissão | Auditoria/apuração |
+| `prestador_cnpj` | VARCHAR(14) | Sim | CNPJ do fornecedor (prestador do serviço) | Resolve `fornecedor_pessoa_id` |
+| `prestador_inscricao_municipal` | VARCHAR | Não | IM do prestador | Auditoria |
+| `prestador_razao_social` | VARCHAR | Sim | Razão social do prestador | `titulo` (desnormalizado, mesmo padrão de F4.2) |
+| `prestador_municipio_ibge` | VARCHAR(7) | Sim | Município do estabelecimento prestador | Fallback de local de prestação (§1.8-B) |
+| `tomador_cnpj_cpf` | VARCHAR | Sim | CNPJ/CPF do tomador — deve bater com o CNPJ do tenant | Validação cruzada (tenant errado = rejeita) |
+| `item_lista_servico` | VARCHAR(10) | Sim (regime legado, 2026) | Código LC 116/2003 do serviço | `fiscal.operacao_fiscal` (regime ISS ainda vigente) |
+| `nbs` | VARCHAR(20) | Sim a partir da vigência IBS/CBS | Nomenclatura Brasileira de Serviços | Chave de `fiscal.regra_local_prestacao` (§1.8-B) |
+| `municipio_prestacao_ibge` | VARCHAR(7) | Sim | Local de prestação já resolvido (ver nota abaixo) | `ibge_destino` do motor fiscal (§1.4.10) |
+| `discriminacao_servico` | TEXT | Não | Descrição textual do serviço | Auditoria |
+| `valor_servicos` | NUMERIC(15,2) | Sim | Valor bruto do serviço | Base de `titulo.valor` |
+| `valor_deducoes` | NUMERIC(15,2) | Não | Deduções permitidas na base de cálculo | Auditoria |
+| `aliquota_iss` | NUMERIC(6,4) | Sim (regime legado) | Alíquota ISS do município prestador | `financeiro.titulo_retencao` (tributo `ISS`) |
+| `valor_iss` | NUMERIC(15,2) | Sim (regime legado) | Valor de ISS destacado | `financeiro.titulo_retencao` (tributo `ISS`) |
+| `iss_retido` | BOOLEAN | Sim | Se a responsabilidade de retenção é do tomador (tenant) | Decide se `titulo_retencao` gera guia (§4.9) |
+| `valor_ibs` | NUMERIC(15,2) | Sim a partir da vigência IBS/CBS | IBS já destacado no documento (transição) | `titulo.impostos JSONB` |
+| `valor_cbs` | NUMERIC(15,2) | Sim a partir da vigência IBS/CBS | CBS já destacado no documento (transição) | `titulo.impostos JSONB` |
+| `valor_irrf` | NUMERIC(15,2) | Não (depende de natureza/valor) | IRRF retido na fonte | `financeiro.titulo_retencao` (tributo `IRRF`) |
+| `valor_csrf` | NUMERIC(15,2) | Não | CSRF (PIS/COFINS/CSLL unificados) retido | `financeiro.titulo_retencao` (tributo `CSRF`) |
+| `valor_inss` | NUMERIC(15,2) | Não | INSS retido (cessão de mão de obra) | `financeiro.titulo_retencao` (tributo `INSS`) |
+| `valor_liquido` | NUMERIC(15,2) | Sim | `valor_servicos - deduções - todas as retenções` | `titulo.valor` |
+
+**Reaproveitamento do que já existe — nada novo é inventado aqui:**
+- `financeiro.titulo_retencao` (§4.9) já tem `tributo IN ('IRRF','CSRF','INSS','ISS','IBS_CBS')` —
+  as retenções da NFS-e viram linhas dessa tabela sem alteração de schema.
+- `titulo.impostos JSONB` (§F4.2, §1.8) recebe o mesmo formato `{ibs, cbs, is}` já usado pela
+  NF-e — relatórios que já leem esse campo não precisam de tratamento especial para NFS-e.
+- `fiscal.regra_local_prestacao` (§1.8-B) resolve `municipio_prestacao_ibge` a partir do `nbs`
+  quando o XML não traz esse campo de forma explícita (a maioria dos layouts antigos não separa
+  "local de prestação" de "endereço do prestador" — a regra por NBS é o que preenche essa
+  lacuna).
+- A criação do título segue **o mesmo padrão de F4.2/F4.3**: `origem = 'NFSE_ENTRADA'`,
+  `origem_documento_id = numero_nfse || '-' || codigo_verificacao`, `pessoa_id` resolvido do
+  `prestador_cnpj`.
+
+> **Nota — NFS-e não carrega parcelamento como a NF-e:** a maioria dos layouts municipais não
+> tem um grupo equivalente a `duplicata`/condição de pagamento. Vencimento e número de parcelas
+> do título a pagar **não vêm do XML** — são resolvidos pela `forma_pagamento`/condição de
+> pagamento já cadastrada para o fornecedor (§2.1), igual a qualquer lançamento manual de AP.
+
+#### 1.11.2 Registry de Templates
+
+```sql
+-- fiscal-service — schema fiscal
+CREATE TABLE fiscal.nfse_template (
+    id                      BIGSERIAL PRIMARY KEY,
+    municipio_ibge          VARCHAR(7),    -- NULL = template genérico do provedor (ver §1.11.3)
+    municipio_nome          VARCHAR(150),
+    provedor                VARCHAR(100) NOT NULL,  -- ex.: 'Betha', 'Ginfes', 'ISS Digital', 'NFS-e Nacional'
+    layout_padrao           VARCHAR(20) NOT NULL CHECK (layout_padrao IN (
+        'ABRASF_V1', 'ABRASF_V2', 'NACIONAL', 'PROPRIETARIO'
+    )),
+    versao_layout           VARCHAR(20) NOT NULL,   -- versão do XSD/manual do provedor, ex.: '2.04'
+    namespace_raiz          VARCHAR(300),            -- xmlns da tag raiz, quando existir e for estável
+    ativo                   BOOLEAN NOT NULL DEFAULT TRUE,
+    fonte                   VARCHAR(500),             -- doc/manual/URL do provedor usado para mapear
+    observacoes             TEXT,
+    tenant_cadastrante_id    BIGINT,                  -- tenant que originou o cadastro (rastreabilidade); template é global, não tenant-scoped
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_by              VARCHAR(120) NOT NULL,
+    updated_at              TIMESTAMPTZ,
+    updated_by              VARCHAR(120),
+    UNIQUE (municipio_ibge, provedor, versao_layout)
+);
+
+CREATE INDEX idx_nfse_template_provedor ON fiscal.nfse_template(provedor, versao_layout) WHERE ativo;
+CREATE INDEX idx_nfse_template_municipio ON fiscal.nfse_template(municipio_ibge) WHERE ativo;
+
+-- Mapeamento campo canônico → XPath, um template pode ter até 24 linhas (os campos de §1.11.1)
+CREATE TABLE fiscal.nfse_template_campo (
+    id                      BIGSERIAL PRIMARY KEY,
+    template_id             BIGINT NOT NULL REFERENCES fiscal.nfse_template(id),
+    campo_canonico          VARCHAR(40) NOT NULL CHECK (campo_canonico IN (
+        'numero_nfse', 'codigo_verificacao', 'data_emissao', 'competencia',
+        'prestador_cnpj', 'prestador_inscricao_municipal', 'prestador_razao_social',
+        'prestador_municipio_ibge', 'tomador_cnpj_cpf', 'item_lista_servico', 'nbs',
+        'municipio_prestacao_ibge', 'discriminacao_servico', 'valor_servicos',
+        'valor_deducoes', 'aliquota_iss', 'valor_iss', 'iss_retido', 'valor_ibs',
+        'valor_cbs', 'valor_irrf', 'valor_csrf', 'valor_inss', 'valor_liquido'
+    )),
+    xpath                   VARCHAR(500) NOT NULL,   -- XPath 1.0 relativo à raiz do documento
+    transformacao           VARCHAR(30) NOT NULL DEFAULT 'NENHUMA' CHECK (transformacao IN (
+        'NENHUMA', 'DATA_DDMMYYYY_PARA_ISO', 'DATA_YYYYMMDD_PARA_ISO',
+        'DECIMAL_VIRGULA_PARA_PONTO', 'MULTIPLICAR', 'REMOVER_MASCARA_CNPJ_CPF',
+        'BOOLEAN_SIM_NAO', 'BOOLEAN_1_2'
+    )),
+    transformacao_param     VARCHAR(50),              -- ex.: fator de 'MULTIPLICAR' (alguns layouts trazem % como 0,05 em vez de 5)
+    obrigatorio             BOOLEAN NOT NULL DEFAULT TRUE, -- espelha §1.11.1, mas pode ser relaxado por template específico
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_by              VARCHAR(120) NOT NULL,
+    UNIQUE (template_id, campo_canonico)
+);
+```
+
+#### 1.11.3 Identificação de Template — Estratégias e Confiança
+
+Não existe um "identificador universal" (nenhum campo garante, sozinho e em todo layout
+existente, qual template usar). A tabela abaixo lista as estratégias plausíveis, na ordem em
+que são tentadas, com o nível de confiança honesto de cada uma:
+
+| # | Estratégia | Como funciona | Confiança | Limitação |
+|---|---|---|---|---|
+| 1 | Namespace/tag raiz do XML (`xmlns` ou nome do elemento raiz, ex. `GerarNfseResposta`, `CompNfse`) | Compara contra `fiscal.nfse_template.namespace_raiz` cadastrado | Moderada-Alta | Identifica **provedor + versão de layout**, não o município — vários municípios usam o mesmo provedor com o namespace idêntico |
+| 2 | Fingerprint de XPaths sentinela (presença/ausência de tags que só existem numa versão, ex. `Servico/Valores/IssRetido` existe no ABRASF v2 mas não no v1) | Conjunto pequeno de XPaths cadastrados em `fiscal.nfse_template_assinatura`, contados como score | Moderada | Precisa ser mantido manualmente por quem cadastra o template — não é automático |
+| 3 | Código IBGE do município, quando presente em campo comum entre layouts do mesmo provedor (ex. `CodigoMunicipio`, `Endereco/CodigoMunicipio`) | Só é tentado **depois** de 1–2 já terem restringido a um provedor/versão — não existe local universal para essa tag entre provedores distintos | Alta *dentro do grupo já restrito*, inútil como estratégia isolada | Layouts proprietários podem não ter essa tag em lugar nenhum previsível |
+| 4 | CNPJ do prestador → município cadastral conhecido (cross-reference com `cadastro-service`) | Usado só como **dica de desempate/sugestão** na fila manual (§1.11.5), nunca para seleção automática | Baixa | O CNPJ pode ter matriz/filial em município diferente do que emitiu a nota |
+
+**Regra de resolução (mais confiável primeiro):**
+1. Calcula o score de assinatura (estratégias 1+2) contra todos os templates ativos.
+2. Havendo um **template específico do município** (`municipio_ibge` preenchido) com score acima
+   do limiar e sem empate → usa esse (é o mais preciso: cobre customizações locais em cima do
+   provedor-base).
+3. Sem específico, mas houver **template genérico do provedor** (`municipio_ibge IS NULL`) com
+   score suficiente → usa esse (cobre o caso comum: a maioria dos municípios não customiza o
+   software do provedor).
+4. Empate entre dois templates, score abaixo do limiar, ou nenhum candidato → **não decide
+   sozinho**, vai para a fila de exceção (§1.11.5). Nunca escolhe "o mais provável" silenciosamente
+   quando a decisão impacta valor de imposto lançado.
+
+```sql
+CREATE TABLE fiscal.nfse_template_assinatura (
+    id              BIGSERIAL PRIMARY KEY,
+    template_id     BIGINT NOT NULL REFERENCES fiscal.nfse_template(id),
+    tipo            VARCHAR(20) NOT NULL CHECK (tipo IN ('XPATH_PRESENTE', 'XPATH_AUSENTE')),
+    xpath           VARCHAR(500) NOT NULL,
+    peso            INT NOT NULL DEFAULT 1,   -- contribuição no score; XPaths mais distintivos pesam mais
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+```
+
+#### 1.11.4 Fluxo Fim a Fim
+
+```
+XML chega (upload manual do tenant na tela de AP — e-mail/integração automática é roadmap futuro)
+  ↓
+1. NfseIngestService grava o XML bruto em fiscal.nfse_ingestao (status PENDENTE_TEMPLATE)
+  ↓
+2. Calcula score contra fiscal.nfse_template_assinatura + namespace raiz
+   ├── Match único e claro (§1.11.3, regra de resolução) → segue
+   └── Ambíguo/sem match → fiscal.nfse_ingestao.status = 'PENDENTE_TEMPLATE' → FIM (§1.11.5)
+  ↓
+3. Aplica cada fiscal.nfse_template_campo.xpath sobre o XML (XPathFactory padrão),
+   executa a transformação cadastrada, popula NfseCanonicaDTO
+  ↓
+4. Valida campos obrigatórios do DTO (§1.11.1)
+   └── Faltando algum obrigatório → status = 'ERRO_VALIDACAO' (motivo lista os campos) →
+       XPath do template pode ser corrigido e o MESMO XML reprocessado, sem novo upload
+  ↓
+5. Resolve municipio_prestacao_ibge: se o template não extraiu valor explícito,
+   aplica fiscal.regra_local_prestacao pelo NBS (§1.8-B) — fallback = prestador_municipio_ibge
+   quando a regra for LOCAL_PRESTACAO
+  ↓
+6. Resolve prestador_cnpj → fornecedor_pessoa_id (lookup por CNPJ no cadastro-service —
+   feito aqui, no fiscal-service, no momento da ingestão; o financeiro-service continua
+   recebendo payload já enriquecido, mesma garantia de desacoplamento de F4.2/F4.3)
+  ↓
+7. Publica evento (mesmo padrão de nfe.entrada.aprovada) → financeiro cria título a pagar:
+   origem = 'NFSE_ENTRADA', origem_documento_id = numero_nfse + codigo_verificacao,
+   pessoa_id = fornecedor_pessoa_id, impostos = {ibs, cbs, is} em titulo.impostos JSONB
+  ↓
+8. Cria uma linha em financeiro.titulo_retencao por tributo retido informado
+   (ISS, IRRF, CSRF, INSS, IBS_CBS) — mesma tabela e mecanismo de guia do §4.9
+  ↓
+9. fiscal.nfse_ingestao.status = 'PROCESSADO'
+```
+
+#### 1.11.5 Template Não Reconhecido — Fila de Exceção
+
+```sql
+CREATE TABLE fiscal.nfse_ingestao (
+    id                  BIGSERIAL PRIMARY KEY,
+    tenant_id           BIGINT NOT NULL,
+    xml_bruto           TEXT NOT NULL,
+    arquivo_nome        VARCHAR(300),
+    template_id         BIGINT REFERENCES fiscal.nfse_template(id), -- NULL enquanto não resolvido
+    status              VARCHAR(20) NOT NULL CHECK (status IN (
+        'PENDENTE_TEMPLATE', 'PROCESSADO', 'ERRO_VALIDACAO', 'DESCARTADO'
+    )),
+    motivo_erro         VARCHAR(500),   -- campos obrigatórios ausentes, ou "ambíguo entre templates X,Y"
+    titulo_id           BIGINT,         -- preenchido em PROCESSADO
+    uploaded_by         VARCHAR(120) NOT NULL,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    processed_at        TIMESTAMPTZ
+);
+
+CREATE INDEX idx_nfse_ingestao_pendente ON fiscal.nfse_ingestao(tenant_id, status)
+    WHERE status IN ('PENDENTE_TEMPLATE', 'ERRO_VALIDACAO');
+```
+
+**Fluxo de fallback:**
+1. XML cai em `PENDENTE_TEMPLATE` → aparece na tela admin "NFS-e não reconhecidas".
+2. Cadastro manual assistido: usuário vê o XML bruto ao lado de um formulário com os 24 campos
+   canônicos de §1.11.1; para cada um, informa o XPath (o mapeamento de tela/preview ao vivo é
+   detalhe de UI, fora do escopo desta spec de dados) — isso cria uma linha em
+   `fiscal.nfse_template` + N linhas em `fiscal.nfse_template_campo` + as
+   `fiscal.nfse_template_assinatura` que vão permitir reconhecimento automático da próxima vez.
+3. O sistema reprocessa automaticamente esse XML (e qualquer outro ainda em
+   `PENDENTE_TEMPLATE`/`ERRO_VALIDACAO` cuja assinatura bata com o template recém-criado).
+4. **A partir daí, o template fica reaproveitável** — qualquer nota futura do mesmo
+   município/provedor passa pelo fluxo automático do §1.11.4 sem intervenção manual.
+
+#### 1.11.6 Nota — Isto é Trabalho de Dados Recorrente, Não um Bloqueio de Arquitetura
+
+> Diferente de outras partes deste documento onde falta uma decisão de terceiro ("aguarda
+> XSD oficial", "aguarda tabela CGIBS" — ver §1.10.4, §1.8), **aqui não há ninguém a esperar**.
+> A arquitetura do registry (as 4 tabelas acima, a lógica de scoring, o fluxo de fallback) é
+> especificação de engenharia — pode ser construída agora, por completo. O que **não** pode ser
+> construído agora é o conteúdo de cada `fiscal.nfse_template`: isso é cadastro incremental,
+> alimentado à medida que aparecem fornecedores de municípios ainda não mapeados. É trabalho
+> operacional contínuo (mais parecido com manutenção de tabela de preços do que com
+> desenvolvimento), não uma dependência bloqueante nem uma decisão pendente de produto.
+
+#### 1.11.7 Extensões Futuras — Comparação com Ingestor Fiscal em Produção (Oracle EBS/XXNFE)
+
+> Este design foi comparado contra um ingestor de NF-e/NFS-e rodando em produção há anos em
+> outra empresa (Java Concurrent Program dentro de Oracle EBS). A arquitetura de registry
+> data-driven (XPath cadastrado, não hardcoded) e a fila de exceção com aprendizado incremental
+> (§1.11.5) batem com o padrão de lá. Duas diferenças identificadas — nenhuma bloqueia a
+> implementação atual, ambas ficam registradas como extensão possível, não como gap:
+
+| # | Ponto | Situação em §1.11 | Extensão do sistema comparado | Quando revisitar |
+|---|---|---|---|---|
+| 1 | Múltiplos serviços por NFS-e | `NfseCanonicaDTO` é plano (1 registro = 1 documento) | Suporta `N` linhas de serviço por XML, iteradas via contagem de nó repetido no XPath | Se aparecer um layout real com mais de um `ItemServico` por nota — adiciona `fiscal.nfse_item` (filho de `nfse_ingestao`) e marcador `[nItem]` no XPath do campo, só então |
+| 2 | Campo calculado por fallback de outro campo | `transformacao` só cobre coerção de tipo (data/decimal/máscara/booleano) | Regra condicional por template, ex.: "se `ValorServicos` = 0, deriva de `ValorLiquido + Desconto`" | Se o primeiro template cadastrado de verdade precisar disso — adiciona valor ao enum `transformacao` (ex. `FALLBACK_SE_ZERO`) nesse momento, não antes |
+
+**Migrations:**
+
+| Arquivo | Operação | Descrição |
+|---|---|---|
+| `fiscal/v1/029-nfse-template-registry.yaml` | `createTable` | `fiscal.nfse_template` + `fiscal.nfse_template_campo` + `fiscal.nfse_template_assinatura` (§1.11.2, §1.11.3) |
+| `fiscal/v1/030-nfse-ingestao.yaml` | `createTable` | `fiscal.nfse_ingestao` — fila/staging de XMLs recebidos, incluindo os não reconhecidos (§1.11.5) |
+
+---
+
 ## MÓDULO II — CONTAS A PAGAR E CONTAS A RECEBER
 
 ## II.1 Entidades e Schema
@@ -1764,7 +2231,7 @@ id                  BIGSERIAL PK
 tenant_id           BIGINT NOT NULL
 codigo              VARCHAR(20) NOT NULL
 descricao           VARCHAR(100) NOT NULL
-data_referencia     VARCHAR(20) NOT NULL  -- 'EMISSAO_INCLUSIVA' | 'EMISSAO_EXCLUSIVA' | 'SAIDA_INCLUSIVA' | 'SAIDA_EXCLUSIVA'
+data_referencia     VARCHAR(10) NOT NULL   -- 'EMISSAO' | 'SAIDA'
 considera_dias_uteis BOOLEAN DEFAULT FALSE
 ativo               BOOLEAN DEFAULT TRUE
 created_at          TIMESTAMPTZ NOT NULL
@@ -1780,20 +2247,165 @@ financeiro.forma_pagamento_periodo
 id                  BIGSERIAL PK
 forma_pagamento_id  BIGINT NOT NULL REFERENCES forma_pagamento(id)
 tenant_id           BIGINT NOT NULL
-dia_inicial_periodo INT            -- dia do mês: início do intervalo de faturamento
-dia_final_periodo   INT            -- dia do mês: fim do intervalo de faturamento
-mes_pagamento       VARCHAR(10)    -- 'CORRENTE' | 'SEGUINTE'
-dia_pagamento       INT            -- dia específico de vencimento
-numero_meses        INT DEFAULT 0  -- meses adicionais para o cálculo
-dia_semana          VARCHAR(15)    -- 'SEGUNDA' | 'TERCA' | ... | null
+dia_inicial_periodo INT NOT NULL          -- dia do mês: início do intervalo de faturamento
+dia_final_periodo   INT NOT NULL          -- dia do mês: fim do intervalo de faturamento
+dia_pagamento       INT NOT NULL          -- dia do vencimento no mês alvo
+numero_meses        INT NOT NULL DEFAULT 1 -- meses a somar ao mês da data base (0 = mês corrente)
+dia_semana          VARCHAR(15)           -- 'SEGUNDA'..'DOMINGO' | null
+CHECK (dia_inicial_periodo BETWEEN 1 AND 31)
+CHECK (dia_final_periodo   BETWEEN 1 AND 31)
+CHECK (dia_inicial_periodo <= dia_final_periodo)
+CHECK (dia_pagamento BETWEEN 1 AND 31)
+CHECK (numero_meses >= 0)
+EXCLUDE USING gist (
+    forma_pagamento_id WITH =,
+    int4range(dia_inicial_periodo, dia_final_periodo, '[]') WITH &&
+)   -- proíbe sobreposição de períodos; requer extensão btree_gist
 ```
 
-**Regra de cálculo de vencimento:**
-- Pega a data base conforme `data_referencia` (data de emissão do título ou data de saída da NF).
-- Encontra o período (`dia_inicial_periodo` ≤ dia da data base ≤ `dia_final_periodo`).
-- Aplica `numero_meses` e `dia_pagamento` no mês alvo (`mes_pagamento`).
-- Se `considera_dias_uteis = TRUE`, avança para o próximo dia útil quando o resultado cair em feriado/fim de semana.
-- Se `dia_semana` preenchido, ajusta para o dia da semana informado.
+> **Simplificações em relação ao rascunho inicial (produto novo, sem legado a preservar):**
+>
+> | Removido | Motivo |
+> |---|---|
+> | `mes_pagamento` ('CORRENTE'/'SEGUINTE') | 100% redundante com `numero_meses`: CORRENTE = `numero_meses 0`, SEGUINTE = `numero_meses 1`. Dois campos para o mesmo conceito = erro de configuração garantido. |
+> | Variantes `_INCLUSIVA`/`_EXCLUSIVA` de `data_referencia` | Semântica nunca foi definida no spec. O efeito prático (deslocar a data base em 1 dia no corte) é expresso ajustando os limites dos períodos. |
+> | Período que atravessa a virada do mês (`dia_inicial > dia_final`, ex.: 26→05) | **Proibido por CHECK.** Todo período "wrap" equivale a duas linhas sem wrap com `numero_meses` distintos — ver Exemplo 2. Elimina a ambiguidade de qual mês ancora o cálculo. |
+
+#### 2.1.1 Algoritmo de cálculo de vencimento
+
+Entrada: título `T` (com `data_emissao` e, se vinculado a NF, `data_saida`) e sua `forma_pagamento` `FP`. Saída: `data_vencimento`. O algoritmo é determinístico — mesma entrada, mesma saída.
+
+```
+1. DATA BASE
+   base = T.data_saida   se FP.data_referencia = 'SAIDA' e T.data_saida não nula
+        = T.data_emissao caso contrário (inclusive fallback de 'SAIDA' em
+                          lançamento manual sem NF vinculada)
+
+2. FORMA SEM PERÍODOS (vencimento manual)
+   Se FP não possui nenhum forma_pagamento_periodo:
+       data_vencimento = valor informado manualmente no título (obrigatório).
+       FIM. (Casos de uso: à vista, prazo negociado caso a caso.)
+   Se FP possui períodos, o vencimento é SEMPRE calculado — valor manual
+   é rejeitado com erro de validação.
+
+3. SELEÇÃO DO PERÍODO
+   P = período de FP tal que P.dia_inicial_periodo <= dia(base) <= P.dia_final_periodo.
+   A cobertura total de 1..31 e a não-sobreposição são garantidas na gravação
+   (RN-FPP-002); se mesmo assim nenhum período casar (dado corrompido),
+   lançar erro PERIODO_VENCIMENTO_NAO_ENCONTRADO. Nunca inferir período
+   "mais próximo" — vencimento é dinheiro, não se chuta.
+
+4. MÊS ALVO
+   alvo = mês(base) + P.numero_meses     -- numero_meses = 0 → próprio mês da base
+
+5. DIA DO VENCIMENTO (com clamp de fim de mês)
+   data_vencimento = data(ano(alvo), mês(alvo),
+                          min(P.dia_pagamento, último_dia(alvo)))
+   -- dia_pagamento 31 em abril → 30/abr; em fevereiro → 28 ou 29.
+   -- Convenção: dia_pagamento = 31 significa "último dia do mês alvo".
+
+6. AJUSTE DE DIA DA SEMANA (se P.dia_semana não nulo)
+   Avançar data_vencimento até o próximo dia com aquele dia da semana.
+   Somente para frente (0 a 6 dias); se já cai no dia certo, mantém.
+   Nunca antecipar — antecipação encurtaria o prazo pactuado.
+
+7. AJUSTE DE DIA ÚTIL (se FP.considera_dias_uteis = TRUE)
+   data_vencimento = proximoDiaUtil(data_vencimento, uf_do_estabelecimento)  -- §F1
+   Executa DEPOIS do passo 6: dia_semana é preferência comercial,
+   dia útil é restrição bancária — a restrição vence. Se o ajuste
+   quebrar a preferência de dia da semana (sexta feriado → segunda),
+   o resultado fica na segunda; não se salta para a sexta seguinte.
+
+8. GUARDA FINAL
+   Se data_vencimento < base: erro VENCIMENTO_ANTERIOR_DATA_BASE.
+   (Só alcançável por configuração inválida que escapou de RN-FPP-003 —
+   título não pode nascer vencido por cálculo.)
+```
+
+**Validações na gravação da forma de pagamento (não do título):**
+
+| Regra | Enunciado | Onde |
+|---|---|---|
+| RN-FPP-001 | `1 <= dia_inicial <= dia_final <= 31`, `1 <= dia_pagamento <= 31`, `numero_meses >= 0` | CHECK (DDL) |
+| RN-FPP-002 | Períodos de uma mesma forma não se sobrepõem (EXCLUDE, DDL) e, se existir ao menos um período, a união deve cobrir exatamente 1..31 sem lacunas (validação de serviço no save — lacuna não é expressável em constraint) | DDL + service |
+| RN-FPP-003 | Se `numero_meses = 0`, exigir `dia_pagamento >= dia_final_periodo` — garante vencimento nunca anterior à data base para qualquer dia do período | service |
+| RN-FPP-004 | Forma **sem** períodos → título exige `data_vencimento` manual; forma **com** períodos → `data_vencimento` manual é rejeitada | service (lançamento do título) |
+
+#### 2.1.2 Exemplos Numéricos
+
+##### Exemplo 1 — Faturamento mensal simples
+
+```
+Forma:    FAT-15, data_referencia = EMISSAO, considera_dias_uteis = FALSE
+Período:  [1–31], numero_meses = 1, dia_pagamento = 15, dia_semana = null
+
+Título emitido em 07/03/2027:
+  base   = 07/03/2027 (dia 7 ∈ [1,31] → período único)
+  alvo   = março + 1 = abril/2027
+  venc   = 15/04/2027 (min(15, 30) = 15)
+  Sem ajustes de dia da semana ou dia útil → vencimento = 15/04/2027
+```
+
+##### Exemplo 2 — Corte no dia 25 (ciclo que atravessa a virada do mês)
+
+O ciclo comercial "compras de 26/jan a 25/fev pagam em 10/mar" **não** usa
+período wrap (26→05, proibido pelo CHECK). Ele é modelado com duas linhas:
+
+```
+Forma:    CORTE-25, data_referencia = EMISSAO
+Período A: [1–25],  numero_meses = 1, dia_pagamento = 10
+Período B: [26–31], numero_meses = 2, dia_pagamento = 10
+
+Título emitido em 28/01/2027:
+  base = 28/01 → dia 28 ∈ [26,31] → período B
+  alvo = janeiro + 2 = março/2027
+  venc = 10/03/2027
+
+Título emitido em 03/02/2027:
+  base = 03/02 → dia 3 ∈ [1,25] → período A
+  alvo = fevereiro + 1 = março/2027
+  venc = 10/03/2027
+
+→ Ambos os títulos do mesmo ciclo (26/jan–25/fev) vencem juntos em 10/03,
+  sem nenhuma regra especial de "virada de mês" no algoritmo.
+```
+
+##### Exemplo 3 — `dia_pagamento` maior que o mês alvo
+
+```
+Forma:    ULT-DIA, período [1–31], numero_meses = 1, dia_pagamento = 31
+
+Título emitido em 15/01/2027:
+  alvo = fevereiro/2027 (não bissexto → 28 dias)
+  venc = min(31, 28) = 28/02/2027
+
+Título emitido em 15/03/2027:
+  alvo = abril/2027
+  venc = min(31, 30) = 30/04/2027
+
+→ dia_pagamento = 31 funciona como "último dia do mês alvo".
+```
+
+##### Exemplo 4 — Dias úteis + feriado (e interação com `dia_semana`)
+
+```
+Forma:    FAT-21U, considera_dias_uteis = TRUE
+Período:  [1–31], numero_meses = 1, dia_pagamento = 21
+
+Título emitido em 05/03/2027:
+  alvo = abril/2027 → venc bruto = 21/04/2027 (quarta-feira, Tiradentes)
+  passo 7: proximoDiaUtil(21/04) = 22/04/2027 (quinta) → vencimento final
+
+Variante com dia_semana = 'SEXTA' (mesma forma, dia_pagamento = 25,
+título emitido em 10/02/2027):
+  alvo = março/2027 → venc bruto = 25/03/2027 (quinta-feira)
+  passo 6: avança para sexta → 26/03/2027 (Sexta-feira Santa — feriado)
+  passo 7: proximoDiaUtil(26/03) = 29/03/2027 (segunda) → vencimento final
+
+→ A ordem importa: primeiro a preferência comercial (dia_semana),
+  depois a restrição bancária (dia útil). A restrição vence o conflito,
+  mesmo que o resultado não caia mais no dia da semana preferido.
+```
 
 ---
 
@@ -1924,6 +2536,10 @@ receber_tipo_ajuste_cnab_desconto_id  BIGINT REFERENCES tipo_ajuste
 receber_permite_data_baixa_anterior BOOLEAN DEFAULT FALSE
 -- Geral
 considera_feriado_bancario          BOOLEAN DEFAULT FALSE
+tolerancia_conciliacao              NUMERIC(15,2) DEFAULT 0.05
+                                    -- CB-04: tolerância de valor da conciliação automática (§III 4.3/4.4)
+confirmacao_automatica              BOOLEAN DEFAULT FALSE
+                                    -- §III 3.2: movimentação manual já nasce CONFIRMADO quando TRUE
 gl_fato_periodo_fechado             VARCHAR(30) DEFAULT 'LANCAR_COMPETENCIA_ABERTA'
                                     -- 'LANCAR_COMPETENCIA_ABERTA' | 'AGUARDAR_REABERTURA' (§37, passo 2)
 updated_at                          TIMESTAMPTZ
@@ -1976,8 +2592,11 @@ valor_liquido           NUMERIC(15,2) GENERATED ALWAYS AS
 valor_saldo             NUMERIC(15,2) GENERATED ALWAYS AS
                         (valor_original + valor_ajuste_acrescimo - valor_ajuste_desconto - valor_baixado) STORED
 
+CHECK (valor_original + valor_ajuste_acrescimo - valor_ajuste_desconto > 0)
+-- valor_liquido nunca chega a zero por ajuste — ver CP-11
+
 -- Origem
-origem                  VARCHAR(20) NOT NULL   -- 'MANUAL' | 'NF_ENTRADA' | 'NF_SAIDA' | 'CNAB' | 'EMPRESTIMO' | 'ADIANTAMENTO' | 'PARCELAMENTO' | 'RENEGOCIACAO' | 'APURACAO_FISCAL' | 'RECORRENTE' (reservado — roadmap)
+origem                  VARCHAR(20) NOT NULL   -- 'MANUAL' | 'NF_ENTRADA' | 'NF_SAIDA' | 'CNAB' | 'EMPRESTIMO' | 'ADIANTAMENTO' | 'PARCELAMENTO' | 'RENEGOCIACAO' | 'APURACAO_FISCAL' | 'DDA' | 'RECORRENTE' (reservado — roadmap)
 origem_documento_id     VARCHAR(50)            -- id/chave do documento de origem (comporta nfe_chave de 44 dígitos)
 nota_fiscal_numero      VARCHAR(50)
 nota_fiscal_serie       VARCHAR(10)
@@ -2014,6 +2633,11 @@ INDEX idx_titulo_tenant_pessoa        (tenant_id, pessoa_id) WHERE pessoa_id IS 
 INDEX idx_titulo_tenant_status        (tenant_id, status_titulo, status_baixa)
 INDEX idx_titulo_associacao           (associacao_id) WHERE associacao_id IS NOT NULL
 ```
+
+> **Semântica de `titulo.status_baixa`:** campo **derivado** — reflete o status da última
+> baixa não estornada do título (`NULL` quando não há baixas). Existe só para filtro de
+> listagem (§7.1); a fonte da verdade é sempre `titulo_baixa.status`. Atualizado pelo
+> `BaixaService` a cada criação/confirmação/estorno.
 
 ---
 
@@ -2056,7 +2680,7 @@ conta_corrente_id   BIGINT                 -- referência à conta corrente usad
 observacao          VARCHAR(500)
 
 -- Rastreabilidade
-origem              VARCHAR(20) NOT NULL   -- 'MANUAL' | 'CNAB' | 'COMPENSACAO' | 'ADIANTAMENTO' | 'ESTORNO'
+origem              VARCHAR(20) NOT NULL   -- 'MANUAL' | 'CNAB' | 'COMPENSACAO' | 'ADIANTAMENTO' | 'RENEGOCIACAO' | 'ESTORNO'
 compensacao_id      BIGINT                 -- preenchido se origem = 'COMPENSACAO'
 adiantamento_id     BIGINT                 -- preenchido se origem = 'ADIANTAMENTO'
 
@@ -2066,6 +2690,11 @@ confirmada_by       VARCHAR(100)
 
 created_at          TIMESTAMPTZ NOT NULL
 created_by          VARCHAR(100) NOT NULL
+
+INDEX idx_baixa_titulo        (tenant_id, titulo_id)
+INDEX idx_baixa_compensacao   (compensacao_id) WHERE compensacao_id IS NOT NULL
+INDEX idx_baixa_adiantamento  (adiantamento_id) WHERE adiantamento_id IS NOT NULL
+INDEX idx_baixa_estornada     (baixa_estornada_id) WHERE baixa_estornada_id IS NOT NULL
 ```
 
 ---
@@ -2126,6 +2755,8 @@ valor_disponivel    NUMERIC(15,2) GENERATED ALWAYS AS (valor_total - valor_utili
 ativo               BOOLEAN DEFAULT TRUE
 created_at          TIMESTAMPTZ NOT NULL
 updated_at          TIMESTAMPTZ
+
+UNIQUE (tenant_id, titulo_id)   -- 1 saldo por título de adiantamento (alinha com migration 013)
 ```
 
 ---
@@ -2222,6 +2853,8 @@ BAIXADO ◄────┴────┘      CANCELADO ◄──────�
 | `EM_ABERTO / EMITIDO / DESCONTADO → BAIXADO` | Baixa confirmada (status_baixa = REAL) | valor_saldo = 0 |
 | `EM_ABERTO → CANCELADO` | Usuário | Sem baixas com status REAL |
 | `PREVISTO → CANCELADO` | Usuário | Sem restrição |
+| `BAIXADO → EM_ABERTO` | Estorno de baixa REAL (§4.6.1) | `valor_saldo` volta a ser > 0 após a baixa negativa de estorno |
+| `DESCONTADO → EM_ABERTO` | Regresso bancário (§5.4 passo 5) | Banco debitou o valor antecipado; título volta à cobrança própria (dunning/carta) |
 | (qualquer) | — | Título com `bloqueado = TRUE` não aceita baixa nem entra em remessa |
 
 ---
@@ -2517,6 +3150,9 @@ codigo_receita  VARCHAR(10)            -- código DARF/guia (ex: 1708, 5952)
 competencia     VARCHAR(7) NOT NULL    -- 'YYYY-MM'
 titulo_guia_id  BIGINT                 -- título a pagar da guia, preenchido na geração
 created_at      TIMESTAMPTZ NOT NULL
+
+INDEX idx_retencao_guia (tenant_id, tributo, competencia) WHERE titulo_guia_id IS NULL
+-- fila do RetencaoGuiaJob: retenções ainda sem guia gerada
 ```
 
 ```sql
@@ -2545,7 +3181,32 @@ UNIQUE (tenant_id, tributo)
    arrecadador), vinculando `titulo_retencao.titulo_guia_id`.
 4. No AR (nosso cliente reteve): registrar a retenção sofrida como baixa parcial
    `tipo_baixa.meio = 'RETENCAO'` — o caixa nunca recebe esse valor; o crédito tributário
-   vai para conta de "Tributos Retidos na Fonte a Recuperar" (plano de contas 1.1.6.05).
+   vai para conta de "Tributos Retidos na Fonte a Recuperar" (plano de contas 1.1.6.05 — §F6.5).
+
+---
+
+### 4.10 Cancelar Título
+
+**Endpoint:** `POST /api/financeiro/titulos/{id}/cancelar`
+
+**Body:** `{ "motivo_id": 3, "observacao": "Duplicidade de lançamento" }` — `motivo_id`
+referencia `financeiro.motivo` com `tipo = 'CANCELAMENTO'` (obrigatório).
+
+**Fluxo:**
+1. Verificar `status_titulo IN ('PREVISTO', 'EM_ABERTO')`. Título `EMITIDO` exige
+   `cancelar-emissao` (§5.1) antes; `DESCONTADO`, `BAIXADO` e `CANCELADO` não cancelam.
+2. Verificar ausência de baixas `REAL` (CP-03) — com baixa REAL, o caminho é estorno (§4.6.1).
+3. Verificar que não há `compensacao` com `status = 'PENDENTE'` envolvendo o título —
+   cancelar a compensação primeiro (CO-04).
+4. Verificar que não há boleto `EMITIDO`/`REGISTRADO` vinculado — cancelar o boleto
+   primeiro (§17.3).
+5. Cancelar as baixas `PLANEJADA` existentes (reverte reservas de adiantamento, se houver —
+   §4.7.3 passo 5).
+6. Atualizar `status_titulo = 'CANCELADO'`, gravar `motivo_id`/`observacao`, audit log (§F2)
+   e publicar `titulo.cancelado` (§9.3).
+
+Vale para PAGAR e RECEBER. O cancelamento via evento NF (§F4.4) usa este mesmo fluxo,
+com motivo padronizado 'CANCELAMENTO_NF'.
 
 ---
 
@@ -2585,9 +3246,18 @@ Contas a Receber compartilha as operações §4.1 a §4.7 com as adaptações ab
 
 **Fluxo:**
 1. Verificar `status_titulo = 'EM_ABERTO'`.
-2. Cancelar título original.
-3. Criar novo título com os novos termos, `origem = 'RENEGOCIACAO'`, `origem_documento_id = id_original`.
+2. Criar novo título pelos novos termos sobre o **valor_saldo** (não o valor original),
+   `origem = 'RENEGOCIACAO'`, `origem_documento_id = id_original`.
+3. Encerrar o título original:
+   - **Sem baixas REAL** → cancelar (status `CANCELADO`), como no parcelamento (§4.4).
+   - **Com baixas REAL parciais** → CP-03 proíbe cancelar: encerrar por baixa `REAL` com
+     `origem = 'RENEGOCIACAO'` pelo `valor_saldo`, **sem** `conta_corrente_id` (não movimenta
+     caixa — é reclassificação de recebível para o título novo). O título fecha `BAIXADO`.
 4. Registrar histórico da renegociação.
+
+> GL (§37): a baixa `origem = 'RENEGOCIACAO'` gera lançamento de reclassificação
+> Clientes → Clientes (mesma conta ou conta de renegociados via `mapeamento`) — sem efeito
+> em caixa nem em resultado.
 
 ---
 
@@ -2660,7 +3330,9 @@ qualquer etapa encerra a sequência; a carta manual (§5.3) continua disponível
 2. Calcular o líquido da antecipação: `valor_antecipado = valor_saldo − (valor_saldo × taxa_desconto/100)`.
 3. Criar `conta_movimentacao` CRÉDITO pelo `valor_antecipado` na conta informada e registrar a taxa como **despesa financeira** (movimentação DÉBITO, categoria LANCAMENTO). **Não** criar ajuste de desconto no título — o sacado continua devendo o valor integral (quem recebe a liquidação é o banco); um ajuste distorceria o saldo e o relatório de descontos concedidos.
 4. Atualizar status para `DESCONTADO`. O título mantém o saldo integral até a liquidação pelo sacado (retorno CNAB) — a baixa quita 100% do valor.
-5. Se o sacado não pagar, o banco exerce o regresso (debita o valor antecipado): registrar movimentação DÉBITO correspondente e o título segue o fluxo de cobrança/dunning normalmente.
+5. Se o sacado não pagar, o banco exerce o regresso (debita o valor antecipado): registrar
+   movimentação DÉBITO correspondente, retornar o título a `EM_ABERTO` (transição
+   `DESCONTADO → EM_ABERTO`, §II.2.1) e seguir o fluxo de cobrança/dunning normalmente.
 
 ---
 
@@ -2772,16 +3444,18 @@ Mesmos filtros de §7.1 substituindo fornecedor por cliente.
 | CP-08 | Empréstimo gera parcelas automaticamente ao ser confirmado |
 | CP-09 | Baixa planejada não atualiza `valor_baixado` — apenas a confirmação (status REAL) atualiza |
 | CP-10 | Não é permitida baixa com `valor > valor_saldo` |
+| CP-11 | Ajuste de desconto não pode zerar o título (`valor_liquido > 0` — CHECK no DDL): com `valor_baixado = 0` e baixa mínima proibida (`valor <> 0`), um título de líquido zero nunca fecharia. Perdão **total** de dívida = cancelamento com motivo (§4.10); perdão parcial = ajuste de desconto |
 
 ### 8.2 Contas a Receber
 
 | # | Regra |
 |---|---|
 | CR-01 | Título emitido fica bloqueado para edição |
-| CR-02 | Renegociação cancela o título original e cria um novo |
+| CR-02 | Renegociação cria um título novo pelo `valor_saldo`; o original é cancelado (sem baixa REAL) ou encerrado por baixa `RENEGOCIACAO` sem movimentar caixa (com baixa REAL parcial) — ver §5.2 e CR-06 |
 | CR-03 | Carta de cobrança só pode ser enviada para títulos vencidos |
 | CR-04 | Desconto de título exige que o título esteja emitido |
 | CR-05 | Adiantamento de cliente segue a mesma lógica do fornecedor (§4.7) |
+| CR-06 | Renegociação opera sobre o `valor_saldo`; original sem baixa REAL é CANCELADO, com baixa REAL parcial é encerrado por baixa `origem = 'RENEGOCIACAO'` sem movimentação de caixa |
 
 ### 8.3 Compensação
 
@@ -2792,6 +3466,7 @@ Mesmos filtros de §7.1 substituindo fornecedor por cliente.
 | CO-03 | Compensação parcial mantém saldo em aberto nos dois títulos |
 | CO-04 | Cancelamento só é possível enquanto `status = 'PENDENTE'` |
 | CO-05 | Um título pode ter no máximo uma compensação PENDENTE por vez — enforçado por índices parciais únicos em `compensacao`: `(titulo_pagar_id) WHERE status = 'PENDENTE'` e `(titulo_receber_id) WHERE status = 'PENDENTE'` |
+| CO-06 | Título `bloqueado = TRUE` não entra em compensação — nem manual nem por sugestão do netting (coerente com o hold do §2.8: bloqueado não aceita baixa, e compensação cria baixas) |
 
 ---
 
@@ -2973,6 +3648,7 @@ updated_by              VARCHAR(100)
 
 INDEX idx_mov_conta_data (tenant_id, conta_corrente_id, data_movimentacao)
 INDEX idx_mov_conciliacao (tenant_id, conciliado) WHERE conciliado = FALSE
+INDEX idx_mov_titulo_baixa (titulo_baixa_id) WHERE titulo_baixa_id IS NOT NULL
 ```
 
 ---
@@ -3048,6 +3724,7 @@ created_by              VARCHAR(100) NOT NULL
 
 INDEX idx_extrato_conta_data    (tenant_id, conta_corrente_id, data_lancamento)
 INDEX idx_extrato_pendente      (tenant_id, status_conciliacao) WHERE status_conciliacao = 'PENDENTE'
+INDEX idx_extrato_importacao    (importacao_id) WHERE importacao_id IS NOT NULL
 UNIQUE (tenant_id, conta_corrente_id, documento, data_lancamento) -- evita duplicação de OFX
 ```
 
@@ -3116,7 +3793,9 @@ created_at              TIMESTAMPTZ NOT NULL
 created_by              VARCHAR(100) NOT NULL
 updated_at              TIMESTAMPTZ
 updated_by              VARCHAR(100)
-UNIQUE (tenant_id, ano, mes, conta_corrente_id, classificacao_id, natureza)
+UNIQUE NULLS NOT DISTINCT (tenant_id, ano, mes, conta_corrente_id, classificacao_id, natureza)
+-- NULLS NOT DISTINCT (PostgreSQL 15+): sem isso, a linha "consolidado" (conta NULL) duplica.
+-- Em PG < 15, usar índice único sobre COALESCE(conta_corrente_id,0), COALESCE(classificacao_id,0).
 ```
 
 ---
@@ -3580,6 +4259,7 @@ CONCILIADO → PENDENTE (desfazer conciliação)
 | CB-08 | Movimentação vinculada a título não pode ser cancelada diretamente — precisa cancelar a baixa primeiro |
 | CB-09 | Fluxo de caixa previsto usa `data_vencimento` dos títulos, não data de emissão |
 | CB-10 | NCG negativo não é alerta — é informação. O sistema não bloqueia nada com base nela |
+| CB-11 | As duas pernas de uma transferência são confirmadas ou canceladas **em par atômico** — confirmar/cancelar uma confirma/cancela a outra na mesma transação; nunca existe débito confirmado com crédito pendente |
 
 ---
 
@@ -3858,6 +4538,8 @@ e2e_id              VARCHAR(35)               -- endToEndId da liquidação
 pago_em             TIMESTAMPTZ
 created_at          TIMESTAMPTZ NOT NULL
 UNIQUE (tenant_id, txid)
+UNIQUE (tenant_id, e2e_id) WHERE e2e_id IS NOT NULL   -- idempotência do webhook de liquidação
+INDEX idx_pix_titulo (tenant_id, titulo_id)
 ```
 
 **Fluxo:**
@@ -3955,6 +4637,8 @@ created_by          VARCHAR(100) NOT NULL
 updated_at          TIMESTAMPTZ
 updated_by          VARCHAR(100)
 UNIQUE (tenant_id, conta_corrente_id, nosso_numero)
+UNIQUE (tenant_id, titulo_id) WHERE status IN ('EMITIDO','REGISTRADO')
+-- enforcement da regra do §17.1: no máximo um boleto vivo por título
 INDEX idx_boleto_titulo (tenant_id, titulo_id)
 INDEX idx_boleto_status (tenant_id, status)
 ```
@@ -4064,7 +4748,10 @@ created_at          TIMESTAMPTZ NOT NULL
 created_by          VARCHAR(100) NOT NULL
 updated_at          TIMESTAMPTZ
 updated_by          VARCHAR(100)
-UNIQUE (tenant_id, conta_corrente_id, numero)
+UNIQUE (tenant_id, conta_corrente_id, numero) WHERE natureza = 'EMITIDO'
+UNIQUE (tenant_id, banco_codigo, agencia, conta, numero) WHERE natureza = 'RECEBIDO'
+-- cheque emitido é único na NOSSA conta; cheque recebido é único na conta do EMITENTE
+-- (conta_corrente_id é NULL no recebido — o unique original era inócuo com NULL)
 INDEX idx_cheque_status (tenant_id, natureza, status)
 INDEX idx_cheque_bompara (tenant_id, data_bom_para) WHERE status = 'EMITIDO'
 ```
@@ -4320,6 +5007,10 @@ ATIVO ─► VENCIDO          (vencimento sem resgate — AplicacaoVencidaJob si
   governo na própria baixa (`tipo_baixa.meio = 'SPLIT_PAYMENT'`, §1.4.2 Passo 8) — não é passo manual.
 - **RN-TES-09** `layout_cnab` grava só `CNAB240`/`CNAB400` (tamanho do registro); o dialeto
   FEBRABAN×override é resolvido pelo Strategy no código (§IV-CNAB).
+- **RN-TES-10** Resgate de aplicação é **total** (status `RESGATADO` é terminal). Resgate
+  parcial: registrar o resgate total e criar nova `aplicacao_financeira` pelo valor
+  remanescente na mesma data — preserva histórico e mantém o extrato correto sem
+  multiplicidade de resgates por registro.
 
 ---
 
@@ -4822,6 +5513,73 @@ Painel consolidado (uma chamada, várias métricas):
 - Consultas ad-hoc por período curto rodam direto nas tabelas (índices de `vencimento`/`status`).
 - Todos os endpoints deste módulo são **read-only** e respeitam o `TenantContext` (filtro por tenant)
   e as permissões RBAC (visão gerencial exige permissão específica).
+- **O que NÃO é materializado:** listas de drill-down (top 5 clientes inadimplentes, alertas de
+  boleto/cheque/aplicação vencidos, §26) rodam direto nas tabelas-fato a cada abertura do painel —
+  são consultas pontuais com os índices já existentes (`idx_extrato_pendente`, `idx_boleto_status`
+  etc.), materializar isso seria custo sem ganho (poucas linhas, filtro seletivo por tenant).
+
+### DDL das materialized views
+
+```sql
+financeiro.mv_aging_titulo
+─────────────────────────────────────────────
+tenant_id                   BIGINT NOT NULL
+natureza                    VARCHAR(10) NOT NULL   -- 'PAGAR' | 'RECEBER'
+estabelecimento_id          UUID                   -- null = consolidado do grupo
+pessoa_id                   BIGINT                 -- null = agregado sem quebra por pessoa
+classificacao_financeira_id BIGINT
+centro_custo_id             BIGINT
+faixa                       VARCHAR(15) NOT NULL   -- NAO_VENCIDO|ATE_30|DE_31_60|DE_61_90|ACIMA_90 (§21/§24)
+saldo_total                 NUMERIC(15,2) NOT NULL
+qtd_titulos                 INT NOT NULL
+data_referencia             DATE NOT NULL          -- data_base do cálculo, carimbada no refresh
+
+UNIQUE INDEX idx_mv_aging_chave (tenant_id, natureza, estabelecimento_id, pessoa_id,
+                                  classificacao_financeira_id, centro_custo_id, faixa)
+-- UNIQUE obrigatório: é o que habilita REFRESH MATERIALIZED VIEW CONCURRENTLY (sem lock de leitura)
+```
+
+```sql
+financeiro.mv_kpi_mensal
+─────────────────────────────────────────────
+tenant_id                   BIGINT NOT NULL
+estabelecimento_id          UUID
+competencia                 VARCHAR(7) NOT NULL    -- 'YYYY-MM'
+pmr_dias                    NUMERIC(10,2)          -- §23
+pmp_dias                    NUMERIC(10,2)
+ciclo_financeiro_dias       NUMERIC(10,2)
+giro_recebiveis             NUMERIC(10,4)
+taxa_inadimplencia          NUMERIC(6,4)
+
+UNIQUE INDEX idx_mv_kpi_chave (tenant_id, estabelecimento_id, competencia)
+```
+
+```sql
+financeiro.mv_dashboard_resumo
+─────────────────────────────────────────────
+tenant_id                   BIGINT NOT NULL
+estabelecimento_id          UUID
+saldo_caixa_atual           NUMERIC(15,2) NOT NULL  -- lido de v_saldo_conta_corrente (§III 2.4) no refresh
+previsto_entrada_7d         NUMERIC(15,2)
+previsto_saida_7d           NUMERIC(15,2)
+previsto_entrada_30d        NUMERIC(15,2)
+previsto_saida_30d          NUMERIC(15,2)
+previsto_entrada_90d        NUMERIC(15,2)
+previsto_saida_90d          NUMERIC(15,2)
+total_receber_aberto        NUMERIC(15,2)
+total_receber_vencido       NUMERIC(15,2)
+total_pagar_aberto          NUMERIC(15,2)
+total_pagar_vencido         NUMERIC(15,2)
+compromissos_pagar_30d      NUMERIC(15,2)
+atualizado_em               TIMESTAMPTZ NOT NULL
+
+UNIQUE INDEX idx_mv_dashboard_chave (tenant_id, estabelecimento_id)
+```
+
+> As três MVs vivem no schema `financeiro` (mesma base de `titulo`/`conta_movimentacao`) e são
+> lidas pelos endpoints de §21/§23/§26 no lugar da query pesada — a query pesada só roda dentro
+> do `RelatoriosRefreshJob`. Migration: `financeiro/v1/044-mv-relatorios.yaml` (`createTable` das
+> 3 MVs + os 3 `UNIQUE INDEX` acima — necessário nascer junto para permitir `CONCURRENTLY`).
 
 **Cron jobs do módulo:**
 
@@ -4970,9 +5728,7 @@ DIAGRAMA 2 — P2P / O2C
 
 ## 12. Plano de Implementação Completo
 
-> Esta seção é a fonte de verdade para implementação. Cruza o que já existe no banco, o que a conversa de reforma tributária definiu (Liquibase v2 — schema `fiscal`) e o que este spec adicionou. Tudo em ordem de execução.
-
-**⚠️ Decisão registrada:** a conversa de reforma tributária usou schema `tax`. Este spec usa `fiscal`. Na implementação, use `fiscal` em tudo — os arquivos YAML devem criar `fiscal.*`, não `tax.*`. As tabelas `fiscal.operacao_fiscal` e `fiscal.config_empresa` viram `fiscal.operacao_fiscal` e `fiscal.config_empresa` respectivamente.
+> Esta seção é a fonte de verdade para implementação. Cruza o que já existe no banco, o que foi definido pra reforma tributária (Liquibase v2 — schema `fiscal`) e o que este spec adicionou. Tudo em ordem de execução.
 
 ---
 
@@ -4993,7 +5749,7 @@ DIAGRAMA 2 — P2P / O2C
 | `fornecedor` | via `pessoa` | Tem documento |
 | `transportadora` | via `pessoa` | CT-e gera crédito IBS/CBS |
 | `condicao_pagamento` | `forma_pagamento` nas parcelas | Base para split payment |
-| `condicao_pagamento_parcela` | `forma_pagamento` | PIX/cartão = split, boleto/cheque = sem split |
+| `condicao_pagamento_parcela` | `forma_pagamento` | PIX/cartão/**boleto** = split (liquidação via arranjo — MF-05); dinheiro/cheque = sem split |
 
 #### Schema `billing` — intocável
 
@@ -5052,7 +5808,7 @@ Exemplo: `vitor-financeiro-v1.001-feriado-bancario`
 
 | Arquivo | Operação | Descrição |
 |---|---|---|
-| `fiscal/v1/001-create-schema-fiscal.yaml` | `sql: CREATE SCHEMA IF NOT EXISTS fiscal` | Cria o schema `fiscal`. **Atenção:** a conversa de reforma tributária usou `tax` — usar `fiscal` aqui conforme decisão registrada. Rollback: `DROP SCHEMA IF EXISTS fiscal CASCADE`. |
+| `fiscal/v1/001-create-schema-fiscal.yaml` | `sql: CREATE SCHEMA IF NOT EXISTS fiscal` | Cria o schema `fiscal`. Rollback: `DROP SCHEMA IF EXISTS fiscal CASCADE`. |
 | `fiscal/v1/002-addcol-pessoa.yaml` | `addColumn` | Adiciona em `pessoa`: `regime_tributario varchar(20) nullable` (LUCRO_REAL, LUCRO_PRESUMIDO, SIMPLES, MEI, ISENTO, PF), `ibs_cbs_por_fora boolean not null default false` (Simples que optou por recolher IBS/CBS pelo regime regular — gera crédito integral ao comprador, ver Passo 9), `contribuinte_icms boolean not null default false` (relevante até 2033 na transição). Obs: `ie`/`im` NÃO entram em `pessoa` — são por estabelecimento (spec/estabelecimentos-filiais.md). |
 | `fiscal/v1/003-addcol-produto.yaml` | `addColumn` | Adiciona em `produto`: `ncm varchar(8) nullable` (8 dígitos, FK lógica para `fiscal.ncm`), `cst_ibs_cbs varchar(2) nullable`, `sujeito_is boolean not null default false`, `aliquota_is_override numeric(5,2) nullable` (sobrescreve a alíquota do NCM quando preenchido), `regime_diferenciado varchar(20) not null default 'PADRAO'` (PADRAO/CESTA_BASICA/REDUCAO_60/MONOFASICO/ISENTO/IMUNE), `cfop_padrao_saida varchar(4) nullable`, `cfop_padrao_entrada varchar(4) nullable`. |
 | `fiscal/v1/004-addcol-produto-estoque-config.yaml` | `addColumn` | Adiciona em `produto_estoque_config`: `saldo_atual numeric(15,4) not null default 0`, `saldo_reservado numeric(15,4) not null default 0`. Estes campos serão gerenciados pelo módulo de estoque — incluídos aqui pois fazem parte do escopo do módulo de cadastros. |
@@ -5071,7 +5827,7 @@ Exemplo: `vitor-financeiro-v1.001-feriado-bancario`
 | `fiscal/v1/012-aliq-ibs-municipio.yaml` | `createTable` | Tabela `fiscal.aliq_ibs_municipio`. Colunas: `id`, `ibge_municipio varchar(7)`, `uf varchar(2)`, `nome_municipio varchar(200)`, `ano_vigencia int`, `aliquota_estadual numeric(6,4)`, `aliquota_municipal numeric(6,4)`, `aliquota_total` (gerado), `vigente_de date`. Unique em `(ibge_municipio, ano_vigencia)`. **Sem seed agora** — tabela completa aguarda publicação do CGIBS. Seed parcial apenas com alíquota teste 2026 (IBS 0,1% total). **Equivale a `fiscal.aliq_ibs_municipio`**. |
 | `fiscal/v1/013-aliq-is-ncm.yaml` | `createTable` + seed | Tabela `fiscal.aliq_is_ncm` — alíquota IS por NCM. Colunas: `id`, `ncm varchar(8)`, `descricao varchar(200)`, `aliquota_pct numeric(5,2)`, `vigente_de date`, `vigente_ate date nullable`. Seed com ~50 NCMs sujeitos ao IS (bebidas, cigarros, veículos, etc.) conforme LC 214/2025. ⚠️ Validar lista exata com o texto da lei. **Equivale a `fiscal.aliq_is_ncm`**. |
 | `fiscal/v1/014-regime-dif-ncm.yaml` | `createTable` + seed | Tabela `fiscal.regime_dif_ncm` — NCMs com regime diferenciado (cesta básica, redução 60%, etc). Colunas: `id`, `ncm varchar(8)`, `regime varchar(20)`, `percentual_reducao numeric(5,2)`, `vigente_de date`. Seed com Anexos I-IX da LC 214/2025. ⚠️ Lista granular requer o texto da lei. **Equivale a `fiscal.regime_dif_ncm`**. |
-| `fiscal/v1/015-operacao-fiscal.yaml` | `createTable` | Tabela `fiscal.operacao_fiscal` — resultado do motor fiscal por operação. Colunas: todas as listadas no §30.7 deste spec. **Equivale a `fiscal.operacao_fiscal` da conversa de reforma tributária** — mesma função, nome diferente conforme decisão de nomenclatura. |
+| `fiscal/v1/015-operacao-fiscal.yaml` | `createTable` | Tabela `fiscal.operacao_fiscal` — resultado do motor fiscal por operação. Colunas: todas as listadas no §30.7 deste spec. |
 
 ---
 
@@ -5081,11 +5837,11 @@ Exemplo: `vitor-financeiro-v1.001-feriado-bancario`
 
 | Arquivo | Operação | Descrição |
 |---|---|---|
-| `financeiro/v1/005-forma-pagamento.yaml` | `createTable` | Tabelas `financeiro.forma_pagamento` e `financeiro.forma_pagamento_periodo`. `forma_pagamento` define como calcular vencimentos (data referência inclusiva/exclusiva, considera dias úteis). `forma_pagamento_periodo` define os intervalos de faturamento e dia de vencimento. Unique em `(tenant_id, codigo)`. |
+| `financeiro/v1/005-forma-pagamento.yaml` | `sql` + `createTable` | `CREATE EXTENSION IF NOT EXISTS btree_gist` (changeSet sql inicial), depois tabelas `financeiro.forma_pagamento` (data_referencia EMISSAO/SAIDA, considera_dias_uteis) e `financeiro.forma_pagamento_periodo` (períodos 1..31 sem wrap — CHECK `dia_inicial <= dia_final` — com EXCLUDE gist anti-sobreposição por forma). Algoritmo formal e validações RN-FPP-001..004 em §2.1.1. Unique em `(tenant_id, codigo)`. |
 | `financeiro/v1/006-tipos-base.yaml` | `createTable` | Tabelas `financeiro.tipo_titulo` (NORMAL/ADIANTAMENTO/EMPRESTIMO por natureza PAGAR/RECEBER/AMBOS), `financeiro.tipo_ajuste` (ACRESCIMO/DESCONTO com categorias MULTA/MORA/DESCONTO/ADIANTAMENTO), `financeiro.tipo_baixa` (meio de pagamento: DINHEIRO/BOLETO/CREDITO_CONTA/PIX/CARTAO/CHEQUE/ANTECIPACAO/COMPENSACAO). Todas com `(tenant_id, codigo, natureza)` unique. |
 | `financeiro/v1/007-classificacao-motivo.yaml` | `createTable` | Tabelas `financeiro.classificacao_financeira` (agrupamento livre para relatórios) e `financeiro.motivo` (justificativas de cancelamento, parcelamento, prorrogação). |
 | `financeiro/v1/008-parametros.yaml` | `createTable` | Tabela `financeiro.parametros` — 1 linha por tenant. Armazena tipos de ajuste padrão para multa/mora/desconto em AP e AR (usados quando retorno CNAB traz valor diferente do boleto), flag de permissão de baixa com data anterior, consideração de feriado bancário, e tolerância de conciliação automática. |
-| `financeiro/v1/009-titulo.yaml` | `createTable` | Tabela `financeiro.titulo` — entidade central. Campos principais: `natureza` (PAGAR/RECEBER), `numero`, `tipo_titulo_id`, `status_titulo` (PREVISTO/EM_ABERTO/EMITIDO/BAIXADO/CANCELADO), `status_baixa` (PLANEJADA/REAL), `terceiro_tipo/id/nome/cnpj_cpf`, `data_emissao/vencimento/competencia`, `valor_original`, `valor_ajuste_acrescimo/desconto`, `valor_baixado`, colunas geradas `valor_liquido` e `valor_saldo`, `origem` (MANUAL/NF_ENTRADA/NF_SAIDA/CNAB/EMPRESTIMO/ADIANTAMENTO/PARCELAMENTO/RENEGOCIACAO), `impostos JSONB` (reservado para IBS/CBS). Índices em `(tenant_id, natureza)`, `(tenant_id, data_vencimento)`, `(tenant_id, terceiro_tipo, terceiro_id)`, `(tenant_id, status_titulo, status_baixa)`. |
+| `financeiro/v1/009-titulo.yaml` | `createTable` | Tabela `financeiro.titulo` — entidade central. Campos principais: `natureza` (PAGAR/RECEBER), `numero`, `tipo_titulo_id`, `status_titulo` (PREVISTO/EM_ABERTO/EMITIDO/DESCONTADO/BAIXADO/CANCELADO), `status_baixa` (PLANEJADA/REAL), `terceiro_tipo/id/nome/cnpj_cpf`, `data_emissao/vencimento/competencia`, `valor_original`, `valor_ajuste_acrescimo/desconto`, `valor_baixado`, colunas geradas `valor_liquido` e `valor_saldo`, `origem` (MANUAL/NF_ENTRADA/NF_SAIDA/CNAB/EMPRESTIMO/ADIANTAMENTO/PARCELAMENTO/RENEGOCIACAO/APURACAO_FISCAL/DDA/RECORRENTE), `impostos JSONB` (reservado para IBS/CBS). Índices em `(tenant_id, natureza)`, `(tenant_id, data_vencimento)`, `(tenant_id, terceiro_tipo, terceiro_id)`, `(tenant_id, status_titulo, status_baixa)`. |
 | `financeiro/v1/010-addcol-centro-custo-referencias.yaml` | `addColumn` | Adiciona `centro_custo_id BIGINT nullable` e `rateio_id BIGINT nullable` (mutuamente exclusivos — CHECK, §F3) em `financeiro.titulo`. Executar aqui pois `titulo` agora existe. |
 | `financeiro/v1/011-titulo-operacoes.yaml` | `createTable` | Tabelas `financeiro.titulo_ajuste` (acréscimos/descontos por tipo), `financeiro.titulo_baixa` (cada evento de pagamento/recebimento com status PLANEJADA/REAL, origem MANUAL/CNAB/COMPENSACAO/ADIANTAMENTO), `financeiro.titulo_prorrogacao` (histórico de prorrogações com data anterior/nova), `financeiro.titulo_parcelamento` (controle de parcelamentos com referência ao título original). |
 | `financeiro/v1/012-addcol-centro-custo-baixa.yaml` | `addColumn` | Adiciona `centro_custo_id BIGINT nullable` em `financeiro.titulo_baixa`. Separado da migration anterior pois `titulo_baixa` é criada em 011. |
@@ -5192,6 +5948,9 @@ Novas entidades e colunas introduzidas pelas correções desta revisão — dist
 | `financeiro/v1/040-compensacao-unique-pendente.yaml` | 2 | índices parciais únicos em `compensacao` para CO-05 (`titulo_pagar_id` / `titulo_receber_id` WHERE status='PENDENTE') |
 | `fiscal/v1/028-apuracao-estabelecimento.yaml` | 6 | addColumn `estabelecimento_id UUID` nullable em `apuracao_mensal` (ICMS/ISS por estabelecimento; IBS/CBS consolidado = NULL) |
 | `financeiro/v1/041-parametros-gl-periodo-fechado.yaml` | 5 | addColumn em `parametros`: `gl_fato_periodo_fechado` (§37, passo 2) |
+| `financeiro/v1/042-version-optimistic-lock.yaml` | 2–5 | addColumn `version BIGINT NOT NULL DEFAULT 0` em `financeiro.titulo`, `financeiro.titulo_baixa`, `financeiro.cobranca_config`, `fiscal.apuracao_mensal`, `contabil.periodo` — suporte ao `@Version` do §13.5 (aplicar o addColumn de cada tabela no sprint em que ela é criada) |
+| `financeiro/v1/043-indices-uniques-operacionais.yaml` | 2–4 | Índices e uniques desta revisão: índices de `titulo_baixa`/`conta_movimentacao`/`extrato_bancario`/`titulo_retencao`, unique parcial de boleto vivo (§17.1), unique `e2e_id` de `pix_cobranca`, uniques parciais de `cheque` por natureza, `UNIQUE NULLS NOT DISTINCT` de `orcamento_fluxo`, `UNIQUE (tenant_id, titulo_id)` de `adiantamento_saldo`, CHECK `valor_liquido > 0` em `titulo` (CP-11) |
+| `financeiro/v1/044-mv-relatorios.yaml` | 6 | `createTable` das 3 materialized views do §27 (`mv_aging_titulo`, `mv_kpi_mensal`, `mv_dashboard_resumo`) + os `UNIQUE INDEX` que habilitam `REFRESH ... CONCURRENTLY` |
 
 ---
 
@@ -5265,8 +6024,13 @@ SPRINT 6 — Apuração Fiscal
 SPRINT 7 — Análises
 └── financeiro/v1/030  pdd-config + seed
 
-Total: ~76 migrations em 3 schemas novos
-(53 dos sprints acima + 14 do §12.10-B + 9 do §1.8.12)
+SPRINT 8 — Split Payment (pós-MVP antecipado — §14.2)
+├── financeiro/v1/045  addcol-split-payment
+├── financeiro/v1/046  seed-tipo-baixa-split
+└── contabil/v1/009    conta-transitoria-split
+
+Total: ~84 migrations em 3 schemas novos
+(56 dos sprints acima + 17 do §12.10-B + 9 do §1.8.12 + 2 do §1.11)
 ```
 
 ---
@@ -5287,7 +6051,7 @@ Três tabelas são grandes demais para seed inline no YAML. O Claude Code deve g
 
 | # | Ponto | Detalhe |
 |---|---|---|
-| 1 | Schema `fiscal`, não `tax` | A conversa de reforma tributária usou `tax`. Toda geração de YAML deve usar `fiscal.*` |
+| 1 | Schema `fiscal` | Toda geração de YAML deve usar `fiscal.*` |
 | 2 | `user_account.id` é UUID | `audit_log.user_id` deve ser `UUID`, não `BIGINT` |
 | 3 | Sem FK cruzando schemas | Igual ao padrão do `billing` — integridade pela aplicação |
 | 4 | Rollback obrigatório | Todos os changesets com `rollback` declarado |
@@ -5331,19 +6095,21 @@ erp-root/
 │   └── resources/db-changelog/
 │       ├── billing/                 ← já existe
 │       ├── cadastro/                ← já existe
-│       ├── financeiro/              ← criar — Sprints 2–4 e 7
-│       ├── fiscal/                  ← criar — Sprint 1
-│       └── contabil/                ← criar — Sprint 5
+│       ├── financeiro/              ← criar — Sprints 2–4 e 7 (inclui schema `contabil`, Sprint 5)
+│       └── fiscal/                  ← criar — Sprint 1
 ├── auth-service/                    ← autenticação + RBAC (já existe)
 ├── billing-service/                 ← planos, assinaturas, comissões (já existe)
 ├── cadastro-service/                ← pessoa, produto, cliente, fornecedor (já existe)
 ├── partner-service/                 ← parceiros contadores (já existe)
-├── financeiro-service/              ← CRIAR — este spec
-├── fiscal-service/                  ← CRIAR — motor fiscal (Módulo I)
-└── contabil-service/                ← CRIAR — GL (Módulo V)
+├── financeiro-service/              ← CRIAR — este spec (Módulos II a VI: AP/AR, caixa/conciliação, tesouraria, GL, análises)
+└── fiscal-service/                  ← CRIAR — motor fiscal (Módulo I) + emissão NF-e/NFC-e
 ```
 
-> **Decisão pendente:** `fiscal-service` e `contabil-service` são serviços separados ou ficam dentro de `financeiro-service`? O padrão atual tem serviços por domínio. Recomendação: começar dentro de `financeiro-service` e extrair quando houver necessidade de deploy independente.
+> **ADR — Serviços separados (fechado):** `fiscal-service` nasce separado desde já; `contabil-service` **não** existe como serviço próprio — GL fica dentro de `financeiro-service` (schema `contabil`, mesmo deploy).
+>
+> **Por quê fiscal separado:** já é o desenho de fato do documento, não uma escolha nova. Os tópicos Kafka `nfe.entrada.aprovada` / `nfe.saida.autorizada` / `nfe.cancelada` (§13, tabela de eventos) só existem porque `fiscal-service` é um processo publicando para fora — comunicação in-process não usa tópico. A emissão de NF-e/NFC-e (assinatura XML, transmissão SEFAZ — spec ainda não escrito) entra no mesmo `fiscal-service`, não em um terceiro serviço: é o mesmo domínio (comunicação com a entidade fiscal), só um escopo que cresce quando aquele spec for escrito.
+>
+> **Por quê contábil dentro do financeiro:** hoje o fechamento contábil e o lançamento de título são **atômicos** — `ApuracaoFechadaEvent` e `AplicacaoResgatadaEvent` são consumidos in-process via `@TransactionalEventListener` (§13, tabela de eventos), não por Kafka. Separar exigiria trocar isso por outbox/Saga com consistência eventual — custo real (retry, idempotência, dois pipelines/deploys vazios, já que zero linhas de `financeiro-service` existem ainda) sem benefício correspondente: não há hoje sinal de time dedicado ao GL nem de fechamento mensal virando gargalo de performance. Extrair fica reservado para quando um desses dois sinais aparecer — não antes.
 
 ---
 
@@ -5533,9 +6299,10 @@ gateway/
 | `auth-service` | Emite JWT com `permissions[]`. O financeiro lê as permissões do token — não chama o auth diretamente |
 | `billing-service` | Controla se o tenant está ATIVO. O financeiro **não é chamado** pelo billing e **não chama** o billing |
 | `cadastro-service` | Gerencia `pessoa`, `produto`, `cliente`, `fornecedor`. O financeiro referencia `terceiro_id` sem FK — integridade pela aplicação |
-| `partner-service` | Separado do billing. Confirmar se `billing.partner` pertence ao billing-service ou ao partner-service |
+| `partner-service` | Dono de `partner.partner` (schema próprio). `billing.partner` foi a tabela legada pré-split, migrada e removida (ver "Limpeza billing" em `db.changelog-master.yaml`) — não há mais ambiguidade de dono |
 | `registry` | Eureka — o financeiro se registra como qualquer outro serviço |
 | `common` | DTOs compartilhados e `BaseTenantEntity` — `financeiro-service` depende deste módulo |
+| `fiscal-service` | Serviço irmão, deploy separado (ADR §3) — motor fiscal (cálculo IBS/CBS) + futura emissão NF-e/NFC-e. Comunicação só via Kafka (`nfe.entrada.aprovada`/`nfe.saida.autorizada`/`nfe.cancelada`), nunca chamada direta |
 
 ---
 
@@ -5590,6 +6357,10 @@ Toda resposta da API segue o mesmo envelope. Controllers nunca retornam entidade
   }
 }
 ```
+
+> Os dois envelopes de erro acima carregam também `correlationId` (mesma origem MDC do
+> `StandardError` do `common/GlobalExceptionHandler` — ver §13.8); omitido dos exemplos por
+> brevidade.
 
 **Códigos de erro de negócio padronizados por módulo:**
 
@@ -5714,6 +6485,7 @@ Quando dois usuários tentam atualizar o mesmo título ao mesmo tempo, o segundo
 | Incremento de `nosso_numero_atual` em `cobranca_config` | Sequencial único — race condition gera boletos com mesmo número |
 | Baixa parcial que zera `valor_saldo` | Dois usuários baixando parcelas simultaneamente podem ultrapassar o saldo |
 | Criação de sequence de Livro Diário | Numeração sem lacunas |
+| Consumo de `adiantamento_saldo.valor_utilizado` | Duas baixas simultâneas com o mesmo adiantamento podem exceder `valor_disponivel` — `SELECT FOR UPDATE` no saldo antes de validar/incrementar |
 
 ```java
 // Para nosso_numero — pessimistic lock
@@ -5723,6 +6495,9 @@ CobrancaConfig findByIdForUpdate(@Param("id") Long id);
 ```
 
 **Tabelas com `@Version`:** `Titulo`, `TituloBaixa`, `CobrancaConfig`, `ApuracaoMensal`, `Periodo`.
+
+> As cinco tabelas acima carregam a coluna `version BIGINT NOT NULL DEFAULT 0`
+> (migration `financeiro/v1/042` — §12.10-B). Sem a coluna, o `@Version` do JPA não funciona.
 
 ---
 
@@ -5811,13 +6586,15 @@ GET /api/financeiro/jobs/abc123
 
 ### 13.8 Observabilidade
 
-**Logging estruturado (JSON):**
+**Logging estruturado (JSON) — pipeline real do projeto:**
 
 ```java
 // Nunca logar assim:
 log.info("Título " + id + " baixado por " + user);
 
-// Sempre assim (compatível com Loki/CloudWatch/Datadog):
+// Sempre assim — pipeline real é Logback → Logstash (:5000) → Elasticsearch (:9200)
+// → Kibana (:5601) — ELK, já configurado e testado via compose.yaml da raiz do
+// monorepo (não Loki/CloudWatch/Datadog):
 log.info("titulo.baixado",
     kv("titulo_id", id),
     kv("tenant_id", tenantId),
@@ -5826,14 +6603,45 @@ log.info("titulo.baixado",
 );
 ```
 
-**MDC obrigatório em toda requisição:**
+**`correlationId` obrigatório em toda linha de log:** o `financeiro-service` segue o mesmo
+padrão já estabelecido no `CLAUDE.md` raiz — `CorrelationIdFilter` (`common`) lê o header
+`X-Correlation-ID` e popula o MDC. Não reinventar um `trace_id` próprio por serviço.
+
 ```java
+// Populado pelo CorrelationIdFilter — não setar manualmente em cada controller
 MDC.put("tenant_id", tenantId.toString());
 MDC.put("user_id", userId.toString());
-MDC.put("trace_id", traceId);  // gerado pelo gateway ou UUID
+// "correlationId" já vem do filtro
 ```
 
-**Métricas a instrumentar (Micrometer → Prometheus):**
+> **Pendência de implementação (não de arquitetura):** falta adicionar `[%X{correlationId}]`
+> ao pattern do `logback-spring.xml` do `financeiro-service` quando o serviço for criado —
+> mesma pendência já registrada no `CLAUDE.md` raiz para os serviços existentes. Ver
+> checklist §13.12.
+
+**Tratamento de erro segue `common/GlobalExceptionHandler`:** 4xx → `WARN`, uma linha, sem
+stacktrace; 5xx → `ERROR` com stacktrace (único lugar que loga stack); mensagens em PT-BR;
+5xx nunca vaza detalhe interno para o cliente. O envelope de erro de negócio do financeiro
+(§13.2) carrega `correlationId` com a mesma origem (MDC) do `StandardError` do `common` —
+permite cruzar um erro reportado pelo usuário com a linha exata no Kibana.
+
+**Auditoria de segurança × audit trail de dados financeiros — mecanismos complementares,
+não uma decisão em aberto:**
+- Eventos de **segurança** (login, logout, criação de usuário) seguem o padrão já
+  implementado no monorepo: `AuditEventDTO` (`common`) publicado no Kafka pelo serviço de
+  origem, consumido e persistido no schema `audit` (hoje via `AuditConsumer` no
+  `auth-service`). O `financeiro-service` não precisa reimplementar esse mecanismo — só
+  publicar `AuditEventDTO` nos eventos de segurança que lhe couberem (ex.: acesso negado a
+  operação financeira sensível), se e quando necessário.
+- O **audit trail de dados de negócio** (quem alterou um título, uma baixa, um lançamento —
+  §F2) é um mecanismo à parte, local ao `financeiro-service`, via `@EntityListeners`
+  (`AuditListener`) persistindo em `financeiro.audit_log`. Precisa do histórico completo de
+  campos antes/depois (`campos_antes`/`campos_depois` JSONB) — granularidade que o
+  `AuditEventDTO` de segurança não carrega. Por isso os dois não se substituem.
+
+**Métricas a instrumentar (Micrometer → Prometheus, scrape de `/actuator/prometheus` já
+configurado para os serviços existentes — o `financeiro-service` só precisa expor o mesmo
+endpoint):**
 
 | Métrica | Tipo | O que mede |
 |---|---|---|
@@ -5843,6 +6651,9 @@ MDC.put("trace_id", traceId);  // gerado pelo gateway ou UUID
 | `financeiro.boleto.emitido` | Counter | Boletos por banco |
 | `fiscal.calculo.duracao` | Timer | Latência do motor fiscal |
 | `contabil.lancamento.criado` | Counter | Lançamentos por origem |
+
+Dashboards no Grafana (`:3000`) reaproveitam a instância compartilhada do monorepo — não é
+uma stack nova por serviço.
 
 **Health checks:**
 ```java
@@ -5982,9 +6793,14 @@ Complementa o que está em §10.2.
 | 1 | Módulos I–VI (este documento) | Agora |
 | 2 | Emissão NF-e com campos IBS/CBS obrigatórios | Antes de agosto/2026 |
 | 3 | Motor fiscal: alíquotas IBS/CBS por NCM e destino | 2026/2027 |
-| 4 | Split payment em `conta_movimentacao` + `titulo_baixa` | Antes de 2027 |
+| 4 | Split payment em `conta_movimentacao` + `titulo_baixa` | **Primeira entrega pós-MVP** (antecipada — §14.2); vigência em produção: 2027 |
 | 5 | Apuração IBS/CBS, DCTFWeb, declaração CGIBS | 2027–2033 |
 | 6 | ICMS/ISS → extinção progressiva nos relatórios | 2029–2033 |
+
+> **Ordem de execução ≠ numeração (decisão jul/2026).** A Fase 4 foi **antecipada** para
+> primeira entrega após o MVP (Sprints 1–7) — ordem real de execução: **1 → 4 → 2 → 3 → 5 → 6**.
+> A numeração das fases é preservada porque o documento a referencia em vários pontos
+> (§11.1, §11.2 e outros). Racional da antecipação, análise de dependência e plano: **§14.2**.
 
 **Roadmap não-fiscal (decisões registradas nesta revisão):**
 
@@ -6002,10 +6818,10 @@ Complementa o que está em §10.2.
 
 ```sql
 financeiro.titulo.impostos JSONB                    -- absorve IBS/CBS/IS
--- Adicionar em conta_movimentacao (migration futura):
+-- Adicionar em conta_movimentacao (Sprint 8 — §14.2):
 valor_retido_governo  NUMERIC(15,2) DEFAULT 0
 tipo_retencao         VARCHAR(20)   -- 'IBS' | 'CBS' | 'IBS_CBS'
--- Adicionar em titulo_baixa (migration futura):
+-- Adicionar em titulo_baixa (Sprint 8 — §14.2):
 valor_split_payment   NUMERIC(15,2) DEFAULT 0
 ```
 
@@ -6070,18 +6886,149 @@ valor_split_payment   NUMERIC(15,2) DEFAULT 0
 
 ---
 
+### 14.2 Split Payment — Implementação Antecipada (Fase 4 → primeira entrega pós-MVP)
+
+> **Decisão (jul/2026):** o split payment (Fase 4 do §14) é a **primeira entrega após o
+> MVP**, executando **antes** das Fases 2 (emissão NF-e) e 3 (motor fiscal por NCM/destino).
+> Entra no plano de migrations como **Sprint 8** (§12.11). Implementado agora, fica
+> **dormente em produção** atrás de `vigencia_tributo.split_payment_ativo` (seed: 2027);
+> em sandbox, testável alterando a vigência do tenant de teste.
+
+#### Por que as Fases 2 e 3 não bloqueiam
+
+| Suposto bloqueador | Bloqueia? | Motivo |
+|---|---|---|
+| Fase 2 — emissão NF-e com IBS/CBS | ❌ | O split ocorre na **liquidação do pagamento**, não na emissão do documento. A baixa não lê XML |
+| Fase 3 — motor por NCM/destino | ❌ | O Sprint 1 (MVP) já entrega o motor base com o Passo 8 (§1.4.2): `valor_split_ibs/cbs` são **teto de referência** — o valor efetivamente segregado **vem da liquidação** (retorno do arranjo). A Fase 3 refina a precisão da referência, não o mecanismo |
+| `titulo.impostos JSONB` null/parcial | ❌ | Mesma dependência "mole" do AP/AR: a baixa split grava o retido informado pela liquidação; sem referência, apenas pula a validação (WARN em log) |
+| Apuração mensal (Sprint 6 / Fase 5) | ⚠️ Parcial | Não bloqueia **registrar** o split; apenas a **compensação da conta transitória** contra o IBS/CBS a recolher permanece na Fase 5 (§37, nota Q-conciliação) — a transitória acumula saldo até lá |
+
+**Pré-requisitos reais (todos no MVP):** Sprint 1 (motor fiscal base — Passo 8,
+`vigencia_tributo.split_payment_ativo`, `parametro_fiscal` `split.modelo`), Sprint 2
+(`titulo_baixa` + `tipo_baixa`), Sprint 3 (`conta_movimentacao` + conciliação) e Sprint 5
+(GL + `mapeamento`). O Sprint 4 (CNAB/PIX) é pré-requisito apenas do **canal automático**
+de liquidação — a baixa split manual funciona sem ele.
+
+#### Migrations — Sprint 8
+
+| Arquivo | Operação | Descrição |
+|---|---|---|
+| `financeiro/v1/045-addcol-split-payment.yaml` | `addColumn` | Adiciona `titulo_baixa.valor_split_payment NUMERIC(15,2) NOT NULL DEFAULT 0` com `CHECK (valor_split_payment >= 0)`; `conta_movimentacao.valor_retido_governo NUMERIC(15,2) NOT NULL DEFAULT 0`; `conta_movimentacao.tipo_retencao VARCHAR(20)` nullable com `CHECK (tipo_retencao IN ('IBS','CBS','IBS_CBS'))`. São os campos reservados do §14 — migration puramente aditiva |
+| `financeiro/v1/046-seed-tipo-baixa-split.yaml` | `sql` | Insere `tipo_baixa` com `meio = 'SPLIT_PAYMENT'` (natureza AMBOS) para os tenants existentes e adiciona o tipo ao template de onboarding de tenant. O enum de `meio` (§2.x) já prevê o valor |
+| `contabil/v1/009-conta-transitoria-split.yaml` | `sql` | Adiciona ao `plano_contas_template` a conta **`1.1.6.07` "IBS/CBS Recolhido na Liquidação"** (§F6.5 — ativo, transitória, crédito a compensar na apuração) e semeia `mapeamento` `TIPO_BAIXA (meio SPLIT_PAYMENT) → 1.1.6.07` (F6.7) |
+
+Schema `fiscal`: **nada novo** — `operacao_fiscal` (com `valor_split_ibs/cbs` do Passo 8),
+`vigencia_tributo.split_payment_ativo` e `split.modelo` já nascem no Sprint 1.
+
+#### Fluxo fim a fim
+
+```
+1. Motor fiscal (Passo 8, §1.4.2) calcula valor_split_ibs/cbs (referência/teto)
+     → fiscal.operacao_fiscal + resumo em titulo.impostos JSONB
+2. Liquidação chega — retorno CNAB / webhook PIX / arquivo adquirente / manual —
+     com valor LÍQUIDO creditado + valor retido pelo arranjo
+3. BaixaService: titulo_baixa com tipo_baixa.meio = 'SPLIT_PAYMENT'
+     valor = BRUTO · valor_split_payment = retido efetivo
+     valida retido ≤ referência de impostos JSONB (se houver; senão WARN)
+4. conta_movimentacao: valor = LÍQUIDO · valor_retido_governo = retido
+     · tipo_retencao = 'IBS_CBS'
+5. Conciliação (§III): extrato × movimentação casam pelo LÍQUIDO —
+     sem quebra de centavos (desenho do §37)
+6. GL (§37): D Caixa/Banco (líquido) + D IBS/CBS Recolhido na Liquidação (retido)
+     × C Clientes (bruto) — AP com D/C invertidos
+7. Fase 5 (futuro): apuração compensa a transitória contra IBS/CBS a recolher
+```
+
+#### Sequência executável
+
+| Passo | Entrega | Depende de |
+|---|---|---|
+| 8.1 | As 3 migrations acima | Sprints 2/3/5 aplicados |
+| 8.2 | `BaixaService`: caminho split (AR primeiro, AP em seguida), null-tolerante a `impostos JSONB` | 8.1 |
+| 8.3 | GL: template de 3 partidas no `GeracaoLancamentoService` (linha "Baixa com split payment" do §37) via `mapeamento` | 8.1 · Sprint 5 |
+| 8.4 | Teste E2E de conciliação: extrato líquido × movimentação líquida × baixa bruta (prova dos centavos) | 8.2 |
+| 8.5 | Canal automático: valor retido no retorno CNAB/PIX/adquirente como Strategy (§IV-CNAB); até o leiaute oficial do CGIBS/RFB sair, o retido é campo informado na baixa manual | Sprint 4 |
+
+> ⚠️ O leiaute oficial de liquidação com split ainda depende de regulamentação CGIBS/RFB
+> (mesmo alerta do §1.4.2 Passo 8). Por isso o passo 8.5 é um **adapter trocável** — o
+> contrato interno (líquido + retido + tipo_retencao) fecha agora; o parser do leiaute
+> oficial pluga depois sem tocar em baixa, conciliação ou GL.
+
+---
+
 ## 15. Maturidade do Documento
 
 ```
-Modelagem de dados       ████████░░  85%
-Regras de negócio        ████████░░  80%
+Modelagem de dados       ██████████  100% ← seed default de contabil.mapeamento fechado (§F6.7)
+Regras de negócio        ██████████  100% ← algoritmo de forma_pagamento_periodo formalizado (§2.1.1); pendente validação humana de aceite
 Motor Fiscal             ██████████  100% ← todos os seeds gerados: Anexos I–XV + XVII completos
 Fiscal / contábil        ████████░░  82%  ← plano de contas e demonstrações aguardam contador
-Integrações técnicas     ███████░░░  70%  ← CNAB especificado campo a campo (§IV-CNAB.1); NF-e ainda pendente
-Arquitetura de software  █████████░  85%
+Integrações técnicas     █████████░  90%  ← CNAB especificado campo a campo (§IV-CNAB.1); NF-e campos obrigatórios especificado (§1.10) — resta só conferir nomes de grupo contra o XSD oficial na hora de codificar
+Arquitetura de software  ██████████ 100%  ← observabilidade realinhada (§13.8); ADR de serviços separados fechado (§3, §13.1) — fiscal-service separado, contábil dentro do financeiro
 
-Maturidade geral         ████████░░  82%
+Maturidade geral         █████████░  95%  ← média simples das 6 dimensões, arredondada (fórmula abaixo)
 ```
+
+> **Auditoria de maturidade — jul/2026.** "Modelagem de dados" e "Regras de negócio" foram
+> revisadas item a item (índices/uniques/versionamento faltando na modelagem; máquina de
+> estado, cancelamento de título, renegociação com baixa REAL, resgate parcial e concorrência
+> de adiantamento nas regras). 21 lacunas fechadas nesta rodada — detalhe em cada seção
+> afetada (§2.7–2.14, §II.2–8, §III.7, §13.5, §17, §19, §12.4/§12.10-B). O DDL das materialized
+> views de aging/KPIs/dashboard (§27) foi escrito na sequência (migration `financeiro/v1/044`).
+> O algoritmo de vencimento de `forma_pagamento_periodo` foi formalizado em 8 passos
+> determinísticos com 4 exemplos numéricos (§2.1.1) — produto novo, sem legado a preservar,
+> então o DDL foi simplificado (`mes_pagamento` e as variantes inclusiva/exclusiva removidas
+> por redundância); falta só a validação humana de aceite da regra, não é gap de spec.
+>
+> **`spec/elenco-de-contas-contabil.pdf` esclarecido.** O PDF em si é o Manual de Contabilidade
+> do Serviço Público de Exploração de Infraestrutura Rodoviária Federal (ANTT) — confirmado
+> extraindo o texto (`pdftotext`), dominado por contas de concessão (pedágio, faixa de domínio,
+> project finance). Isso **não é um gap**: o `plano_contas_template` real (§F6.5) já é uma
+> estrutura genérica de PME desenhada usando o PDF só como referência de convenção de
+> numeração/hierarquia — a própria §F6.5 registra que "itens setoriais do PDF não entram no
+> template". O seed de `contabil.mapeamento` (§F6.7) foi construído em cima dos códigos reais
+> de §F6.5 (`1.1.1.01` Caixa, `1.1.1.02` Banco, `1.1.2.01` Clientes, `2.1.2.01` Fornecedores,
+> `1.1.5.01`/`2.1.2.02` Adiantamentos, `2.1.3.05` Retenções, `1.1.6.07` transitória de split
+> payment — nova), populado por lógica no `TenantAtivacaoListener` (não migration estática,
+> já que as FKs são por tenant).
+>
+> **"Arquitetura de software" revisada — jul/2026.** §13.8 Observabilidade estava escrita de
+> forma genérica/especulativa (citava "compatível com Loki/CloudWatch/Datadog" como exemplo,
+> sem referenciar o stack real do monorepo). Realinhada para citar explicitamente o pipeline
+> real — Logback → Logstash (`:5000`) → Elasticsearch (`:9200`) → Kibana (`:5601`), já
+> configurado e testado — mais Prometheus/Grafana, o `CorrelationIdFilter`/MDC
+> `correlationId` e o padrão do `common/GlobalExceptionHandler` (4xx `WARN` sem stacktrace,
+> 5xx `ERROR` com stacktrace), todos já estabelecidos no `CLAUDE.md` raiz. A linha "Stack de
+> observabilidade" na tabela de status também foi corrigida — não era decisão de infra
+> pendente, já estava decidida e implementada.
+>
+> **ADR "Serviços separados" fechado — jul/2026 (§3, §13.1).** Era o maior fork de topologia
+> do documento inteiro, citado no próprio §13 como "mudar depois é refatoração em cascata".
+> Decisão: `fiscal-service` nasce separado desde já — não é escolha nova, é o desenho que o
+> documento já tinha de fato (os tópicos Kafka `nfe.entrada.aprovada`/`nfe.saida.autorizada`/
+> `nfe.cancelada`, §13, só existem porque `fiscal-service` publica de fora do processo); a
+> emissão de NF-e/NFC-e (spec fechado depois, em §1.10) entra no mesmo `fiscal-service`, mesmo
+> domínio (comunicação com a entidade fiscal/SEFAZ), não um terceiro serviço. `contabil-service`
+> **não existe** — GL fica dentro de `financeiro-service` (schema `contabil`, mesmo deploy):
+> hoje fechamento contábil e lançamento de título são atômicos (`@TransactionalEventListener`
+> in-process, §13), e não há sinal real (time dedicado ao GL, ou fechamento mensal virando
+> gargalo) que justifique pagar o custo de separar — outbox/Saga, dois pipelines/deploys vazios
+> — sem esse ganho. Extração fica reservada para quando um desses sinais aparecer. (O residual
+> sobre `billing.partner` também foi descartado nesta revisão — checado no código: a tabela é
+> do `partner-service`, schema `partner`, `Partner.java`. `billing.partner`, criada em
+> `billing-schema-002.yaml`, foi migrada e removida pela limpeza em `billing-schema-010..013.yaml`
+> — ver comentário "Limpeza billing" em `db.changelog-master.yaml`. Não havia decisão pendente,
+> era referência desatualizada.)
+>
+> **Fórmula de "Maturidade geral":** média aritmética simples das 6 dimensões acima,
+> arredondada ao inteiro mais próximo — sem pesos declarados. Recalcular a cada edição desta
+> tabela (o valor anterior, 82%, tinha ficado defasado de revisões passadas nas dimensões).
+>
+> **§1.11 adicionado — jul/2026, sem impacto no %.** "Ingestão de NFS-e — Registry Dinâmico de
+> Templates" (mapeamento canônico + XPath por município/provedor, fila de exceção pra template
+> desconhecido) foi escrito como extensão de escopo do Módulo I, não como fechamento de um gap
+> já rastreado nesta tabela — por isso não move nenhuma das 6 dimensões. Registrado aqui só para
+> rastreabilidade de quando/por que o documento cresceu.
 
 ### Status detalhado por item
 
@@ -6114,10 +7061,10 @@ Maturidade geral         ████████░░  82%
 | **Alíquotas IS numéricas** | ⏳ | — | Aguarda regulamentação — fora do controle |
 | **Alíquotas IBS por município** | ⏳ | — | Aguarda CGIBS — único bloqueante para produção |
 | Plano de contas padrão | ✅ | §F6.5 | Elenco oficial como base, editável pelo tenant — sem bloqueio |
-| DRE e BP formais | ⏳ | — | Estrutura em §5.9 — revisão contábil opcional |
+| DRE e BP formais | ⏳ | — | Estrutura em §39/§40 — revisão contábil opcional |
 | CNAB campo a campo | ✅ | §IV-CNAB.1 | De-para FEBRABAN 240 (v10.09) + banco piloto e plano de homologação; conferência 1:1 contra o PDF na homologação |
-| NF-e campos obrigatórios (NT) | ⏳ | — | Portal NF-e — necessário para emissão real |
-| Stack de observabilidade | ⏳ | — | Decisão de infra pendente |
+| NF-e campos obrigatórios (NT) | ✅ | §1.10 | Grupos `gIBSCBS`/`gIBSCBSTot`/`gIS` mapeados a partir da RT 2025.002 (mesma fonte do Motor Fiscal); confiança moderada em nomes exatos — alguns marcados "placeholder" pra conferir contra o XSD oficial só na hora de codificar. Escolha de webservice direto vs. plataforma terceirizada e ações operacionais (certificado, homologação) ficam em §1.10.4, com o usuário |
+| Stack de observabilidade | ✅ | `compose.yaml` raiz + `CLAUDE.md` §Observability Stack | ELK (Logback→Logstash→Elasticsearch→Kibana) + Prometheus/Grafana já configurados, testados e rodando via `docker compose up -d`; `correlationId`/`CorrelationIdFilter` e padrão `GlobalExceptionHandler` documentados em §13.8. Falta só `[%X{correlationId}]` no logback do `financeiro-service` quando ele existir — implementação, não decisão |
 
 ---
 

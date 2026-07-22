@@ -18,6 +18,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
@@ -79,7 +80,7 @@ class CheckoutServiceTest {
         assertThat(response.value()).isEqualByComparingTo("99.90");
 
         ArgumentCaptor<Subscription> captor = ArgumentCaptor.forClass(Subscription.class);
-        verify(subscriptionRepository).save(captor.capture());
+        verify(subscriptionRepository).saveAndFlush(captor.capture());
         Subscription saved = captor.getValue();
         assertThat(saved.getStatus()).isEqualTo(SubscriptionStatus.AGUARDANDO_PAGAMENTO);
         assertThat(saved.getAsaasSubscriptionId()).isEqualTo("sub_1");
@@ -96,6 +97,25 @@ class CheckoutServiceTest {
         assertThat(response.boletoUrl()).isEqualTo("https://asaas/boleto.pdf");
         assertThat(response.pixQrCode()).isNull();
         assertThat(response.pixCopyPaste()).isNull();
+    }
+
+    @Test
+    void concurrentCheckout_violatesUniqueIndex_cancelsOrphanAsaasSubscription_andReturns409() {
+        // Guard do topo passa (existsByTenantIdAndStatusIn = false por default do mock), a assinatura
+        // é criada no Asaas, mas o saveAndFlush estoura o índice único (outra request venceu a corrida).
+        when(planRepository.findByPlanTypeAndActiveTrue("STARTER")).thenReturn(Optional.of(plan()));
+        when(asaasGateway.createCustomer(any())).thenReturn("cus_1");
+        when(asaasGateway.createSubscription(any()))
+                .thenReturn(new AsaasSubscriptionResponse("sub_1", "ACTIVE", LocalDate.of(2026, 7, 24)));
+        when(subscriptionRepository.saveAndFlush(any()))
+                .thenThrow(new DataIntegrityViolationException("duplicate subscription for tenant"));
+
+        assertThatThrownBy(() -> service.createCheckout(1L, REQUEST))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(e -> assertThat(((ResponseStatusException) e).getStatusCode().value()).isEqualTo(409));
+
+        // A assinatura órfã do Asaas tem que ser cancelada pra não cobrar o cliente sem linha local.
+        verify(asaasGateway).cancelSubscription("sub_1");
     }
 
     private void stubPlanAndAsaas() {

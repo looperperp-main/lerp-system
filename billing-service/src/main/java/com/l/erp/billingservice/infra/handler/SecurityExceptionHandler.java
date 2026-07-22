@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.time.Instant;
 
 /**
- * Traduz a negação de @PreAuthorize (money-out — REPASSE_EXECUTE) em 403 com mensagem amigável.
+ * Traduz a negação de @PreAuthorize (ex.: REPASSE_EXECUTE, PLANO_MANAGE) em 403 com mensagem amigável.
  * Mais específico que o handler genérico Exception.class do common, então tem precedência.
  */
 @RestControllerAdvice
@@ -23,7 +23,7 @@ public class SecurityExceptionHandler {
                 .timestamp(Instant.now())
                 .status(HttpStatus.FORBIDDEN.value())
                 .error("Forbidden")
-                .message("Operação não permitida. Fale com um administrador responsável pelos repasses.")
+                .message("Operação não permitida. Fale com um administrador da plataforma.")
                 .path(request.getRequestURI())
                 .build();
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(err);

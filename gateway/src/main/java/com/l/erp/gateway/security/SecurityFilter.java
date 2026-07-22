@@ -53,7 +53,8 @@ public class SecurityFilter extends OncePerRequestFilter {
     /**
      * Processes incoming HTTP requests and applies security filtering logic to determine
      * whether a request should be allowed, rejected, or requires further processing.
-     * Handles pre-flight (OPTIONS) requests, public endpoint filtering, and JWT token validation.
+     * Handles public endpoint filtering and JWT token validation. Pre-flight (OPTIONS) is
+     * resolved upstream by the real Spring CorsFilter (see doFilterInternal note).
      *
      * @param request     The HTTP servlet request containing details about the client's request.
      * @param response    The HTTP servlet response to send back status or error details as necessary.
@@ -63,11 +64,9 @@ public class SecurityFilter extends OncePerRequestFilter {
      */
     @Override
     protected void doFilterInternal(HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain) throws ServletException, IOException {
-        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
-            response.setStatus(HttpServletResponse.SC_OK);
-            return;
-        }
-
+        // Preflight CORS (OPTIONS) já é resolvido pelo CorsFilter real do Spring Security, que
+        // roda antes deste filtro na chain (HttpSecurity.cors(...) em SecurityConfig) e
+        // encerra a request sem chegar aqui. Nenhum atalho é necessário nesse ponto (4.7).
         String path = request.getRequestURI();
 
         if ("/actuator/health".equals(path) || "/actuator/info".equals(path)) {

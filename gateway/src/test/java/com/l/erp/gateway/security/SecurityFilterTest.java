@@ -49,15 +49,22 @@ class SecurityFilterTest {
         }
     }
 
+    /**
+     * O preflight CORS real (com Origin) nunca chega aqui — é resolvido pelo CorsFilter do
+     * Spring Security antes deste filtro na chain (ver SecurityConfig). Um OPTIONS "cru" sem
+     * token, batendo direto neste filtro isolado (como em um teste unitário ou uma request
+     * fora do fluxo de preflight), segue a mesma regra de qualquer outro método: sem
+     * Authorization em path protegido → 401 (4.7).
+     */
     @Test
-    void optionsPreflight_returns200_semChamarChain() throws Exception {
+    void optionsSemToken_emPathProtegido_retorna401_semChamarChain() throws Exception {
         var req = new MockHttpServletRequest("OPTIONS", "/cadastro/api/v1/produtos");
         var res = new MockHttpServletResponse();
         var chain = new CapturingChain();
 
         filter.doFilter(req, res, chain);
 
-        assertThat(res.getStatus()).isEqualTo(200);
+        assertThat(res.getStatus()).isEqualTo(401);
         assertThat(chain.called).isFalse();
     }
 

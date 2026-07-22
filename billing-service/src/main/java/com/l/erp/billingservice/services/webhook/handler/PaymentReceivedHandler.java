@@ -88,7 +88,10 @@ public class PaymentReceivedHandler implements WebhookEventHandler {
             return;
         }
 
-        // Validação de valor (§28.8): divergência não bloqueia ativação, mas alerta
+        // Validação de valor (§28.8, 7.6): divergência não bloqueia ativação (o pagamento já
+        // aconteceu no Asaas), mas alerta — e a comissão NUNCA usa receivedValue (payload do
+        // webhook, autenticado só por token estático compartilhado — dado de origem externa).
+        // O valor de verdade pra qualquer cálculo financeiro é sempre sub.getValue() (DB).
         if (receivedValue != null && sub.getValue() != null
                 && receivedValue.compareTo(sub.getValue()) != 0) {
             log.warn("Valor divergente — esperado={} recebido={} tenant={}",
@@ -119,8 +122,9 @@ public class PaymentReceivedHandler implements WebhookEventHandler {
         // Write-through no cache — o handler conhece o novo status (§28.3)
         tenantStatusCache.put(sub.getTenantId(), SubscriptionStatus.ATIVA);
 
-        // Comissão é calculada sobre o valor recebido (§28.8)
-        BigDecimal valueForEvent = receivedValue != null ? receivedValue : sub.getValue();
+        // Comissão é calculada sobre o valor do plano gravado no banco (7.6) — nunca sobre o
+        // valor do payload do webhook, que é dado externo não confiável pra fins financeiros.
+        BigDecimal valueForEvent = sub.getValue();
         kafkaProducer.sendSubscriptionActivated(
                 sub.getTenantId(), sub.getPlanType(), valueForEvent,
                 sub.getAsaasSubscriptionId(), asaasPaymentId, now);

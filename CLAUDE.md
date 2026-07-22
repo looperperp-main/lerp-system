@@ -168,12 +168,16 @@ Angular 21, standalone components (no NgModules). Pages in `src/app/pages/` (`lo
 
 ## Workflow Directives
 
-**Specs com Fable:** trabalho em specs (`spec/*.md`) deve ser feito com o modelo **Fable** enquanto ele estiver disponível. Se a sessão estiver em outro modelo e a tarefa for mexer em spec, sugerir ao usuário trocar com `/model Fable` antes de começar.
+**Specs com Fable (SUSPENSO por ora — 2026-07-22):** o Fable **não está no plano atual**, então trabalho em specs (`spec/*.md`) segue no modelo disponível (Opus 4.8) sem trocar de modelo. Não sugerir `/model Fable`. Reavaliar/reativar esta diretiva se o Fable voltar ao plano.
+
+**Data no header dos docs:** todo doc em `spec/*.md` que tenha um header de "Última atualização" deve trazer a **data completa** (dia + mês + ano, ex. `20 de julho de 2026`), nunca só mês/ano. Ao editar qualquer doc desse tipo, atualizar esse header pra data corrente da edição.
 
 **Constantes:** todo valor constante (strings de ação/auditoria, tipos de evento, mensagens reutilizáveis, códigos) deve ser declarado em `common/src/main/java/com/l/erp/common/util/Constants.java` e referenciado de lá — não usar literais "soltos" no código dos serviços.
 
 **Nunca rodar build:** o Claude **não executa nenhum comando de build** — nem backend (`mvnw compile/verify/test/package/spring-boot:run`, Docker) nem frontend (`npm run build`, `ng build/serve`, `npm test`). O usuário roda tudo isso. Confiar na leitura do código pra verificar; marcar sempre o que não foi rodado como "não testado".
 
 **Padrão de erros/logs (backend):** tratamento de erro passa pelo `common/GlobalExceptionHandler`. Regras: (1) status correto — erro de cliente (4xx) nunca vira 500 (`NoResourceFound`→404, validação→400, `AccessDenied`→403); (2) log por classe — 4xx → `WARN`, uma linha, **sem** stacktrace; 5xx → `ERROR` **com** stacktrace (único lugar que loga stack); (3) mensagens em **PT-BR**; (4) 5xx nunca vaza detalhe interno pro cliente; (5) corpo `StandardError` = `{timestamp, status, error, message, path, correlationId}`, com `correlationId` vindo do MDC (`CorrelationIdFilter` lê o header `X-Correlation-ID`). Pra correlationId sair em toda linha de log, falta `[%X{correlationId}]` no pattern do logback de cada serviço.
+
+**Sempre revisar os testes ao mexer no back-end:** toda alteração em código backend (serviço, handler, config, entidade) exige passar o olho nos testes que cobrem aquele código **na mesma mudança** — verificar se algum teste passou a contradizer o novo comportamento e atualizá-lo (ou o código, conforme a intenção correta pela spec). Motivação: um fix de segurança/comportamento que não atualiza o teste correspondente deixa o teste validando a versão antiga e quebra o pipeline (ex.: auditoria 7.6 mudou `PaymentReceivedHandler` p/ usar `sub.getValue()`, mas o teste ficou esperando o valor do payload → build vermelho).
 
 **Não gerar mensagem de commit:** o Claude não deve propor/gerar mensagens de commit ao final das mudanças, a menos que o usuário peça explicitamente.

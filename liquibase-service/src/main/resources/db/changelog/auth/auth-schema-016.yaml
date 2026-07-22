@@ -1,0 +1,17 @@
+databaseChangeLog:
+  - changeSet:
+      id: "auth-016-permission-plano-manage"
+      author: vitor fernandes ferreira
+      comment: "Permissão de plataforma PLANO_MANAGE — gate para mutação do catálogo de planos (billing-service). Scope PLATFORM: não atribuível pelo portal de tenant, só admin Syax."
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO auth.permission (id, code, domain, description, scope, created_by) VALUES
+              (gen_random_uuid(), 'PLANO_MANAGE', 'PLANO', 'Criar/editar/ativar-desativar planos de assinatura (catálogo global)', 'PLATFORM', 'system-seed')
+              ON CONFLICT (code) DO NOTHING;
+      rollback:
+        - sql:
+            dbms: postgresql
+            sql: DELETE FROM auth.permission WHERE code = 'PLANO_MANAGE';

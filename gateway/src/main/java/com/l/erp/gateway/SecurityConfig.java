@@ -1,6 +1,7 @@
 package com.l.erp.gateway;
 
 import com.l.erp.gateway.security.SecurityFilter;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -35,5 +36,15 @@ public class SecurityConfig {
                 .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class)
                 .httpBasic(Customizer.withDefaults())
                 .build();
+    }
+
+    // securityFilter já roda dentro da FilterChainProxy via addFilterBefore acima. Sem isso, o
+    // @Component faz o Spring Boot registrar a mesma instância de novo como filtro de servlet
+    // standalone — toda request passaria pelo filtro duas vezes (4.7).
+    @Bean
+    public FilterRegistrationBean<SecurityFilter> securityFilterRegistration(SecurityFilter securityFilter) {
+        FilterRegistrationBean<SecurityFilter> registration = new FilterRegistrationBean<>(securityFilter);
+        registration.setEnabled(false);
+        return registration;
     }
 }

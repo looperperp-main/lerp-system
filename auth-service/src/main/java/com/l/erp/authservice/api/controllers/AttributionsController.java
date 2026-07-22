@@ -32,14 +32,14 @@ public class AttributionsController {
     }
 
     @GetMapping("/{userId}/roles")
-    @PreAuthorize("hasAuthority('USER_READ')")
+    @PreAuthorize("hasRole('APP_OWNER') and hasAuthority('USER_READ')")
     public ResponseEntity<List<RoleDTO>> getUserRoles(@PathVariable UUID userId){
         log.debug("REST request to get roles for user: {}", userId);
         return ResponseEntity.ok(attributionsService.getRolesByUser(userId));
     }
 
     @PostMapping("/{userId}/roles")
-    @PreAuthorize("hasAuthority('USER_UPDATE')")
+    @PreAuthorize("hasRole('APP_OWNER') and hasAuthority('USER_UPDATE')")
     public ResponseEntity<Void> assignRolesToUser(
             @PathVariable UUID userId,
             @Valid @RequestBody UserRoleRequestDTO request){
@@ -55,7 +55,7 @@ public class AttributionsController {
     }
 
     @DeleteMapping("/{userId}/roles/{roleId}")
-    @PreAuthorize("hasAuthority('USER_UPDATE')")
+    @PreAuthorize("hasRole('APP_OWNER') and hasAuthority('USER_UPDATE')")
     public ResponseEntity<Void> removeRoleFromUser(
             @PathVariable UUID userId,
             @PathVariable UUID roleId){

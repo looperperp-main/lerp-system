@@ -14,23 +14,64 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class RateLimitFilter implements Filter {
 
-    private final Map<String, Bucket> buckets = new ConcurrentHashMap<>();
+    // ponytail: LRU limitado por nº de entradas (sem dependência nova) — garante teto de heap
+    // mesmo se a allowlist de proxy for mal configurada. Subir pra cache com TTL se 50k não bastar.
+    private static final int MAX_BUCKETS = 50_000;
+
+    private final Map<String, Bucket> buckets = Collections.synchronizedMap(
+            new LinkedHashMap<>(16, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<String, Bucket> eldest) {
+                    return size() > MAX_BUCKETS;
+                }
+            });
+    // Bucket dedicado, mais restrito, para os paths públicos que rodam Argon2 memory-hard por
+    // chamada (7.3/7.12, spec/auditoria.md): criar-conta (+ 2 INSERTs) e os 3 logins (encode
+    // já roda antes de qualquer CAPTCHA existir). /auth/refresh e /auth/logout ficam de fora —
+    // não tocam em hash de senha.
+    private static final Set<String> ARGON2_PATHS = Set.of(
+            "/auth/criar-conta", "/auth/login", "/auth/tenant/login", "/auth/partner/login"
+    );
+
+    private final Map<String, Bucket> argon2Buckets = Collections.synchronizedMap(
+            new LinkedHashMap<>(16, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<String, Bucket> eldest) {
+                    return size() > MAX_BUCKETS;
+                }
+            });
+
     private final int replenishRate;
     private final int burstCapacity;
+    private final int argon2BurstCapacity;
+    private final int argon2ReplenishRate;
+    private final Set<String> trustedProxies;
 
     public RateLimitFilter(
             @Value("${rate-limit.replenish-rate:20}") int replenishRate,
-            @Value("${rate-limit.burst-capacity:40}") int burstCapacity) {
+            @Value("${rate-limit.burst-capacity:40}") int burstCapacity,
+            @Value("${gateway.trusted-proxies:}") String trustedProxiesRaw,
+            @Value("${rate-limit.argon2.burst-capacity:5}") int argon2BurstCapacity,
+            @Value("${rate-limit.argon2.replenish-rate:5}") int argon2ReplenishRate) {
         this.replenishRate = replenishRate;
         this.burstCapacity = burstCapacity;
+        this.argon2BurstCapacity = argon2BurstCapacity;
+        this.argon2ReplenishRate = argon2ReplenishRate;
+        this.trustedProxies = Arrays.stream(trustedProxiesRaw.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isBlank())
+                .collect(Collectors.toUnmodifiableSet());
     }
 
     @Override
@@ -40,18 +81,36 @@ public class RateLimitFilter implements Filter {
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         HttpServletResponse httpResponse = (HttpServletResponse) response;
 
+        if (httpRequest.getRequestURI().startsWith("/actuator")) {
+            chain.doFilter(request, response);
+            return;
+        }
+
         String key = resolveKey(httpRequest);
+
+        if (ARGON2_PATHS.contains(httpRequest.getRequestURI())) {
+            Bucket argon2Bucket = argon2Buckets.computeIfAbsent(key, k -> createArgon2Bucket());
+            if (!argon2Bucket.tryConsume(1)) {
+                respondTooManyRequests(httpResponse);
+                return;
+            }
+        }
+
         Bucket bucket = buckets.computeIfAbsent(key, k -> createBucket());
 
         if (bucket.tryConsume(1)) {
             chain.doFilter(request, response);
         } else {
-            httpResponse.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
-            httpResponse.setContentType(MediaType.APPLICATION_JSON_VALUE);
-            httpResponse.getWriter().write(
-                    "{\"status\":429,\"error\":\"Too Many Requests\",\"message\":\"Rate limit exceeded. Try again later.\"}"
-            );
+            respondTooManyRequests(httpResponse);
         }
+    }
+
+    private void respondTooManyRequests(HttpServletResponse httpResponse) throws IOException {
+        httpResponse.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
+        httpResponse.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        httpResponse.getWriter().write(
+                "{\"status\":429,\"error\":\"Too Many Requests\",\"message\":\"Rate limit exceeded. Try again later.\"}"
+        );
     }
 
     private Bucket createBucket() {
@@ -63,27 +122,30 @@ public class RateLimitFilter implements Filter {
                 .build();
     }
 
-    // IPs de redes privadas RFC 1918 e loopback — considerados proxies confiáveis (nginx, OCI LB)
-    // Recomendação: verificar X-Forwarded-For somente quando a conexão vier de um proxy interno.
-    private static final Set<String> PRIVATE_PREFIXES = Set.of(
-            "10.", "127.", "192.168.",
-            "172.16.", "172.17.", "172.18.", "172.19.", "172.20.",
-            "172.21.", "172.22.", "172.23.", "172.24.", "172.25.",
-            "172.26.", "172.27.", "172.28.", "172.29.", "172.30.", "172.31."
-    );
+    // Janela de 10 min (vs. 1s do bucket genérico): esses paths rodam Argon2 memory-hard por
+    // chamada, então o teto tem que ser baixo o bastante pra não sustentar flood mesmo dentro
+    // do burst do limite genérico acima.
+    private Bucket createArgon2Bucket() {
+        return Bucket.builder()
+                .addLimit(Bandwidth.builder()
+                        .capacity(argon2BurstCapacity)
+                        .refillGreedy(argon2ReplenishRate, Duration.ofMinutes(10))
+                        .build())
+                .build();
+    }
 
+    // Só confia em X-Forwarded-For quando a conexão vem de um IP explicitamente listado em
+    // gateway.trusted-proxies (o LB/nginx real, não a faixa RFC1918 inteira) — senão qualquer
+    // chamador nessa faixa forja o header e anula o rate-limit (spec/auditoria.md §7.2).
+    // Default vazio = nunca confia em XFF = seguro em dev local sem precisar configurar nada.
     private String resolveKey(HttpServletRequest request) {
         String remoteAddr = request.getRemoteAddr();
-        if (isTrustedProxy(remoteAddr)) {
+        if (trustedProxies.contains(remoteAddr)) {
             String forwarded = request.getHeader("X-Forwarded-For");
             if (forwarded != null && !forwarded.isBlank()) {
                 return forwarded.split(",")[0].trim();
             }
         }
         return remoteAddr;
-    }
-
-    private boolean isTrustedProxy(String addr) {
-        return PRIVATE_PREFIXES.stream().anyMatch(addr::startsWith);
     }
 }

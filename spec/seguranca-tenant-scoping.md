@@ -4,7 +4,7 @@
 
 > **Status atualizado (2026-07-03, verificado via grep no código):**
 > - **M8: ✅ IMPLEMENTADO** — os 4 services usam `findByIdAndTenantId`; delete do Produto via `deleteByIdAndTenantId`; referências filhas escopadas. Pendente confirmar só o passo 5 (testes cross-tenant → 404 por entidade).
-> - **M7: 🟡 PARCIAL, premissa mudou** — em vez de `scope` no `owner_marker`, o `auth-schema-013` limita a instalação a **um único** owner_marker ativo (superuser da plataforma); o portal do tenant ganhou `UserService.*ForTenant` + `assertUserInTenant` (IDOR-safe). Pendente: `AuthService.java:168` (e a mesma lógica duplicada em `:293`, `generateJwtForUser`) ainda concede `List.of(APP_OWNER, TENANT_OWNER)` juntos para owner, `List.of("ROLE_USER")` fixo para não-owner — TODO intacto (`//TODO: get roles from database`); a claim `authorities` **é** buscada de verdade (`getPermissions` via `user_role`→`role_permission`), só a claim `roles` ignora essa mesma tabela. Detalhado em `spec/auditoria.md` §4.11. Falta também verificar escopo em `RolesService`/`AttributionsService`.
+> - **M7: ✅ IMPLEMENTADO (2026-07-15)** — `AuthService.resolveRoles()` já lê as roles reais do usuário em `user_role` em vez de `List.of(APP_OWNER, TENANT_OWNER)`/`"ROLE_USER"` fixo; `//TODO: get roles from database` resolvido. IDOR em `UserController`/`RoleController`/`AttributionsController` (rotas planas `/auth/users`, `/auth/roles`) corrigido adicionando `hasRole('APP_OWNER')` a todo `@PreAuthorize`, restringindo essas rotas ao portal de staff (`erp-front-end-admin`) — o portal do tenant (`erp-front-end-web`) já usava só `/auth/tenant/security/**`, escopado. `UserController.updateUserById` (reatribuição de `tenantId`) fica coberto pela mesma restrição: só APP_OWNER chega nele agora. Pendente só o passo 5 (testes cross-tenant → 404/403 por entidade; testes de negação sem `APP_OWNER` já cobertos, ver seção M7 abaixo).
 > - **Defense-in-depth gateway: ✅ IMPLEMENTADO** — `PROTECTED_HEADERS` + strip case-insensitive no wrapper do `SecurityFilter`. Gap residual: strip só roda no caminho autenticado (ver `spec/auditoria.md` §4.4).
 > - Contexto vencido: "downstream rodam permitAll" — billing e partner agora têm `InternalRequestFilter`; só o cadastro segue `permitAll` puro (ver `spec/auditoria.md` §4.1).
 
@@ -51,20 +51,23 @@ O header `X-Tenant-Id` em si é confiável: o `gateway/SecurityFilter` injeta vi
 
 ---
 
-## M7 — `auth-service` (relacionado, aguarda definição de roles)
+## M7 — `auth-service` (✅ implementado 2026-07-15)
 
-IDOR cross-tenant no CRUD de usuários/roles + níveis de owner conflados. Endpoints `@Secured({APP_OWNER, TENANT_OWNER})` carregam alvo por `findById` sem checar tenant do caller; e `AuthService.login()` concede `List.of(APP_OWNER, TENANT_OWNER)` juntos para qualquer `owner_marker`. Contido hoje porque tenant users normais logam por `loginWithTenant` (sempre `ROLE_TENANT_USER`, `isOwner=false`); vira crítico ao emitir owner_marker por-tenant.
+IDOR cross-tenant no CRUD de usuários/roles + níveis de owner conflados. Contido hoje porque tenant users normais logam por `loginWithTenant` (sempre `ROLE_TENANT_USER`, `isOwner=false`).
 
 > Field injection para virar owner é **impossível**: owner vem da tabela `owner_marker`, nunca do body; nenhum endpoint grava nela; o PUT enumera campos.
 
-> 🟡 **PARCIAL (2026-07-03):** passo 1 foi resolvido de outra forma — `auth-schema-013` garante no DB **um único** `owner_marker` ativo na instalação (superuser da plataforma), eliminando o cenário de owner_marker por-tenant. Passos 3–4 aplicados ao CRUD de usuários do portal do tenant (`UserService.updateUserForTenant`/`updateUserStatusForTenant` + `assertUserInTenant`). Pendentes: passo 2 (`AuthService.java:168` e `:293` seguem com `List.of(APP_OWNER, TENANT_OWNER)` para owner / `"ROLE_USER"` fixo para não-owner — a claim `roles` nunca reflete a role real da tabela `user_role`, diferente da claim `authorities` que já é correta; análise completa em `spec/auditoria.md` §4.11), escopo em `RolesService`/`AttributionsService` e passo 5 (testes).
+> ✅ **Roles-from-DB (verificado 2026-07-15):** o `//TODO: get roles from database` sumiu. `AuthService.resolveRoles(userId, isOwner)` monta a claim `roles` a partir de `userRoleRepository.findAllByUserId(userId)` — mesma tabela `user_role` que já alimentava `authorities` via `getPermissions` — só adicionando `APP_OWNER` como flag extra quando `isOwner=true`. Usado em `login()` e `generateJwtForUser()`. `owner_marker` continua único por instalação (`auth-schema-013`), então o cenário de owner_marker por-tenant (antigo passo 1) não se aplica mais.
 
-### Passos (depois de definir as roles)
-1. Distinguir owner **GLOBAL** (staff Syax → `APP_OWNER`) de **TENANT** (dono empresa → `TENANT_OWNER`), ex.: campo `scope` no `owner_marker`.
-2. `AuthService` (`login` + `generateJwtForUser`): derivar a role do tipo de marker, em vez de `List.of(APP_OWNER, TENANT_OWNER)`. Resolve o `//TODO: get roles from database`.
-3. Helper `assertCanManage(targetTenantId)` (APP_OWNER passa; TENANT_OWNER exige `== SecurityUtils.getCurrentTenantId()`).
-4. Aplicar após cada `findById`: `UserService.updateUserById/updateUserStatusById/createUser`, `AttributionsService.*`, `RolesService.assign/removePermission/delete/updateRole`.
-5. Testes: TENANT_OWNER do tenant A → 403 em recurso do tenant B; APP_OWNER passa; regressão de que TENANT_OWNER não recebe APP_OWNER na claim.
+> ✅ **IDOR RoleController/UserController/AttributionsController — corrigido (2026-07-15):** `RolesService`/`AttributionsService`/`UserService` têm dois conjuntos de métodos — os `*ForTenant` (escopados, usam `assertRoleInTenant`/`assertUserInTenant`) chamados só por `TenantSecurityController`, e os "planos" (sem checagem de tenant nenhuma) chamados por `UserController`, `RoleController` e `AttributionsController`. Confirmado via investigação (grep no frontend) que essas rotas planas são exclusivas do portal de staff `erp-front-end-admin` (`role.service.ts`, `users.service.ts`, `user-role.service.ts`, `role-permission.service.ts`) — o portal do tenant (`erp-front-end-web`) usa só `/auth/tenant/security/**`. O problema era que `@PreAuthorize("hasAuthority(...)")` sozinho não distingue staff de tenant owner: `TenantOwnerBootstrapService.bootstrapOwner()` dá a **todo** dono de tenant as mesmas authorities (`USER_UPDATE`, `ROLE_DELETE`, `PERMISSION_UPDATE` etc., domínios `PERMISSION`/`USER`/`ROLE`) pra ele gerenciar o próprio tenant via as rotas `ForTenant` — as mesmas authorities liberavam as rotas planas, sem checar dono do `userId`/`roleId` no path.
+>
+> **Fix aplicado:** adicionado `hasRole('APP_OWNER')` a todo `@PreAuthorize` de `UserController`, `RoleController` e `AttributionsController` (mesmo padrão já usado em `SyaxQueueController`/`TrialTriggerController`/`AuditController`). `Roles.APP_OWNER = "ROLE_APP_OWNER"` já vem pronto pra `hasRole()` (JwtFilter injeta a claim `roles` direto como `GrantedAuthority`, sem prefixo extra). Como só APP_OWNER passa agora, o problema de `updateUserById` reatribuir `tenantId` livre também fica coberto — só staff da plataforma chega nesse endpoint. `getAllRoles()` (`findAll()` sem filtro de tenant) continua cross-tenant de propósito — é o comportamento esperado pro portal de staff enxergar roles de todos os tenants; só ficou mais seguro por estar atrás do mesmo `hasRole('APP_OWNER')`.
+>
+> Testes atualizados: `RoleControllerTest`/`UserControllerTest`/`AttributionsControllerTest` ganharam `ROLE_APP_OWNER` nos `@WithMockUser` existentes (senão quebrariam) + 1 teste novo por controller (`shouldDenyAccessWithoutAppOwnerRole`) confirmando 403 sem o role. **Não rodado** (`./mvnw test -pl auth-service` fica por conta do usuário, ver `CLAUDE.md`).
+
+### Pendente
+- Testes de regressão end-to-end com TENANT_OWNER real (JWT emitido de verdade, não só `@WithMockUser`) tentando `/auth/roles/{id}` de outro tenant → confirmar 403 em ambiente rodando.
+- Se o portal de staff algum dia precisar que um TENANT_OWNER administre parcialmente via essas rotas planas (hoje não precisa — ele já tem `/auth/tenant/security/**`), a trava por `hasRole('APP_OWNER')` vai bloquear; reavaliar se isso mudar.
 
 ---
 

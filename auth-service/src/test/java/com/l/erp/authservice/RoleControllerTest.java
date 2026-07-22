@@ -84,6 +84,13 @@ class RoleControllerTest {
 
     @Test
     @WithMockUser(authorities = {"ROLE_READ", "ROLE_INSERT", "ROLE_UPDATE", "ROLE_DELETE", "PERMISSION_READ", "PERMISSION_UPDATE"})
+    void shouldDenyAccessWithoutAppOwnerRole() throws Exception {
+        mockMvc.perform(get("/auth/roles"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(authorities = {"ROLE_READ", "ROLE_INSERT", "ROLE_UPDATE", "ROLE_DELETE", "PERMISSION_READ", "PERMISSION_UPDATE", "ROLE_APP_OWNER"})
     void shouldGetAllRoles() throws Exception {
         Role role = new Role();
         role.setId(UUID.randomUUID());
@@ -91,7 +98,7 @@ class RoleControllerTest {
 
         RoleDTO dto = new RoleDTO(role.getId(), "ADMIN", 1L, Instant.now(), "seed", null, null, null);
 
-        when(roleRepository.findAll()).thenReturn(List.of(role));
+        when(roleRepository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(role)));
         when(roleMapper.toRoleDTOs(any())).thenReturn(List.of(dto));
 
         mockMvc.perform(get("/auth/roles"))
@@ -100,7 +107,7 @@ class RoleControllerTest {
     }
 
     @Test
-    @WithMockUser(authorities = {"ROLE_READ", "ROLE_INSERT", "ROLE_UPDATE", "ROLE_DELETE", "PERMISSION_READ", "PERMISSION_UPDATE"})
+    @WithMockUser(authorities = {"ROLE_READ", "ROLE_INSERT", "ROLE_UPDATE", "ROLE_DELETE", "PERMISSION_READ", "PERMISSION_UPDATE", "ROLE_APP_OWNER"})
     void shouldGetAllRolesPaged() throws Exception {
         Role role = new Role();
         role.setId(UUID.randomUUID());
@@ -117,7 +124,7 @@ class RoleControllerTest {
     }
 
     @Test
-    @WithMockUser(authorities = {"ROLE_READ", "ROLE_INSERT", "ROLE_UPDATE", "ROLE_DELETE", "PERMISSION_READ", "PERMISSION_UPDATE"})
+    @WithMockUser(authorities = {"ROLE_READ", "ROLE_INSERT", "ROLE_UPDATE", "ROLE_DELETE", "PERMISSION_READ", "PERMISSION_UPDATE", "ROLE_APP_OWNER"})
     void shouldSearchRoles() throws Exception {
         Role role = new Role();
         role.setId(UUID.randomUUID());
@@ -138,7 +145,7 @@ class RoleControllerTest {
     }
 
     @Test
-    @WithMockUser(authorities = {"ROLE_READ", "ROLE_INSERT", "ROLE_UPDATE", "ROLE_DELETE", "PERMISSION_READ", "PERMISSION_UPDATE"})
+    @WithMockUser(authorities = {"ROLE_READ", "ROLE_INSERT", "ROLE_UPDATE", "ROLE_DELETE", "PERMISSION_READ", "PERMISSION_UPDATE", "ROLE_APP_OWNER"})
     void shouldCreateRole() throws Exception {
         UUID roleId = UUID.randomUUID();
 
@@ -177,7 +184,7 @@ class RoleControllerTest {
     }
 
     @Test
-    @WithMockUser(authorities = {"ROLE_READ", "ROLE_INSERT", "ROLE_UPDATE", "ROLE_DELETE", "PERMISSION_READ", "PERMISSION_UPDATE"})
+    @WithMockUser(authorities = {"ROLE_READ", "ROLE_INSERT", "ROLE_UPDATE", "ROLE_DELETE", "PERMISSION_READ", "PERMISSION_UPDATE", "ROLE_APP_OWNER"})
     void shouldCreateRoleDuplicated() throws Exception {
         Role existing = new Role();
         existing.setId(UUID.randomUUID());
@@ -201,7 +208,7 @@ class RoleControllerTest {
     }
 
     @Test
-    @WithMockUser(authorities = {"ROLE_READ", "ROLE_INSERT", "ROLE_UPDATE", "ROLE_DELETE", "PERMISSION_READ", "PERMISSION_UPDATE"})
+    @WithMockUser(authorities = {"ROLE_READ", "ROLE_INSERT", "ROLE_UPDATE", "ROLE_DELETE", "PERMISSION_READ", "PERMISSION_UPDATE", "ROLE_APP_OWNER"})
     void shouldGetRoleById() throws Exception {
         UUID roleId = UUID.randomUUID();
 
@@ -210,7 +217,7 @@ class RoleControllerTest {
     }
 
     @Test
-    @WithMockUser(authorities = {"ROLE_READ", "ROLE_INSERT", "ROLE_UPDATE", "ROLE_DELETE", "PERMISSION_READ", "PERMISSION_UPDATE"})
+    @WithMockUser(authorities = {"ROLE_READ", "ROLE_INSERT", "ROLE_UPDATE", "ROLE_DELETE", "PERMISSION_READ", "PERMISSION_UPDATE", "ROLE_APP_OWNER"})
     void shouldGetRolePermissions() throws Exception {
         UUID roleId = UUID.randomUUID();
         UUID permId = UUID.randomUUID();
@@ -242,7 +249,7 @@ class RoleControllerTest {
     }
 
     @Test
-    @WithMockUser(authorities = {"ROLE_READ", "ROLE_INSERT", "ROLE_UPDATE", "ROLE_DELETE", "PERMISSION_READ", "PERMISSION_UPDATE"})
+    @WithMockUser(authorities = {"ROLE_READ", "ROLE_INSERT", "ROLE_UPDATE", "ROLE_DELETE", "PERMISSION_READ", "PERMISSION_UPDATE", "ROLE_APP_OWNER"})
     void shouldGetRolePermissionsRoleNotFound() throws Exception {
         UUID roleId = UUID.randomUUID();
 
@@ -255,7 +262,7 @@ class RoleControllerTest {
     }
 
     @Test
-    @WithMockUser(authorities = {"ROLE_READ", "ROLE_INSERT", "ROLE_UPDATE", "ROLE_DELETE", "PERMISSION_READ", "PERMISSION_UPDATE"})
+    @WithMockUser(authorities = {"ROLE_READ", "ROLE_INSERT", "ROLE_UPDATE", "ROLE_DELETE", "PERMISSION_READ", "PERMISSION_UPDATE", "ROLE_APP_OWNER"})
     void shouldAssignPermissionsToRole() throws Exception {
         UUID roleId = UUID.randomUUID();
         UUID permId = UUID.randomUUID();
@@ -300,7 +307,7 @@ class RoleControllerTest {
     }
 
     @Test
-    @WithMockUser(authorities = {"ROLE_READ", "ROLE_INSERT", "ROLE_UPDATE", "ROLE_DELETE", "PERMISSION_READ", "PERMISSION_UPDATE"})
+    @WithMockUser(authorities = {"ROLE_READ", "ROLE_INSERT", "ROLE_UPDATE", "ROLE_DELETE", "PERMISSION_READ", "PERMISSION_UPDATE", "ROLE_APP_OWNER"})
     void shouldAssignPermissionsToRoleMismatch() throws Exception {
         UUID roleId = UUID.randomUUID();
         UUID differentRoleId = UUID.randomUUID();
@@ -316,7 +323,7 @@ class RoleControllerTest {
     }
 
     @Test
-    @WithMockUser(authorities = {"ROLE_READ", "ROLE_INSERT", "ROLE_UPDATE", "ROLE_DELETE", "PERMISSION_READ", "PERMISSION_UPDATE"})
+    @WithMockUser(authorities = {"ROLE_READ", "ROLE_INSERT", "ROLE_UPDATE", "ROLE_DELETE", "PERMISSION_READ", "PERMISSION_UPDATE", "ROLE_APP_OWNER"})
     void shouldRemovePermissionFromRole() throws Exception {
         UUID roleId = UUID.randomUUID();
         UUID permId = UUID.randomUUID();
@@ -336,7 +343,7 @@ class RoleControllerTest {
     }
 
     @Test
-    @WithMockUser(authorities = {"ROLE_READ", "ROLE_INSERT", "ROLE_UPDATE", "ROLE_DELETE", "PERMISSION_READ", "PERMISSION_UPDATE"})
+    @WithMockUser(authorities = {"ROLE_READ", "ROLE_INSERT", "ROLE_UPDATE", "ROLE_DELETE", "PERMISSION_READ", "PERMISSION_UPDATE", "ROLE_APP_OWNER"})
     void shouldRemovePermissionFromRoleNotFound() throws Exception {
         UUID roleId = UUID.randomUUID();
         UUID permId = UUID.randomUUID();
@@ -355,7 +362,7 @@ class RoleControllerTest {
     }
 
     @Test
-    @WithMockUser(authorities = {"ROLE_READ", "ROLE_INSERT", "ROLE_UPDATE", "ROLE_DELETE", "PERMISSION_READ", "PERMISSION_UPDATE"})
+    @WithMockUser(authorities = {"ROLE_READ", "ROLE_INSERT", "ROLE_UPDATE", "ROLE_DELETE", "PERMISSION_READ", "PERMISSION_UPDATE", "ROLE_APP_OWNER"})
     void shouldDeleteRole() throws Exception {
         UUID roleId = UUID.randomUUID();
 
@@ -380,7 +387,7 @@ class RoleControllerTest {
     }
 
     @Test
-    @WithMockUser(authorities = {"ROLE_READ", "ROLE_INSERT", "ROLE_UPDATE", "ROLE_DELETE", "PERMISSION_READ", "PERMISSION_UPDATE"})
+    @WithMockUser(authorities = {"ROLE_READ", "ROLE_INSERT", "ROLE_UPDATE", "ROLE_DELETE", "PERMISSION_READ", "PERMISSION_UPDATE", "ROLE_APP_OWNER"})
     void shouldDeleteRoleFailWithPermissions() throws Exception {
         UUID roleId = UUID.randomUUID();
 
@@ -403,7 +410,7 @@ class RoleControllerTest {
     }
 
     @Test
-    @WithMockUser(authorities = {"ROLE_READ", "ROLE_INSERT", "ROLE_UPDATE", "ROLE_DELETE", "PERMISSION_READ", "PERMISSION_UPDATE"})
+    @WithMockUser(authorities = {"ROLE_READ", "ROLE_INSERT", "ROLE_UPDATE", "ROLE_DELETE", "PERMISSION_READ", "PERMISSION_UPDATE", "ROLE_APP_OWNER"})
     void shouldDeleteRoleFailWithUsers() throws Exception {
         UUID roleId = UUID.randomUUID();
 
@@ -427,7 +434,7 @@ class RoleControllerTest {
     }
 
     @Test
-    @WithMockUser(authorities = {"ROLE_READ", "ROLE_INSERT", "ROLE_UPDATE", "ROLE_DELETE", "PERMISSION_READ", "PERMISSION_UPDATE"})
+    @WithMockUser(authorities = {"ROLE_READ", "ROLE_INSERT", "ROLE_UPDATE", "ROLE_DELETE", "PERMISSION_READ", "PERMISSION_UPDATE", "ROLE_APP_OWNER"})
     void shouldDeleteRoleNotFound() throws Exception {
         UUID roleId = UUID.randomUUID();
 

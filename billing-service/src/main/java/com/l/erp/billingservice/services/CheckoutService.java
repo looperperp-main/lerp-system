@@ -16,6 +16,7 @@ import com.l.erp.billingservice.repository.PlanRepository;
 import com.l.erp.billingservice.repository.SubscriptionRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +24,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.List;
 
 /**
  * Criação de assinatura no Asaas a partir do checkout do tenant (spec §7 — itens 19/20 da Fase 3).
@@ -48,8 +50,19 @@ public class CheckoutService {
         this.asaasGateway = asaasGateway;
     }
 
+    private static final List<String> STATUS_BLOQUEIA_NOVO_CHECKOUT =
+            List.of(SubscriptionStatus.ATIVA, SubscriptionStatus.AGUARDANDO_PAGAMENTO);
+
     @Transactional
     public CheckoutResponse createCheckout(Long tenantId, CheckoutRequest req) {
+        // Guard (7.8): fail-fast antes de gastar uma chamada no Asaas. Não é 100% atômico
+        // contra duas requests em paralelo (TOCTOU) — quem garante isso de verdade é o índice
+        // único parcial em billing.subscription (billing-schema-018.yaml), pego no catch abaixo.
+        if (subscriptionRepository.existsByTenantIdAndStatusIn(tenantId, STATUS_BLOQUEIA_NOVO_CHECKOUT)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Tenant já possui assinatura ativa ou aguardando pagamento");
+        }
+
         Plan plan = planRepository.findByPlanTypeAndActiveTrue(req.planType())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Plano '" + req.planType() + "' não encontrado ou inativo"));
@@ -76,7 +89,27 @@ public class CheckoutService {
         subscription.setAsaasCustomerId(asaasCustomerId);
         subscription.setAsaasSubscriptionId(asaasSub.id());
         subscription.setCreatedAt(OffsetDateTime.now());
-        subscriptionRepository.save(subscription);
+        try {
+            // saveAndFlush (não save): força o INSERT agora, dentro do try — senão o JPA adia
+            // o flush pro fim da transação e a violação do índice único (billing-schema-018)
+            // estouraria depois do método já ter retornado, sem chance de virar 409 aqui.
+            subscriptionRepository.saveAndFlush(subscription);
+        } catch (DataIntegrityViolationException e) {
+            // Rede de segurança contra a corrida que o guard no topo do método não fecha
+            // sozinho (TOCTOU) — outra request venceu entre o check e este insert. A assinatura
+            // que ACABAMOS de criar no Asaas ficaria órfã (sem linha local, mas cobrando o
+            // cliente) — cancela ela antes de devolver 409. O customer criado é benigno (não
+            // cobra sozinho), então não precisa compensação. Se o cancelamento falhar, loga
+            // pra intervenção manual mas ainda devolve 409 (o erro do cliente é o mesmo).
+            try {
+                asaasGateway.cancelSubscription(asaasSub.id());
+            } catch (RuntimeException cancelEx) {
+                log.error("Falha ao cancelar assinatura Asaas órfã {} após corrida de checkout do tenant {} — cancelar manualmente",
+                        asaasSub.id(), tenantId, cancelEx);
+            }
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Tenant já possui assinatura ativa ou aguardando pagamento");
+        }
 
         return buildResponse(plan, asaasSub.id());
     }

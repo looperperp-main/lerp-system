@@ -1,0 +1,17 @@
+databaseChangeLog:
+  - changeSet:
+      id: "018-subscription-one-active-per-tenant"
+      author: vitor fernandes ferreira
+      comment: "Índice único parcial: no máximo 1 assinatura ATIVA ou AGUARDANDO_PAGAMENTO por tenant. Fecha a corrida de checkouts concorrentes/duplicados na origem — o guard em CheckoutService (7.8, spec/auditoria.md) faz o fail-fast, isso garante mesmo sob concorrência."
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              CREATE UNIQUE INDEX idx_subscription_one_active_per_tenant
+              ON billing.subscription (tenant_id)
+              WHERE status IN ('ATIVA', 'AGUARDANDO_PAGAMENTO');
+      rollback:
+        - sql:
+            dbms: postgresql
+            sql: DROP INDEX IF EXISTS billing.idx_subscription_one_active_per_tenant;
