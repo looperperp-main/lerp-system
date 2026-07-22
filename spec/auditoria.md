@@ -4,6 +4,7 @@
 **Método:** callers confirmados via grep no código real (não suposição).
 **Adendo 2026-07-03:** ver §4 (auditoria geral de segurança e melhorias — todos os serviços) e §5 (status dos itens antigos).
 **Adendo 2026-07-03 (correções):** 4.1 a 4.5 **RESOLVIDOS** — ver §6.
+**Adendo 2026-07-21 (revisão pós-commit):** re-revisão do commit `c2ae6d5` achou 2 follow-ups (órfã Asaas no 409 do checkout, `MethodArgumentTypeMismatch` 500→400) — ver §9.
 
 ---
 
@@ -203,6 +204,7 @@ sempre retorna `null`. Chamada extra ao Asaas sem efeito (tratada sem quebrar, m
 **7.8 — Checkout sem guarda de assinatura existente nem idempotência.** ✅ **RESOLVIDO (2026-07-14).**
 ~~`CheckoutService.java:52-79` (`createCheckout`) não verificava se o tenant já tinha assinatura `ATIVA`/`AGUARDANDO_PAGAMENTO` antes de criar customer+subscription no Asaas, e não tinha lock/idempotency-key. Chamadas repetidas ou em paralelo criavam múltiplas assinaturas Asaas + múltiplas linhas locais pro mesmo tenant.~~
 **Feito:** guard fail-fast no início de `createCheckout` (rejeita com 409 antes de gastar chamada no Asaas) + índice único parcial `billing.subscription(tenant_id) WHERE status IN ('ATIVA','AGUARDANDO_PAGAMENTO')` (`billing-schema-018.yaml`) — é o índice que garante de verdade sob concorrência (o guard sozinho tem uma corrida TOCTOU). `saveAndFlush` (não `save`) força o INSERT dentro do `try`, com `catch (DataIntegrityViolationException)` → 409 em vez de vazar 500.
+**Follow-up (2026-07-21, §9):** no braço TOCTOU o `catch` já tinha criado a assinatura no Asaas antes do INSERT estourar — ela ficava **órfã** (cobrando o cliente sem linha local). O `catch` agora chama `asaasGateway.cancelSubscription(asaasSub.id())` antes de devolver 409 (falha do cancel só loga pra ação manual). Coberto por `CheckoutServiceTest.concurrentCheckout_...cancelsOrphanAsaasSubscription_andReturns409`.
 
 **7.9 — `billing-service` sem `max-page-size` configurado (inconsistente com os outros 3 serviços).** ✅ **RESOLVIDO (2026-07-14).**
 ~~`billing-service/src/main/resources/application.yaml` não tinha bloco `spring.data.web.pageable` — `GET /subscriptions` recebia `Pageable` cru, valendo o default do Spring (2000).~~
