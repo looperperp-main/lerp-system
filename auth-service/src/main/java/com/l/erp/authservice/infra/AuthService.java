@@ -183,8 +183,12 @@ public class AuthService {
     public TenantLoginResponse loginWithTenant(String cnpj, String email, String password) {
         logger.debug("Tentativa de login de tenant - CNPJ: {}, Email: {}", cnpj, email);
 
+        // Normaliza igual ao cadastro (criarContaGratis) — o CNPJ é gravado sem pontuação e em
+        // maiúsculas (alfanumérico, NT 2026.004), então o lookup precisa casar o mesmo formato.
+        String cnpjNorm = normalizeCnpj(cnpj);
+
         // 1. Buscar e validar o Tenant pelo CNPJ
-        Tenant tenant = tenantRepository.findByCnpj(cnpj)
+        Tenant tenant = tenantRepository.findByCnpj(cnpjNorm)
                 .orElseThrow(() -> {
                     logger.warn("Tentativa de login com CNPJ inexistente: {}", cnpj);
                     return new ResponseStatusException(UNAUTHORIZED, Constants.TENANT_CNPJ_NOT_FOUND);
@@ -469,7 +473,7 @@ public class AuthService {
         // qualquer letra silenciosamente — quebra na chegada do CNPJ alfanumérico (NT 2026.004).
         // Valida só o dígito verificador (algoritmo oficial, alfanumérico-ready) — sem consultar
         // Receita/BrasilAPI de propósito, isso adicionaria fricção pra testar o próprio cadastro.
-        String cnpjDigits = req.cnpj().replaceAll("[.\\-/\\s]", "").toUpperCase();
+        String cnpjDigits = normalizeCnpj(req.cnpj());
         if (!cnpjTemDvValido(cnpjDigits)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "CNPJ inválido");
         }
@@ -536,6 +540,12 @@ public class AuthService {
     // trata cada caractere da base pelo valor ASCII - 48, então dígitos '0'-'9' valem 0-9 e
     // letras 'A'-'Z' valem 17-42; os 2 DVs em si continuam sempre numéricos).
     // Package-private (não private) só pra dar pra testar direto sem reflection (spec/auditoria.md §7.7).
+    // Normaliza o CNPJ pro formato armazenado: sem pontuação e em maiúsculas (alfanumérico-ready,
+    // NT 2026.004). Cadastro e login usam este mesmo método pra o lookup casar.
+    static String normalizeCnpj(String cnpj) {
+        return cnpj == null ? null : cnpj.replaceAll("[.\\-/\\s]", "").toUpperCase();
+    }
+
     static boolean cnpjTemDvValido(String cnpj) {
         if (cnpj == null || cnpj.length() != 14
                 || !cnpj.substring(0, 12).matches("[0-9A-Z]{12}")

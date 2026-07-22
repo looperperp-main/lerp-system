@@ -18,6 +18,7 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -92,6 +93,15 @@ public class GlobalExceptionHandler {
         String message = e.getBindingResult().getFieldErrors().stream()
                 .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
                 .collect(Collectors.joining("; "));
+        logClientError(HttpStatus.BAD_REQUEST.value(), request, message);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(body(HttpStatus.BAD_REQUEST.value(), "Erro de validação", message, request));
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<StandardError> handleTypeMismatch(MethodArgumentTypeMismatchException e, HttpServletRequest request) {
+        // Param tipado (UUID/Long/enum/data) mal-formado é erro do cliente → 400, nunca 500.
+        String message = e.getName() + ": valor inválido";
         logClientError(HttpStatus.BAD_REQUEST.value(), request, message);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(body(HttpStatus.BAD_REQUEST.value(), "Erro de validação", message, request));

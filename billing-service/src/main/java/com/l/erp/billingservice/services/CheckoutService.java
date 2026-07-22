@@ -96,7 +96,17 @@ public class CheckoutService {
             subscriptionRepository.saveAndFlush(subscription);
         } catch (DataIntegrityViolationException e) {
             // Rede de segurança contra a corrida que o guard no topo do método não fecha
-            // sozinho (TOCTOU) — outra request venceu entre o check e este insert.
+            // sozinho (TOCTOU) — outra request venceu entre o check e este insert. A assinatura
+            // que ACABAMOS de criar no Asaas ficaria órfã (sem linha local, mas cobrando o
+            // cliente) — cancela ela antes de devolver 409. O customer criado é benigno (não
+            // cobra sozinho), então não precisa compensação. Se o cancelamento falhar, loga
+            // pra intervenção manual mas ainda devolve 409 (o erro do cliente é o mesmo).
+            try {
+                asaasGateway.cancelSubscription(asaasSub.id());
+            } catch (RuntimeException cancelEx) {
+                log.error("Falha ao cancelar assinatura Asaas órfã {} após corrida de checkout do tenant {} — cancelar manualmente",
+                        asaasSub.id(), tenantId, cancelEx);
+            }
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Tenant já possui assinatura ativa ou aguardando pagamento");
         }

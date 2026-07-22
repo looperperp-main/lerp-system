@@ -98,7 +98,7 @@ class RoleControllerTest {
 
         RoleDTO dto = new RoleDTO(role.getId(), "ADMIN", 1L, Instant.now(), "seed", null, null, null);
 
-        when(roleRepository.findAll()).thenReturn(List.of(role));
+        when(roleRepository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(role)));
         when(roleMapper.toRoleDTOs(any())).thenReturn(List.of(dto));
 
         mockMvc.perform(get("/auth/roles"))
