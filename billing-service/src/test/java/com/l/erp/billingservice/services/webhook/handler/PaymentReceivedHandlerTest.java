@@ -83,7 +83,7 @@ class PaymentReceivedHandlerTest {
     }
 
     @Test
-    void divergentValue_stillActivates_andEventUsesReceivedValue() {
+    void divergentValue_stillActivates_andEventUsesDbValue() {
         Subscription sub = subscription(SubscriptionStatus.AGUARDANDO_PAGAMENTO, new BigDecimal("179.00"));
         when(asaasGateway.getSubscription("sub_1"))
                 .thenReturn(new AsaasSubscriptionResponse("sub_1", "ACTIVE", LocalDate.of(2026, 7, 24)));
@@ -92,9 +92,10 @@ class PaymentReceivedHandlerTest {
         handler.handle(payload("pay_1", "sub_1", new BigDecimal("150.00")));
 
         assertThat(sub.getStatus()).isEqualTo(SubscriptionStatus.ATIVA);
-        // §28.8: comissão é calculada sobre o valor REALMENTE recebido
+        // Auditoria 7.6: divergência ativa, mas a comissão usa sempre sub.getValue() (DB),
+        // nunca o valor do payload do webhook (dado externo não confiável p/ cálculo financeiro).
         verify(kafkaProducer).sendSubscriptionActivated(
-                eq(1L), eq("BASIC"), eq(new BigDecimal("150.00")), eq("sub_1"), eq("pay_1"), any());
+                eq(1L), eq("BASIC"), eq(new BigDecimal("179.00")), eq("sub_1"), eq("pay_1"), any());
     }
 
     @Test
