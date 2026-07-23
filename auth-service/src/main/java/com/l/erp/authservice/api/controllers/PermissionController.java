@@ -34,7 +34,7 @@ public class PermissionController {
     }
 
     @PostMapping("")
-    @PreAuthorize("hasAuthority('PERMISSION_INSERT')")
+    @PreAuthorize("hasRole('APP_OWNER') and hasAuthority('PERMISSION_INSERT')")
     public ResponseEntity<PermissionDTO> createPermission(@Valid @RequestBody PermissionDTO permissionDTO){
         log.debug("REST request to create a permission: {}", permissionDTO.code());
         PermissionDTO created = permissionService.createPermission(permissionDTO);
@@ -42,28 +42,28 @@ public class PermissionController {
     }
 
     @GetMapping("")
-    @PreAuthorize("hasAuthority('PERMISSION_READ')")
+    @PreAuthorize("hasRole('APP_OWNER') and hasAuthority('PERMISSION_READ')")
     public ResponseEntity<Page<PermissionDTO>> getAllPermissions(@PageableDefault(size = 10, sort = "domain") Pageable pageable){
         log.debug("REST request to get all permissions");
         return ResponseEntity.ok(permissionService.getAllPermissions(pageable));
     }
 
     @GetMapping("/{permissionId}")
-    @PreAuthorize("hasAuthority('PERMISSION_READ')")
+    @PreAuthorize("hasRole('APP_OWNER') and hasAuthority('PERMISSION_READ')")
     public ResponseEntity<PermissionDTO> getPermissionById(@PathVariable UUID permissionId){
         log.debug("REST request to get a permission by id: {}", permissionId);
         return ResponseEntity.ok(permissionService.getPermissionById(permissionId));
     }
 
     @PutMapping("/{permissionId}")
-    @PreAuthorize("hasAuthority('PERMISSION_UPDATE')")
+    @PreAuthorize("hasRole('APP_OWNER') and hasAuthority('PERMISSION_UPDATE')")
     public ResponseEntity<PermissionDTO> updatePermissionById(@PathVariable UUID permissionId, @Valid @RequestBody PermissionDTO permissionDTO){
         log.debug("REST request to update a permission by id: {}", permissionId);
         return ResponseEntity.ok(permissionService.updatePermission(permissionId, permissionDTO));
     }
 
     @DeleteMapping("/{permissionId}")
-    @PreAuthorize("hasAuthority('PERMISSION_DELETE')")
+    @PreAuthorize("hasRole('APP_OWNER') and hasAuthority('PERMISSION_DELETE')")
     public ResponseEntity<Void> deletePermissionById(@PathVariable UUID permissionId){
         log.debug("REST request to delete a permission by id: {}", permissionId);
         permissionService.deletePermission(permissionId);

@@ -62,7 +62,7 @@ class PermissionControllerTest {
     private AuditService auditService;
 
     @Test
-    @WithMockUser(authorities = "PERMISSION_READ")
+    @WithMockUser(authorities = {"PERMISSION_READ", "ROLE_APP_OWNER"})
     void shouldGetAllPermissions() throws Exception {
         Permission permission = new Permission();
         permission.setId(UUID.randomUUID());
@@ -80,7 +80,7 @@ class PermissionControllerTest {
     }
 
     @Test
-    @WithMockUser(authorities = "PERMISSION_INSERT")
+    @WithMockUser(authorities = {"PERMISSION_INSERT", "ROLE_APP_OWNER"})
     void shouldCreatePermission() throws Exception {
         UUID permId = UUID.randomUUID();
 
@@ -114,7 +114,7 @@ class PermissionControllerTest {
     }
 
     @Test
-    @WithMockUser(authorities = "PERMISSION_INSERT")
+    @WithMockUser(authorities = {"PERMISSION_INSERT", "ROLE_APP_OWNER"})
     void shouldCreatePermissionDuplicated() throws Exception {
         Permission existing = new Permission();
         existing.setId(UUID.randomUUID());
@@ -139,7 +139,7 @@ class PermissionControllerTest {
     }
 
     @Test
-    @WithMockUser(authorities = "PERMISSION_READ")
+    @WithMockUser(authorities = {"PERMISSION_READ", "ROLE_APP_OWNER"})
     void shouldGetPermissionById() throws Exception {
         UUID permId = UUID.randomUUID();
 
@@ -161,7 +161,7 @@ class PermissionControllerTest {
     }
 
     @Test
-    @WithMockUser(authorities = "PERMISSION_READ")
+    @WithMockUser(authorities = {"PERMISSION_READ", "ROLE_APP_OWNER"})
     void shouldGetPermissionByIdNotFound() throws Exception {
         UUID permId = UUID.randomUUID();
 
@@ -174,7 +174,7 @@ class PermissionControllerTest {
     }
 
     @Test
-    @WithMockUser(authorities = "PERMISSION_UPDATE")
+    @WithMockUser(authorities = {"PERMISSION_UPDATE", "ROLE_APP_OWNER"})
     void shouldUpdatePermission() throws Exception {
         UUID permId = UUID.randomUUID();
 
@@ -216,7 +216,7 @@ class PermissionControllerTest {
     }
 
     @Test
-    @WithMockUser(authorities = "PERMISSION_UPDATE")
+    @WithMockUser(authorities = {"PERMISSION_UPDATE", "ROLE_APP_OWNER"})
     void shouldUpdatePermissionCodeDuplicated() throws Exception {
         UUID permId = UUID.randomUUID();
 
@@ -249,7 +249,7 @@ class PermissionControllerTest {
     }
 
     @Test
-    @WithMockUser(authorities = "PERMISSION_DELETE")
+    @WithMockUser(authorities = {"PERMISSION_DELETE", "ROLE_APP_OWNER"})
     void shouldDeletePermission() throws Exception {
         UUID permId = UUID.randomUUID();
 
@@ -272,7 +272,7 @@ class PermissionControllerTest {
     }
 
     @Test
-    @WithMockUser(authorities = "PERMISSION_DELETE")
+    @WithMockUser(authorities = {"PERMISSION_DELETE", "ROLE_APP_OWNER"})
     void shouldDeletePermissionNotFound() throws Exception {
         UUID permId = UUID.randomUUID();
 
@@ -287,5 +287,12 @@ class PermissionControllerTest {
                     .andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.error").value("Erro de Negócio"));
         }
+    }
+
+    @Test
+    @WithMockUser(authorities = {"PERMISSION_READ", "PERMISSION_INSERT", "PERMISSION_UPDATE", "PERMISSION_DELETE"})
+    void shouldDenyAccessWithoutAppOwnerRole() throws Exception {
+        mockMvc.perform(get("/auth/permissions?page=0&size=10"))
+                .andExpect(status().isForbidden());
     }
 }

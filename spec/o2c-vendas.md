@@ -1,6 +1,6 @@
 # O2C — Vendas (Order-to-Cash): orçamento → pedido → expedição → faturamento — Plano de implementação
 
-**Status:** PLANEJADO (não iniciado) · **Data:** 2026-07-10 · **Rev.:** 2026-07-11 (decisões do usuário aplicadas) · **Rev. 2:** 2026-07-11 (arquitetura consolidada) · **Serviços:** `operacoes-service` (**novo**, foco — também dono de P2P e estoque, ver `p2p-compras.md`) · `cadastro-service` (validação de referências + motor de preço, via API) · `fiscal-service` (**novo** — dono futuro de NF-e/motor fiscal) · `liquibase-service` (migração) · `auth-service` (seed de permissões) · `Angular/erp-front-end-web` (última fase)
+**Status:** PLANEJADO (não iniciado) · **Data:** 2026-07-10 · **Rev.:** 2026-07-11 (decisões do usuário aplicadas) · **Rev. 2:** 2026-07-11 (arquitetura consolidada) · **Rev. 3:** 2026-07-23 (ordem de implementação com estoque + pré-requisito de UI do bloqueio de expedição) · **Serviços:** `operacoes-service` (**novo**, foco — também dono de P2P e estoque, ver `p2p-compras.md`) · `cadastro-service` (validação de referências + motor de preço, via API) · `fiscal-service` (**novo** — dono futuro de NF-e/motor fiscal) · `liquibase-service` (migração) · `auth-service` (seed de permissões) · `Angular/erp-front-end-web` (última fase)
 
 **Decisões fechadas (rev. 2026-07-11):**
 - **[Rev. 2] O módulo nasce dentro de um único microsserviço novo, `operacoes-service`** — decisão revista do usuário: em vez de 3 serviços separados (venda/compra/estoque), **vendas, compras e estoque vivem juntos num só serviço** (`operacoes-service`, schemas `vendas`/`compras`/`estoque` no mesmo Postgres `loop-erp`), porque os três domínios compartilhariam banco mesmo sendo serviços distintos — juntar evita pagar o custo de 3 infra novas (Maven/Docker/Eureka/gateway/Jenkins × 3) sem ganhar isolamento real. Só o **`fiscal-service`** continua separado (ciclo de vida próprio — NF-e/SEFAZ). Consequências na seção "Onde o módulo vive".
@@ -14,6 +14,34 @@
 - **Desconto do vendedor: confirmado livre e apenas auditado** (snapshot de preço de tabela). Decisão fechada — sem teto no MVP.
 - Parcelas do título calculadas a partir de **`CondicaoPagamentoParcela`** (obtidas do `cadastro-service` via API no faturamento); resto de arredondamento vai na última parcela.
 - Numeração do pedido: sequencial por tenant via tabela `vendas.pedido_sequencia` com `SELECT ... FOR UPDATE`.
+
+---
+
+## Ordem de implementação (com estoque)
+
+O estoque **não é uma caixa nova** paralela ao Motor Fiscal ou ao Motor de Preço — ele já mora **dentro do `operacoes-service`** (mesmo serviço do O2C/P2P). O que tem fases é a *maturidade* dele. Hoje o saldo já existe como número (recebimento soma, expedição subtrai, pode ficar negativo), mas **sem tela e sem bloqueio**. Fechar o buraco de "faturar mercadoria fantasma" (o risco #6, ver §7-expedição) é **ligar a checagem de saldo na expedição** — e isso tem um pré-requisito que o diagrama de módulos esconde: **antes de bloquear, é preciso uma tela de saldo e um caminho de ajuste/inventário**, senão todo saldo começa em 0 e o sistema barraria *toda* venda no dia 1.
+
+```mermaid
+flowchart TD
+    MF["Motor Fiscal<br/>Fin.md Sprint 1<br/>sem bloqueante"]
+    APAR["AP/AR<br/>Fin.md Sprint 2<br/>depende do Sprint 1"]
+    MP["Motor de Preço<br/>motor-resolucao-preco.md<br/>fase 1 independente"]
+    P2P["Compras — P2P<br/>operacoes-service<br/>sem pré-requisito"]
+    O2C["Vendas — O2C<br/>operacoes-service<br/>depende da fase 3 do Motor de Preço"]
+    EST["Estoque — controle de saldo<br/>operacoes-service (mesmo serviço)<br/>pré-req: tela de saldo + ajuste/inventário no front"]
+    BLK["Expedição bloqueante<br/>liga a checagem de saldo<br/>→ risco #6 fecha"]
+
+    MF --> APAR
+    MP -->|"fase 3 (resolver preço)"| O2C
+    APAR -.->|"Kafka fire-and-forget<br/>zero acoplamento, não bloqueia"| P2P
+    APAR -.->|"Kafka fire-and-forget<br/>zero acoplamento, não bloqueia"| O2C
+    P2P -.-> O2C
+    P2P --> EST
+    O2C --> EST
+    EST --> BLK
+```
+
+Leitura: **P2P e O2C alimentam o estoque** (geram `movimento_estoque` ao receber/expedir) — por isso o EST depende dos dois, e **não** do Fiscal nem do Preço. O EST vira bloqueio (`BLK`) só depois de existir tela de saldo + ajuste/inventário no frontend (hoje só há o cadastro de `deposito`, sem tela de saldo). Enquanto isso, expedição segue registrando sem travar (decisão aceita, §7-expedição).
 
 ---
 
@@ -108,6 +136,8 @@ Padrões replicados do cadastro-service no `operacoes-service`: `id UUID` gerado
 | auditoria | | | padrão do serviço |
 
 > Os campos `preco_tabela`/`tabela_preco_id`/`origem_preco` são **snapshot congelado** — o pedido não muda se a tabela de preço mudar depois. É a trilha de auditoria de "de onde veio esse preço" e a base do relatório futuro de desconto vs. tabela.
+>
+> **Escopo do relatório de desconto — vs. tabela, não vs. custo (nota de decisão):** o relatório gerencial de "descontos concedidos" (`o2c-vendas-funcional.md`) mede **quanto o vendedor abateu do preço de tabela** — usa o snapshot acima, **não** toca em custo nem calcula margem. **Não existe relatório de margem (preço − custo) no MVP de vendas.** Consequência: a preocupação de "margem não confiável" só se materializa *quando* uma visão de margem for construída — aí ela dependeria do `preco_custo` do produto, que é mantido **manualmente** (não atualiza sozinho na compra — ver `p2p-compras.md`). Enquanto o relatório for só desconto-vs-tabela, ele é auto-suficiente e correto. Upgrade de margem confiável: `p2p-compras.md` (custo médio/landed cost).
 
 ### 3.3 `vendas.pedido_status_historico`
 
@@ -232,8 +262,9 @@ DTOs novos: `PedidoRequestDTO`, `PedidoItemRequestDTO`, `PedidoResponseDTO`, `Pe
 - `condicaoPagamentoId` preenchida e ativa (Fin.md exige condição para gerar parcelas) — revalidada via API do cadastro-service.
 - `dataValidade` não expirada (`hoje ≤ dataValidade`, se informada).
 - Cliente ainda `ativo` (revalidado via API — mitiga a janela de consistência eventual do §2).
-- **Limite de crédito (bloqueio SOFT — decisão do usuário):** se `cliente.limiteCredito != null` (campo do cadastro, obtido via API): `valor_total` do pedido + `SUM(valor_total)` dos pedidos do cliente em `CONFIRMADO`/`EXPEDIDO` (query local no `PedidoRepository`) deve ser `≤ limiteCredito`. Estouro **não é mais 400**: usuário com `PEDIDO_CONFIRMACAO_SEM_LIMITE` confirma mesmo assim (auditado no histórico); sem a permissão, o pedido vai para **`BLOQUEADO_CREDITO`** e aguarda liberação por quem tem a permissão (novo `confirmar()`) ou reabertura/cancelamento. `limiteCredito null` = sem limite.
-  - *Upgrade path 1:* somar também títulos a receber em aberto quando o `financeiro-service` existir (chamada/evento — Fin.md AR).
+- **Limite de crédito (bloqueio SOFT — decisão do usuário):** se `cliente.limiteCredito != null` (campo do cadastro, obtido via API), a **exposição** do cliente deve ser `≤ limiteCredito`, onde exposição = `valor_total` do pedido + `SUM(valor_total)` dos pedidos do cliente em `CONFIRMADO`/`EXPEDIDO` **ainda não faturados** (query local no `PedidoRepository`) + **total dos títulos a receber `EM_ABERTO` do cliente no `financeiro-service`** (consulta via API — Fin.md AR). Estouro **não é mais 400**: usuário com `PEDIDO_CONFIRMACAO_SEM_LIMITE` confirma mesmo assim (auditado no histórico); sem a permissão, o pedido vai para **`BLOQUEADO_CREDITO`** e aguarda liberação por quem tem a permissão (novo `confirmar()`) ou reabertura/cancelamento. `limiteCredito null` = sem limite.
+  - **Por que o AR entra na regra desde o lançamento (não é upgrade opcional):** pela ordem de implementação, o `financeiro-service` (AP/AR, Fin.md Sprint 2) nasce **antes** do Vendas-O2C. O faturado sai de `CONFIRMADO`/`EXPEDIDO` e vira título `EM_ABERTO` no financeiro — se a exposição somasse só os pedidos locais, cada faturamento liberaria crédito e o cliente acumularia dívida não-contabilizada. O handoff é limpo e sem double-count: **enquanto pedido** conta pela soma local; **depois de faturado** conta pelo AR; só some da exposição quando o título é **pago**.
+  - *Indisponibilidade do financeiro:* se a consulta de AR falhar, a confirmação **não** segue só com a soma local (subestimaria a exposição) — trata como bloqueio técnico (mesma UX do `BLOQUEADO_CREDITO`, motivo "crédito indisponível") liberável pela permissão de bypass. `ponytail: fallback conservador; refinar se o financeiro tiver SLA ruim.`
   - *Upgrade path 2 (hook documentado):* Fin.md (dunning D+15) prevê marcar cliente `bloqueado_para_vendas` via evento "consumível pelo futuro módulo de pedidos". Quando esse evento existir, o cadastro-service consome, grava flag no cliente e a confirmação passa a validar também `bloqueado_para_vendas = false`. Nada a fazer agora além desta nota.
   - `classificacaoRisco` **não** entra em regra automática no MVP (é informativo na tela).
 
@@ -241,7 +272,14 @@ DTOs novos: `PedidoRequestDTO`, `PedidoItemRequestDTO`, `PedidoResponseDTO`, `Pe
 - `depositoId` obrigatório, existente/ativo no tenant (via API do cadastro-service).
 - `transportadoraId` obrigatória se `modalidade_frete != SEM_FRETE`.
 - **Sem validação de saldo de estoque (decisão confirmada pelo usuário)** — expedir sem validar saldo; estoque negativo sistêmico é aceitável no MVP. Na mesma transação da expedição, o `operacoes-service` chama **in-process** o módulo de estoque (mesmo serviço, Rev. 2 — não é mais evento Kafka): registra `SAIDA_VENDA` em `movimento_estoque` e atualiza `estoque_saldo` (podendo ficar negativo). O histórico de movimento é a fonte para reconstituir/auditar. **Flag temporária:** validação de disponibilidade antes da transição é o upgrade — mesmo módulo, mesma transação, só liga a checagem quando o negócio pedir bloqueio.
+  - **Pré-requisito de UI antes de ligar o bloqueio (nota #6):** ligar a checagem de saldo **exige** primeiro uma **tela de estoque (saldo por produto/depósito)** e um **caminho de ajuste/inventário** no frontend — hoje só existe o cadastro de `deposito`, sem tela de saldo (verificado no `erp-front-end-web`). Sem isso, todo saldo começa em 0 e o bloqueio barraria *toda* venda no dia 1, inutilizável. Ordem: **tela de saldo + ajuste/inventário → só então ligar o bloqueio** (ver "Ordem de implementação (com estoque)"). Enquanto o bloqueio está desligado, o faturamento pode gerar título a receber de mercadoria inexistente, que ainda consome o limite de crédito do cliente (§7-crédito) — risco #6 aceito até o pré-requisito existir.
 - **Ressalva operacional (decisão do usuário, faturamento sem NF-e):** mercadoria **não sai da doca sem XML/DANFE**. Enquanto o `fiscal-service` não existir, a operação emite a NF-e num emissor externo, por fora do sistema, e anexa o DANFE ao transporte. O sistema não valida isso (não tem como) — é procedimento operacional documentado.
+
+> **Exposição conhecida — faturar sem nota e sem estoque (riscos aceitos no MVP):**
+> - **(#5, NF-e) O sistema não amarra o fluxo à nota fiscal real.** Confirmar/expedir/faturar avançam desacoplados da NF-e emitida por fora. A regra "não sai da doca sem nota" é 100% procedimento operacional — **o sistema não impede nada**. É inerente a não ter `fiscal-service`: não existe XML pra validar, então qualquer trava seria teatro (um checkbox "anexei a nota"). Fix real = `fiscal-service` (fora de escopo, ver "O que fica de fora"). Aceito.
+> - **(#6, estoque) Expedição não checa saldo → dá pra faturar mercadoria que talvez não exista.** Como a expedição não valida disponibilidade (estoque negativo sistêmico é aceito), o faturamento gera **título a receber contra o cliente por mercadoria fantasma** — e, com a regra de crédito acima, esse título ainda consome o limite do cliente. Se a mercadoria não existir, vira disputa/estorno no financeiro. É a consequência financeira direta de não ter controle de saldo real; a checagem liga automaticamente quando o saldo estiver pronto (mesmo módulo — ver regra de expedição acima). Aceito até lá.
+>
+> Ambos são **escolhas documentadas**, não descuido: dependem de serviços/módulos ainda inexistentes (`fiscal-service`, controle de saldo). A resposta ao revisor é "sabido e aceito, aqui o gatilho de saída do risco", não "não impede porque esquecemos".
 
 ### No faturamento
 - Pedido em `EXPEDIDO`.
