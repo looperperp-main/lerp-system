@@ -489,6 +489,8 @@ O recebimento guarda `faturado_em` e o pedido vai a `ENCERRADO` quando todos os 
 
 Auditoria: além de `compra_status_historico`, publicar os eventos de auditoria Kafka no padrão já usado pelo cadastro-service (ações `DOMINIO_ACAO` em `Constants`).
 
+> **Exposição conhecida — compra cara fechada por uma pessoa só (risco aceito no MVP):** RN-P2P-01 permite o solicitante **aprovar o próprio pedido** e RN-P2P-04 só **alerta** (não bloqueia) preço >30% acima do custo. Somadas, uma pessoa cria um pedido a preço inflado, ignora o alerta e aprova sozinha — sem segunda vista. É exposição real de fraude/erro. **Decisão do usuário: aceito no lançamento** (perfil de cliente pequeno, muitas vezes uma pessoa faz tudo; forçar dois aprovadores é impraticável). As duas mitigações são baratas quando o negócio pedir — segregação `aprovador_id != created_by` é uma linha (já listada em "fora de escopo") e o alerta pode virar bloqueio duro acima de um teto. Não é lacuna técnica, é escolha; a trilha de auditoria (`compra_status_historico` + evento Kafka) preserva quem aprovou o quê.
+
 ---
 
 ## Impacto nos frontends
@@ -535,6 +537,7 @@ Testes por fase no padrão do projeto (`@WebMvcTest` + MockMvc; JaCoCo ≥ 40%):
 | **Devolução ao fornecedor** | fluxo fiscal próprio (NF de devolução) | novo `tipo` de movimento + documento próprio; até lá, cancelamento de recebimento cobre o caso simples |
 | **Motor fiscal na entrada** (CST, créditos IBS/CBS por item) | dono: **`fiscal-service`** (novo serviço, spec próprio futuro) | campos do payload F4.2 já reservados (`cst`, `c_class_trib`, `impostos` — zerados no MVP); o fiscal-service passa a calcular/preencher |
 | **Atualização automática de `preco_custo`** | decisão do usuário: custo real envolve frete/seguro/ST/IPI, não só o valor da nota — atualizar automático contaminaria margem/DRE | `ultimo_preco_compra` (informativo) já registra o rastro; quando existir custo médio/landed cost, vira cálculo próprio |
+| **Margem confiável (preço venda − custo)** | `preco_custo` é mantido **manualmente** (só `ultimo_preco_compra` atualiza sozinho, e é informativo). Qualquer relatório de margem herda esse custo possivelmente defasado — por isso **não há relatório de margem no MVP** (ver `o2c-vendas.md`, nota "vs. tabela, não vs. custo") | pré-requisito da margem confiável = custo médio ponderado/landed cost (linha abaixo) alimentando o `preco_custo`; até lá, margem é sob responsabilidade de quem mantém o custo na mão |
 | **Seleção automática do vencedor de cotação** | MVP: escolha manual do comprador | aplicar o critério de desempate já documentado (preço líquido → prazo → condição → validade/recência) como seleção automática opcional |
 | **Custo médio ponderado / contabilidade de estoque** | GL é spec separado (Fin.md §11.1) | `movimento_estoque` append-only com preço no recebimento dá a matéria-prima; cálculo vira projeção |
 | **Tolerância de preço configurável por tenant** | constante em `Constants` resolve o MVP | tabela de parâmetros de compras por tenant |
