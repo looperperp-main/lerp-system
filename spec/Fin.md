@@ -4,7 +4,7 @@
 **Versão:** 12.0 — revisão fiscal/AP-AR (crédito Simples, IS na base, redução de alíquota, split; retenções, estorno, alçada, dunning, PIX, estabelecimento)
 **Stack:** Spring Boot (Java) · PostgreSQL · Angular
 **Schema financeiro:** `financeiro` · `fiscal` · `contabil`
-**Última atualização:** 20 de julho de 2026
+**Última atualização:** 24 de julho de 2026
 
 ---
 
@@ -1001,6 +1001,22 @@ PASSO 10 — Acumular na apuração mensal
 > em **§1.8.5** (`ANEXO_I_ZERO` … `ANEXO_XI_60`, `MONOFASICO`, `ISENTO`, `IMUNE`, `ZFM`).
 > A resolução NCM → regime usa match por prefixo mais longo (§1.8-A).
 > A redução é sempre de **alíquota** (§1.4.2 Passo 5).
+
+##### Modelagem: enum, seed ou CRUD? (ADR)
+
+Três coisas distintas se escondem em "regime diferenciado" — cada uma tem um dono e um mecanismo de mudança diferente:
+
+| O quê | Modelo | Muda como | É CRUD? |
+|---|---|---|---|
+| **Catálogo de regimes** (quais tratamentos existem: `ANEXO_*`, `MONOFASICO`, `ISENTO`, `IMUNE`, `ZFM`) | `enum RegimeDiferenciado` (taxonomia legal fechada da LC 214/2025) | Migração de código quando a lei cria/altera anexo | **Não** |
+| **Percentual de redução** de cada linha (0 / 30 / 60 / 100) | Coluna `fiscal.regime_dif_ncm.percentual_reducao` | Seed/import de fonte oficial | Não (import) |
+| **De-para código → regime** (NCM/NBS → anexo) | Linhas de `fiscal.regime_dif_ncm` | Seed/import de fonte oficial (CGIBS/RFB) | Não (import) |
+
+**Decisão:** o enum **não** é editável por usuário/admin — dar a alguém o poder de inventar regime fiscal é buraco de compliance, não feature. Novo anexo entra por migração. O **conteúdo** (de-para e percentuais) é **dado nacional publicado**, então é um **pipeline de seed/import de tabela oficial**, não um CRUD de mão. Um CRUD só faria sentido para **override por exceção por tenant** (regime especial deferido individualmente) — fora de escopo da v1 (YAGNI até o requisito real).
+
+**Single source of truth do percentual:** a coluna `percentual_reducao` é a fonte autoritativa. Na fatia atual (motor in-memory) o percentual está embutido no enum (`REDUCAO_60 → 60`) por simplicidade — é um espelho transitório. Ao trocar `TabelaFiscalInMemory` por `TabelaFiscalJpa`, o percentual passa a vir **da linha**, e o enum fica só como rótulo de categoria + comportamento (zera tudo vs. reduz alíquota). O enum simplificado de hoje (`CESTA_BASICA`/`REDUCAO_60`/`REDUCAO_30`/`MONOFASICO`/`PADRAO`) é a projeção de comportamento dos anexos; o loader JPA mapeia `ANEXO_I_ZERO → alíquota zero`, `ANEXO_*_60 → redução 60%`, etc.
+
+> Tabela e seed inicial (Anexo I — alíquota zero): changelog `fiscal/fiscal-schema-001.yaml`. Colunas e seed detalhados em **§1.8.5/§1.8.6**.
 
 ---
 

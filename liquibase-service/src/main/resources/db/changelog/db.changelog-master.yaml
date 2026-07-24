@@ -172,3 +172,8 @@ databaseChangeLog:
   - include:
       file: billing/billing-schema-018.yaml
       relativeToChangelogFile: true
+
+  # 6. Schema Fiscal — motor IBS/CBS/IS (Reforma Tributária)
+  - include:
+      file: fiscal/fiscal-schema-001.yaml
+      relativeToChangelogFile: true

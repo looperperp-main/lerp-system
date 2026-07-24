@@ -314,4 +314,19 @@ public class Constants {
     public static final String JOB_STATUS_RUNNING = "EXECUTANDO";
     public static final String JOB_STATUS_OK = "OK";
     public static final String JOB_STATUS_ERROR = "ERRO";
+
+    // Regime tributário do emitente (motor fiscal — Fin.md §1.4)
+    public static final String REGIME_MEI = "MEI";
+    public static final String REGIME_SIMPLES_NACIONAL = "SIMPLES_NACIONAL";
+    public static final String REGIME_LUCRO_PRESUMIDO = "LUCRO_PRESUMIDO";
+    public static final String REGIME_LUCRO_REAL = "LUCRO_REAL";
+
+    // Códigos de erro do motor fiscal (Fin.md §1.4.9)
+    public static final String FISCAL_CFOP_NAO_ENCONTRADO = "FISCAL_CFOP_NAO_ENCONTRADO";
+    public static final String FISCAL_CFOP_INVALIDO_SAIDA = "FISCAL_CFOP_INVALIDO_SAIDA";
+    public static final String FISCAL_MUNICIPIO_SEM_ALIQUOTA_IBS = "FISCAL_MUNICIPIO_SEM_ALIQUOTA_IBS";
+    public static final String FISCAL_REGIME_SEM_ALIQUOTA_CBS = "FISCAL_REGIME_SEM_ALIQUOTA_CBS";
+    public static final String FISCAL_NCM_NAO_ENCONTRADO = "FISCAL_NCM_NAO_ENCONTRADO";
+    public static final String FISCAL_VIGENCIA_SEM_COBERTURA = "FISCAL_VIGENCIA_SEM_COBERTURA";
+    public static final String FISCAL_SPLIT_SEM_FORMA_PAGAMENTO = "FISCAL_SPLIT_SEM_FORMA_PAGAMENTO";
 }

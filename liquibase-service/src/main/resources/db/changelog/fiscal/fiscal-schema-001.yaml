@@ -1,0 +1,131 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # SCHEMA: fiscal
+  # Motor fiscal IBS/CBS/IS (Reforma Tributária — Fin.md Módulo I).
+  # Criado aqui (e não no init 000) porque o schema fiscal nasceu depois;
+  # IF NOT EXISTS mantém idempotente em qualquer ambiente.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: fiscal-001-create-schema
+      author: vitor-fernandes
+      changes:
+        - sql:
+            sql: CREATE SCHEMA IF NOT EXISTS fiscal;
+      rollback:
+        - sql:
+            sql: DROP SCHEMA IF EXISTS fiscal CASCADE;
+
+  # ──────────────────────────────────────────
+  # TABELA: fiscal.regime_dif_ncm
+  # De-para código (NCM p/ produto, NBS p/ serviço) → regime diferenciado da LC 214/2025.
+  # Conteúdo é DADO NACIONAL publicado (CGIBS/RFB): populado por seed/import, NÃO por CRUD
+  # de usuário (ADR em Fin.md §1.4.4). O catálogo de regimes (coluna `regime`) é a taxonomia
+  # legal fechada do enum §1.8.5 — muda por migração, não por tela.
+  #
+  # Resolução no motor: match por PREFIXO MAIS LONGO sobre o código normalizado (dígitos, §1.8-A);
+  # por isso `ncm` guarda o código como publicado (pode ter pontos, ex. '1006.30') e o motor
+  # normaliza os dois lados na consulta.
+  #
+  # `ncm` e `nbs` são mutuamente exclusivos (CHECK): produto OU serviço, nunca os dois.
+  # `percentual_reducao` é a fonte autoritativa da redução (0 = sem redução, 100 = alíquota zero);
+  # o enum só espelha isso transitoriamente na fatia in-memory (Fin.md §1.4.4).
+  # `vigente_ate` NULL = vigente; permite versionar a regra sem apagar histórico.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: fiscal-002-create-regime-dif-ncm
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: fiscal
+            tableName: regime_dif_ncm
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: ncm
+                  type: varchar(10)
+              - column:
+                  name: nbs
+                  type: varchar(20)
+              - column:
+                  name: descricao
+                  type: varchar(255)
+              - column:
+                  name: regime
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: percentual_reducao
+                  type: numeric(5,2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: vigente_de
+                  type: date
+                  constraints:
+                    nullable: false
+              - column:
+                  name: vigente_ate
+                  type: date
+        # CHECK entre colunas (createTable não expressa bem constraint multi-coluna): exatamente um preenchido.
+        - sql:
+            sql: >
+              ALTER TABLE fiscal.regime_dif_ncm
+              ADD CONSTRAINT chk_regime_dif_ncm_codigo
+              CHECK ((ncm IS NOT NULL) <> (nbs IS NOT NULL));
+        - sql:
+            sql: >
+              ALTER TABLE fiscal.regime_dif_ncm
+              ADD CONSTRAINT chk_regime_dif_ncm_percentual
+              CHECK (percentual_reducao >= 0 AND percentual_reducao <= 100);
+        - createIndex:
+            schemaName: fiscal
+            tableName: regime_dif_ncm
+            indexName: idx_regime_dif_ncm_ncm
+            columns:
+              - column:
+                  name: ncm
+        - createIndex:
+            schemaName: fiscal
+            tableName: regime_dif_ncm
+            indexName: idx_regime_dif_ncm_nbs
+            columns:
+              - column:
+                  name: nbs
+      rollback:
+        - dropTable:
+            schemaName: fiscal
+            tableName: regime_dif_ncm
+
+  # ──────────────────────────────────────────
+  # SEED: regime diferenciado
+  # ⚠️ PARCIAL. Apenas as linhas já referenciadas pelo motor/exemplos numéricos (Fin.md §1.4.8):
+  #   - Arroz (Anexo I, alíquota zero)      → cobre o teste ex2_cestaBasica
+  #   - Cigarro (monofásico + IS)           → cobre ex3/ex3b
+  # O seed AUTORITATIVO completo (Anexos I–XV, ~centenas de NCM/NBS) é transcrito do texto da
+  # LC 214/2025 na fatia com DB (ver §1.8.6). Fabricar aqui NCMs não verificados = dado fiscal
+  # errado — deixado explicitamente de fora. vigente_de = 2027-01-01 (início IBS/CBS piloto).
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: fiscal-003-seed-regime-dif-parcial
+      author: vitor-fernandes
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.regime_dif_ncm (ncm, descricao, regime, percentual_reducao, vigente_de) VALUES
+              ('1006.20', 'Arroz descascado (integral)',      'ANEXO_I_ZERO', 100, DATE '2027-01-01'),
+              ('1006.30', 'Arroz semibranqueado/branqueado',  'ANEXO_I_ZERO', 100, DATE '2027-01-01'),
+              ('2402.20', 'Cigarros que contêm tabaco',       'MONOFASICO',     0, DATE '2027-01-01');
+      rollback:
+        - sql:
+            dbms: postgresql
+            sql: DELETE FROM fiscal.regime_dif_ncm WHERE regime IN ('ANEXO_I_ZERO', 'MONOFASICO');

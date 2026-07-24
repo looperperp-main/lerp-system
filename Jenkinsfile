@@ -35,7 +35,7 @@ pipeline {
 
         stage('Build & Test') {
             steps {
-                sh './mvnw clean verify -pl auth-service,cadastro-service,partner-service,billing-service -am --batch-mode --no-transfer-progress'
+                sh './mvnw clean verify -pl auth-service,cadastro-service,partner-service,billing-service,fiscal-service -am --batch-mode --no-transfer-progress'
             }
             post {
                 always {
@@ -50,7 +50,7 @@ pipeline {
             when { not { changeRequest() } }
             steps {
                 withSonarQubeEnv('SonarQube') {
-                    sh './mvnw sonar:sonar -pl auth-service,cadastro-service,partner-service,billing-service -am -Dsonar.token=${SONAR_TOKEN} --batch-mode --no-transfer-progress'
+                    sh './mvnw sonar:sonar -pl auth-service,cadastro-service,partner-service,billing-service,fiscal-service -am -Dsonar.token=${SONAR_TOKEN} --batch-mode --no-transfer-progress'
                 }
             }
         }
