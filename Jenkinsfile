@@ -45,18 +45,21 @@ pipeline {
         }
 
         stage('SonarQube Analysis') {
-            // SonarQube Community Edition não suporta Branch/PR Analysis: rodar isso em PR
-            // sobrescreveria a análise da main sem trazer decoration nenhuma no PR.
-            when { not { changeRequest() } }
+            // SonarQube Community Edition não suporta Branch/PR Analysis: rodar isso fora da main
+            // (PR ou branch de feature) sobrescreveria a análise da main com código que ainda não foi mergeado.
+            when { branch 'main' }
             steps {
                 withSonarQubeEnv('SonarQube') {
-                    sh './mvnw sonar:sonar -pl auth-service,cadastro-service,partner-service,billing-service,fiscal-service -am -Dsonar.token=${SONAR_TOKEN} --batch-mode --no-transfer-progress'
+                    // GAV completo em vez do prefixo 'sonar:sonar': o primeiro projeto do reator é o
+                    // 'common', que herda do spring-boot-starter-parent e não enxerga o pluginManagement
+                    // do pom raiz — o prefixo não resolve. Versão espelha a do pom.xml raiz.
+                    sh './mvnw org.sonarsource.scanner.maven:sonar-maven-plugin:5.1.0.4751:sonar -pl auth-service,cadastro-service,partner-service,billing-service,fiscal-service -am -Dsonar.token=${SONAR_TOKEN} --batch-mode --no-transfer-progress'
                 }
             }
         }
 
         stage('Quality Gate') {
-            when { not { changeRequest() } }
+            when { branch 'main' }
             steps {
                 timeout(time: 5, unit: 'MINUTES') {
                     waitForQualityGate abortPipeline: true
