@@ -26,6 +26,10 @@ spring:
               uri: lb://cadastro-service
               predicates:
                 - Path=/api/**
+            - id: fiscal-service
+              uri: lb://fiscal-service
+              predicates:
+                - Path=/fiscal/**
 
 rate-limit:
   replenish-rate: 20

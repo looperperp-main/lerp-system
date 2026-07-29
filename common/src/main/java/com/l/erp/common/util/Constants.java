@@ -329,4 +329,8 @@ public class Constants {
     public static final String FISCAL_NCM_NAO_ENCONTRADO = "FISCAL_NCM_NAO_ENCONTRADO";
     public static final String FISCAL_VIGENCIA_SEM_COBERTURA = "FISCAL_VIGENCIA_SEM_COBERTURA";
     public static final String FISCAL_SPLIT_SEM_FORMA_PAGAMENTO = "FISCAL_SPLIT_SEM_FORMA_PAGAMENTO";
+    // Produto (ncm) e serviço (codigoServico) são mutuamente exclusivos: errar isso muda o destino
+    // do IBS e o regime aplicado — é erro de entrada, nunca tributo calculado no escuro.
+    public static final String FISCAL_NCM_OU_SERVICO_OBRIGATORIO = "FISCAL_NCM_OU_SERVICO_OBRIGATORIO";
+    public static final String FISCAL_NCM_E_SERVICO_CONFLITANTES = "FISCAL_NCM_E_SERVICO_CONFLITANTES";
 }

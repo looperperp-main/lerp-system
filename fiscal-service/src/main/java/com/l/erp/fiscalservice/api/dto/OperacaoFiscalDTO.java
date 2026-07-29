@@ -1,5 +1,6 @@
 package com.l.erp.fiscalservice.api.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -9,9 +10,13 @@ import java.util.List;
 /**
  * Resultado do cálculo fiscal de uma operação (§1.4.10). Sem persistência nesta fatia.
  * {@code memoriaCalculo} é a memória de cálculo citável, regra por regra.
+ *
+ * <p>{@code NON_NULL}: com o split payment desligado, {@code valorSplitIbs/valorSplitCbs} são
+ * {@code null} e não saem no JSON — o documento fiscal não carrega esses campos.
  */
 @Getter
 @Builder
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class OperacaoFiscalDTO {
 
     private BigDecimal baseCalculo;

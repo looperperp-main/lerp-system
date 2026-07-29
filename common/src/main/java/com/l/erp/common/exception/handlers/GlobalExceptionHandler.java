@@ -11,6 +11,9 @@ import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
@@ -105,6 +108,32 @@ public class GlobalExceptionHandler {
         logClientError(HttpStatus.BAD_REQUEST.value(), request, message);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(body(HttpStatus.BAD_REQUEST.value(), "Erro de validação", message, request));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<StandardError> handleNotReadable(HttpMessageNotReadableException e, HttpServletRequest request) {
+        // Corpo ausente, JSON quebrado ou campo com tipo/formato errado (ex.: data em dd/MM/yyyy).
+        // É erro do cliente → 400. Sem detalhe do parser no corpo: pode citar trecho do payload.
+        logClientError(HttpStatus.BAD_REQUEST.value(), request, "corpo ilegível: " + e.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(body(HttpStatus.BAD_REQUEST.value(), "Erro de validação",
+                        "Corpo da requisição ausente ou mal-formado.", request));
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<StandardError> handleMediaTypeNotSupported(HttpMediaTypeNotSupportedException e, HttpServletRequest request) {
+        logClientError(HttpStatus.UNSUPPORTED_MEDIA_TYPE.value(), request, "content-type não suportado: " + e.getContentType());
+        return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+                .body(body(HttpStatus.UNSUPPORTED_MEDIA_TYPE.value(), "Formato não suportado",
+                        "Formato de conteúdo não suportado para este recurso.", request));
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<StandardError> handleMethodNotSupported(HttpRequestMethodNotSupportedException e, HttpServletRequest request) {
+        logClientError(HttpStatus.METHOD_NOT_ALLOWED.value(), request, "método não suportado: " + e.getMethod());
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
+                .body(body(HttpStatus.METHOD_NOT_ALLOWED.value(), "Método não permitido",
+                        "Método HTTP não suportado para este recurso.", request));
     }
 
     @ExceptionHandler(Exception.class)

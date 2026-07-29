@@ -4,3 +4,38 @@ spring:
 
 server:
   port: 8093
+  forward-headers-strategy: framework
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+fiscal:
+  split-payment:
+    # Adesão faseada (2026 = piloto, PSPs entram aos poucos): default DESLIGADO.
+    # Desligado, o resultado do cálculo não carrega os campos de split e nada é informado
+    # à Plataforma Pública. Não altera o cálculo dos tributos.
+    enabled: ${SPLIT_PAYMENT_ENABLED:false}
+    # Allowlist por tenant (ids separados por vírgula), para ligar antes do interruptor global.
+    tenants: ${SPLIT_PAYMENT_TENANTS:}
+
+logging:
+  level:
+    root: ${LOG_LEVEL:INFO}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}

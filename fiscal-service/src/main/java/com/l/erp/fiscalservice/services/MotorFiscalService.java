@@ -4,6 +4,7 @@ import com.l.erp.common.util.Constants;
 import com.l.erp.fiscalservice.api.dto.MotorFiscalRequest;
 import com.l.erp.fiscalservice.api.dto.OperacaoFiscalDTO;
 import com.l.erp.fiscalservice.exception.FiscalException;
+import com.l.erp.fiscalservice.infra.config.SplitPaymentProperties;
 import com.l.erp.fiscalservice.services.fiscal.AliquotaIbs;
 import com.l.erp.fiscalservice.services.fiscal.CfopInfo;
 import com.l.erp.fiscalservice.services.fiscal.RegimeDiferenciado;
@@ -30,18 +31,39 @@ public class MotorFiscalService {
     private static final int ESCALA = 2;
 
     private final TabelaFiscal tabela;
+    private final SplitPaymentProperties splitProps;
 
-    public MotorFiscalService(TabelaFiscal tabela) {
+    public MotorFiscalService(TabelaFiscal tabela, SplitPaymentProperties splitProps) {
         this.tabela = tabela;
+        this.splitProps = splitProps;
     }
 
-    public OperacaoFiscalDTO calcular(MotorFiscalRequest req) {
+    /**
+     * @param tenantId tenant da requisição (header {@code X-Tenant-Id}); usado apenas para decidir
+     *                 o split payment por tenant — não influencia o cálculo dos tributos.
+     */
+    public OperacaoFiscalDTO calcular(MotorFiscalRequest req, String tenantId) {
         List<String> memoria = new ArrayList<>();
+        boolean splitLigado = splitProps.habilitadoPara(tenantId);
+
+        // PASSO 0 — entrada inconsistente é 400, nunca tributo calculado no escuro.
+        boolean produto = preenchido(req.getNcm());
+        boolean servico = preenchido(req.getCodigoServico());
+        if (produto == servico) {
+            throw new FiscalException(produto
+                    ? Constants.FISCAL_NCM_E_SERVICO_CONFLITANTES     // os dois: produto ou serviço?
+                    : Constants.FISCAL_NCM_OU_SERVICO_OBRIGATORIO);   // nenhum: nada a classificar
+        }
+        // Com o split ligado, splitPaymentAplicavel vem da condicao_pagamento e é obrigatório:
+        // sem ele não dá pra distinguir "pagamento não splitável" de "o chamador esqueceu".
+        if (splitLigado && req.getSplitPaymentAplicavel() == null) {
+            throw new FiscalException(Constants.FISCAL_SPLIT_SEM_FORMA_PAGAMENTO);
+        }
 
         // MEI não destaca IBS/CBS/IS (MF-02, §1.4.5)
         if (Constants.REGIME_MEI.equals(req.getRegimeEmpresa())) {
             memoria.add("Regime MEI: não destaca IBS/CBS/IS");
-            return zerado(req, RegimeDiferenciado.PADRAO, memoria);
+            return zerado(req, RegimeDiferenciado.PADRAO, memoria, splitLigado);
         }
 
         // PASSO 1 — validar CFOP
@@ -51,7 +73,6 @@ public class MotorFiscalService {
             throw new FiscalException(Constants.FISCAL_CFOP_INVALIDO_SAIDA);
         }
 
-        boolean servico = req.getNcm() == null && req.getCodigoServico() != null;
         // Serviço (NFS-e): IBS é pelo LOCAL DA PRESTAÇÃO, não pelo tomador (§1.4.5)
         String ibgeDestino = servico ? req.getIbgeLocalPrestacao() : req.getIbgeDestino();
         RegimeDiferenciado regime = servico
@@ -61,11 +82,11 @@ public class MotorFiscalService {
         // PASSO 2 — cesta básica / monofásico
         if (regime.isCestaBasica()) {
             memoria.add("NCM cesta básica: IBS/CBS/IS = 0 (§1.4.2 Passo 2)");
-            return zerado(req, regime, memoria);
+            return zerado(req, regime, memoria, splitLigado);
         }
         if (regime.isMonofasico() && !cfop.primeiraEtapaCadeia()) {
             memoria.add("Monofásico fora da 1ª etapa: já recolhido na origem (§1.4.2 Passo 2)");
-            return zerado(req, regime, memoria);
+            return zerado(req, regime, memoria, splitLigado);
         }
 
         // PASSO 3 — alíquotas vigentes pela data de competência
@@ -94,10 +115,12 @@ public class MotorFiscalService {
         // PASSO 7 — CBS
         BigDecimal valorCbs = pct(base, aliqCbsEfetiva);
 
-        // PASSO 8 — split payment (teto = valor do tributo; liquidação real vem em fatia futura)
-        boolean split = Boolean.TRUE.equals(req.getSplitPaymentAplicavel());
-        BigDecimal valorSplitIbs = split ? valorIbs : BigDecimal.ZERO.setScale(ESCALA);
-        BigDecimal valorSplitCbs = split ? valorCbs : BigDecimal.ZERO.setScale(ESCALA);
+        // PASSO 8 — split payment (teto = valor do tributo; liquidação real vem em fatia futura).
+        // Flag desligada ⇒ campos AUSENTES (null) no contrato de saída, não zerados: o documento
+        // fiscal não carrega split e nada é informado à Plataforma Pública.
+        boolean aplicavel = splitLigado && Boolean.TRUE.equals(req.getSplitPaymentAplicavel());
+        BigDecimal valorSplitIbs = split(splitLigado, aplicavel ? valorIbs : null);
+        BigDecimal valorSplitCbs = split(splitLigado, aplicavel ? valorCbs : null);
 
         memoria.add("Regime: " + regime.name() + " (redução de alíquota " + regime.reducaoPercentual() + "%)");
         memoria.add("IS: " + valorIs + " (alíquota " + aliqIs + "%)");
@@ -119,7 +142,8 @@ public class MotorFiscalService {
                 .build();
     }
 
-    private OperacaoFiscalDTO zerado(MotorFiscalRequest req, RegimeDiferenciado regime, List<String> memoria) {
+    private OperacaoFiscalDTO zerado(MotorFiscalRequest req, RegimeDiferenciado regime,
+                                     List<String> memoria, boolean splitLigado) {
         BigDecimal zero = BigDecimal.ZERO.setScale(ESCALA);
         return OperacaoFiscalDTO.builder()
                 .baseCalculo(req.getValorOperacao())
@@ -128,16 +152,31 @@ public class MotorFiscalService {
                 .valorIbsMunicipal(zero)
                 .valorIbs(zero)
                 .valorCbs(zero)
-                .valorSplitIbs(zero)
-                .valorSplitCbs(zero)
+                .valorSplitIbs(split(splitLigado, null))
+                .valorSplitCbs(split(splitLigado, null))
                 .regimeAplicado(regime.name())
                 .memoriaCalculo(memoria)
                 .build();
     }
 
+    /**
+     * Valor de split a publicar: {@code null} (campo ausente) com a flag desligada; com a flag
+     * ligada, o tributo a segregar — ou 0,00 quando a forma de pagamento não é splitável.
+     */
+    private BigDecimal split(boolean ligado, BigDecimal tributo) {
+        if (!ligado) {
+            return null;
+        }
+        return tributo != null ? tributo : BigDecimal.ZERO.setScale(ESCALA);
+    }
+
     /** valor × alíquota% ÷ 100, arredondado a 2 casas (HALF_UP). */
     private BigDecimal pct(BigDecimal valor, BigDecimal aliquotaPercentual) {
         return valor.multiply(aliquotaPercentual).divide(CEM, ESCALA, RoundingMode.HALF_UP);
+    }
+
+    private static boolean preenchido(String valor) {
+        return valor != null && !valor.isBlank();
     }
 
     /** Fator multiplicador da redução de alíquota: (1 − redução/100). */
