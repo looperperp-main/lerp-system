@@ -68,8 +68,9 @@ pipeline {
         }
 
         stage('Docker Build & Push') {
-            // PR não deve gerar/pushar imagem: isso só acontece após merge na main.
-            when { not { changeRequest() } }
+            // Só a main publica imagem. PR e branch de feature não empurram nada pro Docker Hub —
+            // senão a tag :latest passa a apontar para código que ainda não foi mergeado.
+            when { branch 'main' }
             steps {
                 sh '''
                     # gateway e registry herdam de spring-boot-starter-parent (fora do verify/Sonar dos apps);
