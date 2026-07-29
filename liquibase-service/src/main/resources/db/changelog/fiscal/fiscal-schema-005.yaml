@@ -1,0 +1,71 @@
+databaseChangeLog:
+
+  # Regimes diferenciados por NCM — Anexos da LC 214/2025 (Fatia A1).
+  #
+  # Fonte: spec/ANEXOS.md (conversão do .docx do Planalto). Mapa anexo -> regime:
+  #   I    alimentação humana ............ redução 100% (alíquota zero)
+  #   IV   dispositivos médicos .......... redução 60%
+  #   VII  alimentos p/ consumo humano ... redução 60%
+  #   VIII higiene pessoal e limpeza ..... redução 60%
+  #   XV   hortícolas, frutas e ovos ..... redução 100%
+  #   XIV  ........................ REVOGADO pela LC 227/2026, não carregado
+  #
+  # CARGA PARCIAL — 95 códigos de 545 itens. O que NÃO entrou está listado item a item em
+  # spec/anexos-lc214-revisar.md, com o motivo. Os três maiores grupos:
+  #
+  #   267 itens  Anexos IV/V/VI/IX descrevem o produto por NOME, sem NCM ("Bolsa para drenagem",
+  #              "Biofertilizantes"). É o texto da lei — mapear nome -> NCM é decisão fiscal, não
+  #              extração. É o "tax content" que todo ERP tem que construir e manter.
+  #   143 itens  Anexos II/III/X/XI são serviços em prosa; a lei não traz código LC 116/NBS.
+  #    27 itens  redação com "exceto"/"ressalvado" — o código sozinho mente sobre a regra
+  #              (ex.: hortícolas da 07.09 "exceto cogumelos da subposição 0709.5").
+  #
+  # Enquanto um item está pendente, o NCM dele cai em RegimeDiferenciado.PADRAO e sai tributado
+  # cheio: erra a favor do fisco, nunca contra — e nunca calado, está tudo no relatório.
+  #
+  # O delete abaixo remove só as linhas de PRODUTO com regime ANEXO_* (o seed parcial de arroz do
+  # changeset fiscal-003), preservando o MONOFASICO do cigarro e a linha de serviço nbs='4.01' do
+  # fiscal-011 — nenhum dos dois é reposto por esta carga.
+  #
+  # ATENÇÃO: loadData calcula checksum do CSV. Editar data/regime-lc214.csv quebra a validação
+  # deste changeset em quem já rodou — resolver um item pendente entra como changeset novo.
+  - changeSet:
+      id: fiscal-015-load-regime-lc214
+      author: vitor-fernandes
+      comment: Regimes diferenciados por NCM — Anexos I, IV, VII, VIII e XV da LC 214/2025 (95 códigos)
+      changes:
+        - delete:
+            schemaName: fiscal
+            tableName: regime_dif_ncm
+            where: ncm IS NOT NULL AND regime LIKE 'ANEXO%'
+        - loadData:
+            schemaName: fiscal
+            tableName: regime_dif_ncm
+            file: data/regime-lc214.csv
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            separator: ","
+            quotchar: '"'
+            usePreparedStatements: true
+            columns:
+              - column:
+                  header: ncm
+                  name: ncm
+                  type: STRING
+              - column:
+                  header: regime
+                  name: regime
+                  type: STRING
+              - column:
+                  header: percentual_reducao
+                  name: percentual_reducao
+                  type: NUMERIC
+              - column:
+                  header: vigente_de
+                  name: vigente_de
+                  type: DATE
+      rollback:
+        - delete:
+            schemaName: fiscal
+            tableName: regime_dif_ncm
+            where: ncm IS NOT NULL AND regime LIKE 'ANEXO%'

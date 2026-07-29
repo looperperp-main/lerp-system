@@ -1,5 +1,6 @@
 package com.l.erp.fiscalservice.api.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -31,6 +32,11 @@ public class MotorFiscalRequest {
     private String cfop;
     private String ncm;                    // null para serviços
     private String codigoServico;          // código LC 116 — null para produtos
+    // Classificação tributária IBS/CBS do serviço (Anexo VIII). @JsonProperty porque o getter
+    // Lombok é getCClassTrib() e o Jackson batizaria o campo de 'cclassTrib' — o nome no JSON
+    // tem que ser o mesmo da tag do XML da NFS-e.
+    @JsonProperty("cClassTrib")
+    private String cClassTrib;             // obrigatório quando codigoServico vem preenchido
     private String ibgeDestino;            // município do destinatário
     private String ibgeLocalPrestacao;     // apenas para serviços (NFS-e)
     @NotNull

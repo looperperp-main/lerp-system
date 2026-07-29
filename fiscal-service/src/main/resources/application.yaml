@@ -1,6 +1,19 @@
 spring:
   application:
     name: fiscal-service
+  # Só leitura das tabelas de referência fiscal.* — o schema é do liquibase-service.
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/loop-erp
+    username: ${DB_USER}
+    password: ${DB_PASS}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX:5}
+      minimum-idle: ${DB_POOL_MIN:1}
+      read-only: true
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1200000
 
 server:
   port: 8093

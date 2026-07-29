@@ -1,0 +1,43 @@
+databaseChangeLog:
+
+  # Carga do catálogo NCM completo (Fatia A1).
+  #
+  # Fonte: spec/Tabela_NCM_Desc_Concatenada_Vigente_20260702.csv — tabela oficial do MDIC/Gecex
+  # (Resolução Gecex nº 812/2025, vigente em 02/07/2026), convertida para o formato do loadData:
+  # separador ',', UTF-8 sem BOM, código normalizado só com dígitos ('0101.21.00' -> '01012100').
+  #
+  # A carga traz TODOS os níveis da hierarquia (capítulo '01', posição '0101', subposição '01012',
+  # item '01012100'), não só as folhas de 8 dígitos: é o que permite descrever um NCM da NF-e
+  # juntando os prefixos, e é a mesma lógica de prefixo mais longo que o motor usa em
+  # fiscal.regime_dif_ncm. Só a coluna 'Descrição' entra — a 'Descrição Concatenada' do arquivo é
+  # reconstruível pelos prefixos e triplicaria o tamanho do CSV versionado.
+  #
+  # ATENÇÃO: loadData calcula checksum do CSV. Editar o arquivo quebra a validação deste changeset
+  # em quem já rodou; revisão futura da tabela NCM entra como um loadUpdateData novo, não aqui.
+  - changeSet:
+      id: fiscal-012-load-ncm
+      author: vitor-fernandes
+      comment: Catálogo NCM oficial (15.156 códigos vigentes em 02/07/2026)
+      changes:
+        - loadData:
+            schemaName: fiscal
+            tableName: ncm
+            file: data/ncm.csv
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            separator: ","
+            quotchar: '"'
+            usePreparedStatements: true
+            columns:
+              - column:
+                  header: codigo
+                  name: codigo
+                  type: STRING
+              - column:
+                  header: descricao
+                  name: descricao
+                  type: STRING
+      rollback:
+        - delete:
+            schemaName: fiscal
+            tableName: ncm

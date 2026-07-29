@@ -1,0 +1,249 @@
+package com.l.erp.fiscalservice.services.fiscal;
+
+import com.l.erp.common.util.Constants;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
+
+import java.math.BigDecimal;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * Exercita o SQL de {@link TabelaFiscalJdbc} em H2 (modo PostgreSQL) — o risco desta fatia está
+ * nas consultas, não na aritmética (essa é do {@code MotorFiscalServiceTest}).
+ *
+ * <p>ponytail: o DDL abaixo é um recorte dos changelogs fiscais (002 + 007) com as colunas que as
+ * consultas tocam, não o schema inteiro; drift de tipo/constraint só aparece rodando o Liquibase
+ * de verdade (teste de integração com Postgres, fatia futura). O que ESTE teste protege é o
+ * casamento por prefixo mais longo e os filtros de vigência/alíquota nula.
+ */
+class TabelaFiscalJdbcTest {
+
+    private static TabelaFiscalJdbc tabela;
+
+    private static final String[] SCHEMA = {
+            "CREATE SCHEMA IF NOT EXISTS fiscal",
+            """
+            CREATE TABLE fiscal.cfop (
+                codigo varchar(4) PRIMARY KEY,
+                tipo_operacao varchar(10) NOT NULL,
+                gera_credito_ibs boolean NOT NULL,
+                gera_credito_cbs boolean NOT NULL,
+                primeira_etapa_cadeia boolean NOT NULL)
+            """,
+            """
+            CREATE TABLE fiscal.regime_dif_ncm (
+                ncm varchar(10) NOT NULL,
+                regime varchar(20) NOT NULL,
+                percentual_reducao numeric(5,2) NOT NULL,
+                vigente_de date NOT NULL,
+                vigente_ate date)
+            """,
+            """
+            CREATE TABLE fiscal.regime_cclasstrib (
+                cclasstrib varchar(10) PRIMARY KEY,
+                regime varchar(30) NOT NULL,
+                percentual_reducao numeric(5,2) NOT NULL,
+                vigente_de date NOT NULL,
+                vigente_ate date)
+            """,
+            """
+            CREATE TABLE fiscal.servico_cclasstrib (
+                item_lc116 varchar(10) NOT NULL,
+                cclasstrib varchar(10) NOT NULL)
+            """,
+            """
+            CREATE TABLE fiscal.aliq_ibs_municipio (
+                ibge_municipio varchar(7) NOT NULL,
+                ano_vigencia int NOT NULL,
+                aliquota_estadual numeric(6,4) NOT NULL,
+                aliquota_municipal numeric(6,4) NOT NULL)
+            """,
+            """
+            CREATE TABLE fiscal.aliq_cbs_regime (
+                regime varchar(20) NOT NULL,
+                ano_vigencia int NOT NULL,
+                aliquota_pct numeric(6,4) NOT NULL)
+            """,
+            """
+            CREATE TABLE fiscal.aliq_is_ncm (
+                ncm varchar(10) NOT NULL,
+                aliquota_pct numeric(5,2),
+                vigente_de date NOT NULL,
+                vigente_ate date)
+            """
+    };
+
+    /** Espelha o seed do changelog, mais as linhas que provam prefixo/vigência/alíquota nula. */
+    private static final String[] SEED = {
+            """
+            INSERT INTO fiscal.cfop VALUES
+                ('5101', 'SAIDA',   true, true, true),
+                ('5102', 'SAIDA',   true, true, false),
+                ('1101', 'ENTRADA', true, true, false)
+            """,
+            """
+            INSERT INTO fiscal.regime_dif_ncm (ncm, regime, percentual_reducao, vigente_de, vigente_ate) VALUES
+                ('1006.30', 'ANEXO_I_ZERO',  100, DATE '2027-01-01', NULL),
+                ('1006',    'ANEXO_VII_60',   60, DATE '2027-01-01', NULL),
+                ('2402.20', 'MONOFASICO',      0, DATE '2027-01-01', NULL),
+                ('8471',    'ANEXO_I_ZERO',  100, DATE '2020-01-01', DATE '2026-12-31')
+            """,
+            """
+            INSERT INTO fiscal.regime_cclasstrib (cclasstrib, regime, percentual_reducao, vigente_de, vigente_ate) VALUES
+                ('200029', 'ANEXO_III_60', 60, DATE '2027-01-01', NULL),
+                ('200028', 'ANEXO_II_60',  60, DATE '2020-01-01', DATE '2026-12-31')
+            """,
+            // Como no Anexo VIII: item COM zero à esquerda ('04.01'), ao contrário da LC 116.
+            """
+            INSERT INTO fiscal.servico_cclasstrib (item_lc116, cclasstrib) VALUES
+                ('04.01', '200029'),
+                ('04.22', '011002')
+            """,
+            "INSERT INTO fiscal.aliq_ibs_municipio VALUES ('3550308', 2027, 13.1200, 4.5000)",
+            "INSERT INTO fiscal.aliq_cbs_regime VALUES ('LUCRO_REAL', 2027, 8.8000)",
+            """
+            INSERT INTO fiscal.aliq_is_ncm (ncm, aliquota_pct, vigente_de, vigente_ate) VALUES
+                ('2402.20', 150.00, DATE '2027-01-01', NULL),
+                ('8703',    NULL,   DATE '2027-01-01', NULL)
+            """
+    };
+
+    @BeforeAll
+    static void criarBanco() {
+        DriverManagerDataSource ds = new DriverManagerDataSource(
+                "jdbc:h2:mem:fiscal-a1;MODE=PostgreSQL;DB_CLOSE_DELAY=-1", "sa", "");
+        JdbcTemplate jt = new JdbcTemplate(ds);
+        for (String ddl : SCHEMA) {
+            jt.execute(ddl);
+        }
+        for (String insert : SEED) {
+            jt.execute(insert);
+        }
+        tabela = new TabelaFiscalJdbc(JdbcClient.create(ds));
+    }
+
+    @Test
+    void cfop_existente_trazTipoEFlagDePrimeiraEtapa() {
+        CfopInfo saida = tabela.cfop("5101").orElseThrow();
+        assertEquals(TipoOperacaoFiscal.SAIDA, saida.tipoOperacao());
+        assertTrue(saida.primeiraEtapaCadeia());
+
+        assertFalse(tabela.cfop("5102").orElseThrow().primeiraEtapaCadeia());
+        assertEquals(TipoOperacaoFiscal.ENTRADA, tabela.cfop("1101").orElseThrow().tipoOperacao());
+    }
+
+    @Test
+    void cfop_inexistente_vazio() {
+        assertTrue(tabela.cfop("9999").isEmpty());
+    }
+
+    @Test
+    void regimeNcm_ncmDaNota_casaComOPrefixoMaisLongo() {
+        // NCM completo da NF-e ('10063021') contra a posição publicada ('1006.30'):
+        // '1006' também prefixa, mas perde por ser menos específico.
+        RegimeDiferenciado regime = tabela.regimeNcm("10063021");
+        assertEquals("ANEXO_I_ZERO", regime.name());
+        assertTrue(regime.aliquotaZero());
+        assertEquals(0, new BigDecimal("100").compareTo(regime.reducaoPercentual()));
+    }
+
+    @Test
+    void regimeNcm_prefixoCurtoAindaVale_quandoNaoHaMaisEspecifico() {
+        RegimeDiferenciado regime = tabela.regimeNcm("10061010");
+        assertEquals("ANEXO_VII_60", regime.name());
+        assertFalse(regime.aliquotaZero());
+    }
+
+    @Test
+    void regimeNcm_monofasico_reconhecidoPeloNome() {
+        RegimeDiferenciado regime = tabela.regimeNcm("24022000");
+        assertEquals(Constants.REGIME_DIF_MONOFASICO, regime.name());
+        assertTrue(regime.monofasico());
+        assertFalse(regime.aliquotaZero());
+    }
+
+    @Test
+    void regimeNcm_semCadastro_caiEmPadrao() {
+        assertSame(RegimeDiferenciado.PADRAO, tabela.regimeNcm("39269090"));
+    }
+
+    @Test
+    void regimeNcm_regraVencida_ignorada() {
+        // '8471' está na tabela mas com vigente_ate no passado: não pode zerar um notebook.
+        assertSame(RegimeDiferenciado.PADRAO, tabela.regimeNcm("84713012"));
+    }
+
+    @Test
+    void regimeCClassTrib_casaExato() {
+        RegimeDiferenciado regime = tabela.regimeCClassTrib("200029");
+        assertEquals("ANEXO_III_60", regime.name());
+        assertEquals(0, new BigDecimal("60").compareTo(regime.reducaoPercentual()));
+    }
+
+    @Test
+    void regimeCClassTrib_naoCasaPorPrefixo() {
+        // Ao contrário do NCM: cClassTrib é código fechado. '2000' não pode herdar de '200029'
+        // nem '20002999' cair nele — prefixo aqui daria redução a quem não tem direito.
+        assertSame(RegimeDiferenciado.PADRAO, tabela.regimeCClassTrib("2000"));
+        assertSame(RegimeDiferenciado.PADRAO, tabela.regimeCClassTrib("2000299"));
+    }
+
+    @Test
+    void regimeCClassTrib_semCadastroOuVencido_caiEmPadrao() {
+        assertSame(RegimeDiferenciado.PADRAO, tabela.regimeCClassTrib("200048"));  // sem cadastro
+        assertSame(RegimeDiferenciado.PADRAO, tabela.regimeCClassTrib("200028"));  // vigência vencida
+    }
+
+    @Test
+    void cClassTribAdmitido_aceitaItemComOuSemZeroAEsquerda() {
+        // A nota traz o item como a LC 116 publica ('4.01'); o Anexo VIII gravou '04.01'.
+        // Sem o lpad, um serviço de saúde legítimo levaria 400 por formatação.
+        assertTrue(tabela.cClassTribAdmitido("4.01", "200029"));
+        assertTrue(tabela.cClassTribAdmitido("04.01", "200029"));
+    }
+
+    @Test
+    void cClassTribAdmitido_recusaParNaoListado() {
+        // 200048 (hotelaria) existe no Anexo VIII, mas não para o item 4.01.
+        assertFalse(tabela.cClassTribAdmitido("4.01", "200048"));
+        assertFalse(tabela.cClassTribAdmitido("4.01", "999999"));
+        assertFalse(tabela.cClassTribAdmitido("9.99", "200029"));
+    }
+
+    @Test
+    void aliquotaIbs_porMunicipioEAno() {
+        AliquotaIbs aliq = tabela.aliquotaIbs("3550308", 2027).orElseThrow();
+        assertEquals(0, new BigDecimal("13.12").compareTo(aliq.estadual()));
+        assertEquals(0, new BigDecimal("4.50").compareTo(aliq.municipal()));
+
+        assertTrue(tabela.aliquotaIbs("3550308", 2026).isEmpty());   // ano sem publicação
+        assertTrue(tabela.aliquotaIbs("3304557", 2027).isEmpty());   // município sem publicação
+    }
+
+    @Test
+    void aliquotaCbs_porRegimeEAno() {
+        assertEquals(0, new BigDecimal("8.80")
+                .compareTo(tabela.aliquotaCbs(Constants.REGIME_LUCRO_REAL, 2027).orElseThrow()));
+        assertTrue(tabela.aliquotaCbs(Constants.REGIME_LUCRO_REAL, 2026).isEmpty());
+    }
+
+    @Test
+    void aliquotaIs_casaPorPrefixo_eIgnoraLinhaSemAliquotaRegulamentada() {
+        assertEquals(0, new BigDecimal("150").compareTo(tabela.aliquotaIs("24022000").orElseThrow()));
+
+        // '8703' consta do Anexo XVII mas com alíquota ainda não regulamentada (NULL):
+        // o motor não pode destacar IS a partir dela.
+        Optional<BigDecimal> semRegulamentacao = tabela.aliquotaIs("87032100");
+        assertTrue(semRegulamentacao.isEmpty());
+
+        assertTrue(tabela.aliquotaIs("84713012").isEmpty());
+    }
+}

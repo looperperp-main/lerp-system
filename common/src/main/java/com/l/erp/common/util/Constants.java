@@ -321,6 +321,11 @@ public class Constants {
     public static final String REGIME_LUCRO_PRESUMIDO = "LUCRO_PRESUMIDO";
     public static final String REGIME_LUCRO_REAL = "LUCRO_REAL";
 
+    // Regimes de fiscal.regime_dif_ncm que o motor trata por NOME, não só pelo percentual de
+    // redução (§1.4.2 Passo 2). Os demais (ANEXO_*) entram só pelo percentual_reducao da linha.
+    public static final String REGIME_DIF_PADRAO = "PADRAO";
+    public static final String REGIME_DIF_MONOFASICO = "MONOFASICO";
+
     // Códigos de erro do motor fiscal (Fin.md §1.4.9)
     public static final String FISCAL_CFOP_NAO_ENCONTRADO = "FISCAL_CFOP_NAO_ENCONTRADO";
     public static final String FISCAL_CFOP_INVALIDO_SAIDA = "FISCAL_CFOP_INVALIDO_SAIDA";
@@ -333,4 +338,6 @@ public class Constants {
     // do IBS e o regime aplicado — é erro de entrada, nunca tributo calculado no escuro.
     public static final String FISCAL_NCM_OU_SERVICO_OBRIGATORIO = "FISCAL_NCM_OU_SERVICO_OBRIGATORIO";
     public static final String FISCAL_NCM_E_SERVICO_CONFLITANTES = "FISCAL_NCM_E_SERVICO_CONFLITANTES";
+    public static final String FISCAL_CCLASSTRIB_OBRIGATORIO = "FISCAL_CCLASSTRIB_OBRIGATORIO";
+    public static final String FISCAL_CCLASSTRIB_INVALIDO_PARA_SERVICO = "FISCAL_CCLASSTRIB_INVALIDO_PARA_SERVICO";
 }

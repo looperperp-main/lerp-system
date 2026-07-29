@@ -1,0 +1,238 @@
+databaseChangeLog:
+
+  # Serviços na reforma — Anexo VIII (correlação Item LC 116 x NBS x cClassTrib).
+  #
+  # POR QUE DUAS TABELAS E NÃO UMA COLUNA A MAIS
+  # No arquivo oficial, dentro de um mesmo item LC 116 a coluna NBS e a coluna cClassTrib são
+  # listas INDEPENDENTES — existe linha com NBS e sem cClassTrib e vice-versa (item 01.01: cinco
+  # NBS, e os cClassTrib 000001/200043/200044 em linhas próprias). Não é par linha a linha, são
+  # dois conjuntos por item. Modelar como uma tabela só inventaria um pareamento que a lei não faz.
+  #
+  # POR QUE O CÓDIGO DO SERVIÇO CONTINUA SENDO LC 116
+  # Até 2032 os dois sistemas convivem: ISS (LC 116) e IBS/CBS (NBS + cClassTrib). O ERP precisa
+  # dos dois no mesmo cadastro, não de um substituindo o outro.
+  #
+  # POR QUE O MOTOR NÃO DERIVA O cClassTrib
+  # O mesmo NBS aparece sob cClassTrib diferentes conforme o contexto da operação (o mesmo serviço
+  # vendido à administração pública vira 200043). Igual à NF-e, o cClassTrib é DECLARADO no
+  # documento, não deduzido. Estas tabelas servem para o cadastro escolher e para validar a
+  # combinação — não são lookup silencioso.
+  - changeSet:
+      id: fiscal-017-cria-tabelas-servico
+      author: vitor-fernandes
+      comment: Tabelas de serviço da reforma — correlação LC 116 x NBS e classificações cClassTrib
+      changes:
+        - createTable:
+            schemaName: fiscal
+            tableName: servico_nbs
+            remarks: Correlação oficial item LC 116 -> NBS (Anexo VIII). Picklist do cadastro de serviços.
+            columns:
+              - column:
+                  name: id
+                  type: bigserial
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: item_lc116
+                  type: varchar(10)
+                  constraints: { nullable: false }
+              - column:
+                  name: nbs
+                  type: varchar(15)
+                  constraints: { nullable: false }
+              - column:
+                  name: descricao_nbs
+                  type: varchar(500)
+        - addUniqueConstraint:
+            schemaName: fiscal
+            tableName: servico_nbs
+            columnNames: item_lc116, nbs
+            constraintName: uk_servico_nbs
+        - createIndex:
+            schemaName: fiscal
+            tableName: servico_nbs
+            indexName: ix_servico_nbs_lc116
+            columns:
+              - column: { name: item_lc116 }
+
+        - createTable:
+            schemaName: fiscal
+            tableName: servico_cclasstrib
+            remarks: cClassTrib admitidos para cada item LC 116 (Anexo VIII). Valida o que a nota declara.
+            columns:
+              - column:
+                  name: id
+                  type: bigserial
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: item_lc116
+                  type: varchar(10)
+                  constraints: { nullable: false }
+              - column:
+                  name: cclasstrib
+                  type: varchar(10)
+                  constraints: { nullable: false }
+              - column:
+                  name: nome_cclasstrib
+                  type: varchar(500)
+        - addUniqueConstraint:
+            schemaName: fiscal
+            tableName: servico_cclasstrib
+            columnNames: item_lc116, cclasstrib
+            constraintName: uk_servico_cclasstrib
+
+        - createTable:
+            schemaName: fiscal
+            tableName: regime_cclasstrib
+            remarks: cClassTrib -> redução de alíquota IBS/CBS. Ausente = sem percentual fundamentado, cai em PADRAO.
+            columns:
+              - column:
+                  name: cclasstrib
+                  type: varchar(10)
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: regime
+                  type: varchar(30)
+                  constraints: { nullable: false }
+              - column:
+                  name: percentual_reducao
+                  type: numeric(5,2)
+                  constraints: { nullable: false }
+              - column:
+                  name: vigente_de
+                  type: date
+                  constraints: { nullable: false }
+              - column:
+                  name: vigente_ate
+                  type: date
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              ALTER TABLE fiscal.regime_cclasstrib ADD CONSTRAINT chk_regime_cclasstrib_percentual
+              CHECK (percentual_reducao >= 0 AND percentual_reducao <= 100);
+
+  # Carga da correlação. ATENÇÃO: loadData guarda checksum do CSV — editar os arquivos quebra a
+  # validação em quem já rodou; correção entra como changeset novo.
+  - changeSet:
+      id: fiscal-018-load-servico-anexo-viii
+      author: vitor-fernandes
+      comment: Anexo VIII — 895 pares LC 116 x NBS (675 NBS distintos) e 246 pares LC 116 x cClassTrib
+      changes:
+        - loadData:
+            schemaName: fiscal
+            tableName: servico_nbs
+            file: data/servico-nbs.csv
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            separator: ","
+            quotchar: '"'
+            usePreparedStatements: true
+            columns:
+              - column: { header: item_lc116, name: item_lc116, type: STRING }
+              - column: { header: nbs, name: nbs, type: STRING }
+              - column: { header: descricao_nbs, name: descricao_nbs, type: STRING }
+        - loadData:
+            schemaName: fiscal
+            tableName: servico_cclasstrib
+            file: data/servico-cclasstrib.csv
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            separator: ","
+            quotchar: '"'
+            usePreparedStatements: true
+            columns:
+              - column: { header: item_lc116, name: item_lc116, type: STRING }
+              - column: { header: cclasstrib, name: cclasstrib, type: STRING }
+              - column: { header: nome_cclasstrib, name: nome_cclasstrib, type: STRING }
+      rollback:
+        - delete: { schemaName: fiscal, tableName: servico_nbs }
+        - delete: { schemaName: fiscal, tableName: servico_cclasstrib }
+
+  # CARGA PARCIAL E DELIBERADA — 7 dos 27 cClassTrib.
+  #
+  # O Anexo VIII lista os cClassTrib mas NÃO traz o percentual de redução. Só dá para fundamentar
+  # os que citam um anexo no próprio nome (anexos II/III/IX/X/XI são todos de redução de 60%)
+  # mais o 000001, que por definição é tributação integral.
+  #
+  # Os outros 20 têm redução fixada em artigos da LC 214 que não estão neste arquivo — hotelaria
+  # (200048), bens imóveis (200046/200027), profissões intelectuais (200052), transporte público
+  # (200021/400001), planos de saúde (011002), Prouni (200025), ICT (200016) etc. Escrever
+  # percentual de cabeça dentro de motor fiscal é pior do que não ter o dado.
+  #
+  # cClassTrib ausente daqui cai em RegimeDiferenciado.PADRAO: sai tributado cheio, com warn.
+  # ATENÇÃO ao sinal do erro — aqui ele é CONTRA o contribuinte, não a favor, ao contrário do que
+  # acontece com NCM pendente. Transporte público coletivo, que a LC 214 desonera, hoje sairia com
+  # carga integral. Preencher os 20 restantes é pré-requisito para emitir NFS-e nesses ramos.
+  - changeSet:
+      id: fiscal-019-seed-regime-cclasstrib
+      author: vitor-fernandes
+      comment: Redução por cClassTrib — só os 7 fundamentáveis pelo Anexo VIII (6 de anexo + integral)
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.regime_cclasstrib (cclasstrib, regime, percentual_reducao, vigente_de) VALUES
+              ('000001', 'INTEGRAL', 0, DATE '2027-01-01'),
+              ('200028', 'ANEXO_II_60', 60, DATE '2027-01-01'),
+              ('200029', 'ANEXO_III_60', 60, DATE '2027-01-01'),
+              ('200038', 'ANEXO_IX_60', 60, DATE '2027-01-01'),
+              ('200039', 'ANEXO_X_60', 60, DATE '2027-01-01'),
+              ('200043', 'ANEXO_XI_60', 60, DATE '2027-01-01'),
+              ('200044', 'ANEXO_XI_60', 60, DATE '2027-01-01');
+      rollback:
+        - delete: { schemaName: fiscal, tableName: regime_cclasstrib }
+
+  # Remove regime_dif_ncm.nbs. A coluna se chamava "nbs" mas guardava código LC 116 (ver o
+  # comentário do antigo SQL_REGIME_SERVICO em TabelaFiscalJdbc e o seed do fiscal-011) — nome
+  # mentindo sobre o conteúdo, que é o tipo de armadilha que fez a extração dos anexos ser
+  # classificada errado. Com o regime de serviço vindo de regime_cclasstrib, a coluna perdeu
+  # função: sai ela, sai o CHECK XOR, sai a ambiguidade. regime_dif_ncm passa a ser só produto.
+  - changeSet:
+      id: fiscal-020-remove-nbs-de-regime-dif
+      author: vitor-fernandes
+      comment: regime_dif_ncm vira exclusivamente produto — regime de serviço migrou para regime_cclasstrib
+      changes:
+        - delete:
+            schemaName: fiscal
+            tableName: regime_dif_ncm
+            where: ncm IS NULL
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              ALTER TABLE fiscal.regime_dif_ncm DROP CONSTRAINT chk_regime_dif_ncm_codigo;
+        - dropColumn:
+            schemaName: fiscal
+            tableName: regime_dif_ncm
+            columnName: nbs
+        - addNotNullConstraint:
+            schemaName: fiscal
+            tableName: regime_dif_ncm
+            columnName: ncm
+            columnDataType: varchar(10)
+      rollback:
+        - dropNotNullConstraint:
+            schemaName: fiscal
+            tableName: regime_dif_ncm
+            columnName: ncm
+            columnDataType: varchar(10)
+        - addColumn:
+            schemaName: fiscal
+            tableName: regime_dif_ncm
+            columns:
+              - column: { name: nbs, type: varchar(20) }
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.regime_dif_ncm (nbs, descricao, regime, percentual_reducao, vigente_de)
+              VALUES ('4.01', 'Medicina e biomedicina (LC 116)', 'ANEXO_III_60', 60, DATE '2027-01-01');
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              ALTER TABLE fiscal.regime_dif_ncm ADD CONSTRAINT chk_regime_dif_ncm_codigo
+              CHECK ((ncm IS NOT NULL) <> (nbs IS NOT NULL));

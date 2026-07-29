@@ -22,11 +22,26 @@
     </properties>
 
     <dependencies>
-        <!-- Fatia B: motor chamável — web + validação + eureka + actuator. Sem JPA/Kafka ainda
-             (dados reais = fatia A; contrato Kafka F4 com o financeiro = fatia própria). -->
+        <!-- Fatia B: motor chamável — web + validação + eureka + actuator.
+             (contrato Kafka F4 com o financeiro segue em fatia própria). -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webmvc</artifactId>
+        </dependency>
+
+        <!-- Fatia A1: conteúdo fiscal vem das tabelas fiscal.* (Liquibase).
+             JDBC puro (JdbcClient), não JPA: são 6 consultas read-only de tabela de referência,
+             duas delas com match por prefixo em SQL nativo. Entidade + repositório por tabela
+             não agregariam nada aqui. Revisar quando houver escrita/relacionamento. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-jdbc</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
         </dependency>
 
         <dependency>
@@ -72,6 +87,13 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webmvc-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- H2 (modo PostgreSQL) para exercitar o SQL de TabelaFiscalJdbc sem Docker. -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

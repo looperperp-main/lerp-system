@@ -5,7 +5,7 @@ import com.l.erp.fiscalservice.api.dto.MotorFiscalRequest;
 import com.l.erp.fiscalservice.api.dto.OperacaoFiscalDTO;
 import com.l.erp.fiscalservice.exception.FiscalException;
 import com.l.erp.fiscalservice.infra.config.SplitPaymentProperties;
-import com.l.erp.fiscalservice.services.fiscal.TabelaFiscalInMemory;
+import com.l.erp.fiscalservice.services.fiscal.TabelaFiscalFake;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -32,7 +32,7 @@ class MotorFiscalServiceTest {
     private final MotorFiscalService motor = motorCom(new SplitPaymentProperties(false, Set.of()));
 
     private static MotorFiscalService motorCom(SplitPaymentProperties split) {
-        return new MotorFiscalService(new TabelaFiscalInMemory(), split);
+        return new MotorFiscalService(new TabelaFiscalFake(), split);
     }
 
     /** BigDecimal por valor numérico (ignora escala): 21.14 == 21.140. */
@@ -96,7 +96,7 @@ class MotorFiscalServiceTest {
     @Test
     void ex4_servico_saude_reducao60() {
         OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()
-                .cfop("5933").codigoServico("4.01").ibgeLocalPrestacao(SP)
+                .cfop("5933").codigoServico("4.01").cClassTrib("200029").ibgeLocalPrestacao(SP)
                 .valorOperacao(new BigDecimal("300")).dataCompetencia(COMP)
                 .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null);
 
@@ -184,6 +184,30 @@ class MotorFiscalServiceTest {
                         .valorOperacao(new BigDecimal("100")).dataCompetencia(COMP)
                         .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null));
         assertEquals(Constants.FISCAL_NCM_OU_SERVICO_OBRIGATORIO, ex.getCodigo());
+    }
+
+    @Test
+    void servicoSemCClassTrib_lancaFiscalException() {
+        // Sem cClassTrib não dá pra saber se o serviço tem redução: cair em PADRAO tributaria
+        // cheio um serviço possivelmente desonerado — erro CONTRA o contribuinte, e calado.
+        FiscalException ex = assertThrows(FiscalException.class, () -> motor.calcular(
+                MotorFiscalRequest.builder()
+                        .cfop("5933").codigoServico("4.01").ibgeLocalPrestacao(SP)
+                        .valorOperacao(new BigDecimal("300")).dataCompetencia(COMP)
+                        .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null));
+        assertEquals(Constants.FISCAL_CCLASSTRIB_OBRIGATORIO, ex.getCodigo());
+    }
+
+    @Test
+    void servicoComCClassTribNaoAdmitido_lancaFiscalException() {
+        // 200048 é hotelaria: existe no Anexo VIII, mas não vale para o item 4.01 (saúde).
+        // Sem a checagem cairia em PADRAO e tributaria cheio sem avisar ninguém.
+        FiscalException ex = assertThrows(FiscalException.class, () -> motor.calcular(
+                MotorFiscalRequest.builder()
+                        .cfop("5933").codigoServico("4.01").cClassTrib("200048").ibgeLocalPrestacao(SP)
+                        .valorOperacao(new BigDecimal("300")).dataCompetencia(COMP)
+                        .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null));
+        assertEquals(Constants.FISCAL_CCLASSTRIB_INVALIDO_PARA_SERVICO, ex.getCodigo());
     }
 
     @Test

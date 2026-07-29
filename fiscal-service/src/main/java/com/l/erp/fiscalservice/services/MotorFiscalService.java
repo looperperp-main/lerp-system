@@ -54,6 +54,19 @@ public class MotorFiscalService {
                     ? Constants.FISCAL_NCM_E_SERVICO_CONFLITANTES     // os dois: produto ou serviço?
                     : Constants.FISCAL_NCM_OU_SERVICO_OBRIGATORIO);   // nenhum: nada a classificar
         }
+        // O regime IBS/CBS do serviço vem do cClassTrib DECLARADO, não do código LC 116 — o mesmo
+        // serviço muda de classificação conforme o contexto (à administração pública vira 200043).
+        // Sem ele o motor tributaria no escuro, então é 400, não fallback silencioso.
+        if (servico) {
+            if (!preenchido(req.getCClassTrib())) {
+                throw new FiscalException(Constants.FISCAL_CCLASSTRIB_OBRIGATORIO);
+            }
+            // E não é campo livre: o Anexo VIII fixa quais cClassTrib valem para cada item LC 116.
+            // Sem esta checagem um código inexistente cairia em PADRAO e tributaria cheio, calado.
+            if (!tabela.cClassTribAdmitido(req.getCodigoServico(), req.getCClassTrib())) {
+                throw new FiscalException(Constants.FISCAL_CCLASSTRIB_INVALIDO_PARA_SERVICO);
+            }
+        }
         // Com o split ligado, splitPaymentAplicavel vem da condicao_pagamento e é obrigatório:
         // sem ele não dá pra distinguir "pagamento não splitável" de "o chamador esqueceu".
         if (splitLigado && req.getSplitPaymentAplicavel() == null) {
@@ -76,15 +89,15 @@ public class MotorFiscalService {
         // Serviço (NFS-e): IBS é pelo LOCAL DA PRESTAÇÃO, não pelo tomador (§1.4.5)
         String ibgeDestino = servico ? req.getIbgeLocalPrestacao() : req.getIbgeDestino();
         RegimeDiferenciado regime = servico
-                ? tabela.regimeServico(req.getCodigoServico())
+                ? tabela.regimeCClassTrib(req.getCClassTrib())
                 : tabela.regimeNcm(req.getNcm());
 
-        // PASSO 2 — cesta básica / monofásico
-        if (regime.isCestaBasica()) {
-            memoria.add("NCM cesta básica: IBS/CBS/IS = 0 (§1.4.2 Passo 2)");
+        // PASSO 2 — alíquota zero (cesta básica, isento, imune) / monofásico
+        if (regime.aliquotaZero()) {
+            memoria.add("Regime " + regime.name() + ": alíquota zero, IBS/CBS/IS = 0 (§1.4.2 Passo 2)");
             return zerado(req, regime, memoria, splitLigado);
         }
-        if (regime.isMonofasico() && !cfop.primeiraEtapaCadeia()) {
+        if (regime.monofasico() && !cfop.primeiraEtapaCadeia()) {
             memoria.add("Monofásico fora da 1ª etapa: já recolhido na origem (§1.4.2 Passo 2)");
             return zerado(req, regime, memoria, splitLigado);
         }
