@@ -107,8 +107,13 @@ class TabelaFiscalJdbcTest {
                 ('04.01', '200029'),
                 ('04.22', '011002')
             """,
-            "INSERT INTO fiscal.aliq_ibs_municipio VALUES ('3550308', 2027, 13.1200, 4.5000)",
-            "INSERT INTO fiscal.aliq_cbs_regime VALUES ('LUCRO_REAL', 2027, 8.8000)",
+            // 2033 = regime permanente, alíquotas de referência reais do portal do piloto CBS.
+            // '0000000' é a linha-base de referência (fiscal-023); '3552502' finge ter publicado
+            // alíquota própria — valor inventado, só para provar que a própria vence a referência.
+            "INSERT INTO fiscal.aliq_ibs_municipio VALUES ('0000000', 2033, 16.0000, 2.5000)",
+            "INSERT INTO fiscal.aliq_ibs_municipio VALUES ('3550308', 2033, 16.0000, 2.5000)",
+            "INSERT INTO fiscal.aliq_ibs_municipio VALUES ('3552502', 2033, 18.0000, 3.0000)",
+            "INSERT INTO fiscal.aliq_cbs_regime VALUES ('LUCRO_REAL', 2033, 8.5000)",
             """
             INSERT INTO fiscal.aliq_is_ncm (ncm, aliquota_pct, vigente_de, vigente_ate) VALUES
                 ('2402.20', 150.00, DATE '2027-01-01', NULL),
@@ -220,18 +225,39 @@ class TabelaFiscalJdbcTest {
 
     @Test
     void aliquotaIbs_porMunicipioEAno() {
-        AliquotaIbs aliq = tabela.aliquotaIbs("3550308", 2027).orElseThrow();
-        assertEquals(0, new BigDecimal("13.12").compareTo(aliq.estadual()));
-        assertEquals(0, new BigDecimal("4.50").compareTo(aliq.municipal()));
+        AliquotaIbs aliq = tabela.aliquotaIbs("3550308", 2033).orElseThrow();
+        assertEquals(0, new BigDecimal("16.00").compareTo(aliq.estadual()));
+        assertEquals(0, new BigDecimal("2.50").compareTo(aliq.municipal()));
+        assertFalse(aliq.referenciaNacional());
 
-        assertTrue(tabela.aliquotaIbs("3550308", 2026).isEmpty());   // ano sem publicação
-        assertTrue(tabela.aliquotaIbs("3304557", 2027).isEmpty());   // município sem publicação
+        // Ano sem linha NENHUMA (nem própria, nem de referência) segue vazio: o motor devolve 400
+        // FISCAL_VIGENCIA_SEM_COBERTURA em vez de inventar alíquota.
+        assertTrue(tabela.aliquotaIbs("3550308", 2026).isEmpty());
+    }
+
+    @Test
+    void aliquotaIbs_municipioSemLinhaPropria_caiNaReferenciaNacional() {
+        // Rio de Janeiro não está no seed: antes do fiscal-023 isso era 400, agora usa a referência
+        // do Senado — que é uniforme por tipo de ente — e marca a origem para o motor avisar.
+        AliquotaIbs aliq = tabela.aliquotaIbs("3304557", 2033).orElseThrow();
+        assertEquals(0, new BigDecimal("16.00").compareTo(aliq.estadual()));
+        assertEquals(0, new BigDecimal("2.50").compareTo(aliq.municipal()));
+        assertTrue(aliq.referenciaNacional());
+    }
+
+    @Test
+    void aliquotaIbs_aliquotaPropriaVenceAReferencia() {
+        // Se o ente legislou a própria, ela manda — a referência é só o default de quem não legislou.
+        AliquotaIbs aliq = tabela.aliquotaIbs("3552502", 2033).orElseThrow();
+        assertEquals(0, new BigDecimal("18.00").compareTo(aliq.estadual()));
+        assertEquals(0, new BigDecimal("3.00").compareTo(aliq.municipal()));
+        assertFalse(aliq.referenciaNacional());
     }
 
     @Test
     void aliquotaCbs_porRegimeEAno() {
-        assertEquals(0, new BigDecimal("8.80")
-                .compareTo(tabela.aliquotaCbs(Constants.REGIME_LUCRO_REAL, 2027).orElseThrow()));
+        assertEquals(0, new BigDecimal("8.50")
+                .compareTo(tabela.aliquotaCbs(Constants.REGIME_LUCRO_REAL, 2033).orElseThrow()));
         assertTrue(tabela.aliquotaCbs(Constants.REGIME_LUCRO_REAL, 2026).isEmpty());
     }
 

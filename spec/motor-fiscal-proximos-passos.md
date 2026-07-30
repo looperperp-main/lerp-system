@@ -1,6 +1,6 @@
 # Motor Fiscal — próximos passos
 
-> Última atualização: 29 de julho de 2026
+> Última atualização: 30 de julho de 2026
 
 Handoff das fatias seguintes do motor fiscal. Escrito para ser lido do zero, sem
 contexto de conversa anterior.
@@ -10,7 +10,13 @@ contexto de conversa anterior.
 `fiscal-service` (porta 8093) expõe `POST /fiscal/calcular`: determinístico, sem
 persistência, **só saída**. Lê conteúdo fiscal real de `fiscal.*` via
 `TabelaFiscalJdbc` (JdbcClient, read-only; schema e carga pertencem ao
-`liquibase-service`, changesets `fiscal-001..020`).
+`liquibase-service`, changesets `fiscal-001..021`).
+
+**Divisão de responsabilidade (decidida em 29 de julho de 2026):** o
+`fiscal-service` é **só cálculo** — stateless, sem schema de escrita, para sempre
+(MF-06 deixa de ser "por ora" e passa a ser desenho). Quem guarda documento,
+saldo e movimento é o `operacoes-service`, que será o **AP** (contas a pagar /
+P2P) e o **AR** (contas a receber / O2C).
 
 O que já existe:
 
@@ -22,7 +28,7 @@ O que já existe:
 | `fiscal.aliq_ibs_municipio` / `aliq_cbs_regime` / `aliq_is_ncm` | alíquotas | motor |
 | `fiscal.servico_nbs` | 895 linhas, 675 NBS (Anexo VIII) | catálogo, picklist do cadastro |
 | `fiscal.servico_cclasstrib` | 246 pares item LC 116 × cClassTrib | motor (validação) |
-| `fiscal.regime_cclasstrib` | **7 de 27** cClassTrib com redução | motor |
+| `fiscal.regime_cclasstrib` | **25 de 27** cClassTrib com redução | motor |
 
 Serviço é classificado pelo `cClassTrib` **declarado** na nota (não deduzido do
 código LC 116 — o mesmo serviço muda de classificação conforme o contexto).
@@ -31,46 +37,58 @@ Sem `cClassTrib`, ou com par item×cClassTrib não admitido, o motor devolve 400
 Testes: `MotorFiscalServiceTest` (aritmética, oráculo do Fin.md §1.4.8, contra
 `TabelaFiscalFake`) e `TabelaFiscalJdbcTest` (SQL, H2 em modo PostgreSQL).
 
----
-
-## 2. Os 20 percentuais de redução que faltam
-
-**Bloqueante para emitir NFS-e nesses setores. Hoje eles tributam cheio, calado.**
-
-`fiscal.regime_cclasstrib` só tem os 7 cClassTrib cujo percentual dava para
-fundamentar pelo próprio nome no Anexo VIII (os que citam anexo II/III/IX/X/XI,
-todos 60%, mais o `000001` = integral). Os outros 20 têm a redução fixada em
-artigos da LC 214 que não constam do anexo — e escrever percentual de cabeça
-dentro de motor fiscal é pior do que não ter o dado.
-
-Fonte: `spec/leicomplementar-214-16-janeiro-2025-796905-normaatualizada-pl.pdf`
-(está no repo; ler por faixas de página com o parâmetro `pages`).
-
-Códigos pendentes e o setor de cada um:
-
-| cClassTrib | setor |
-|---|---|
-| `200048` | hotelaria |
-| `200046`, `200027` | bens imóveis |
-| `200052` | profissões intelectuais |
-| `200021`, `400001` | transporte público coletivo |
-| `011002` | planos de assistência à saúde |
-| `200025` | Prouni |
-| `200016` | ICT (ciência e tecnologia) |
-| `000002`, `010002`, `011001`, `011003`, `011005`, `200037`, `200040`, `200041`, `200042`, `200045`, `200051` | ver `spec/anexos-lc214-revisar.md` |
-
-Entregável: um changeset novo (`fiscal-021`) com os INSERT fundamentados, cada
-linha comentada com o artigo da LC 214 que a sustenta. Não editar o
-`fiscal-019` — ele já rodou, e mexer em changeset aplicado quebra o checksum.
-
-O que **não** dá para fundamentar sozinho fica de fora e continua em `PADRAO`,
-com a pendência registrada em `spec/anexos-lc214-revisar.md`.
+Fallback para `PADRAO` (NCM/`cClassTrib` sem linha de regime ⇒ tributa cheio) não
+é mais silencioso: sai `WARN` no log e uma linha de aviso na `memoriaCalculo` da
+resposta. `INTEGRAL` — classificação declarada com redução 0 — não avisa.
 
 ---
 
-## 3. Cálculo dual da transição (2026–2032)
+## 2. Os 20 percentuais de redução que faltam ✅ FEITO (29 de julho de 2026)
 
-**O maior buraco. Sem isso o ERP não emite documento válido em 2027–2032.**
+Entrou o changeset **`fiscal-021-seed-regime-cclasstrib-lc214`** (no fim de
+`fiscal-schema-007.yaml`, sem tocar no `fiscal-019`), com **18 dos 20** códigos —
+uma linha por `cClassTrib`, cada uma comentada com o artigo da LC 214 (redação
+atualizada pela LC 227/2026) que fixa o percentual:
+
+| redução | `cClassTrib` | artigo |
+|---|---|---|
+| 100% | `200016` ICT | art. 156 (reduzidas a zero) |
+| 100% | `200021` transp. ferroviário/hidroviário urbano | art. 285, I |
+| 100% | `400001` transp. rodoviário/metroviário urbano | art. 157 (isenção) |
+| 70% | `200027` locação/cessão/arrendamento de imóveis | art. 261, § único |
+| 60% | `011001` plano funerária | art. 236 → 237 |
+| 60% | `011002` plano de saúde | art. 237 |
+| 60% | `011003` intermediação de plano de saúde | art. 240 (mesma alíquota do plano) |
+| 60% | `200037` serviço ambiental de vegetação nativa | art. 137, caput + § 3º |
+| 60% | `200040` comunicação institucional | art. 140 |
+| 60% | `200041` / `200042` educação desportiva | art. 141, I e II |
+| 60% | `200045` reabilitação urbana | art. 158, caput |
+| 50% | `200046` operações com bens imóveis | art. 261, caput |
+| 40% | `200048` hotelaria e parques | art. 281 |
+| 40% | `200051` agências de turismo | art. 289, II (= alíquota da hotelaria) |
+| 30% | `011005` plano de saúde de animal doméstico | art. 243 |
+| 30% | `200052` profissões intelectuais | art. 127 |
+| 0% | `000002` exploração de via | art. 11, VIII (integral; só define o local) |
+
+Ficaram de fora os **2** que o modelo não expressa — `percentual_reducao` é um só
+para IBS e CBS: `010002` (serviços financeiros, art. 233 fixa a *soma* de IBS+CBS
+em valor absoluto, 10,85% em 2027-2028) e `200025` (Prouni, art. 308 zera só a
+CBS). Seguem em `PADRAO`, tributando cheio, registrados em
+`spec/anexos-lc214-revisar.md` junto com duas ressalvas dos que entraram
+(`200045` tem 80% na locação do art. 162, VI; `000002` exige rateio por extensão
+da via, que o motor não faz).
+
+Migração aplicada e suíte verde em 30 de julho de 2026 (`liquibase-service` +
+`verify -pl fiscal-service`).
+
+---
+
+## 3. Cálculo dual da transição (2026–2032) — decisão tomada
+
+Era "o maior buraco: sem isso o ERP não emite documento válido em 2027–2032". Com
+a decisão de **não emitir nota inicialmente** (§5), deixou de ser bloqueante —
+segue necessário para o imposto total ficar certo na transição (formação de preço,
+contas a receber, DRE), mas pode vir depois do item 4.
 
 O motor calcula só o lado novo (IBS/CBS/IS). Mas na transição a nota carrega os
 dois sistemas no mesmo item: ICMS e ISS em redução progressiva, PIS/COFINS até
@@ -81,11 +99,68 @@ dois sistemas no mesmo item: ICMS e ISS em redução progressiva, PIS/COFINS at�
 - **2029–2032** — ICMS e ISS reduzidos 10%/20%/30%/40% ao ano.
 - **2033** — só IBS/CBS.
 
-**Decisão de escopo que precisa vir do usuário antes de escrever código:** o ERP
-vai *calcular* ICMS/ISS/PIS/COFINS (motor legado inteiro: ST, MVA, DIFAL, pauta,
-alíquota interestadual, benefício por UF — projeto grande e que hoje não existe
-em lugar nenhum do repositório), ou vai apenas *transportar* valores calculados
-fora? As duas respostas levam a arquiteturas diferentes; não dá para default.
+### Decisão (29 de julho de 2026)
+
+**Não vamos construir motor legado.** Nada de ST, MVA, DIFAL, pauta, benefício
+por UF, CSOSN por regime — mesmo valendo 7 anos, atrasa demais o
+desenvolvimento. O lado legado sai de uma **matriz tributária parametrizada**:
+uma linha por rota fiscal, alíquota já resolvida, o motor só multiplica.
+
+Rascunho da tabela (`fiscal.matriz_tributaria`, chave
+`ncm_nbs` + `uf_origem` + `uf_destino`, blocos ICMS / ISS / PIS-COFINS, com
+`'00000000'` como linha de fallback geral) — a direção está certa. Cinco ajustes
+antes de virar changeset:
+
+1. **Vigência é obrigatória.** Sem `vigencia_inicio`/`vigencia_fim` (ou `ano`) a
+   `UNIQUE (ncm_nbs, uf_origem, uf_destino)` impede ter 2028 e 2029 na mesma
+   rota — e é exatamente a redução de 10/20/30/40% de 2029–2032 que precisa
+   variar por ano. Recomendado: a matriz guarda a alíquota **cheia** e a curva da
+   transição vira uma tabela pequena `ano → % remanescente de ICMS/ISS`, do mesmo
+   jeito que IBS/CBS já fazem com `aliq_ibs_municipio`/`aliq_cbs_regime`. Assim a
+   matriz não é recarregada todo ano.
+2. **ISS não é por UF, é por município.** `aliq_efetiva_iss` chaveada em
+   `uf_destino` não resolve: a alíquota (2%–5%) é do município e varia por item
+   da LC 116. Ou entra `ibge_municipio` (7 dígitos) + item LC 116, ou o ISS sai
+   para tabela própria — que é o mais limpo, já que UF de origem/destino não diz
+   nada sobre serviço.
+3. **`aliq_efetiva_icms` e `p_reducao_base_icms` juntos se contradizem.** Se a
+   alíquota já é efetiva, a redução de base está embutida e vai ser contada duas
+   vezes. A NF-e exige os dois campos separados (`vBC` reduzida + `pICMS`
+   nominal), então guardar **nominal + `p_reducao_base`** e calcular a efetiva.
+4. **NBS tem 9 dígitos**, não 8 — `VARCHAR(8)` trunca. Coluna `VARCHAR(9)` mais
+   um discriminador (`tipo_item` `'P'`/`'S'`), senão não se sabe se `12345678` é
+   NCM ou NBS truncado.
+5. **Multi-tenant — decidido: matriz global com override por tenant.** Benefício
+   fiscal, regime especial e TTD são por contribuinte, então entra
+   `tenant_id UUID` **nulável** na mesma tabela: `NULL` = linha base, valendo para
+   todos; linha com `tenant_id` = override daquele contribuinte. Uma tabela só, sem
+   duplicar a carga base por tenant. Cuidado com a chave: no Postgres `NULL` não
+   colide em `UNIQUE`, logo `UNIQUE (tenant_id, ncm_nbs, uf_origem, uf_destino)`
+   aceitaria duas linhas base iguais — usar
+   `UNIQUE NULLS NOT DISTINCT` (PG 17, é a imagem do `compose.yaml`). Se o H2 do
+   `TabelaFiscalJdbcTest` não engolir, o DDL do teste usa dois índices parciais
+   (`WHERE tenant_id IS NULL` / `IS NOT NULL`) — o DDL do teste é escrito à mão e
+   já divergia.
+
+Ordem de resolução da busca — override antes da base, específico antes do
+fallback, para não explodir em 27×27×NCM linhas e nem obrigar o tenant a
+recadastrar tudo para mudar uma alíquota:
+
+1. `(tenant_id, ncm, uf_origem, uf_destino)`
+2. `(tenant_id, '00000000', uf_origem, uf_destino)`
+3. `(NULL, ncm, uf_origem, uf_destino)`
+4. `(NULL, '00000000', uf_origem, uf_destino)`
+
+Nenhuma das quatro casa ⇒ 400 com código próprio, mesmo padrão do
+`FISCAL_VIGENCIA_SEM_COBERTURA`: nunca assumir alíquota zero por dado
+faltando (é o mesmo princípio do aviso de `PADRAO`).
+
+PIS/COFINS têm prazo de validade curto (extintos em 2027): valem para competência
+de 2026 e retroativo. Vale carregar, não vale investir.
+
+Fora de escopo por decisão, registrado para não voltar como surpresa: ST/MVA
+(`cst_icms = '060'` chega com o imposto já retido por quem calculou fora), DIFAL,
+pauta fiscal e CSOSN do Simples.
 
 ---
 
@@ -94,39 +169,284 @@ fora? As duas respostas levam a arquiteturas diferentes; não dá para default.
 Hoje o motor só faz saída — `CfopInfo` já carrega `gera_credito_ibs` e
 `gera_credito_cbs`, mas nada consome esses campos.
 
-**Decisão que precisa vir do usuário:** crédito exige memória (o que entrou, o
-que já foi aproveitado), e o `fiscal-service` é deliberadamente stateless
-(MF-06). Ele ganha schema próprio e lado de escrita, ou o crédito é persistido
-pelo `operacoes-service` e o fiscal segue só calculando?
+**Decisão (29 de julho de 2026): o crédito é persistido pelo `operacoes-service`
+(AP), e o `fiscal-service` continua só calculando.** O crédito nasce de um
+documento de entrada, que é registro do P2P; um segundo dono de escrita para o
+mesmo fato só criaria divergência. Fim da dúvida de escopo — o fiscal **não** ganha
+schema de escrita.
 
-Depende do item 3 na parte da transição (crédito de ICMS na entrada convive com
-crédito de IBS no mesmo período).
+O que cabe ao `fiscal-service` (é o último código de motor que falta, e dá para
+fazer agora, sem depender de ninguém):
+
+- aceitar CFOP de **entrada** — hoje `TipoOperacaoFiscal != SAIDA` devolve 400
+  `FISCAL_CFOP_INVALIDO_SAIDA`;
+- ler `gera_credito_ibs` / `gera_credito_cbs` do `CfopInfo` (já existem na tabela,
+  ninguém consome) e devolver quanto daquela entrada é creditável;
+- aplicar as **vedações**: uso e consumo pessoal não gera crédito, e entrada cujo
+  destino é saída desonerada gera crédito proporcional, não integral;
+- IS **não** gera crédito (é tributo monofásico, cumulativo por desenho);
+- devolver o valor calculado no mesmo formato determinístico da saída, com memória
+  de cálculo — quem grava é o AP.
+
+O que cabe ao `operacoes-service` (AP): guardar o documento de entrada, o saldo de
+crédito, o que já foi aproveitado e em qual período — nada disso passa pelo fiscal.
+
+**Não depende do item 3 estar pronto.** O único cruzamento é a transição (crédito
+de ICMS na entrada convive com crédito de IBS no mesmo período) — e como o legado
+não é calculado, e sim parametrizado/transportado, o crédito legado também só é
+transportado. Os dois itens podem andar em qualquer ordem.
 
 ---
 
-## 5. Apuração mensal, depois emissão
+## 5. Apuração mensal (emissão fora do escopo inicial)
 
-Depende do item 4. Ordem: apuração (consolidar débito − crédito por período e
-por estabelecimento) → geração do arquivo → emissão NF-e/NFC-e/NFS-e.
+**Decisão (29 de julho de 2026): o ERP não vai emitir nota inicialmente.** Então
+este item se reduz a **apuração**: consolidar débito − crédito por período e por
+estabelecimento. Emissão NF-e/NFC-e/NFS-e sai do plano de curto prazo — o que
+também tira do caminho a dependência de `spec/estabelecimentos-filiais.md`
+(planejado, não iniciado: não existe entidade de estabelecimento para figurar como
+emitente).
 
-Emissão também depende de `spec/estabelecimentos-filiais.md`, que está planejado
-e não iniciado — não há entidade de estabelecimento para figurar como emitente.
+Apuração **depende do item 4** (sem crédito não há o que subtrair do débito) e
+**não depende do item 3**: o lado legado entra na apuração como valor
+parametrizado, não calculado.
+
+**Dono: `operacoes-service`, não o fiscal.** Apuração é soma de valores já
+persistidos (débito das saídas do AR − crédito das entradas do AP, por período e
+por estabelecimento) — não precisa de motor, precisa de quem tem os dados. Com o
+fiscal sendo só cálculo, ele **não participa deste item**: nada de
+`calcularEPersistir` nem `recalcularPeriodo` (a `spec/Fin.md` §1.4.10 já registra
+que não existem). Se algum dia a apuração exigir regra de lei em vez de soma
+(compensação entre tributos, ordem de aproveitamento), aí sim entra um endpoint
+puro no fiscal recebendo os movimentos e devolvendo o resultado — sem gravar.
+
+Consequência de não emitir: o prazo do item 3 deixa de ser fatal — a matriz não é
+mais o que separa o ERP de "documento válido em 2027–2032". Continua necessária
+para o número total de imposto ficar certo em formação de preço, contas a receber
+e DRE durante a transição, mas pode vir depois do item 4.
 
 ---
 
-## 6. Documentação desatualizada
+## 6. Documentação desatualizada ✅ FEITO (29 de julho de 2026)
 
 Rápido, sem dependência de nada acima:
 
-- `spec/casos-teste-motor-fiscal.md` — descreve serviço classificado pelo código
-  LC 116; hoje é por `cClassTrib` declarado.
-- `spec/Fin.md` §1.4.10 — contrato do `MotorFiscalRequest` sem o campo
-  `cClassTrib` e sem os 400 novos (`FISCAL_CCLASSTRIB_OBRIGATORIO`,
-  `FISCAL_CCLASSTRIB_INVALIDO_PARA_SERVICO`).
+- ✅ `spec/casos-teste-motor-fiscal.md` — descrevia serviço classificado pelo
+  código LC 116; agora documenta a classificação por `cClassTrib` declarado
+  (o item LC 116 só valida o par do Anexo VIII). Também corrigidos: nome do
+  oráculo (`TabelaFiscalFake`, não `TabelaFiscalInMemory`), nomes reais de
+  `regimeAplicado` (`ANEXO_I_ZERO` / `ANEXO_III_60`, não `CESTA_BASICA` /
+  `REDUCAO_60`), casos D1–D3 com `cClassTrib`, novos G9/G10 e resumo de
+  cobertura (16 métodos).
+- ✅ `spec/Fin.md` — §1.4.10 ganhou o campo `cClassTrib`, a assinatura real
+  `calcular(request, tenantId)` e nota de que `calcularEPersistir` /
+  `recalcularPeriodo` ainda não existem; §1.4.9 ganhou os cinco 400 novos
+  (`CFOP_INVALIDO_SAIDA`, `NCM_OU_SERVICO_OBRIGATORIO`,
+  `NCM_E_SERVICO_CONFLITANTES`, `CCLASSTRIB_OBRIGATORIO`,
+  `CCLASSTRIB_INVALIDO_PARA_SERVICO`) e a nota de que os fallbacks
+  parametrizados da §1.9 ainda não estão implementados.
+
+- ✅ `spec/fontes-dados-fiscais.md` — descrevia o motor como in-memory
+  (`TabelaFiscalInMemory`) e a migração para dados reais como plano futuro, com
+  `TabelaFiscalJpa` como destino. Atualizado para o estado real: conteúdo em
+  `fiscal.*` via `TabelaFiscalJdbc`, itens 4/5/6/8 carregados, e o que sobrou de
+  coleta pendente (IS, curva de alíquotas, 20 dos 27 `cClassTrib`).
+
+Fechado junto (código de teste): o caso **D3** virou o teste
+`ex5_servico_cclassTribIntegral_semReducao` — o `TabelaFiscalFake` ganhou o par
+`1.01 × 000001` e o regime `INTEGRAL` (redução 0), espelhando o `fiscal-019`.
+Detalhe que o doc errava: `000001` **tem** linha em `fiscal.regime_cclasstrib`,
+então sai `INTEGRAL`, não PADRAO — os dois tributam cheio, mas PADRAO significa
+dado fiscal faltando e INTEGRAL é classificação declarada.
 
 ---
 
-## Ordem sugerida
+## 7. Inventário do que falta no motor (levantado em 29 de julho de 2026)
 
-6 (barato, fecha inconsistência) → 2 (desbloqueia NFS-e, é pesquisa em fonte que
-já está no repo) → 3 (precisa da decisão de escopo) → 4 → 5.
+Os itens 2 a 6 acima são as fatias grandes. Esta seção é o resto — o que sobra
+quando se olha o motor inteiro, e que não estava escrito em lugar nenhum. Os três
+últimos de código (7.12, 7.13 e 7.14) saíram de **ler o código**, não de spec.
+
+### Dado (não tem decisão, é carga)
+
+- **7.1 Alíquotas IBS por município × ano.** ✅ **feito (30 de julho de 2026, `fiscal-023`,
+  não testado).** Descoberta que destravou: o portal do piloto CBS tem **API de dados
+  abertos** (`/dados-abertos/aliquota-uniao|aliquota-uf|aliquota-municipio?data=…`,
+  resposta `{"aliquotaReferencia": n}`) — a carga não é digitação, é GET. O
+  `fiscal-022-aliquotas-reais-portal-cbs` semeou 4 municípios (Arcos/MG `3104205`,
+  Formiga/MG `3126109`, Suzano/SP `3552502`, São Paulo/SP `3550308`) × 2026 a 2033; o
+  `fiscal-023-aliquota-ibs-referencia-nacional` **removeu essas 4 linhas** (eram cópia
+  da referência, não alíquota própria) e inseriu **uma linha nacional por ano**
+  (`ibge_municipio = '0000000'`) no lugar, 2026 a 2033. `TabelaFiscalJdbc.SQL_ALIQ_IBS`
+  agora busca a linha do município OU a sentinela, preferindo a própria quando existir —
+  `AliquotaIbs` ganhou o terceiro componente `referenciaNacional`, e o
+  `MotorFiscalService` emite `Constants.FISCAL_AVISO_ALIQUOTA_REFERENCIA` (WARN +
+  `memoriaCalculo`) quando cai nela, sem mudar o cálculo. **Qualquer município do
+  Brasil calcula IBS hoje, para 2026–2033**; `FISCAL_VIGENCIA_SEM_COBERTURA` só
+  sobra para ano fora dessa curva (ex. 2035). Carregar os ~5.570 municípios via API
+  virou **conferência** (uniformidade + captura de alíquota própria), não carga
+  bloqueante. Endpoints e o gotcha de rate limit em `spec/fontes-dados-fiscais.md`.
+- **7.2 CBS por regime × ano.** ✅ **feito (idem).** `aliq_cbs_regime` tem os três
+  regimes de 2026 a 2033: 0,9% em 2026, 8,4% em 2027-2028 e 8,5% de 2029 em diante.
+- **7.3 Curva 2026–2033.** ✅ **feita, toda real.** 2029–2032 são 10/20/30/40% do
+  regime permanente, conferidos ano a ano no portal. Nota importante: a alíquota da
+  transição é **simbólica** (IBS de 0,1% em 2026, 0,05%+0,05% em 2027–2028), então o
+  oráculo de teste e os exemplos do `Fin.md` §1.4.8 usam **2033** — que também é real
+  (IBS 16,00% + 2,50%, CBS 8,50%; total 27%), e não mais a estimativa 13,12+4,50/8,80
+  do `fiscal-010`, sobrescrita pelo `fiscal-022`.
+- **7.4 `aliq_is_ncm`.** Uma linha de exemplo; depende de lei ordinária. Quando
+  sair, precisa da lista de NCM sujeitos ao IS (cigarro, bebida, veículo, mineral)
+  com as alíquotas.
+- **7.5 240 itens de anexo de produto**, pendentes em
+  `spec/anexos-lc214-revisar.md`.
+- **7.6 Lista de vedação de crédito** (art. 57, uso e consumo pessoal): não existe
+  tabela nenhuma. Pré-requisito do item 4 se a vedação não vier declarada pelo AP.
+
+### Modelo (o schema não expressa)
+
+- **7.7 `percentual_reducao` é um valor único para IBS e CBS.** Não expressa
+  redução por tributo (art. 308: Prouni zera só a CBS) nem alíquota em valor
+  absoluto (art. 233: serviços financeiros, soma fixa de 10,85%). São exatamente os
+  2 `cClassTrib` que ficaram fora do `fiscal-021`. Correção: coluna por tributo ou
+  tabela de alíquota absoluta.
+- **7.8 Vigência.** Nem alíquota nem regime têm `vigencia_inicio`/`vigencia_fim`; o
+  ano está solto na chave. Dói na transição, quando o mesmo NCM muda de percentual
+  de um ano para o outro.
+
+### Código
+
+- **7.9 Ano de teste 2026** — CBS 0,9% e IBS 0,1%, compensáveis com PIS/COFINS.
+  Caso especial, não implementado. É **este ano**: se o MVP faturar em 2026, é o
+  primeiro caso que aparece na prática.
+- **7.10 Fallbacks parametrizados da `spec/Fin.md` §1.9** — especificados, não
+  implementados (a §1.4.9 do Fin.md já registra isso).
+- **7.11 Split payment é só o valor.** Liquidação real e integração com a
+  Plataforma Pública não existem — declarado como fatia futura no próprio código.
+- **7.12 `origemProduto` era ignorado** ✅ **avisado (30 de julho de 2026, verde).** O tratamento da ZFM (LC 214) **continua não implementado** — é
+  pesquisa —, mas deixou de ser silencioso: `origemProduto = 'ZFM'` gera `WARN` de
+  uma linha e linha na `memoriaCalculo` (`Constants.FISCAL_AVISO_ORIGEM_ZFM`)
+  dizendo que o item foi tributado como nacional. Mesmo padrão do aviso de `PADRAO`.
+  O aviso sai **antes** dos retornos de MEI e de alíquota zero, então vale para
+  todos os caminhos. Falta ainda a regra fiscal da ZFM propriamente.
+- **7.13 `tipoDocumento` era ignorado** ✅ **validado (30 de julho de 2026, verde).** No PASSO 0: `NFSe` com `ncm`, ou `NFe`/`NFCe` com `codigoServico` ⇒ 400
+  `FISCAL_TIPO_DOCUMENTO_INCOMPATIVEL`. `CTe` fica **fora** da regra (o motor não
+  trata transporte) e o campo segue opcional — quem não manda não é afetado.
+- **7.14 O motor não compunha a base de cálculo** ✅ **resolvido (30 de julho de
+  2026, verde).** Decisão tomada: **o request recebe os componentes e o motor
+  compõe** — a alternativa (registrar que a composição é do chamador) deixaria a
+  memória de cálculo começando num número que o motor não sabe explicar, e a NF-e
+  exige os campos separados de qualquer forma. Como ficou:
+  - `MotorFiscalRequest` ganhou `valorDesconto`, `valorFrete`, `valorSeguro` e
+    `valorOutrasDespesas`, **todos opcionais** e `@PositiveOrZero` (negativo é 400
+    de bean validation). Request antigo continua válido: sem nenhum componente, o
+    `valorOperacao` **é** a base, exatamente como antes.
+  - PASSO 0.5 no `MotorFiscalService`: `tributável = operação + frete + seguro +
+    acessórias − desconto incondicional` (LC 214 art. 12, §2º). Roda **antes** dos
+    retornos de MEI e de alíquota zero, que também devolvem `baseCalculo`.
+  - O **IS incide sobre a base já composta** e continua integrando a base do
+    IBS/CBS (`base = tributável + IS`).
+  - `tributável <= 0` ⇒ 400 `FISCAL_DESCONTO_MAIOR_QUE_OPERACAO`: desconto não zera
+    nem inverte a operação.
+  - Auditoria: linha `Constants.FISCAL_MEMORIA_BASE_COMPOSTA` na `memoriaCalculo`
+    com os seis valores, emitida **só** quando algum componente vem (sem eles seria
+    ruído).
+  - Fica de fora, deliberadamente: **desconto condicional** (não reduz base, então
+    não entra no request) e rateio de frete/desconto de cabeçalho por item — isso é
+    do AR/O2C, que chama o motor **por item**.
+- **7.15 Devolução, nota de crédito e ajuste** — nada existe. Estorno de crédito e
+  cancelamento também não.
+
+### Qualidade
+
+- **7.16 `TabelaFiscalFake` não tinha CFOP de entrada** ✅ **resolvido (30 de julho de
+  2026, verde).** Ganhou o `1102` (ENTRADA, gera crédito de IBS e de CBS, não é
+  1ª etapa — mesmas flags do `cfop.csv`). Hoje cobre o caso G5 (entrada em motor de
+  saída ⇒ 400 `FISCAL_CFOP_INVALIDO_SAIDA`); quando a fatia de entrada do item 4
+  chegar, o oráculo do crédito já existe.
+- **7.17 Não testado** ✅ **rodado e verde (30 de julho de 2026).** `fiscal-021` aplicado
+  via `./mvnw spring-boot:run -pl liquibase-service`, e `./mvnw verify -pl fiscal-service`
+  com **41 testes / 0 falhas** (22 em `MotorFiscalServiceTest`, 15 em `TabelaFiscalJdbcTest`,
+  4 em `MotorFiscalControllerTest`) — cobre o aviso de `PADRAO` e os itens 7.12, 7.13 e 7.16.
+  Os dois `WARN` novos apareceram no log da execução, como esperado.
+  Segunda rodada, mesmo dia: `fiscal-023` aplicado e suíte verde de novo, agora com os três
+  testes da referência nacional (2 em `TabelaFiscalJdbcTest` — fallback e precedência da
+  alíquota própria — e o caso H3 em `MotorFiscalServiceTest`). A fusão de
+  `FISCAL_MUNICIPIO_SEM_ALIQUOTA_IBS` em `FISCAL_VIGENCIA_SEM_COBERTURA` veio **depois**
+  dessa rodada: é troca de uma constante sem asserção em teste, mas ainda não recompilada.
+
+---
+
+## Ordem sugerida (dentro deste doc)
+
+6 ✅ → 2 ✅ → **4** (só a parte de cálculo, no fiscal) → 3 (matriz da transição) →
+5 (apuração, e ela já não é do fiscal).
+
+Mudou de ordem por três decisões de 29 de julho de 2026: sem motor legado, sem
+emissão inicial e com o fiscal sendo **só cálculo**. O item 3 não bloqueia mais
+nada; o item 5 saiu do escopo do `fiscal-service` (vira trabalho do
+`operacoes-service`); e o item 4, do lado do fiscal, encolheu para "aceitar CFOP de
+entrada e devolver o crédito" — o resto dele é AP.
+
+Com 6 e 2 fechados, o que ainda separa o motor de "pronto" fora dos itens 3/4/5 é
+**dado**, não código: alíquota IBS existe para todo município via referência nacional
+2026–2033 (`fiscal-023`, aplicado e verde; só ano fora dessa curva devolve 400
+`FISCAL_VIGENCIA_SEM_COBERTURA`), `aliq_is_ncm` tem uma linha de exemplo e depende
+de lei ordinária, e sobram os 240 itens de anexo de produto em
+`spec/anexos-lc214-revisar.md`.
+
+---
+
+## Próximos passos gerais (fora do motor)
+
+Onde o motor fiscal para e o resto do ERP começa. O `fiscal-service` está
+**funcionalmente fechado para saída** — o que falta nele é uma fatia pequena
+(entrada) e carga de dado, não arquitetura. O inventário fino está no item 7; dos três
+itens de lá que mexem no **contrato** e valiam ser resolvidos antes de o AR chamar o
+motor, **os três estão fechados**: 7.12 (`origemProduto` — avisa em vez de ignorar),
+7.13 (`tipoDocumento` — valida coerência) e 7.14 (o motor compõe a base a partir de
+desconto/frete/seguro/acessórias, campos opcionais novos no request — 30 de julho de
+2026, **verde**). O contrato de entrada do motor está estável para o AR.
+
+**1. Conferência das alíquotas de todos os municípios — deixou de bloquear.**
+Até 29/07/2026 isto travava tudo: só 4 municípios (Arcos, Formiga, Suzano, São Paulo)
+tinham linha própria e qualquer outro devolvia 400. Com o
+`fiscal-023-aliquota-ibs-referencia-nacional` (30/07/2026, **não testado**) — uma linha
+nacional por ano (`ibge_municipio = '0000000'`) em `fiscal.aliq_ibs_municipio`, que o
+motor usa quando não há linha própria do município — **qualquer município do Brasil
+já calcula IBS para 2026–2033**. Deixou de ser item nº 1 de prioridade: o que resta é
+um job/script que varra os ~5.570 códigos IBGE **espaçando as chamadas** (o WAF corta
+em ~15 requisições em rajada; ~5s entre elas passou liso) e persista incrementalmente,
+usando a API de dados abertos do portal do piloto CBS
+(`/dados-abertos/aliquota-municipio?data=…&codigoMunicipio=…` → `{"aliquotaReferencia": n}`,
+documentada em `spec/fontes-dados-fiscais.md`). Como a alíquota de referência é uniforme
+por tipo de ente, a varredura serve para **confirmar** a uniformidade e pegar quem tiver
+alíquota própria (essa linha vence a referência automaticamente) — não para descobrir
+5.570 valores diferentes. Pode rodar depois, sem pressa.
+
+**2. AR / O2C no `operacoes-service`** — é o próximo módulo, e o mais barato: usa o
+motor de saída que já existe e está testado, sem escrever uma linha de fiscal.
+Orçamento → pedido → expedição → faturamento (`spec/o2c-vendas.md`). É também o que
+valida o motor com dado de verdade, em vez de `curl`.
+
+**3. Fatia de entrada do motor** (item 4 acima, lado fiscal) — pequena, e
+pré-requisito do AP. Pode ser feita em paralelo com o AR ou imediatamente antes do
+AP; não faz sentido antes disso, porque não haveria quem consumisse o crédito.
+
+**4. AP / P2P no `operacoes-service`** — requisição → cotação → pedido →
+recebimento → NF de entrada (`spec/p2p-compras.md`). É quem passa a persistir o
+crédito calculado no passo 3.
+
+**5. Apuração** (item 5 acima) — só faz sentido com AR e AP existindo, e roda no
+`operacoes-service`, sobre valores já gravados.
+
+**6. Matriz da transição** (item 3 acima) — necessária para o imposto total ficar
+certo em 2026–2032 (formação de preço, DRE), mas não bloqueia AR nem AP: até ela
+existir, os documentos carregam só o lado novo.
+
+**7. Emissão** (NF-e/NFC-e/NFS-e) — fora do escopo inicial por decisão. Quando
+voltar, depende de `spec/estabelecimentos-filiais.md` (emitente) e da matriz do
+passo 6.
+
+Resumindo em uma linha: **o motor de saída está pronto; falta ir para o AR (a
+conferência de alíquotas por município roda em paralelo, sem bloquear), depois a
+fatia de entrada e o AP.**

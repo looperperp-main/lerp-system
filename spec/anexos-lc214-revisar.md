@@ -6,6 +6,37 @@ silêncio. Resolver um item = decidir o(s) código(s) e acrescentar a linha num 
 
 Total pendente: **240** itens. Carregados automaticamente: **242** códigos.
 
+## Pendências de `cClassTrib` (serviço) — seção mantida À MÃO, não sai do script
+
+> Atualizada em 29 de julho de 2026, junto com o changeset `fiscal-021`.
+
+`fiscal.regime_cclasstrib` passou a ter **25 dos 27** `cClassTrib` do Anexo VIII: 7 do
+`fiscal-019` (fundamentados pelo próprio nome do anexo) + 18 do `fiscal-021` (cada linha com o
+artigo da LC 214 no comentário). Sobraram **2**, porque o modelo de dados não consegue expressá-los
+— um único `percentual_reducao` que vale para IBS e CBS ao mesmo tempo:
+
+| `cClassTrib` | setor | por que ficou fora | o que falta para resolver |
+|---|---|---|---|
+| `010002` | operações do serviço financeiro | art. 233 não dá redução: fixa a **soma** de IBS + CBS em valor absoluto (10,85% em 2027-2028, 11,00% em 2029, 11,15% em 2030 ...). Não é percentual sobre a alíquota de referência, é outra alíquota. | coluna/tabela de alíquota absoluta por ano, ou uma linha em `aliq_cbs_regime`/`aliq_ibs_municipio` com regime próprio |
+| `200025` | Prouni | art. 308 reduz a zero **apenas a CBS**; o IBS segue cheio. Um percentual só, aplicado aos dois tributos, erra um dos lados. | separar a redução por tributo (`percentual_reducao_ibs` / `_cbs`) |
+
+Os dois continuam caindo em `RegimeDiferenciado.PADRAO` — **tributam cheio, e aqui o erro é contra
+o contribuinte**. Emitir NFS-e de serviço financeiro ou de ensino superior no Prouni depende de
+resolver isto antes.
+
+Dois códigos entraram no `fiscal-021`, mas **com ressalva** — a alíquota está certa, o resto do
+regime não:
+
+| `cClassTrib` | carregado | ressalva |
+|---|---|---|
+| `200045` | 60% (art. 158, caput) | o parágrafo único sobe para **80%** na locação de imóveis do art. 162, VI. O `cClassTrib` sozinho não distingue os dois casos; hoje sai 60% sempre, o que **tributa a mais** na locação. |
+| `000002` | 0% (integral) | art. 11, VIII manda ratear a operação entre Municípios/Estados **proporcionalmente à extensão da via explorada**. O motor calcula para um único município (`ibgeLocalPrestacao`), sem rateio. |
+
+Fora disso, os regimes específicos carregados (hotelaria, agências de turismo, planos de
+assistência, bens imóveis) têm regra de **base de cálculo** própria na LC 214 — dedução de
+repasses, provisões técnicas, sinistros. O `fiscal-021` carrega só a alíquota; a base continua
+chegando pronta em `valorOperacao`, por conta de quem chama o motor.
+
 ## Serviço com código NBS; o motor casa por código LC 116 — falta o de/para NBS<->LC116 — 143 itens
 
 | Anexo | Item | Descrição |

@@ -329,9 +329,12 @@ public class Constants {
     // Códigos de erro do motor fiscal (Fin.md §1.4.9)
     public static final String FISCAL_CFOP_NAO_ENCONTRADO = "FISCAL_CFOP_NAO_ENCONTRADO";
     public static final String FISCAL_CFOP_INVALIDO_SAIDA = "FISCAL_CFOP_INVALIDO_SAIDA";
-    public static final String FISCAL_MUNICIPIO_SEM_ALIQUOTA_IBS = "FISCAL_MUNICIPIO_SEM_ALIQUOTA_IBS";
     public static final String FISCAL_REGIME_SEM_ALIQUOTA_CBS = "FISCAL_REGIME_SEM_ALIQUOTA_CBS";
     public static final String FISCAL_NCM_NAO_ENCONTRADO = "FISCAL_NCM_NAO_ENCONTRADO";
+    // Nao ha aliquota de IBS para a data de competencia. Substituiu o antigo
+    // FISCAL_MUNICIPIO_SEM_ALIQUOTA_IBS: desde o fiscal-023 existe a linha de REFERENCIA nacional
+    // ('0000000') cobrindo 2026-2033, entao municipio sem linha propria calcula normalmente e o que
+    // resta descoberto e o ANO — ex. 2035, fora da curva publicada pelo Senado.
     public static final String FISCAL_VIGENCIA_SEM_COBERTURA = "FISCAL_VIGENCIA_SEM_COBERTURA";
     public static final String FISCAL_SPLIT_SEM_FORMA_PAGAMENTO = "FISCAL_SPLIT_SEM_FORMA_PAGAMENTO";
     // Produto (ncm) e serviço (codigoServico) são mutuamente exclusivos: errar isso muda o destino
@@ -340,4 +343,54 @@ public class Constants {
     public static final String FISCAL_NCM_E_SERVICO_CONFLITANTES = "FISCAL_NCM_E_SERVICO_CONFLITANTES";
     public static final String FISCAL_CCLASSTRIB_OBRIGATORIO = "FISCAL_CCLASSTRIB_OBRIGATORIO";
     public static final String FISCAL_CCLASSTRIB_INVALIDO_PARA_SERVICO = "FISCAL_CCLASSTRIB_INVALIDO_PARA_SERVICO";
+    // NFS-e é documento de serviço; NF-e/NFC-e, de produto. Documento trocado muda o destino do
+    // IBS (local da prestação x município do destinatário) — erro de entrada, nunca fallback.
+    public static final String FISCAL_TIPO_DOCUMENTO_INCOMPATIVEL = "FISCAL_TIPO_DOCUMENTO_INCOMPATIVEL";
+    // Desconto incondicional não pode zerar nem inverter a operação: base <= 0 é erro de entrada.
+    public static final String FISCAL_DESCONTO_MAIOR_QUE_OPERACAO = "FISCAL_DESCONTO_MAIOR_QUE_OPERACAO";
+
+    // Aviso do fallback para PADRAO: o codigo nao tem linha de regime, entao o motor tributa com
+    // aliquota cheia e SEGUE (nao bloqueia). Vai para o log (WARN) e para a memoria de calculo —
+    // quem consome precisa saber que o numero saiu de dado faltando, nao de regra fiscal.
+    // Placeholders: 1o o tipo do codigo (NCM / cClassTrib), 2o o codigo em si.
+    public static final String FISCAL_AVISO_REGIME_PADRAO =
+            "AVISO: sem regime cadastrado para %s '%s' — tributado com alíquota CHEIA (PADRAO). "
+                    + "Se o item é desonerado pela LC 214, falta carga fiscal";
+    public static final String FISCAL_TIPO_CODIGO_NCM = "NCM";
+    public static final String FISCAL_TIPO_CODIGO_CCLASSTRIB = "cClassTrib";
+
+    // Codigo IBGE sentinela da linha-base de fiscal.aliq_ibs_municipio: a aliquota de REFERENCIA
+    // (fixada pelo Senado) e uniforme por tipo de ente, entao ela vive numa linha por ano em vez de
+    // ser replicada nos 5.570 municipios. Municipio com aliquota PROPRIA tem linha propria e vence.
+    // Nao existe municipio com codigo '0000000', logo nao colide com a UNIQUE (ibge, ano).
+    public static final String FISCAL_IBGE_REFERENCIA_NACIONAL = "0000000";
+
+    // Aviso do fallback para a aliquota de referencia: o municipio de destino nao tem linha propria,
+    // entao o motor usa a referencia e SEGUE (nao bloqueia — a referencia e a aliquota legal de quem
+    // nao legislou a propria). Se o ente legislou e a carga nao tem, o imposto sai errado: por isso
+    // o aviso vai pro log (WARN) e pra memoria de calculo. Placeholder: o codigo IBGE do destino.
+    public static final String FISCAL_AVISO_ALIQUOTA_REFERENCIA =
+            "AVISO: município '%s' sem alíquota IBS própria cadastrada — aplicada a alíquota de "
+                    + "REFERÊNCIA nacional. Confirme se o ente publicou alíquota própria";
+
+    // Valores aceitos em MotorFiscalRequest.tipoDocumento (Fin.md §1.4.10). CT-e fica FORA da
+    // coerência produto x serviço: transporte tem regra própria que o motor ainda não trata.
+    public static final String FISCAL_TIPO_DOC_NFE = "NFe";
+    public static final String FISCAL_TIPO_DOC_NFCE = "NFCe";
+    public static final String FISCAL_TIPO_DOC_NFSE = "NFSe";
+
+    // Linha da memória de cálculo da base composta (LC 214 art. 12, §2º): frete, seguro e demais
+    // despesas acessórias ENTRAM na base; desconto incondicional SAI. Só é emitida quando algum
+    // componente vem no request — sem eles o valor da operação já É a base e a linha seria ruído.
+    // Placeholders, na ordem: tributável, operação, frete, seguro, acessórias, desconto.
+    public static final String FISCAL_MEMORIA_BASE_COMPOSTA =
+            "Valor tributável: %s (operação %s + frete %s + seguro %s + acessórias %s - desconto %s)";
+
+    // Origem do produto (MotorFiscalRequest.origemProduto). O tratamento da Zona Franca de Manaus
+    // (LC 214) NÃO está implementado: o motor tributa como nacional e AVISA — mesmo padrão do
+    // aviso de PADRAO, porque o erro é contra o contribuinte e não pode sair calado.
+    public static final String FISCAL_ORIGEM_ZFM = "ZFM";
+    public static final String FISCAL_AVISO_ORIGEM_ZFM =
+            "AVISO: origem 'ZFM' informada — tratamento da Zona Franca de Manaus não implementado; "
+                    + "item tributado como NACIONAL";
 }

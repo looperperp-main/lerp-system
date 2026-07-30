@@ -10,6 +10,8 @@ import com.l.erp.fiscalservice.services.fiscal.CfopInfo;
 import com.l.erp.fiscalservice.services.fiscal.RegimeDiferenciado;
 import com.l.erp.fiscalservice.services.fiscal.TabelaFiscal;
 import com.l.erp.fiscalservice.services.fiscal.TipoOperacaoFiscal;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -26,6 +28,8 @@ import java.util.List;
  */
 @Service
 public class MotorFiscalService {
+
+    private static final Logger log = LoggerFactory.getLogger(MotorFiscalService.class);
 
     private static final BigDecimal CEM = new BigDecimal("100");
     private static final int ESCALA = 2;
@@ -67,16 +71,41 @@ public class MotorFiscalService {
                 throw new FiscalException(Constants.FISCAL_CCLASSTRIB_INVALIDO_PARA_SERVICO);
             }
         }
+        // tipoDocumento (opcional) tem que casar com o que veio classificado: NFS-e é documento de
+        // serviço, NF-e/NFC-e de produto. Trocar isso muda o destino do IBS — local da prestação
+        // (serviço) x município do destinatário (produto) —, então é 400. CT-e fica fora da regra:
+        // o motor ainda não trata transporte, e reprovar aqui seria inventar regra.
+        String tipoDoc = req.getTipoDocumento();
+        boolean docDeServico = Constants.FISCAL_TIPO_DOC_NFSE.equals(tipoDoc);
+        boolean docDeProduto = Constants.FISCAL_TIPO_DOC_NFE.equals(tipoDoc)
+                || Constants.FISCAL_TIPO_DOC_NFCE.equals(tipoDoc);
+        if ((docDeServico && produto) || (docDeProduto && servico)) {
+            throw new FiscalException(Constants.FISCAL_TIPO_DOCUMENTO_INCOMPATIVEL);
+        }
         // Com o split ligado, splitPaymentAplicavel vem da condicao_pagamento e é obrigatório:
         // sem ele não dá pra distinguir "pagamento não splitável" de "o chamador esqueceu".
         if (splitLigado && req.getSplitPaymentAplicavel() == null) {
             throw new FiscalException(Constants.FISCAL_SPLIT_SEM_FORMA_PAGAMENTO);
         }
 
+        // PASSO 0.5 — compor a base a partir dos componentes, em vez de confiar num número pronto:
+        // frete, seguro e acessórias ENTRAM, desconto incondicional SAI (LC 214 art. 12, §2º).
+        // Vem antes de MEI e alíquota zero porque esses caminhos também devolvem baseCalculo.
+        BigDecimal valorTributavel = valorTributavel(req, memoria);
+
+        // ZFM tem tratamento próprio na LC 214 que o motor NÃO implementa (fatia futura). O item é
+        // tributado como nacional — pode dar imposto a mais —, então avisa antes de qualquer
+        // caminho de retorno: vale também para MEI e alíquota zero, que retornam mais abaixo.
+        if (Constants.FISCAL_ORIGEM_ZFM.equals(req.getOrigemProduto())) {
+            log.warn("{} (tenant={}, cfop={}, ncm={})",
+                    Constants.FISCAL_AVISO_ORIGEM_ZFM, tenantId, req.getCfop(), req.getNcm());
+            memoria.add(Constants.FISCAL_AVISO_ORIGEM_ZFM);
+        }
+
         // MEI não destaca IBS/CBS/IS (MF-02, §1.4.5)
         if (Constants.REGIME_MEI.equals(req.getRegimeEmpresa())) {
             memoria.add("Regime MEI: não destaca IBS/CBS/IS");
-            return zerado(req, RegimeDiferenciado.PADRAO, memoria, splitLigado);
+            return zerado(valorTributavel, RegimeDiferenciado.PADRAO, memoria, splitLigado);
         }
 
         // PASSO 1 — validar CFOP
@@ -92,29 +121,49 @@ public class MotorFiscalService {
                 ? tabela.regimeCClassTrib(req.getCClassTrib())
                 : tabela.regimeNcm(req.getNcm());
 
+        // PADRAO aqui não é classificação declarada (isso é INTEGRAL): é ausência de linha em
+        // regime_dif_ncm/regime_cclasstrib. O motor segue e tributa cheio — erro contra o
+        // contribuinte — então o aviso vai pro log E pra memória de cálculo, nunca calado.
+        if (Constants.REGIME_DIF_PADRAO.equals(regime.name())) {
+            String aviso = Constants.FISCAL_AVISO_REGIME_PADRAO.formatted(
+                    servico ? Constants.FISCAL_TIPO_CODIGO_CCLASSTRIB : Constants.FISCAL_TIPO_CODIGO_NCM,
+                    servico ? req.getCClassTrib() : req.getNcm());
+            log.warn("{} (tenant={}, cfop={})", aviso, tenantId, req.getCfop());
+            memoria.add(aviso);
+        }
+
         // PASSO 2 — alíquota zero (cesta básica, isento, imune) / monofásico
         if (regime.aliquotaZero()) {
             memoria.add("Regime " + regime.name() + ": alíquota zero, IBS/CBS/IS = 0 (§1.4.2 Passo 2)");
-            return zerado(req, regime, memoria, splitLigado);
+            return zerado(valorTributavel, regime, memoria, splitLigado);
         }
         if (regime.monofasico() && !cfop.primeiraEtapaCadeia()) {
             memoria.add("Monofásico fora da 1ª etapa: já recolhido na origem (§1.4.2 Passo 2)");
-            return zerado(req, regime, memoria, splitLigado);
+            return zerado(valorTributavel, regime, memoria, splitLigado);
         }
 
         // PASSO 3 — alíquotas vigentes pela data de competência
         int ano = req.getDataCompetencia().getYear();
         AliquotaIbs aliqIbs = tabela.aliquotaIbs(ibgeDestino, ano)
-                .orElseThrow(() -> new FiscalException(Constants.FISCAL_MUNICIPIO_SEM_ALIQUOTA_IBS));
+                .orElseThrow(() -> new FiscalException(Constants.FISCAL_VIGENCIA_SEM_COBERTURA));
+
+        // Alíquota de referência não é dado faltando — é a alíquota legal de quem não legislou a
+        // própria. Mas se o ente legislou e a carga não tem, o imposto sai errado, então avisa.
+        if (aliqIbs.referenciaNacional()) {
+            String aviso = Constants.FISCAL_AVISO_ALIQUOTA_REFERENCIA.formatted(ibgeDestino);
+            log.warn("{} (tenant={}, cfop={}, ano={})", aviso, tenantId, req.getCfop(), ano);
+            memoria.add(aviso);
+        }
+
         BigDecimal aliqCbs = tabela.aliquotaCbs(req.getRegimeEmpresa(), ano)
                 .orElseThrow(() -> new FiscalException(Constants.FISCAL_REGIME_SEM_ALIQUOTA_CBS));
 
         // PASSO 4 — IS antes do IBS/CBS (incide sobre o valor bruto, sem redução)
         BigDecimal aliqIs = servico ? BigDecimal.ZERO : tabela.aliquotaIs(req.getNcm()).orElse(BigDecimal.ZERO);
-        BigDecimal valorIs = pct(req.getValorOperacao(), aliqIs);
+        BigDecimal valorIs = pct(valorTributavel, aliqIs);
 
         // PASSO 5 — base (o IS INTEGRA a base — LC 214/2025) + redução de ALÍQUOTA (não de base)
-        BigDecimal base = req.getValorOperacao().add(valorIs);
+        BigDecimal base = valorTributavel.add(valorIs);
         BigDecimal fator = fatorReducao(regime.reducaoPercentual());
         BigDecimal aliqIbsEstEfetiva = aliqIbs.estadual().multiply(fator);
         BigDecimal aliqIbsMunEfetiva = aliqIbs.municipal().multiply(fator);
@@ -155,11 +204,11 @@ public class MotorFiscalService {
                 .build();
     }
 
-    private OperacaoFiscalDTO zerado(MotorFiscalRequest req, RegimeDiferenciado regime,
+    private OperacaoFiscalDTO zerado(BigDecimal valorTributavel, RegimeDiferenciado regime,
                                      List<String> memoria, boolean splitLigado) {
         BigDecimal zero = BigDecimal.ZERO.setScale(ESCALA);
         return OperacaoFiscalDTO.builder()
-                .baseCalculo(req.getValorOperacao())
+                .baseCalculo(valorTributavel)
                 .valorIs(zero)
                 .valorIbsEstadual(zero)
                 .valorIbsMunicipal(zero)
@@ -181,6 +230,35 @@ public class MotorFiscalService {
             return null;
         }
         return tributo != null ? tributo : BigDecimal.ZERO.setScale(ESCALA);
+    }
+
+    /**
+     * Base antes do IS: valor da operação + frete + seguro + outras despesas acessórias − desconto
+     * incondicional (LC 214 art. 12, §2º). Componentes são opcionais; sem nenhum deles devolve o
+     * próprio valor da operação e não polui a memória de cálculo. Desconto que zera ou inverte a
+     * operação é erro de entrada (400), nunca base negativa tributada.
+     */
+    private BigDecimal valorTributavel(MotorFiscalRequest req, List<String> memoria) {
+        BigDecimal frete = ouZero(req.getValorFrete());
+        BigDecimal seguro = ouZero(req.getValorSeguro());
+        BigDecimal outras = ouZero(req.getValorOutrasDespesas());
+        BigDecimal desconto = ouZero(req.getValorDesconto());
+        if (frete.signum() == 0 && seguro.signum() == 0 && outras.signum() == 0
+                && desconto.signum() == 0) {
+            return req.getValorOperacao();
+        }
+        BigDecimal tributavel = req.getValorOperacao()
+                .add(frete).add(seguro).add(outras).subtract(desconto);
+        if (tributavel.signum() <= 0) {
+            throw new FiscalException(Constants.FISCAL_DESCONTO_MAIOR_QUE_OPERACAO);
+        }
+        memoria.add(Constants.FISCAL_MEMORIA_BASE_COMPOSTA.formatted(
+                tributavel, req.getValorOperacao(), frete, seguro, outras, desconto));
+        return tributavel;
+    }
+
+    private static BigDecimal ouZero(BigDecimal valor) {
+        return valor != null ? valor : BigDecimal.ZERO;
     }
 
     /** valor × alíquota% ÷ 100, arredondado a 2 casas (HALF_UP). */

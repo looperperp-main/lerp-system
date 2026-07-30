@@ -1,5 +1,6 @@
 package com.l.erp.fiscalservice.services.fiscal;
 
+import com.l.erp.common.util.Constants;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
@@ -60,11 +61,17 @@ public class TabelaFiscalJdbc implements TabelaFiscal {
                AND cclasstrib = :cclasstrib
             """;
 
+    // Alíquota PRÓPRIA do município vence a de REFERÊNCIA (linha sentinela '0000000'): a referência
+    // do Senado é uniforme por tipo de ente, então replicá-la nos 5.570 municípios seria guardar 8
+    // valores distintos em 44.560 linhas. O ORDER BY faz a precedência; sem linha nenhuma para o ano
+    // o Optional volta vazio e o motor devolve 400 — dado faltando nunca vira alíquota zero.
     private static final String SQL_ALIQ_IBS = """
-            SELECT aliquota_estadual, aliquota_municipal
+            SELECT aliquota_estadual, aliquota_municipal, ibge_municipio
               FROM fiscal.aliq_ibs_municipio
-             WHERE ibge_municipio = :ibge
+             WHERE ibge_municipio IN (:ibge, :referencia)
                AND ano_vigencia = :ano
+             ORDER BY CASE WHEN ibge_municipio = :referencia THEN 1 ELSE 0 END
+             LIMIT 1
             """;
 
     private static final String SQL_ALIQ_CBS = """
@@ -138,10 +145,12 @@ public class TabelaFiscalJdbc implements TabelaFiscal {
     public Optional<AliquotaIbs> aliquotaIbs(String ibgeMunicipio, int ano) {
         return jdbc.sql(SQL_ALIQ_IBS)
                 .param("ibge", ibgeMunicipio)
+                .param("referencia", Constants.FISCAL_IBGE_REFERENCIA_NACIONAL)
                 .param("ano", ano)
                 .query((rs, n) -> new AliquotaIbs(
                         rs.getBigDecimal("aliquota_estadual"),
-                        rs.getBigDecimal("aliquota_municipal")))
+                        rs.getBigDecimal("aliquota_municipal"),
+                        Constants.FISCAL_IBGE_REFERENCIA_NACIONAL.equals(rs.getString("ibge_municipio"))))
                 .optional();
     }
 

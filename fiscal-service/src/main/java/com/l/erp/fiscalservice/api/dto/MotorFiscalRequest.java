@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -42,6 +43,18 @@ public class MotorFiscalRequest {
     @NotNull
     @Positive
     private BigDecimal valorOperacao;
+    // Componentes da base (LC 214 art. 12, §2º) — todos OPCIONAIS: quem não manda continua tendo
+    // o valor da operação como base. Frete, seguro e acessórias ENTRAM na base; desconto
+    // incondicional SAI. Ficam separados porque a NF-e exige os campos individualizados e porque
+    // sem eles a memória de cálculo não é auditável até a origem.
+    @PositiveOrZero
+    private BigDecimal valorDesconto;      // apenas desconto INCONDICIONAL (condicional não reduz base)
+    @PositiveOrZero
+    private BigDecimal valorFrete;
+    @PositiveOrZero
+    private BigDecimal valorSeguro;
+    @PositiveOrZero
+    private BigDecimal valorOutrasDespesas;
     @NotNull
     private LocalDate dataCompetencia;
     @NotBlank
