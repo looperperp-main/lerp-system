@@ -195,3 +195,6 @@ databaseChangeLog:
   - include:
       file: fiscal/fiscal-schema-007.yaml
       relativeToChangelogFile: true
+  - include:
+      file: fiscal/fiscal-schema-008.yaml
+      relativeToChangelogFile: true

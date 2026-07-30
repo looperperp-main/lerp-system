@@ -29,6 +29,7 @@ public class TabelaFiscalFake implements TabelaFiscal {
     private final Map<String, AliquotaIbs> ibsMap = new HashMap<>();
     private final Map<String, BigDecimal> cbsMap = new HashMap<>();
     private final Map<String, BigDecimal> isMap = new HashMap<>();
+    private final Map<Integer, TransicaoAno> transicaoMap = new HashMap<>();
 
     public TabelaFiscalFake() {
         cfopMap.put("5101", new CfopInfo("5101", TipoOperacaoFiscal.SAIDA, true, true, true));
@@ -64,6 +65,18 @@ public class TabelaFiscalFake implements TabelaFiscal {
                 new AliquotaIbs(new BigDecimal("16.00"), new BigDecimal("2.50"), true));
         cbsMap.put(chave(Constants.REGIME_LUCRO_REAL, 2033), new BigDecimal("8.50"));
         isMap.put("24022000", new BigDecimal("150"));
+
+        // Curva da transição inteira (as 8 linhas do fiscal-025): aqui não vale escolher ano, é a
+        // tabela toda — quem for exercitar 3c precisa do degrau de cada competência. Ano fora
+        // disso (2025, 2035) fica sem linha de propósito: o motor não pode assumir 100% nem 0%.
+        transicaoMap.put(2026, new TransicaoAno(new BigDecimal("100.00"), true));
+        transicaoMap.put(2027, new TransicaoAno(new BigDecimal("100.00"), false));
+        transicaoMap.put(2028, new TransicaoAno(new BigDecimal("100.00"), false));
+        transicaoMap.put(2029, new TransicaoAno(new BigDecimal("90.00"), false));
+        transicaoMap.put(2030, new TransicaoAno(new BigDecimal("80.00"), false));
+        transicaoMap.put(2031, new TransicaoAno(new BigDecimal("70.00"), false));
+        transicaoMap.put(2032, new TransicaoAno(new BigDecimal("60.00"), false));
+        transicaoMap.put(2033, new TransicaoAno(new BigDecimal("0.00"), false));
     }
 
     @Override
@@ -100,6 +113,11 @@ public class TabelaFiscalFake implements TabelaFiscal {
     @Override
     public Optional<BigDecimal> aliquotaIs(String ncm) {
         return Optional.ofNullable(isMap.get(ncm));
+    }
+
+    @Override
+    public Optional<TransicaoAno> transicao(int ano) {
+        return Optional.ofNullable(transicaoMap.get(ano));
     }
 
     private static String chave(String valor, int ano) {

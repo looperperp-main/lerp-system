@@ -162,6 +162,53 @@ Fora de escopo por decisão, registrado para não voltar como surpresa: ST/MVA
 (`cst_icms = '060'` chega com o imposto já retido por quem calculou fora), DIFAL,
 pauta fiscal e CSOSN do Simples.
 
+### Plano de execução — 4 fatias (30 de julho de 2026)
+
+O caro aqui não é schema nem código, é **a alíquota interna de ICMS**. O resto do
+ICMS é mais barato do que o rascunho acima sugere: a **interestadual não precisa de
+tabela** — é Resolução do Senado 22/89 + 13/12 (12% geral, 7% saindo de S/SE exceto
+ES para N/NE/CO/ES, 4% em importado), ou seja uma função com a lista de UFs, não
+27×27 = 729 linhas de carga que envelhecem sozinhas. A **interna** é que varia: 17% a
+23% por UF, e por produto dentro da UF (cesta básica, energia, combustível).
+
+**Decisão em aberto, trava só a fatia 3b:** a base carrega a alíquota interna GERAL
+de cada UF (27 linhas) e exceção por NCM vira override, ou carga completa por NCM
+desde já? Recomendado: 27 linhas — o `'00000000'` do rascunho já é exatamente esse
+fallback, e exceção por NCM entra quando um cliente real reclamar. Carga por NCM é
+projeto de meses e não tem fonte oficial consolidada.
+
+- **3a — curva da transição.** ✅ **feita (30 de julho de 2026, não testada).**
+  Novo `fiscal-schema-008.yaml` (incluído em `db.changelog-master.yaml` depois do
+  `007`) com dois changesets: `fiscal-024-cria-transicao-ano` cria
+  `fiscal.transicao_ano` (`ano int` PK, `pct_remanescente numeric(5,2) NOT NULL`,
+  `pis_cofins_vigente boolean NOT NULL`, CHECK `chk_transicao_ano_pct` 0–100); e
+  `fiscal-025-seed-transicao-ano` carrega as 8 linhas (2026–2028 = 100,00, 2029 =
+  90,00, 2030 = 80,00, 2031 = 70,00, 2032 = 60,00, 2033 = 0,00,
+  `pis_cofins_vigente = true` só em 2026). Novo record `TransicaoAno`
+  (`pctRemanescente BigDecimal`, `pisCofinsVigente boolean`) e novo método
+  `Optional<TransicaoAno> transicao(int ano)` na interface `TabelaFiscal` — vazio
+  para ano fora de 2026–2033, sem default (o motor é quem decide devolver 400,
+  mesmo princípio da alíquota IBS). Implementado em `TabelaFiscalJdbc` (SELECT por
+  ano) e no `TabelaFiscalFake` (as 8 linhas); 3 testes novos em
+  `TabelaFiscalJdbcTest` (anos íntegros + PIS/COFINS só em 2026, degraus
+  2029–2033, ano fora da curva volta vazio), com DDL/seed adicionados ao fixture
+  H2. **Nada foi rodado** — nem `mvn`, nem Liquibase. É só a tabela e o acesso a
+  ela: o `MotorFiscalService` ainda **não consome** a curva (isso é a 3c, que
+  segue pendente junto com 3b e 3d).
+- **3b — matriz ICMS.** `fiscal.matriz_tributaria` com o schema já corrigido pelos
+  ajustes 3, 4 e 5: `aliq_nominal` + `p_reducao_base` separados (não a efetiva),
+  `ncm_nbs VARCHAR(9)` + `tipo_item`, `tenant_id` nulável com
+  `UNIQUE NULLS NOT DISTINCT`. Carga: 27 linhas base. Busca em 4 níveis já
+  especificada acima.
+- **3c — motor multiplica.** `MotorFiscalService` ganha o passo legado,
+  `OperacaoFiscalDTO` ganha o bloco (`valorIcms`, `valorPisCofins`, base reduzida) e
+  as linhas na memória de cálculo. **Muda o contrato de saída** — fazer antes de o
+  AR existir, que é justamente o motivo de o AR ter sido empurrado para o fim.
+- **3d — ISS.** Tabela própria por `ibge_municipio` + item da LC 116 (ajuste nº 2:
+  ISS não é por UF). Por último de propósito: é o pior dado de todos (5.570
+  municípios legislando cada um o seu) e o motor de produto fica completo sem ele.
+  Default 5% (teto da LC 116) com override, ou serviço fica sem legado até haver carga.
+
 ---
 
 ## 4. Crédito de entrada (Fin.md §1.4.3)

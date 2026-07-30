@@ -39,4 +39,12 @@ public interface TabelaFiscal {
     Optional<BigDecimal> aliquotaCbs(String regimeEmpresa, int ano);
 
     Optional<BigDecimal> aliquotaIs(String ncm);
+
+    /**
+     * Curva da transição no ano: quanto de ICMS/ISS ainda é devido e se PIS/COFINS ainda incidem.
+     *
+     * <p>Vazio para ano fora de 2026-2033 — o motor devolve 400 em vez de assumir 100% ou 0%,
+     * mesmo princípio de {@link #aliquotaIbs}. Ainda não consumido pelo motor (fatia 3c).
+     */
+    Optional<TransicaoAno> transicao(int ano);
 }

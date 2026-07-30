@@ -94,6 +94,14 @@ public class TabelaFiscalJdbc implements TabelaFiscal {
              LIMIT 1
             """;
 
+    // Sem default: ano fora da curva publicada não vira 100% nem 0% de ICMS/ISS — volta vazio e o
+    // motor decide (mesmo princípio de SQL_ALIQ_IBS).
+    private static final String SQL_TRANSICAO = """
+            SELECT pct_remanescente, pis_cofins_vigente
+              FROM fiscal.transicao_ano
+             WHERE ano = :ano
+            """;
+
     private final JdbcClient jdbc;
 
     public TabelaFiscalJdbc(JdbcClient jdbc) {
@@ -168,6 +176,16 @@ public class TabelaFiscalJdbc implements TabelaFiscal {
         return jdbc.sql(SQL_ALIQ_IS)
                 .param("ncm", somenteDigitos(ncm))
                 .query((rs, n) -> rs.getBigDecimal("aliquota_pct"))
+                .optional();
+    }
+
+    @Override
+    public Optional<TransicaoAno> transicao(int ano) {
+        return jdbc.sql(SQL_TRANSICAO)
+                .param("ano", ano)
+                .query((rs, n) -> new TransicaoAno(
+                        rs.getBigDecimal("pct_remanescente"),
+                        rs.getBoolean("pis_cofins_vigente")))
                 .optional();
     }
 

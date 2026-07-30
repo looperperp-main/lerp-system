@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Exercita o SQL de {@link TabelaFiscalJdbc} em H2 (modo PostgreSQL) — o risco desta fatia está
  * nas consultas, não na aritmética (essa é do {@code MotorFiscalServiceTest}).
  *
- * <p>ponytail: o DDL abaixo é um recorte dos changelogs fiscais (002 + 007) com as colunas que as
+ * <p>ponytail: o DDL abaixo é um recorte dos changelogs fiscais (002 + 007 + 008) com as colunas que as
  * consultas tocam, não o schema inteiro; drift de tipo/constraint só aparece rodando o Liquibase
  * de verdade (teste de integração com Postgres, fatia futura). O que ESTE teste protege é o
  * casamento por prefixo mais longo e os filtros de vigência/alíquota nula.
@@ -78,6 +78,12 @@ class TabelaFiscalJdbcTest {
                 aliquota_pct numeric(5,2),
                 vigente_de date NOT NULL,
                 vigente_ate date)
+            """,
+            """
+            CREATE TABLE fiscal.transicao_ano (
+                ano int PRIMARY KEY,
+                pct_remanescente numeric(5,2) NOT NULL,
+                pis_cofins_vigente boolean NOT NULL)
             """
     };
 
@@ -118,6 +124,18 @@ class TabelaFiscalJdbcTest {
             INSERT INTO fiscal.aliq_is_ncm (ncm, aliquota_pct, vigente_de, vigente_ate) VALUES
                 ('2402.20', 150.00, DATE '2027-01-01', NULL),
                 ('8703',    NULL,   DATE '2027-01-01', NULL)
+            """,
+            // Curva completa do fiscal-025 — a tabela toda cabe no seed, então nada de recorte.
+            """
+            INSERT INTO fiscal.transicao_ano (ano, pct_remanescente, pis_cofins_vigente) VALUES
+                (2026, 100.00, true),
+                (2027, 100.00, false),
+                (2028, 100.00, false),
+                (2029,  90.00, false),
+                (2030,  80.00, false),
+                (2031,  70.00, false),
+                (2032,  60.00, false),
+                (2033,   0.00, false)
             """
     };
 
@@ -271,5 +289,37 @@ class TabelaFiscalJdbcTest {
         assertTrue(semRegulamentacao.isEmpty());
 
         assertTrue(tabela.aliquotaIs("84713012").isEmpty());
+    }
+
+    @Test
+    void transicao_antesDe2029_icmsIssIntegral_ePisCofinsSoEm2026() {
+        TransicaoAno t2026 = tabela.transicao(2026).orElseThrow();
+        assertEquals(0, new BigDecimal("100").compareTo(t2026.pctRemanescente()));
+        assertTrue(t2026.pisCofinsVigente());
+
+        // 2027 extingue PIS/COFINS mas NÃO começa a reduzir ICMS/ISS — os dois eventos são
+        // independentes, e é justamente o par que um percentual único não conseguiria expressar.
+        TransicaoAno t2027 = tabela.transicao(2027).orElseThrow();
+        assertEquals(0, new BigDecimal("100").compareTo(t2027.pctRemanescente()));
+        assertFalse(t2027.pisCofinsVigente());
+        assertFalse(tabela.transicao(2028).orElseThrow().pisCofinsVigente());
+    }
+
+    @Test
+    void transicao_degrausDe2029A2033() {
+        // As reduções de 10/20/30/40% da LC 214 lidas como REMANESCENTE, e 2033 com ICMS/ISS extintos.
+        assertEquals(0, new BigDecimal("90").compareTo(tabela.transicao(2029).orElseThrow().pctRemanescente()));
+        assertEquals(0, new BigDecimal("80").compareTo(tabela.transicao(2030).orElseThrow().pctRemanescente()));
+        assertEquals(0, new BigDecimal("70").compareTo(tabela.transicao(2031).orElseThrow().pctRemanescente()));
+        assertEquals(0, new BigDecimal("60").compareTo(tabela.transicao(2032).orElseThrow().pctRemanescente()));
+        assertEquals(0, BigDecimal.ZERO.compareTo(tabela.transicao(2033).orElseThrow().pctRemanescente()));
+    }
+
+    @Test
+    void transicao_anoForaDaCurva_vazio() {
+        // Nem 100% (antes da reforma) nem 0% (depois): sem linha o motor devolve 400, igual à
+        // alíquota IBS. Assumir qualquer um dos dois erraria o imposto em silêncio.
+        assertTrue(tabela.transicao(2025).isEmpty());
+        assertTrue(tabela.transicao(2035).isEmpty());
     }
 }

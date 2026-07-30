@@ -2273,6 +2273,41 @@ CREATE INDEX idx_nfse_ingestao_pendente ON fiscal.nfse_ingestao(tenant_id, statu
 
 ---
 
+### 1.12 Manutenção Anual do Conteúdo Fiscal
+
+> Levantado em 30 de julho de 2026, sobre as 10 tabelas do schema `fiscal` que existem **de fato**
+> no `liquibase-service` (changesets `fiscal-001` a `fiscal-025`). Nenhum ano está hardcoded em
+> código Java — o motor deriva o ano de `dataCompetencia`, então **toda** a manutenção abaixo é
+> carga de dados, isto é, changeset novo. Editar changeset já aplicado quebra o checksum do
+> Liquibase: correção sempre entra como `fiscal-0NN` seguinte (e carga de CSV, com arquivo novo).
+
+| Tabela / arquivo | O que muda | Quando | Fonte | Cobertura hoje | Se atrasar |
+|---|---|---|---|---|---|
+| `aliq_ibs_municipio`, linha `'0000000'` | alíquota de REFERÊNCIA (Senado) do ano seguinte | todo ano; **obrigatório a partir de 2034** | API de dados abertos do piloto CBS | 2026–2033 (`fiscal-023`) | ano sem linha ⇒ **400** `FISCAL_VIGENCIA_SEM_COBERTURA` |
+| `aliq_cbs_regime` | idem, lado união | todo ano; **obrigatório a partir de 2034** | mesma API | 2026–2033 × 3 regimes | **400** `FISCAL_REGIME_SEM_ALIQUOTA_CBS` |
+| `aliq_ibs_municipio`, linhas de município | município que legisla alíquota **própria** (≠ referência) | lei municipal, ~dez/ano | diário oficial do município | **nenhuma** — 0 municípios | calcula com a referência e emite `FISCAL_AVISO_ALIQUOTA_REFERENCIA`: imposto errado, **não** bloqueia |
+| `ncm` | Camex altera/renumera NCM | 2–4×/ano (+ revisão do SH em 2028) | Tabela NCM vigente (CSV) | 15.156 linhas, snapshot de 02/07/2026 | NCM novo inexistente ⇒ **400** `FISCAL_NCM_NAO_ENCONTRADO` |
+| `regime_dif_ncm` | NCM renumerado quebra a chave do regime | junto com a `ncm` | LC 214 + anexos | carga v2 (`fiscal-016`) | item desonerado sai **tributado cheio** com aviso `PADRAO` |
+| `aliq_is_ncm` | alíquota do IS (lei ordinária) e os NCM do Anexo XVII ainda sem alíquota | anual / quando regulamentar | lei do IS | parcial — linhas com `aliquota_pct` NULL são ignoradas de propósito | IS não destacado |
+| `transicao_ano` | só se a LC mudar os degraus; **2034+ não tem linha** | uma vez, ao virar 2034 | LC 214 | 2026–2033 (`fiscal-025`) | quando o motor consumir a curva: competência 2034 ⇒ **400** |
+
+**Não é anual — muda por lei/NT, não por calendário:** `cfop` (Ajuste SINIEF), `servico_nbs` e
+`servico_cclasstrib` (Anexo VIII), `regime_cclasstrib`.
+
+**Três observações que valem mais que a tabela:**
+
+1. **O buraco real não é 2034, é município.** Nenhuma alíquota municipal própria está carregada:
+   hoje todo IBS municipal sai da referência do Senado. Enquanto nenhum ente publicar valor
+   diferente da referência isso está *correto*; a partir de 2029, quando os valores ficam
+   materiais (ver curva em §1.2), vira erro silencioso-com-aviso.
+2. **`transicao_ano` parar em 2033 é decisão, não esquecimento** — a partir de 2034 ICMS e ISS não
+   existem mais. Quando o motor passar a consumir a curva, cabe tratar `ano > 2033` como 0% no
+   próprio motor em vez de exigir linha na tabela.
+3. **Quem opera isso é o Painel de Administração Interna**, não o tenant (§16.1): são tabelas de
+   referência nacionais, sem `tenant_id`.
+
+---
+
 ## MÓDULO II — CONTAS A PAGAR E CONTAS A RECEBER
 
 ## II.1 Entidades e Schema
