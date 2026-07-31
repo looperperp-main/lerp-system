@@ -1,0 +1,67 @@
+# ──────────────────────────────────────────
+# Correções na carga de regime por NCM (spec/anexos-lc214-revisar.md).
+#
+# Duas classes de problema, ambas invisíveis até alguém emitir a nota:
+#
+# 1. PREFIXO FABRICADO. O extrator dos anexos produziu linhas cujo código não existe na LC 214.
+#    Como regimeNcm() casa por PREFIXO MAIS LONGO, um prefixo curto e inventado captura uma
+#    família inteira de produtos: '2106' zerava TODA a posição 21.06 (suplemento, whey, pó para
+#    refresco, xarope composto), quando a lei cita apenas os códigos 2106.90.90 (Anexo I item 4,
+#    fórmula infantil — já tem linha própria) e 2106.90.30. Erro CONTRA O FISCO: sai imposto zero
+#    onde há imposto cheio. '9090' nem NCM é (capítulo 90 é instrumento médico, não alimento).
+#
+# 2. NCM EM DOIS ANEXOS. Cinco códigos aparecem no Anexo IV (dispositivos médicos, -60%) e também
+#    no XII/XIII (os mesmos dispositivos, mas alíquota zero). Não é conflito de norma: são códigos
+#    guarda-chuva ('9018.90.99' = "outros instrumentos de medicina") em que a lei zera produtos
+#    NOMEADOS pela descrição e deixa o resto em 60%. O NCM sozinho não decide. Ficaram fora da
+#    carga e por isso caem em PADRAO — tributando CHEIO um item que tem no mínimo 60% de redução.
+#    Entram aqui pelo Anexo IV (a redução menor): nunca subtributa, e o item que de fato for do
+#    Anexo XII/XIII precisa de override no cadastro do produto — que ainda não existe.
+#
+# NÃO mexe em 21069090 nem 25010090 (Anexo I 100% x Anexo VI 60%): estão carregados a 100% e o
+# uso majoritário é o do Anexo I (fórmula infantil, sal de cozinha). Mesma limitação — fórmula
+# dietoterápica para erro inato do metabolismo é 60% e hoje sairia a 100%. Ver o doc de revisão.
+# ──────────────────────────────────────────
+databaseChangeLog:
+
+  - changeSet:
+      id: fiscal-026-remove-prefixo-ncm-invalido
+      author: vitor-fernandes
+      comment: Remove prefixos que não existem na LC 214 e capturavam famílias inteiras por engano
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              DELETE FROM fiscal.regime_dif_ncm WHERE ncm IN ('2106', '9090');
+      rollback:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.regime_dif_ncm (ncm, regime, percentual_reducao, vigente_de) VALUES
+                ('2106', 'ANEXO_I_ZERO', 100, DATE '2027-01-01'),
+                ('9090', 'ANEXO_I_ZERO', 100, DATE '2027-01-01');
+
+  - changeSet:
+      id: fiscal-027-seed-ncm-duplo-anexo-iv
+      author: vitor-fernandes
+      comment: Cinco NCM citados no Anexo IV e no XII/XIII entram pela redução menor (60%)
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.regime_dif_ncm (ncm, descricao, regime, percentual_reducao, vigente_de) VALUES
+                ('90189010', 'Dispositivo medico do Anexo IV (conjunto para autotransfusao, bomba de infusao); Anexo XII zera parte do codigo', 'ANEXO_IV_60', 60, DATE '2027-01-01'),
+                ('90189099', 'Dispositivo medico do Anexo IV (drenagem, oxigenador, reservatorio de cardiotomia); Anexo XII zera parte do codigo', 'ANEXO_IV_60', 60, DATE '2027-01-01'),
+                ('90211010', 'Implante osseointegravel do Anexo IV; Anexo XII zera parte do codigo', 'ANEXO_IV_60', 60, DATE '2027-01-01'),
+                ('90211020', 'Implante osseointegravel do Anexo IV; Anexo XII zera parte do codigo', 'ANEXO_IV_60', 60, DATE '2027-01-01'),
+                ('90219019', 'Dispositivo medico do Anexo IV (valvula para hidrocefalia, implante coclear); Anexo XIII zera parte do codigo', 'ANEXO_IV_60', 60, DATE '2027-01-01');
+      rollback:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              DELETE FROM fiscal.regime_dif_ncm
+               WHERE ncm IN ('90189010', '90189099', '90211010', '90211020', '90219019');

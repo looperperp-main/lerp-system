@@ -162,7 +162,7 @@ Fora de escopo por decisão, registrado para não voltar como surpresa: ST/MVA
 (`cst_icms = '060'` chega com o imposto já retido por quem calculou fora), DIFAL,
 pauta fiscal e CSOSN do Simples.
 
-### Plano de execução — 4 fatias (30 de julho de 2026)
+### Plano de execução — 5 fatias (30 de julho de 2026)
 
 O caro aqui não é schema nem código, é **a alíquota interna de ICMS**. O resto do
 ICMS é mais barato do que o rascunho acima sugere: a **interestadual não precisa de
@@ -171,11 +171,26 @@ ES para N/NE/CO/ES, 4% em importado), ou seja uma função com a lista de UFs, n
 27×27 = 729 linhas de carga que envelhecem sozinhas. A **interna** é que varia: 17% a
 23% por UF, e por produto dentro da UF (cesta básica, energia, combustível).
 
-**Decisão em aberto, trava só a fatia 3b:** a base carrega a alíquota interna GERAL
-de cada UF (27 linhas) e exceção por NCM vira override, ou carga completa por NCM
-desde já? Recomendado: 27 linhas — o `'00000000'` do rascunho já é exatamente esse
-fallback, e exceção por NCM entra quando um cliente real reclamar. Carga por NCM é
-projeto de meses e não tem fonte oficial consolidada.
+**Decisão tomada (30 de julho de 2026) — 27 linhas.** A base carrega a alíquota interna
+GERAL de cada UF e exceção por NCM vira override. O `'00000000'` do rascunho já é
+exatamente esse fallback, e exceção por NCM entra quando um cliente real reclamar.
+Carga completa por NCM é projeto de meses e não tem fonte oficial consolidada.
+
+**Decisão tomada (30 de julho de 2026) — retenção na fonte fica DENTRO do motor.** ISS
+retido, IRRF, PIS/COFINS/CSLL e INSS são tributos da mesma nota e saem no mesmo
+`/fiscal/calcular`, não no contas a receber: duas verdades sobre a mesma nota é pior, e
+o AR precisaria de metade do conteúdo fiscal para calcular sozinho. Custo aceito — o
+request ganha o que retenção exige e o motor hoje não recebe (natureza do tomador, se é
+PJ, acumulado do mês para o piso do IRRF), e o contrato de saída cresce junto com o da
+3c. Para quem vende serviço B2B isso é mais visível do que qualquer alíquota de NCM.
+
+**Ordem revista (30 de julho de 2026) — 3d passa na frente da 3b.** O mercado-alvo é
+serviço, depois EPI e produtos de tecnologia; supermercado e material médico por último.
+Para serviço a perna legada da transição é o **ISS**, não o ICMS. EPI (cap. 39/40/61-65)
+e tecnologia (cap. 84/85) não têm anexo de redução na LC 214 — tributam cheio, que é
+exatamente o que `RegimeDiferenciado.PADRAO` já devolve hoje —, então a 3b continua
+necessária mas deixou de ser urgente. Pelo mesmo motivo o backlog de
+`spec/anexos-lc214-revisar.md` (alimento, farmácia, agro) sai do caminho crítico.
 
 - **3a — curva da transição.** ✅ **feita (30 de julho de 2026, não testada).**
   Novo `fiscal-schema-008.yaml` (incluído em `db.changelog-master.yaml` depois do
@@ -195,7 +210,8 @@ projeto de meses e não tem fonte oficial consolidada.
   H2. **Nada foi rodado** — nem `mvn`, nem Liquibase. É só a tabela e o acesso a
   ela: o `MotorFiscalService` ainda **não consome** a curva (isso é a 3c, que
   segue pendente junto com 3b e 3d).
-- **3b — matriz ICMS.** `fiscal.matriz_tributaria` com o schema já corrigido pelos
+- **3b — matriz ICMS.** *(agora DEPOIS da 3d — ver "Ordem revista" acima.)*
+  `fiscal.matriz_tributaria` com o schema já corrigido pelos
   ajustes 3, 4 e 5: `aliq_nominal` + `p_reducao_base` separados (não a efetiva),
   `ncm_nbs VARCHAR(9)` + `tipo_item`, `tenant_id` nulável com
   `UNIQUE NULLS NOT DISTINCT`. Carga: 27 linhas base. Busca em 4 níveis já
@@ -204,10 +220,18 @@ projeto de meses e não tem fonte oficial consolidada.
   `OperacaoFiscalDTO` ganha o bloco (`valorIcms`, `valorPisCofins`, base reduzida) e
   as linhas na memória de cálculo. **Muda o contrato de saída** — fazer antes de o
   AR existir, que é justamente o motivo de o AR ter sido empurrado para o fim.
-- **3d — ISS.** Tabela própria por `ibge_municipio` + item da LC 116 (ajuste nº 2:
-  ISS não é por UF). Por último de propósito: é o pior dado de todos (5.570
-  municípios legislando cada um o seu) e o motor de produto fica completo sem ele.
-  Default 5% (teto da LC 116) com override, ou serviço fica sem legado até haver carga.
+- **3d — ISS. PROMOVIDA A PRIMEIRA** (antes era a última; ver "Ordem revista" acima).
+  Tabela própria por `ibge_municipio` + item da LC 116 (ajuste nº 2: ISS não é por UF).
+  É a perna legada de quem vende **serviço**, que é o mercado-alvo. Continua sendo o
+  pior dado de todos — 5.570 municípios legislando cada um o seu —, e por isso entra
+  com default 5% (teto da LC 116) + override por município, em vez de esperar carga
+  completa. Junto dela vem o **local da prestação**: quem decide se o ISS é do
+  prestador ou do tomador é a LC 116 art. 3º, com ~20 exceções, e hoje o motor recebe
+  `ibgeLocalPrestacao` pronto — se quem chama errar, o cálculo sai certo para o
+  município errado.
+- **3e — retenção na fonte** (nova, decidida em 30 de julho de 2026). ISS retido, IRRF,
+  PIS/COFINS/CSLL e INSS, dentro do motor. Depende da 3d (ISS retido usa a alíquota
+  municipal) e mexe no request e no contrato de saída, como a 3c.
 
 ---
 
