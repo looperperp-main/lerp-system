@@ -75,11 +75,12 @@
             <version>8.18.0</version>
         </dependency>
 
-        <!-- Adicione a dependência do Logstash Logback Encoder -->
+        <!-- Appender do Loki (substitui o logstash-logback-encoder). Declarado aqui porque o gateway
+             herda do spring-boot-starter-parent, não do POM raiz. -->
         <dependency>
-            <groupId>net.logstash.logback</groupId>
-            <artifactId>logstash-logback-encoder</artifactId>
-            <version>7.4</version>
+            <groupId>com.github.loki4j</groupId>
+            <artifactId>loki-logback-appender</artifactId>
+            <version>1.6.0</version>
         </dependency>
 
 

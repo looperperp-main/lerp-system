@@ -24,3 +24,16 @@ scrape_configs:
     static_configs:
       #- targets: ['gateway:8090']  # Ajuste a porta conforme seu serviço
       - targets: ['host.docker.internal:8090']  # Ajuste a porta conforme seu serviço
+
+  - job_name: 'partner-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      #- targets: ['partner-service:8087']
+      - targets: ['host.docker.internal:8087']
+
+  # billing expõe as métricas de webhook (webhook_processado_total / webhook_pendente)
+  - job_name: 'billing-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      #- targets: ['billing-service:8088']
+      - targets: ['host.docker.internal:8088']

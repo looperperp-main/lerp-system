@@ -5,8 +5,8 @@
     <!-- Pega o nome da aplicação do application.yml/.properties -->
     <springProperty scope="context" name="springAppName" source="spring.application.name"/>
 
-    <!-- O registry não depende de `common`, então não tem o CorrelationIdFilter: o %X fica vazio
-         aqui. O `:-` evita virar literal "correlationId_IS_UNDEFINED". -->
+    <!-- Este serviço não tinha logback-spring.xml: o log de onboarding/comissão nunca saiu do console.
+         correlationId vem do MDC (CorrelationIdFilter lê o header X-Correlation-ID). -->
     <property name="PADRAO_CONSOLE"
               value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{correlationId:-}] %-5level %logger{36} - %msg%n"/>
     <!-- Sem a data: o Loki carimba o timestamp do evento, repetir só polui a linha. -->
@@ -19,9 +19,10 @@
         </encoder>
     </appender>
 
-    <!-- Substitui o LogstashTcpSocketAppender: push HTTP direto pro Loki, sem agente intermediário.
-         Labels SÓ de baixa cardinalidade (app/host/level). Nada de id volátil como label — cada valor
-         distinto criaria um stream novo e derrubaria o Loki; filtra-se com |= no LogQL. -->
+    <!-- Push HTTP direto pro Loki, sem agente intermediário.
+         Labels SÓ de baixa cardinalidade (app/host/level). tenantId, correlationId e id de parceiro
+         nunca viram label — cada valor distinto criaria um stream novo e derrubaria o Loki; eles ficam
+         no corpo da mensagem e se filtra com |= no LogQL. -->
     <appender name="LOKI" class="com.github.loki4j.logback.Loki4jAppender">
         <http>
             <url>${LOKI_URL:-http://localhost:3100/loki/api/v1/push}</url>

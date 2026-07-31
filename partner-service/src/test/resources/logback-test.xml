@@ -4,19 +4,16 @@
   sobre logback-spring.xml no classpath de teste, então o Loki4jAppender (destino
   localhost:3100, que não existe em CI/local de teste) nunca é criado.
 
-  Motivo: os @WebMvcTest rodam sob o profile "default" (não "test"), então o gate
-  <springProfile name="!test"> do logback-spring.xml NÃO exclui o appender. Com o
-  LogstashTcpSocketAppender isso custava ~60s por classe (backoff de reconexão de 30s do
-  disruptor) + 30s no fim (Surefire "going to kill self fork JVM"); o loki4j é assíncrono
-  e não trava a JVM, mas cada batch falho vira ERROR no output. Só console aqui = testes
-  rápidos e sem ruído.
+  Motivo: os testes rodam sob o profile "default" (não "test"), então o gate
+  <springProfile name="!test"> do logback-spring.xml NÃO exclui o appender, e cada batch
+  que falha vira ERROR no output. Só console aqui = testes sem ruído.
 -->
 <configuration>
     <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
 
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{correlationId:-}] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
 

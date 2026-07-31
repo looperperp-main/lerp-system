@@ -76,10 +76,12 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- Appender do Loki (substitui o logstash-logback-encoder): empurra log por HTTP direto
+             do logback, sem Promtail nem agente. Herdado por todos os módulos filhos deste POM. -->
         <dependency>
-            <groupId>net.logstash.logback</groupId>
-            <artifactId>logstash-logback-encoder</artifactId>
-            <version>7.4</version>
+            <groupId>com.github.loki4j</groupId>
+            <artifactId>loki-logback-appender</artifactId>
+            <version>1.6.0</version>
         </dependency>
     </dependencies>
     <dependencyManagement>

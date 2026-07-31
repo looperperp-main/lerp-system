@@ -17,4 +17,7 @@ public interface WebhookLogRepository extends JpaRepository<WebhookLog, UUID> {
 
     /** Webhooks presos em RECEBIDO além do cutoff (Fase 7 — WebhookRecoveryJob). */
     List<WebhookLog> findByStatusAndReceivedAtBefore(String status, OffsetDateTime cutoff);
+
+    /** Mesma condição do recovery, só a contagem — alimenta o gauge {@code webhook_pendente}. */
+    long countByStatusAndReceivedAtBefore(String status, OffsetDateTime cutoff);
 }

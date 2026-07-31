@@ -10,4 +10,7 @@ public interface JobExecutionRepository extends JpaRepository<JobExecution, UUID
 
     /** Última execução de um job (para a tela mostrar status/duração mais recentes). */
     Optional<JobExecution> findFirstByJobKeyOrderByStartedAtDesc(String jobKey);
+
+    /** Última execução bem-sucedida — alimenta o gauge {@code job_segundos_desde_ok}. */
+    Optional<JobExecution> findFirstByJobKeyAndStatusOrderByFinishedAtDesc(String jobKey, String status);
 }

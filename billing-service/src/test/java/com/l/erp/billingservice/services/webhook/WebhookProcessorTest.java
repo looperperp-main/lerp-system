@@ -6,14 +6,17 @@ import com.l.erp.billingservice.infra.exception.TransientException;
 import com.l.erp.billingservice.infra.redis.WebhookIdempotencyService;
 import com.l.erp.billingservice.services.WebhookLogService;
 import com.l.erp.billingservice.services.webhook.handler.PaymentReceivedHandler;
+import com.l.erp.common.util.Constants;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.startsWith;
@@ -36,10 +39,27 @@ class WebhookProcessorTest {
     @Mock
     PaymentReceivedHandler handler;
 
-    @InjectMocks
-    WebhookProcessor processor;
+    // Registry real (não mock): mock devolveria Counter null e estouraria no increment().
+    private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
+
+    private WebhookProcessor processor;
 
     private final WebhookLog webhookLog = new WebhookLog();
+
+    @BeforeEach
+    void setUp() {
+        processor = new WebhookProcessor(idempotencyService, handlerFactory, logService, meterRegistry);
+    }
+
+    /** Valor do contador webhook_processado_total para um par evento/resultado (0 se nunca incrementado). */
+    private double contador(String evento, String resultado) {
+        return meterRegistry.find(Constants.METRIC_WEBHOOK_PROCESSADO)
+                .tag(Constants.METRIC_TAG_EVENTO, evento)
+                .tag(Constants.METRIC_TAG_RESULTADO, resultado)
+                .counters().stream()
+                .mapToDouble(c -> c.count())
+                .sum();
+    }
 
     @Test
     void duplicate_isDiscardedWithoutRouting() {
@@ -50,6 +70,7 @@ class WebhookProcessorTest {
 
         verify(handlerFactory, never()).getHandler(any());
         verify(logService, never()).markProcessed(any());
+        assertEquals(1, contador("PAYMENT_RECEIVED", Constants.METRIC_RESULTADO_DUPLICADO));
     }
 
     @Test
@@ -63,6 +84,7 @@ class WebhookProcessorTest {
         verify(idempotencyService).markDone("UNKNOWN_EVENT", "evt_2");
         verify(logService).markIgnored(eq(webhookLog), any());
         verify(logService, never()).markProcessed(any());
+        assertEquals(1, contador("UNKNOWN_EVENT", Constants.METRIC_RESULTADO_IGNORADO));
     }
 
     @Test
@@ -76,6 +98,7 @@ class WebhookProcessorTest {
         verify(handler).handle(payload);
         verify(idempotencyService).markDone("PAYMENT_RECEIVED", "evt_3");
         verify(logService).markProcessed(webhookLog);
+        assertEquals(1, contador("PAYMENT_RECEIVED", Constants.METRIC_RESULTADO_OK));
     }
 
     @Test
@@ -90,6 +113,7 @@ class WebhookProcessorTest {
         verify(idempotencyService).release("PAYMENT_RECEIVED", "evt_4");
         verify(logService).markError(eq(webhookLog), startsWith("TRANSIENT"));
         verify(idempotencyService, never()).markError(any(), any());
+        assertEquals(1, contador("PAYMENT_RECEIVED", Constants.METRIC_RESULTADO_ERRO_TRANSITORIO));
     }
 
     @Test
@@ -104,6 +128,7 @@ class WebhookProcessorTest {
         verify(idempotencyService).markError("PAYMENT_RECEIVED", "evt_5");
         verify(logService).markError(eq(webhookLog), any());
         verify(idempotencyService, never()).release(any(), any());
+        assertEquals(1, contador("PAYMENT_RECEIVED", Constants.METRIC_RESULTADO_ERRO_PERMANENTE));
     }
 
     private void doThrowTransient() {
