@@ -1,6 +1,8 @@
 package com.l.erp.partnerservice.infra.config;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.l.erp.common.infra.kafka.CorrelationIdProducerInterceptor;
+import com.l.erp.common.infra.kafka.CorrelationIdRecordInterceptor;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.TopicPartition;
@@ -71,6 +73,9 @@ public class KafkaConsumerConfig {
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+        // Carimba o correlationId do MDC como header — sem isso o rastro morre na fronteira do tópico
+        props.put(ProducerConfig.INTERCEPTOR_CLASSES_CONFIG,
+                CorrelationIdProducerInterceptor.class.getName());
         return new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(props));
     }
 
@@ -124,6 +129,8 @@ public class KafkaConsumerConfig {
         var factory = new ConcurrentKafkaListenerContainerFactory<String, String>();
         factory.setConsumerFactory(consumerFactory());
         factory.setCommonErrorHandler(kafkaErrorHandler);
+        // Reidrata o correlationId vindo no header — sem isso a linha do consumidor sai com []
+        factory.setRecordInterceptor(new CorrelationIdRecordInterceptor());
         return factory;
     }
 
@@ -142,6 +149,8 @@ public class KafkaConsumerConfig {
         // com o auto-configurado (JsonSerializer) usado pelo KafkaPartnerProducerService
         Map<String, Object> props = new HashMap<>();
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        props.put(ProducerConfig.INTERCEPTOR_CLASSES_CONFIG,
+                CorrelationIdProducerInterceptor.class.getName());
         var pf = new DefaultKafkaProducerFactory<>(props, new StringSerializer(), new StringSerializer());
 
         var repliesContainer = containerFactory.createContainer(EXTRATO_REPLY_TOPIC);

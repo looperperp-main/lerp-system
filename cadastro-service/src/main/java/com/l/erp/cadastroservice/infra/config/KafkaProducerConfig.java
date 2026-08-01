@@ -1,5 +1,6 @@
 package com.l.erp.cadastroservice.infra.config;
 
+import com.l.erp.common.infra.kafka.CorrelationIdProducerInterceptor;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,6 +23,9 @@ public class KafkaProducerConfig {
     public ProducerFactory<String, String> producerFactory() {
         Map<String, Object> configProps = new HashMap<>();
         configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        // Carimba o correlationId do MDC como header — sem isso o rastro morre na fronteira do tópico
+        configProps.put(ProducerConfig.INTERCEPTOR_CLASSES_CONFIG,
+                CorrelationIdProducerInterceptor.class.getName());
 
         // Usamos StringSerializer para chave e valor! Zero depreciações.
         StringSerializer stringSerializer = new StringSerializer();

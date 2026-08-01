@@ -66,6 +66,17 @@ class InternalRequestFilterTest {
     }
 
     @Test
+    void actuatorPrometheus_passaSemHeader() throws Exception {
+        var req = new MockHttpServletRequest("GET", "/actuator/prometheus");
+        var res = new MockHttpServletResponse();
+        var chain = new CountingChain();
+
+        filter.doFilter(req, res, chain);
+
+        assertThat(chain.calls).isEqualTo(1);
+    }
+
+    @Test
     void consultaCnpjPublica_passaSemHeader() throws Exception {
         var req = new MockHttpServletRequest("GET", "/api/v1/partners/cnpj/12345678000199");
         var res = new MockHttpServletResponse();
