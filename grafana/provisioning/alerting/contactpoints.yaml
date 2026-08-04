@@ -1,0 +1,14 @@
+apiVersion: 1
+
+# Reaproveita o SMTP já configurado no serviço grafana (compose.yaml, GF_SMTP_*)
+# e o EMAIL_USER exposto puro ali mesmo — sem credencial nova, notifica pra
+# essa mesma caixa.
+contactPoints:
+  - orgId: 1
+    name: email-observabilidade
+    receivers:
+      - uid: email-observabilidade-receiver
+        type: email
+        settings:
+          addresses: $__env{EMAIL_USER}
+          singleEmail: true

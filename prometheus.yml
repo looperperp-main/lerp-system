@@ -37,3 +37,9 @@ scrape_configs:
     static_configs:
       #- targets: ['billing-service:8088']
       - targets: ['host.docker.internal:8088']
+
+  - job_name: 'registry'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      #- targets: ['registry:8761']
+      - targets: ['host.docker.internal:8761']

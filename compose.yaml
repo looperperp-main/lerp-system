@@ -138,6 +138,15 @@ services:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin123
       - GF_USERS_ALLOW_SIGN_UP=false
+      # Reaproveita o SMTP que o auth-service já usa (Gmail) — sem credencial nova.
+      - GF_SMTP_ENABLED=true
+      - GF_SMTP_HOST=smtp.gmail.com:587
+      - GF_SMTP_USER=${EMAIL_USER}
+      - GF_SMTP_PASSWORD=${EMAIL_PASSWORD}
+      - GF_SMTP_FROM_ADDRESS=${EMAIL_USER}
+      # Exposto puro (não só GF_SMTP_USER) pra provisioning/alerting/*.yaml resolver
+      # o destinatário via $__env{EMAIL_USER}.
+      - EMAIL_USER=${EMAIL_USER}
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning
@@ -158,6 +167,7 @@ services:
       - "3100:3100"
     volumes:
       - loki_data:/loki
+      - ./loki-config.yaml:/etc/loki/local-config.yaml
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O- http://localhost:3100/ready | grep -q ready"]
       interval: 10s

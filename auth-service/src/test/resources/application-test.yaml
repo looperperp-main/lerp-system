@@ -30,6 +30,11 @@ eureka:
   client:
     enabled: false
 
+management:
+  health:
+    mail:
+      enabled: false
+
 api:
   security:
     jwt.secret: test-secret-32chars-minimum-xxxxxxxxxxx
