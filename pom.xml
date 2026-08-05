@@ -200,6 +200,15 @@
                 <groupId>org.cyclonedx</groupId>
                 <artifactId>cyclonedx-maven-plugin</artifactId>
             </plugin>
+            <!-- Declarado aqui (não só em pluginManagement) pra "sonar:sonar" resolver via
+                 prefixo no CLI do Jenkins: pluginManagement sozinho não registra o plugin como
+                 "usado" pelo projeto, e o settings.xml do agente não tem org.sonarsource.scanner.maven
+                 no pluginGroups (dá "No plugin found for prefix 'sonar'"). Sem <executions>: só
+                 fica resolvível pro goal explícito, não roda em nenhuma fase do build normal. -->
+            <plugin>
+                <groupId>org.sonarsource.scanner.maven</groupId>
+                <artifactId>sonar-maven-plugin</artifactId>
+            </plugin>
 
         </plugins>
     </build>
