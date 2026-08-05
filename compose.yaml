@@ -138,6 +138,15 @@ services:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin123
       - GF_USERS_ALLOW_SIGN_UP=false
+      # Reaproveita o SMTP que o auth-service já usa (Gmail) — sem credencial nova.
+      - GF_SMTP_ENABLED=true
+      - GF_SMTP_HOST=smtp.gmail.com:587
+      - GF_SMTP_USER=${EMAIL_USER}
+      - GF_SMTP_PASSWORD=${EMAIL_PASSWORD}
+      - GF_SMTP_FROM_ADDRESS=${EMAIL_USER}
+      # Exposto puro (não só GF_SMTP_USER) pra provisioning/alerting/*.yaml resolver
+      # o destinatário via $__env{EMAIL_USER}.
+      - EMAIL_USER=${EMAIL_USER}
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning
@@ -147,51 +156,28 @@ services:
       - loop-erp-network
 
 
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.0
-    container_name: elasticsearch
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false # Desabilitado para ambiente de desenvolvimento local
-      - "ES_JAVA_OPTS=-Xms256m -Xmx256m"
+  # Substitui o stack ELK (elasticsearch + logstash + kibana, ~1,8GB) por Loki (~200MB).
+  # Os serviços empurram log direto por HTTP (loki4j no logback) — sem agente, sem Promtail,
+  # sem pipeline. A UI é o Grafana que já está aqui: Explore > datasource Loki.
+  loki:
+    image: grafana/loki:3.4.2
+    container_name: erp-loki
+    command: ["-config.file=/etc/loki/local-config.yaml"]
     ports:
-      - "9200:9200"
-    deploy:
-      resources:
-        limits:
-          memory: 768m
-    networks:
-      - loop-erp-network
-
-  logstash:
-    image: docker.elastic.co/logstash/logstash:8.13.0
-    container_name: logstash
+      - "3100:3100"
     volumes:
-      - ./logstash.conf:/usr/share/logstash/pipeline/logstash.conf
-    ports:
-      - "5000:5000/tcp" # Porta para receber logs dos microsserviços
-      - "5000:5000/udp"
-    environment:
-      LS_JAVA_OPTS: "-Xmx256m -Xms256m"
-    depends_on:
-      - elasticsearch
-    networks:
-      - loop-erp-network
-
-  kibana:
-    image: docker.elastic.co/kibana/kibana:8.13.0
-    container_name: kibana
-    environment:
-      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
-      - NODE_OPTIONS=--max-old-space-size=512
-    ports:
-      - "5601:5601"
-    depends_on:
-      - elasticsearch
+      - loki_data:/loki
+      - ./loki-config.yaml:/etc/loki/local-config.yaml
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:3100/ready | grep -q ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
     deploy:
       resources:
         limits:
-          memory: 768m
+          memory: 256m
     networks:
       - loop-erp-network
 
@@ -277,6 +263,7 @@ volumes:
   kafka_data:
   prometheus_data:
   grafana_data:
+  loki_data:
   sonarqube_data:
   sonarqube_extensions:
   sonarqube_logs:

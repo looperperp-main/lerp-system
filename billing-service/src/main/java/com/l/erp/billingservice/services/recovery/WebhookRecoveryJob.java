@@ -26,7 +26,6 @@ import java.util.UUID;
 public class WebhookRecoveryJob {
 
     private static final Logger log = LoggerFactory.getLogger(WebhookRecoveryJob.class);
-    private static final int STUCK_MINUTES = 10;
 
     // ObjectMapper próprio com módulos (LocalDate em AsaasPaymentData) — evita ambiguidade de bean.
     private static final ObjectMapper MAPPER = new ObjectMapper().findAndRegisterModules();
@@ -56,7 +55,7 @@ public class WebhookRecoveryJob {
         }
         try {
             recorder.record(Constants.JOB_KEY_WEBHOOK_RECOVERY, () -> {
-                OffsetDateTime cutoff = OffsetDateTime.now().minusMinutes(STUCK_MINUTES);
+                OffsetDateTime cutoff = OffsetDateTime.now().minusMinutes(Constants.WEBHOOK_STUCK_MINUTES);
                 List<WebhookLog> stuck = webhookLogRepository
                         .findByStatusAndReceivedAtBefore(Constants.WEBHOOK_RECEBIDO, cutoff);
                 if (stuck.isEmpty()) {

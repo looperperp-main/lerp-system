@@ -233,6 +233,25 @@ public class Constants {
     public static final String WEBHOOK_PROCESSADO = "PROCESSADO";
     public static final String WEBHOOK_ERRO = "ERRO";
 
+    /** Minutos em RECEBIDO após os quais um webhook é considerado preso (recovery job + gauge). */
+    public static final int WEBHOOK_STUCK_MINUTES = 10;
+
+    // Métricas Micrometer de webhook (expostas em /actuator/prometheus do billing)
+    public static final String METRIC_WEBHOOK_PROCESSADO = "webhook_processado_total";
+    public static final String METRIC_WEBHOOK_PENDENTE = "webhook_pendente";
+    public static final String METRIC_TAG_EVENTO = "evento";
+    public static final String METRIC_TAG_RESULTADO = "resultado";
+    public static final String METRIC_RESULTADO_OK = "ok";
+    public static final String METRIC_RESULTADO_DUPLICADO = "duplicado";
+    public static final String METRIC_RESULTADO_IGNORADO = "ignorado";
+    public static final String METRIC_RESULTADO_ERRO_TRANSITORIO = "erro_transitorio";
+    public static final String METRIC_RESULTADO_ERRO_PERMANENTE = "erro_permanente";
+
+    /** Segundos desde a última execução OK de um job agendado; -1 = nunca rodou com sucesso. */
+    public static final String METRIC_JOB_SEGUNDOS_DESDE_OK = "job_segundos_desde_ok";
+    public static final String METRIC_TAG_JOB = "job";
+    public static final double METRIC_JOB_NUNCA_EXECUTADO = -1.0;
+
     //Parceiros
     public static final String PARCEIRO = "PARCEIRO";
     public static final String PARCEIRO_CREATION = PARCEIRO + "_" + INSERT;

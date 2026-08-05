@@ -22,7 +22,7 @@ ERP multi-tenant construído como monorepo de microserviços Spring Boot (Maven 
 - **Autenticação:** `auth-service` valida credenciais e emite JWT HS256 (TTL 1h) + refresh token persistido no PostgreSQL com rotação e detecção de reuso. Serviços downstream confiam nos headers injetados pelo gateway (não revalidam a assinatura do JWT).
 - **Migrações:** todo o schema é versionado no `liquibase-service` (`db/changelog/`, organizado por `auth/`, `audit/`, `cadastro/`, `billing/`). Os serviços rodam com `ddl-auto=validate` — Liquibase é dono de todo o DDL.
 - **Auditoria:** `auth-service` publica `AuditEventDTO` no Kafka em eventos de segurança e os consome via `AuditConsumer`, persistindo no schema `audit`.
-- **Observabilidade:** Prometheus + Grafana para métricas; Logback → Logstash → Elasticsearch → Kibana para logs.
+- **Observabilidade:** Prometheus + Grafana para métricas; Logback → Loki (push HTTP via loki4j) → Grafana para logs.
 
 ## 🛠️ Stack
 
@@ -47,7 +47,7 @@ docker compose up -d
 docker compose up -d postgres zookeeper kafka
 ```
 
-UIs: Kafka UI `:8080`, Adminer `:8081`, Prometheus `:9090`, Grafana `:3000`, Kibana `:5601`.
+UIs: Kafka UI `:8080`, Adminer `:8081`, Prometheus `:9090`, Grafana `:3000` (métricas + logs via Explore > Loki).
 
 ### Migrações
 

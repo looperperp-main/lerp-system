@@ -1,0 +1,185 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: billing-alerts
+    folder: ERP-VSD
+    interval: 1m
+    rules:
+      # job_segundos_desde_ok tem 4 séries (label job), cada uma com um cron bem diferente
+      # (WebhookRecoveryJob=15min, ReconciliationJob=30min, DunningJob=1x/dia,
+      # CommissionPayoutJob=1x/mês) — um threshold único pra todas dispararia falso-positivo
+      # certo no dunning/payout, que ficam "atrasados" a maior parte do dia/mês por design.
+      # Threshold de cada regra = 2x o intervalo real do @Scheduled daquele job.
+      - uid: billing-job-travado-webhook-recovery
+        title: "Job webhook-recovery sem sucesso há muito tempo"
+        condition: C
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "job_segundos_desde_ok{job=webhook-recovery} acima do limite"
+          description: "WebhookRecoveryJob roda a cada 15min; folga de 2x (30min) sem sucesso indica job travado ou falhando. Ver painel 'Segundos desde último job OK' no dashboard ERP-VSD."
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: job_segundos_desde_ok{job="webhook-recovery"}
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              refId: C
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [1800]
+        noDataState: NoData
+        execErrState: Error
+        notification_settings:
+          receiver: email-observabilidade
+
+      - uid: billing-job-travado-reconciliation
+        title: "Job reconciliation sem sucesso há muito tempo"
+        condition: C
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "job_segundos_desde_ok{job=reconciliation} acima do limite"
+          description: "ReconciliationJob roda a cada 30min; folga de 2x (1h) sem sucesso indica job travado ou falhando. Ver painel 'Segundos desde último job OK' no dashboard ERP-VSD."
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: job_segundos_desde_ok{job="reconciliation"}
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              refId: C
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [3600]
+        noDataState: NoData
+        execErrState: Error
+        notification_settings:
+          receiver: email-observabilidade
+
+      - uid: billing-job-travado-dunning
+        title: "Job dunning sem sucesso há muito tempo"
+        condition: C
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "job_segundos_desde_ok{job=dunning} acima do limite"
+          description: "DunningJob roda 1x/dia (02:30); folga de 2x (2 dias) sem sucesso indica job travado ou falhando. Ver painel 'Segundos desde último job OK' no dashboard ERP-VSD."
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: job_segundos_desde_ok{job="dunning"}
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              refId: C
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [172800]
+        noDataState: NoData
+        execErrState: Error
+        notification_settings:
+          receiver: email-observabilidade
+
+      - uid: billing-job-travado-commission-payout
+        title: "Job commission-payout sem sucesso há muito tempo"
+        condition: C
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "job_segundos_desde_ok{job=commission-payout} acima do limite"
+          description: "CommissionPayoutJob roda 1x/mês (dia 1, 02:00); folga de 2x (60 dias) sem sucesso indica job travado ou falhando. Ver painel 'Segundos desde último job OK' no dashboard ERP-VSD."
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: job_segundos_desde_ok{job="commission-payout"}
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              refId: C
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [5184000]
+        noDataState: NoData
+        execErrState: Error
+        notification_settings:
+          receiver: email-observabilidade
+
+      - uid: webhook-pendente-alto
+        title: "Fila de webhooks pendentes crescendo"
+        condition: C
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "webhook_pendente acima do limite"
+          description: "A fila de webhooks pendentes do billing-service está acima do esperado. Ver painel 'Webhooks pendentes' no dashboard ERP-VSD."
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: webhook_pendente
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              refId: C
+              conditions:
+                - evaluator:
+                    # >0 é o threshold correto pelo próprio design do metric (ver comentário
+                    # em WebhookMetrics.java: ">0 sustentado = pagamento parado"). Não é
+                    # estimativa — 1 webhook preso por 10+ min já é anômalo neste volume de tráfego.
+                    type: gt
+                    params: [0]
+        noDataState: NoData
+        execErrState: Error
+        notification_settings:
+          receiver: email-observabilidade

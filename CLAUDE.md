@@ -63,7 +63,7 @@ docker compose up -d
 # health agregado do billing fica DOWN (503) e o painel de saúde do admin mostra billing DOWN.
 docker compose up -d postgres zookeeper kafka redis
 
-# Web UIs: Kafka UI :8080, Adminer :8081, Prometheus :9090, Grafana :3000, Kibana :5601
+# Web UIs: Kafka UI :8080, Adminer :8081, Prometheus :9090, Grafana :3000 (métricas + logs)
 ```
 
 ### Frontend
@@ -126,7 +126,8 @@ Both `auth-service` and `cadastro-service` run with `spring.jpa.hibernate.ddl-au
 
 - Prometheus scrapes `/actuator/prometheus` from each service.
 - Grafana (`:3000`, admin/admin123) for dashboards.
-- Logback → Logstash (`:5000`) → Elasticsearch (`:9200`) → Kibana (`:5601`) for logs.
+- Logback → Loki (`:3100`, push HTTP direto via loki4j) → Grafana (`:3000`, Explore) for logs. Substituiu o ELK. Todos os 6 serviços têm `logback-spring.xml` com o appender `Loki4jAppender` e o `correlationId` no pattern; labels só de baixa cardinalidade (`app`/`host`/`level`) — `tenantId`, `correlationId` e ids de pagamento nunca viram label, filtram-se com `|=` no LogQL.
+- Métricas de pagamento no `billing-service`: `webhook_processado_total{evento,resultado}`, `webhook_pendente` e `job_segundos_desde_ok{job}` em `/actuator/prometheus`.
 - Sentry BOM is managed in the parent POM (not yet wired per service).
 
 ### Required Environment Variables
@@ -156,7 +157,7 @@ Tests in `auth-service` use `@WebMvcTest` + `MockMvc` with Mockito for mocking s
 
 CI/CD runs on **Jenkins + SonarQube** (TeamCity and Qodana were removed). The pipeline is defined in `Jenkinsfile` (declarative). Jenkins and SonarQube run via `compose.yaml`; the Jenkins controller image is built from `jenkins.Dockerfile`. Docker builds use a DinD daemon (`DOCKER_HOST=tcp://dind:2375`), and Testcontainers integration tests rely on `TESTCONTAINERS_HOST_OVERRIDE=dind`.
 
-Pipeline stages: **Checkout → Build & Test (`mvnw clean verify` on the four services with `-am`) → SonarQube Analysis → Quality Gate (aborts on failure) → Docker Build & Push** (images `vitorff1234/<service>:<BUILD_NUMBER>` + `:latest` to Docker Hub). Tested + analyzed: the four application services (`auth-service`, `cadastro-service`, `partner-service`, `billing-service`). Also imaged: `gateway` and `registry` — these inherit from `spring-boot-starter-parent` (not the root POM, so no JaCoCo/Sonar gate), and the Docker stage packages them separately with `mvnw package -pl gateway,registry -DskipTests` purely to produce the jar for the image; they are **not** run through `verify` or Sonar. Each of the six modules has its own `Dockerfile` (`registry` is also a `<module>` in the root POM so `-pl registry` resolves). `liquibase-service` is still not imaged (runs migrations).
+Pipeline stages: **Checkout → Build & Test (`mvnw clean verify` on all six services with `-am`) → SonarQube Analysis → Quality Gate (aborts on failure) → Docker Build & Push** (images `vitorff1234/<service>:<BUILD_NUMBER>` + `:latest` to Docker Hub). Tested + analyzed: `auth-service`, `cadastro-service`, `partner-service`, `billing-service`, `gateway`, `registry` — all six now inherit from the root `erp-vsd` pom (not `spring-boot-starter-parent` directly), each with its own `jacoco-maven-plugin` `check` execution (`coverage.minimum` — 0.20 starting floor for `gateway`/`registry`, tune after a real `mvnw verify` run shows actual coverage). The Docker stage no longer packages gateway/registry separately — their jar comes out of the same `verify` run as everyone else. Each of the six modules has its own `Dockerfile`. `liquibase-service` is still not imaged (runs migrations). **Caveat:** because all six now share one reactor build, a coverage/Sonar regression in `gateway` or `registry` can fail the whole `Build & Test` stage for the other four services too (no `-fae`/fail-at-end) — acceptable for a security-perimeter gate, but worth knowing before touching those two modules.
 
 A local pre-push hook lives in `.githooks/pre-push` — enable once with `git config core.hooksPath .githooks`. It runs `./mvnw verify` only on the Java services touched by the push (changes under `common/` trigger a full verify; frontend/infra-only changes skip Java verify).
 

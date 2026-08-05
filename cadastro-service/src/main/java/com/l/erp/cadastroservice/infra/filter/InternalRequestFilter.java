@@ -22,7 +22,10 @@ public class InternalRequestFilter extends OncePerRequestFilter {
 
     private static final Set<String> PUBLIC_EXACT = Set.of(
             "/actuator/health",
-            "/actuator/info"
+            "/actuator/info",
+            // prometheus: alvo de scrape do Prometheus, que chega sem token nenhum.
+            // Somente leitura e sem label de alta cardinalidade (nada de tenantId).
+            "/actuator/prometheus"
     );
 
     @Override

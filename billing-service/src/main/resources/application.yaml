@@ -33,6 +33,10 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      properties:
+        # Carimba o correlationId do MDC como header — o billing não tem KafkaProducerConfig próprio,
+        # então o interceptor entra por aqui, no produtor auto-configurado.
+        interceptor.classes: com.l.erp.common.infra.kafka.CorrelationIdProducerInterceptor
     consumer:
       group-id: billing-service-group
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
@@ -92,6 +96,13 @@ management:
     metrics:
       export:
         enabled: true
+  otlp:
+    metrics:
+      export:
+        # Não há receiver OTLP no ambiente. Sem isso o OtlpMeterRegistry é auto-configurado
+        # e tenta empurrar métrica pra localhost:4318 a cada ciclo, enchendo o log de
+        # ConnectException — justamente o log que agora vai pro Loki.
+        enabled: false
   metrics:
     tags:
       application: ${spring.application.name}

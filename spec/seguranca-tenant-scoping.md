@@ -1,6 +1,6 @@
 # Tenant-scoping / IDOR cross-tenant — Plano de correção
 
-**Status:** PLANEJADO (não iniciado) · **Data:** 2026-06-25 · **Serviços:** `cadastro-service` (M8, foco) · `auth-service` (M7) · `gateway` (defense-in-depth)
+**Status:** PLANEJADO (não iniciado) · **Data:** 2026-06-25 · **Última atualização:** 31 de julho de 2026 · **Serviços:** `cadastro-service` (M8, foco) · `auth-service` (M7) · `gateway` (defense-in-depth) · **todos** (exposição do Actuator)
 
 > **Status atualizado (2026-07-03, verificado via grep no código):**
 > - **M8: ✅ IMPLEMENTADO** — os 4 services usam `findByIdAndTenantId`; delete do Produto via `deleteByIdAndTenantId`; referências filhas escopadas. Pendente confirmar só o passo 5 (testes cross-tenant → 404 por entidade).
@@ -76,6 +76,51 @@ IDOR cross-tenant no CRUD de usuários/roles + níveis de owner conflados. Conti
 Stripar explicitamente os headers de entrada `X-Tenant-Id` / `X-User-Id` / `X-Is-Owner` / `X-Partner-Id` do request do cliente **antes** de injetar os valores derivados do JWT no `SecurityFilter` — em vez de depender só da semântica do wrapper (`getHeader/getHeaders`). Reduz risco se algum caminho de proxy ler headers fora do wrapper.
 
 > ✅ **RESOLVIDO (confirmado 2026-07-03):** `SecurityFilter` tem `PROTECTED_HEADERS` (inclui também `X-User-Email` e `X-Authorities`) com mascaramento case-insensitive em `getHeader`/`getHeaders`/`getHeaderNames`. Gap residual: o strip só roda no caminho autenticado; em `PUBLIC_PATHS` a request original segue com headers forjados — ver `spec/auditoria.md` §4.4.
+
+---
+
+## Exposição do Actuator — todos os serviços (2026-07-31)
+
+Levantado durante a rodada de teste da observabilidade: o Prometheus scrapeia
+`host.docker.internal:<porta>/actuator/prometheus` de cada serviço **sem token nenhum**, e
+todos os cinco recusavam. Diagnóstico dos targets vermelhos no `:9090/targets`:
+
+| Serviço | Onde bloqueava | Resultado |
+|---|---|---|
+| `billing` / `cadastro` / `partner` | `InternalRequestFilter` — `PUBLIC_EXACT` só tinha `health`+`info` (+`loggers` por prefixo) | 401 |
+| `auth` | `SecurityConfig` permitia `health`/`info`/`loggers`, depois `anyRequest().authenticated()` | 401 |
+| `gateway` | `SecurityConfig` exigia `hasAuthority("ROLE_APP_OWNER")` em `/actuator/prometheus` | 401/403 |
+
+Ou seja, o scrape **nunca funcionou** — a config do Prometheus existia, mas nenhum serviço
+jamais permitiu a leitura.
+
+> ✅ **RESOLVIDO (2026-07-31, não testado):** `/actuator/prometheus` liberado nos cinco —
+> acrescentado ao `PUBLIC_EXACT` dos três `InternalRequestFilter`, à lista de `permitAll()`
+> do `SecurityConfig` do auth, e movido de `hasAuthority` para `permitAll()` no gateway.
+> No gateway, **`/actuator/metrics/**` continua restrito a `ROLE_APP_OWNER`** — é API
+> navegável e expõe mais que o dump de scrape. Testes: `actuatorPrometheus_passaSemHeader`
+> adicionado aos `InternalRequestFilterTest` de cadastro e partner (billing não tem teste
+> desse filtro).
+
+**Impacto aceito.** `/actuator/prometheus` é somente leitura e entrega: inventário de
+endpoints (`http_server_requests_seconds_count{uri=...}`), volume de negócio (contagem de
+webhooks/pagamentos), taxa de erro, e versão da JVM (`jvm_info`, útil pra mirar CVE).
+**Não** vaza `tenantId`, payload, credencial nem id de pagamento — a mesma disciplina de
+cardinalidade de label aplicada no Loki vale aqui. O risco real depende de uma condição
+externa: **se em produção só o gateway for publicamente alcançável e as portas 8085-8089
+ficarem na rede privada, o impacto é nulo.**
+
+### ⚠️ Pendente e mais grave: `/actuator/loggers` aberto e **writable**
+
+Nos quatro serviços, `/actuator/loggers` já estava liberado sem autenticação **antes** desta
+mudança — e é endpoint de **escrita**: um `POST /actuator/loggers/ROOT` com
+`{"configuredLevel":"DEBUG"}` troca o nível de log em runtime. Consequência: flood de disco
+(DoS barato) e derramamento de dado sensível pro log — que agora vai direto pro Loki.
+
+Isso é estritamente pior que ler métrica, e é o item que realmente merece correção. Já
+registrado na memória do projeto como **F2** (`auth-service/SecurityConfig.java:29`,
+classificado LOW por não ser roteado no gateway). Opções: exigir authority, restringir a
+`GET`, ou fechar e usar o painel de diagnóstico via proxy interno autenticado.
 
 ---
 

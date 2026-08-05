@@ -1,6 +1,7 @@
 package com.l.erp.billingservice.infra.config;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.l.erp.common.infra.kafka.CorrelationIdRecordInterceptor;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -66,6 +67,8 @@ public class KafkaConsumerConfig {
         factory.setConsumerFactory(consumerFactory());
         factory.setCommonErrorHandler(kafkaErrorHandler);
         factory.setReplyTemplate(kafkaTemplate);
+        // Reidrata o correlationId vindo no header — sem isso a linha do consumidor sai com []
+        factory.setRecordInterceptor(new CorrelationIdRecordInterceptor());
         return factory;
     }
 }

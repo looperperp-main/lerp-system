@@ -1,14 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   Config de logback SÓ para testes. O logback carrega este arquivo com precedência
-  sobre logback-spring.xml no classpath de teste, então o LogstashTcpSocketAppender
-  (destino localhost:5000, que não existe em CI/local de teste) nunca é criado.
+  sobre logback-spring.xml no classpath de teste, então o Loki4jAppender (destino
+  localhost:3100, que não existe em CI/local de teste) nunca é criado.
 
   Motivo: os @WebMvcTest rodam sob o profile "default" (não "test"), então o gate
-  <springProfile name="!test"> do logback-spring.xml NÃO exclui o appender — e o backoff
-  de reconexão de 30s do disruptor travava a re-inicialização do logback entre cada
-  contexto Spring (~60s por classe) e ainda segurava a JVM por +30s no fim (Surefire
-  "going to kill self fork JVM"). Só console aqui = testes rápidos e sem ruído.
+  <springProfile name="!test"> do logback-spring.xml NÃO exclui o appender. Com o
+  LogstashTcpSocketAppender isso custava ~60s por classe (backoff de reconexão de 30s do
+  disruptor) + 30s no fim (Surefire "going to kill self fork JVM"); o loki4j é assíncrono
+  e não trava a JVM, mas cada batch falho vira ERROR no output. Só console aqui = testes
+  rápidos e sem ruído.
 -->
 <configuration>
     <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
