@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -17,6 +18,10 @@ public interface RolePermissionRepository extends JpaRepository<RolePermission, 
     // Busca todas as permissões de uma Role específica
     @Query("SELECT rp FROM RolePermission rp WHERE rp.role.id = :roleId")
     List<RolePermission> findAllByRoleId(UUID roleId);
+
+    // Busca as permissões de várias roles numa query só (evita N+1 em getPermissions)
+    @Query("SELECT rp FROM RolePermission rp WHERE rp.role.id IN :roleIds")
+    List<RolePermission> findAllByRoleIdIn(@Param("roleIds") Collection<UUID> roleIds);
 
     // Verifica se uma Role já tem uma permissão específica
     @Query("SELECT count(rp) > 0 FROM RolePermission rp WHERE rp.id.roleId = :roleId AND rp.id.permissionId = :permissionId")

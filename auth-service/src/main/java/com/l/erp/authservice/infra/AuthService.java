@@ -319,8 +319,10 @@ public class AuthService {
     }
 
     private List<String> getPermissions(UUID userId){
-        return userRoleRepository.findAllByUserId(userId).stream()
-                .flatMap(ur -> rolePermissionRepository.findAllByRoleId(ur.getRole().getId()).stream())
+        List<UUID> roleIds = userRoleRepository.findAllByUserId(userId).stream()
+                .map(ur -> ur.getRole().getId())
+                .toList();
+        return rolePermissionRepository.findAllByRoleIdIn(roleIds).stream()
                 .map(rp -> rp.getPermission().getCode()) // Pega o campo "TENANT_INSERT", "TENANT_UPDATE"
                 .distinct()
                 .toList();
