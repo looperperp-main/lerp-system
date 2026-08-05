@@ -50,7 +50,7 @@ pipeline {
             when { not { changeRequest() } }
             steps {
                 withSonarQubeEnv('SonarQube') {
-                    sh './mvnw sonar:sonar -pl auth-service,cadastro-service,partner-service,billing-service,gateway,registry -am -Dsonar.token=${SONAR_TOKEN} --batch-mode --no-transfer-progress'
+                    sh './mvnw org.sonarsource.scanner.maven:sonar-maven-plugin:5.1.0.4751:sonar -pl auth-service,cadastro-service,partner-service,billing-service,gateway,registry -am -Dsonar.token=${SONAR_TOKEN} --batch-mode --no-transfer-progress'
                 }
             }
         }
