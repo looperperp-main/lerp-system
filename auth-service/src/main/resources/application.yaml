@@ -48,6 +48,7 @@ server:
 api:
   security:
     jwt.secret: ${JWT_SECRET}
+    jwt.expiration-hours: ${JWT_EXPIRATION_HOURS:1}
 
 app:
   client-portal-url: ${CLIENT_PORTAL_URL:http://localhost:4200}
