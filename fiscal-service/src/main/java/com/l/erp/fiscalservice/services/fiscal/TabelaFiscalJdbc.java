@@ -102,6 +102,38 @@ public class TabelaFiscalJdbc implements TabelaFiscal {
              WHERE ano = :ano
             """;
 
+    // Mesma precedência de SQL_ALIQ_IBS: item PRÓPRIO do município vence o item GENÉRICO
+    // (item_lc116 IS NULL) do próprio município, que vence a REFERÊNCIA (teto de 5%). lpad como em
+    // SQL_CCLASSTRIB_ADMITIDO — item chega sem zero à esquerda ('4.01'), tabela grava com ('04.01').
+    private static final String SQL_ALIQ_ISS = """
+            SELECT aliquota_pct, ibge_municipio
+              FROM fiscal.aliq_iss_municipio
+             WHERE ibge_municipio IN (:ibge, :referencia)
+               AND (item_lc116 = lpad(:item, 5, '0') OR item_lc116 IS NULL)
+               AND vigente_ate IS NULL
+             ORDER BY CASE WHEN ibge_municipio = :referencia THEN 1 ELSE 0 END,
+                      CASE WHEN item_lc116 IS NULL THEN 1 ELSE 0 END
+             LIMIT 1
+            """;
+
+    // 4 níveis via ORDER BY, mesma técnica de SQL_ALIQ_IBS/SQL_ALIQ_ISS: tenant_id = :tenant vence
+    // NULL (comparação com NULL na tabela nunca é true, cai no ELSE sozinha), ncm_nbs específico
+    // vence o fallback. tipo_item fixo em 'P' porque ICMS é só sobre mercadoria — 'S' (NBS) fica
+    // pra quando este método servir outro imposto além de ICMS.
+    private static final String SQL_MATRIZ_ICMS = """
+            SELECT aliq_nominal, p_reducao_base, ncm_nbs
+              FROM fiscal.matriz_tributaria
+             WHERE tipo_item = 'P'
+               AND uf_origem = :ufOrigem
+               AND uf_destino = :ufDestino
+               AND ncm_nbs IN (:ncmNbs, :fallback)
+               AND (tenant_id = :tenantId OR tenant_id IS NULL)
+               AND vigente_ate IS NULL
+             ORDER BY CASE WHEN tenant_id = :tenantId THEN 0 ELSE 1 END,
+                      CASE WHEN ncm_nbs = :ncmNbs THEN 0 ELSE 1 END
+             LIMIT 1
+            """;
+
     private final JdbcClient jdbc;
 
     public TabelaFiscalJdbc(JdbcClient jdbc) {
@@ -186,6 +218,33 @@ public class TabelaFiscalJdbc implements TabelaFiscal {
                 .query((rs, n) -> new TransicaoAno(
                         rs.getBigDecimal("pct_remanescente"),
                         rs.getBoolean("pis_cofins_vigente")))
+                .optional();
+    }
+
+    @Override
+    public Optional<AliquotaIss> aliquotaIss(String ibgeMunicipio, String itemLc116) {
+        return jdbc.sql(SQL_ALIQ_ISS)
+                .param("ibge", ibgeMunicipio)
+                .param("referencia", Constants.FISCAL_IBGE_REFERENCIA_NACIONAL)
+                .param("item", itemLc116)
+                .query((rs, n) -> new AliquotaIss(
+                        rs.getBigDecimal("aliquota_pct"),
+                        Constants.FISCAL_IBGE_REFERENCIA_NACIONAL.equals(rs.getString("ibge_municipio"))))
+                .optional();
+    }
+
+    @Override
+    public Optional<RegimeIcms> aliquotaIcms(String tenantId, String ncmNbs, String ufOrigem, String ufDestino) {
+        return jdbc.sql(SQL_MATRIZ_ICMS)
+                .param("tenantId", tenantId)
+                .param("ncmNbs", ncmNbs)
+                .param("fallback", Constants.FISCAL_NCM_NBS_FALLBACK)
+                .param("ufOrigem", ufOrigem)
+                .param("ufDestino", ufDestino)
+                .query((rs, n) -> new RegimeIcms(
+                        rs.getBigDecimal("aliq_nominal"),
+                        rs.getBigDecimal("p_reducao_base"),
+                        Constants.FISCAL_NCM_NBS_FALLBACK.equals(rs.getString("ncm_nbs"))))
                 .optional();
     }
 

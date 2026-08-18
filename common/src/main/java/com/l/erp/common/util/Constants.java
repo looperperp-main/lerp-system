@@ -365,6 +365,12 @@ public class Constants {
     // Nao existe municipio com codigo '0000000', logo nao colide com a UNIQUE (ibge, ano).
     public static final String FISCAL_IBGE_REFERENCIA_NACIONAL = "0000000";
 
+    // Codigo NCM/NBS sentinela da linha-base de fiscal.matriz_tributaria (fatia 3b): a aliquota
+    // INTERNA geral do ICMS e carregada uma vez por UF (27 linhas), nao por NCM — excecoes por
+    // produto entram como override so quando um cliente real reclamar. 8 digitos (nao 7, que e o
+    // sentinela de municipio acima) porque o NCM tem 8 digitos e o NBS tem 9.
+    public static final String FISCAL_NCM_NBS_FALLBACK = "00000000";
+
     // Aviso do fallback para a aliquota de referencia: o municipio de destino nao tem linha propria,
     // entao o motor usa a referencia e SEGUE (nao bloqueia — a referencia e a aliquota legal de quem
     // nao legislou a propria). Se o ente legislou e a carga nao tem, o imposto sai errado: por isso

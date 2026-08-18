@@ -1,0 +1,142 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # MATRIZ ICMS — fatia 3b de spec/motor-fiscal-proximos-passos.md §3.
+  #
+  # Guarda a alíquota CHEIA de ICMS interno; a curva de redução 2029-2033 já é a
+  # fiscal.transicao_ano (fatia 3a) — não é responsabilidade desta tabela nem entra na chave.
+  # aliq_nominal + p_reducao_base ficam separados (não a efetiva): a NF-e pede vBC reduzida e
+  # pICMS nominal como campos distintos, e juntar os dois aqui perderia essa distinção.
+  #
+  # ncm_nbs varchar(9) (NBS tem 9 dígitos, NCM 8) + tipo_item ('P'/'S') desambiguam quando os dois
+  # códigos coexistirem na tabela; hoje só 'P' está semeado — ICMS não incide sobre serviço.
+  # Fallback '00000000' (Constants.FISCAL_NCM_NBS_FALLBACK, 8 zeros — sentinela DIFERENTE do
+  # '0000000' de 7 zeros usado para município) cobre a alíquota geral do estado quando não há
+  # exceção por NCM cadastrada; carga desta fatia é só o fallback, uma linha por UF (27 no total,
+  # 26 estados + DF) — exceção por NCM vira override depois, quando um cliente real reclamar.
+  #
+  # tenant_id UUID nulável: NULL = base nacional, valor = override só daquele tenant. UNIQUE NULLS
+  # NOT DISTINCT (Postgres 17, já usado pelo compose.yaml) pra NULL não colidir com NULL — do
+  # contrário dois tenants sem override e a mesma UF/NCM violariam a constraint.
+  # vigente_de entra na chave (e não só vigente_ate IS NULL no WHERE) porque alíquota de UF muda
+  # de verdade — Alagoas foi de 19% pra 20,5% em 01/04/2026 (Lei 9.776/2025, DO-AL 23/12/2025) — e
+  # sem vigente_de na constraint a linha nova colidiria com a antiga ao tentar historizar.
+  #
+  # Interestadual (12%/7%/4%, Resolução do Senado 22/89 + 13/12) NÃO mora aqui: é função sobre
+  # lista de UF, não dado que muda — 27×27 linhas repetiria uma regra fixa. ST/MVA/DIFAL/pauta
+  # fiscal/CSOSN ficam de fora por decisão (fora do escopo do motor: chegam pré-calculados ou não
+  # se aplicam ao regime que o motor atende).
+  #
+  # A tabela existe e é consultável (TabelaFiscal.aliquotaIcms), mas o motor NÃO consome o
+  # resultado nesta fatia — o passo de ICMS legado no cálculo é a fatia 3c, junto com o ISS (3d,
+  # já pronto) e a curva de transição (3a, já pronta).
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: fiscal-030-cria-matriz-tributaria
+      author: vitor-fernandes
+      comment: Tabela da matriz de ICMS interno por UF, com override opcional por tenant
+      changes:
+        - createTable:
+            schemaName: fiscal
+            tableName: matriz_tributaria
+            remarks: Alíquota interna de ICMS (legado) por NCM/NBS e UF, com fallback geral por estado
+            columns:
+              - column: { name: id, type: bigint, autoIncrement: true, constraints: { primaryKey: true } }
+              - column:
+                  name: tenant_id
+                  type: uuid
+                  remarks: NULL = linha base nacional; preenchido = override só daquele tenant
+              - column:
+                  name: ncm_nbs
+                  type: varchar(9)
+                  constraints: { nullable: false }
+              - column:
+                  name: tipo_item
+                  type: varchar(1)
+                  constraints: { nullable: false }
+              - column: { name: uf_origem, type: char(2), constraints: { nullable: false } }
+              - column: { name: uf_destino, type: char(2), constraints: { nullable: false } }
+              - column:
+                  name: aliq_nominal
+                  type: numeric(5,2)
+                  constraints: { nullable: false }
+              - column:
+                  name: p_reducao_base
+                  type: numeric(5,2)
+                  defaultValueNumeric: 0
+                  constraints: { nullable: false }
+              - column: { name: descricao, type: varchar(255) }
+              - column:
+                  name: vigente_de
+                  type: date
+                  constraints: { nullable: false }
+              - column: { name: vigente_ate, type: date }
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              ALTER TABLE fiscal.matriz_tributaria ADD CONSTRAINT chk_matriz_tributaria_tipo_item
+              CHECK (tipo_item IN ('P', 'S'));
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              ALTER TABLE fiscal.matriz_tributaria ADD CONSTRAINT chk_matriz_tributaria_aliq_nominal
+              CHECK (aliq_nominal >= 0 AND aliq_nominal <= 100);
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              ALTER TABLE fiscal.matriz_tributaria ADD CONSTRAINT chk_matriz_tributaria_reducao_base
+              CHECK (p_reducao_base >= 0 AND p_reducao_base <= 100);
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              ALTER TABLE fiscal.matriz_tributaria ADD CONSTRAINT uk_matriz_tributaria
+              UNIQUE NULLS NOT DISTINCT (tenant_id, ncm_nbs, tipo_item, uf_origem, uf_destino, vigente_de);
+
+  - changeSet:
+      id: fiscal-031-seed-matriz-icms-27-ufs
+      author: vitor-fernandes
+      comment: Semeia a alíquota interna geral de ICMS das 27 UFs (fallback de NCM, sem override de tenant)
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.matriz_tributaria
+                (tenant_id, ncm_nbs, tipo_item, uf_origem, uf_destino, aliq_nominal, p_reducao_base, descricao, vigente_de) VALUES
+                (NULL, '00000000', 'P', 'AC', 'AC', 19.00, 0, 'ICMS interno geral — Acre', DATE '2026-01-01'),
+                (NULL, '00000000', 'P', 'AL', 'AL', 20.50, 0, 'ICMS interno geral — Alagoas (Lei 9.776/2025, vigente desde 01/04/2026)', DATE '2026-04-01'),
+                (NULL, '00000000', 'P', 'AP', 'AP', 18.00, 0, 'ICMS interno geral — Amapá', DATE '2026-01-01'),
+                (NULL, '00000000', 'P', 'AM', 'AM', 20.00, 0, 'ICMS interno geral — Amazonas', DATE '2026-01-01'),
+                (NULL, '00000000', 'P', 'BA', 'BA', 20.50, 0, 'ICMS interno geral — Bahia', DATE '2026-01-01'),
+                (NULL, '00000000', 'P', 'CE', 'CE', 20.00, 0, 'ICMS interno geral — Ceará', DATE '2026-01-01'),
+                (NULL, '00000000', 'P', 'DF', 'DF', 20.00, 0, 'ICMS interno geral — Distrito Federal', DATE '2026-01-01'),
+                (NULL, '00000000', 'P', 'ES', 'ES', 17.00, 0, 'ICMS interno geral — Espírito Santo', DATE '2026-01-01'),
+                (NULL, '00000000', 'P', 'GO', 'GO', 19.00, 0, 'ICMS interno geral — Goiás', DATE '2026-01-01'),
+                (NULL, '00000000', 'P', 'MA', 'MA', 23.00, 0, 'ICMS interno geral — Maranhão', DATE '2026-01-01'),
+                (NULL, '00000000', 'P', 'MT', 'MT', 17.00, 0, 'ICMS interno geral — Mato Grosso', DATE '2026-01-01'),
+                (NULL, '00000000', 'P', 'MS', 'MS', 17.00, 0, 'ICMS interno geral — Mato Grosso do Sul', DATE '2026-01-01'),
+                (NULL, '00000000', 'P', 'MG', 'MG', 18.00, 0, 'ICMS interno geral — Minas Gerais', DATE '2026-01-01'),
+                (NULL, '00000000', 'P', 'PA', 'PA', 19.00, 0, 'ICMS interno geral — Pará', DATE '2026-01-01'),
+                (NULL, '00000000', 'P', 'PB', 'PB', 20.00, 0, 'ICMS interno geral — Paraíba', DATE '2026-01-01'),
+                (NULL, '00000000', 'P', 'PR', 'PR', 19.50, 0, 'ICMS interno geral — Paraná', DATE '2026-01-01'),
+                (NULL, '00000000', 'P', 'PE', 'PE', 20.50, 0, 'ICMS interno geral — Pernambuco', DATE '2026-01-01'),
+                (NULL, '00000000', 'P', 'PI', 'PI', 22.50, 0, 'ICMS interno geral — Piauí', DATE '2026-01-01'),
+                (NULL, '00000000', 'P', 'RJ', 'RJ', 22.00, 0, 'ICMS interno geral — Rio de Janeiro (inclui FECP)', DATE '2026-01-01'),
+                (NULL, '00000000', 'P', 'RN', 'RN', 20.00, 0, 'ICMS interno geral — Rio Grande do Norte', DATE '2026-01-01'),
+                (NULL, '00000000', 'P', 'RS', 'RS', 17.00, 0, 'ICMS interno geral — Rio Grande do Sul', DATE '2026-01-01'),
+                (NULL, '00000000', 'P', 'RO', 'RO', 19.50, 0, 'ICMS interno geral — Rondônia', DATE '2026-01-01'),
+                (NULL, '00000000', 'P', 'RR', 'RR', 20.00, 0, 'ICMS interno geral — Roraima', DATE '2026-01-01'),
+                (NULL, '00000000', 'P', 'SC', 'SC', 17.00, 0, 'ICMS interno geral — Santa Catarina', DATE '2026-01-01'),
+                (NULL, '00000000', 'P', 'SP', 'SP', 18.00, 0, 'ICMS interno geral — São Paulo', DATE '2026-01-01'),
+                (NULL, '00000000', 'P', 'SE', 'SE', 20.00, 0, 'ICMS interno geral — Sergipe (inclui FUNPOBREZA)', DATE '2026-01-01'),
+                (NULL, '00000000', 'P', 'TO', 'TO', 20.00, 0, 'ICMS interno geral — Tocantins', DATE '2026-01-01');
+      rollback:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              DELETE FROM fiscal.matriz_tributaria WHERE ncm_nbs = '00000000' AND tenant_id IS NULL;

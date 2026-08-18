@@ -1,6 +1,6 @@
 # Fontes de Dados Fiscais — Checklist de Coleta (Motor Fiscal)
 
-**Última atualização:** 30 de julho de 2026
+**Última atualização:** 18 de agosto de 2026
 **Contexto:** o motor fiscal (`fiscal-service`, Fin.md Módulo I) **já lê do banco** — `TabelaFiscalJdbc`
 consulta o schema `fiscal.*` (JdbcClient; não há JPA aqui). O que era estimativa em memória virou
 conteúdo carregado por Liquibase. Este doc é o roteiro de coleta: o que já está dentro, com que
@@ -31,6 +31,14 @@ Legenda de **Bloqueio**:
 > (`fiscal-020`). A classificação de um serviço vem do **`cClassTrib` declarado**, não do código
 > LC 116 — o mesmo serviço muda de regime conforme o contexto (à administração pública vira `200043`).
 > O item LC 116 só valida se o par é admitido pelo Anexo VIII (`servico_cclasstrib`).
+
+> **Mudança 18/08/2026 — dois tributos legados entraram no banco (itens 11 e 12, novos nesta lista).**
+> `fiscal.aliq_iss_municipio` (fatia 3d, `fiscal-028`/`fiscal-029`) e `fiscal.matriz_tributaria` (fatia 3b,
+> `fiscal-030`/`fiscal-031`) existem e são consultáveis via `TabelaFiscal.aliquotaIss`/`aliquotaIcms`. **Testado
+> e verde:** o usuário rodou `mvn verify -pl fiscal-service` e confirmou 61/61 testes passando (30 em
+> `TabelaFiscalJdbcTest`, cobrindo a precedência de 4 níveis tenant×NCM/fallback e nacional×NCM/fallback do
+> ICMS). Igual às fatias 1/2/7 acima, nenhuma das duas é consumida pelo motor ainda — o passo de ICMS/ISS
+> legado no `POST /fiscal/calcular` é a fatia 3c, que segue pendente.
 
 **O que ainda não está resolvido, e por quê:**
 - **Itens 1, 2 e 7 (alíquotas por ente/ano):** o [portal][portal] devolve por ente/ano e a curva é **fixada ano a
@@ -69,6 +77,8 @@ Os itens 4, 5, 6 e 8 saíram desta lista: foram extraídos e carregados (ver mud
 | 8 | Lista de serviços LC 116/2003 + Anexo VIII | `spec/LC1162003.pdf` + LC 214 Anexo VIII | `fiscal.servico_nbs`, `fiscal.servico_cclasstrib` | ✅ 895 + 246 pares |
 | 9 | Regras de Split Payment | `spec/03153733-manual-de-integracao-...v1.pdf` + `spec/30145925-minuta-split-payment-manual-de-operacoes.pdf` | lógica (`splitPaymentAplicavel`) + contrato PSP | 🟡 flag feita, PSP não |
 | 10 | **Percentual de redução por cClassTrib** | LC 214, artigos fora do Anexo VIII | `fiscal.regime_cclasstrib` | 🟡 **25 de 27** |
+| 11 | Alíquota de ISS (legado) por município e item LC 116 | LC 116 art. 8-A (teto) | `fiscal.aliq_iss_municipio` | ✅ **referência nacional (teto 5%), testada e verde** |
+| 12 | Alíquota interna de ICMS (legado) por UF | WebSearch, múltiplas fontes cruzadas | `fiscal.matriz_tributaria` | ✅ **27 UFs, testada e verde** |
 
 [portal]: https://piloto-cbs.tributos.gov.br/servico/calculadora-consumo/calculadora/aliquotas
 [portal-api]: https://piloto-cbs.tributos.gov.br/servico/calculadora-consumo/api/calculadora/dados-abertos/aliquota-municipio?data=2026-07-30&codigoMunicipio=3104205
@@ -262,13 +272,49 @@ não mais a estimativa 13,12 + 4,50 / 8,80 do `fiscal-010`, que o `fiscal-022` s
 - **Não confundir INTEGRAL com PADRAO:** os dois tributam cheio, mas INTEGRAL é classificação declarada e
   PADRAO é dado fiscal faltando. Escrever percentual de cabeça dentro de motor fiscal é pior que não ter o dado.
 
+### 11. ✅ Alíquota de ISS (legado) por município — só a referência nacional
+- **O que é:** ISS não é IBS — é o imposto municipal legado que ainda incide durante toda a transição
+  (fatia 3d). Guarda alíquota por município (IBGE) e item da LC 116, com `item_lc116` nulável (linha
+  "curinga" que vale para qualquer item do município).
+- **Carregado (`fiscal-028`/`fiscal-029`):** só a linha de referência sentinela (`ibge_municipio = '0000000'`,
+  `Constants.FISCAL_IBGE_REFERENCIA_NACIONAL`) com o **teto constitucional da LC 116 art. 8-A (5%)** —
+  mesmo desenho de `fiscal.aliq_ibs_municipio` (item 1). Nenhum município tem alíquota própria carregada
+  ainda; carregar os ~5.570 é a mesma tarefa de uniformidade do item 1, não um bloqueio novo.
+- **Testado e verde (18/08/2026):** `TabelaFiscal.aliquotaIss` coberto por `TabelaFiscalJdbcTest`; usuário
+  confirmou `mvn verify -pl fiscal-service` com 0 falhas.
+- **Motor não consome ainda:** a tabela existe e é consultável, mas o passo de ISS legado no
+  `POST /fiscal/calcular` é a fatia 3c, que depende também do item 12 e da curva de transição (item 2, já pronta).
+
+### 12. ✅ Alíquota interna de ICMS (legado) por UF — 27 de 27
+- **O que é:** ICMS não é IBS — é o imposto estadual legado (fatia 3b). Guarda a alíquota interna **cheia**
+  por UF; a curva de redução 2029-2033 já é `fiscal.transicao_ano` (item 2) e não entra nesta tabela.
+  `aliq_nominal` e `p_reducao_base` ficam separados porque a NF-e pede vBC reduzida e pICMS nominal como
+  campos distintos.
+- **Fonte:** WebSearch, cross-checado em múltiplas fontes independentes por UF — 3 divergências (Alagoas,
+  Sergipe, Mato Grosso do Sul) resolvidas com buscas direcionadas de acompanhamento antes de fechar o seed.
+- **Carregado (`fiscal-030`/`fiscal-031`):** as 27 UFs (26 estados + DF), uma linha cada, fallback geral por
+  estado (`ncm_nbs = '00000000'`, `Constants.FISCAL_NCM_NBS_FALLBACK` — sentinela de 8 zeros, diferente do
+  de 7 zeros usado para município). Exceção por NCM fica de fora por decisão: vira override quando um cliente
+  real reclamar, não pesquisa especulativa agora.
+- **`vigente_de` entra na chave** (diferente da tabela de ISS) porque alíquota de UF muda de verdade — Alagoas
+  foi de 19% para 20,5% em 01/04/2026 (Lei 9.776/2025, DO-AL 23/12/2025), já carregado com a data de vigência certa.
+- **Testado e verde (18/08/2026):** `TabelaFiscal.aliquotaIcms` coberto por 6 testes novos em
+  `TabelaFiscalJdbcTest` (precedência de 4 níveis: tenant+NCM > tenant+fallback > nacional+NCM > nacional+fallback,
+  mais vigência vencida e ausência de cobertura); usuário confirmou `mvn verify -pl fiscal-service`, 61/61 testes.
+- **Motor não consome ainda:** mesma situação do item 11 — fatia 3c ainda pendente.
+- **Fora do escopo por decisão, não por falta de dado:** interestadual (12%/7%/4%, Resolução do Senado 22/89 +
+  13/12) é função sobre lista de UF, não dado que muda — não mora nesta tabela. ST/MVA/DIFAL/pauta fiscal/CSOSN
+  ficam de fora do motor.
+
 ---
 
 ## O que já está construído, e o que falta
 
-**Feito:** schema `fiscal.*` por Liquibase (`fiscal-001` … `fiscal-021`), `TabelaFiscalJdbc implements
+**Feito:** schema `fiscal.*` por Liquibase (`fiscal-001` … `fiscal-031`), `TabelaFiscalJdbc implements
 TabelaFiscal` lendo de lá, e as cargas dos itens 4, 5, 6, 8 e 10 (este último 25 de 27). O motor calcula IBS/CBS/IS de **saída** por
-`POST /fiscal/calcular` com conteúdo real da LC 214.
+`POST /fiscal/calcular` com conteúdo real da LC 214. **Fora do motor de saída**, os itens 11 (ISS legado,
+referência nacional) e 12 (matriz ICMS legado, 27 UFs) também estão carregados, testados e verdes
+(`mvn verify -pl fiscal-service`, 61/61) — mas o motor ainda **não os consome**: isso é a fatia 3c.
 
 **Falta, em ordem de impacto prático:**
 1. **Anos fora da curva 2026–2033** (itens 1, 2, 7) — qualquer município já calcula IBS via alíquota de
@@ -281,6 +327,8 @@ TabelaFiscal` lendo de lá, e as cargas dos itens 4, 5, 6, 8 e 10 (este último 
    em `MotorFiscalServiceTest`, é só trocar a tabela.
 4. **Integração PSP do split** (item 9) — a flag existe, a liquidação não.
 5. **Warn de NCM/cClassTrib sem regime** — hoje o fallback para PADRAO é silencioso (MF-10).
+6. **Motor consumir ISS/ICMS legado** (itens 11, 12 — fatia 3c) — as tabelas existem, estão testadas e
+   verdes, mas nada em `POST /fiscal/calcular` ainda chama `TabelaFiscal.aliquotaIss`/`aliquotaIcms`.
 
 > ⚠️ Enquanto o **IS** não vier, é seguro desenvolver/demonstrar com o valor estimado do cigarro, mas **não**
 > emitir documento fiscal real com esse número. O mesmo vale para as alíquotas de 2027, que são estimativas

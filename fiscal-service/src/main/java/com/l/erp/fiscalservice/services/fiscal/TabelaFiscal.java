@@ -47,4 +47,23 @@ public interface TabelaFiscal {
      * mesmo princípio de {@link #aliquotaIbs}. Ainda não consumido pelo motor (fatia 3c).
      */
     Optional<TransicaoAno> transicao(int ano);
+
+    /**
+     * Alíquota de ISS do município do local da prestação, pelo item LC 116. Vazio quando nem o
+     * município nem a referência têm linha para o item — hoje só a referência (teto de 5% da
+     * LC 116 art. 8-A) está carregada. Ainda não consumida pelo motor (fatia 3c).
+     */
+    Optional<AliquotaIss> aliquotaIss(String ibgeMunicipio, String itemLc116);
+
+    /**
+     * Alíquota interna de ICMS pela matriz {@code fiscal.matriz_tributaria} (fatia 3b), busca em
+     * 4 níveis — override do tenant vence base nacional, NCM/NBS específico vence o fallback
+     * {@code Constants.FISCAL_NCM_NBS_FALLBACK}: (tenant, ncm) > (tenant, fallback) >
+     * (nacional, ncm) > (nacional, fallback). Vazio quando nenhum dos quatro casa — o motor
+     * devolve 400, nunca assume alíquota zero. Ainda não consumida pelo motor (fatia 3c).
+     *
+     * <p>{@code tenantId} pode ser {@code null} (sem override, só a base nacional é elegível).
+     * Hoje só a base nacional (27 linhas, uma por UF, sem override de NCM) está carregada.
+     */
+    Optional<RegimeIcms> aliquotaIcms(String tenantId, String ncmNbs, String ufOrigem, String ufDestino);
 }

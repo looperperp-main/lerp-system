@@ -1,6 +1,6 @@
 # Motor Fiscal — próximos passos
 
-> Última atualização: 30 de julho de 2026
+> Última atualização: 18 de agosto de 2026
 
 Handoff das fatias seguintes do motor fiscal. Escrito para ser lido do zero, sem
 contexto de conversa anterior.
@@ -10,7 +10,7 @@ contexto de conversa anterior.
 `fiscal-service` (porta 8093) expõe `POST /fiscal/calcular`: determinístico, sem
 persistência, **só saída**. Lê conteúdo fiscal real de `fiscal.*` via
 `TabelaFiscalJdbc` (JdbcClient, read-only; schema e carga pertencem ao
-`liquibase-service`, changesets `fiscal-001..021`).
+`liquibase-service`, changesets `fiscal-001..031`).
 
 **Divisão de responsabilidade (decidida em 29 de julho de 2026):** o
 `fiscal-service` é **só cálculo** — stateless, sem schema de escrita, para sempre
@@ -192,7 +192,9 @@ exatamente o que `RegimeDiferenciado.PADRAO` já devolve hoje —, então a 3b c
 necessária mas deixou de ser urgente. Pelo mesmo motivo o backlog de
 `spec/anexos-lc214-revisar.md` (alimento, farmácia, agro) sai do caminho crítico.
 
-- **3a — curva da transição.** ✅ **feita (30 de julho de 2026, não testada).**
+- **3a — curva da transição.** ✅ **feita (30 de julho de 2026) e confirmada verde em 18 de
+  agosto de 2026** (`mvn verify -pl fiscal-service`: 61/61, 0 falhas — os 3 testes desta fatia
+  em `TabelaFiscalJdbcTest` fazem parte da mesma rodada que confirmou 3b/3d).
   Novo `fiscal-schema-008.yaml` (incluído em `db.changelog-master.yaml` depois do
   `007`) com dois changesets: `fiscal-024-cria-transicao-ano` cria
   `fiscal.transicao_ano` (`ano int` PK, `pct_remanescente numeric(5,2) NOT NULL`,
@@ -209,26 +211,73 @@ necessária mas deixou de ser urgente. Pelo mesmo motivo o backlog de
   2029–2033, ano fora da curva volta vazio), com DDL/seed adicionados ao fixture
   H2. **Nada foi rodado** — nem `mvn`, nem Liquibase. É só a tabela e o acesso a
   ela: o `MotorFiscalService` ainda **não consome** a curva (isso é a 3c, que
-  segue pendente junto com 3b e 3d).
-- **3b — matriz ICMS.** *(agora DEPOIS da 3d — ver "Ordem revista" acima.)*
-  `fiscal.matriz_tributaria` com o schema já corrigido pelos
-  ajustes 3, 4 e 5: `aliq_nominal` + `p_reducao_base` separados (não a efetiva),
-  `ncm_nbs VARCHAR(9)` + `tipo_item`, `tenant_id` nulável com
-  `UNIQUE NULLS NOT DISTINCT`. Carga: 27 linhas base. Busca em 4 níveis já
-  especificada acima.
+  segue pendente).
+- **3b — matriz ICMS.** ✅ **feita e verde em 18 de agosto de 2026** (`mvn verify -pl
+  fiscal-service`: 61/61 testes, 0 falhas — 6 novos em `TabelaFiscalJdbcTest` cobrindo a
+  precedência de 4 níveis).
+  Novo `fiscal-schema-011.yaml` (incluído em `db.changelog-master.yaml` depois
+  do `010`) com dois changesets: `fiscal-030-cria-matriz-tributaria` cria
+  `fiscal.matriz_tributaria` com o schema já corrigido pelos ajustes 3, 4 e 5:
+  `aliq_nominal` + `p_reducao_base` separados (não a efetiva — a NF-e exige
+  `vBC` reduzida e `pICMS` nominal como campos distintos), `ncm_nbs VARCHAR(9)`
+  (NBS tem 9 dígitos, NCM 8) + `tipo_item` (`'P'`/`'S'`) para desambiguar,
+  `tenant_id UUID` nulável com `UNIQUE NULLS NOT DISTINCT` (PG 17). Diferente
+  da `aliq_iss_municipio` (3d), `vigente_de` entra na chave: a pesquisa de
+  fonte oficial achou uma mudança real e datada (Alagoas 19%→20,5% em
+  01/04/2026, Lei 9.776/2025), então sem `vigente_de` na constraint a linha
+  nova colidiria com a histórica ao tentar registrar o reajuste.
+  `fiscal-031-seed-matriz-icms-27-ufs` carrega as 27 UFs (fallback
+  `'00000000'` = `Constants.FISCAL_NCM_NBS_FALLBACK`, alíquota geral por
+  estado, sem override de NCM ou de tenant ainda) — valores levantados via
+  WebSearch cruzados em fontes múltiplas, com 3 divergências resolvidas por
+  busca dirigida (Alagoas, Sergipe, Mato Grosso do Sul). Novo record
+  `RegimeIcms` (`aliqNominal`, `pReducaoBase`, `ncmGenerico`) e novo método
+  `Optional<RegimeIcms> aliquotaIcms(String tenantId, String ncmNbs, String
+  ufOrigem, String ufDestino)` na interface `TabelaFiscal`, busca em 4 níveis
+  (tenant+ncm > tenant+fallback > nacional+ncm > nacional+fallback) já
+  especificada acima. Implementado em `TabelaFiscalJdbc` (SQL com `ORDER BY`
+  na mesma técnica de `SQL_ALIQ_IBS`/`SQL_ALIQ_ISS`) e no `TabelaFiscalFake`;
+  6 testes novos em `TabelaFiscalJdbcTest` (tenant específico vence tudo,
+  tenant fallback vence nacional específico, nacional específico vence
+  fallback nacional, sem tenant e sem NCM cai no fallback nacional, vigência
+  vencida ignorada, sem cobertura nenhuma volta vazio), com DDL/seed
+  adicionados ao fixture H2. É só a tabela e o acesso a ela: o
+  `MotorFiscalService` ainda **não consome** o resultado (isso é a 3c, que
+  segue pendente).
 - **3c — motor multiplica.** `MotorFiscalService` ganha o passo legado,
   `OperacaoFiscalDTO` ganha o bloco (`valorIcms`, `valorPisCofins`, base reduzida) e
   as linhas na memória de cálculo. **Muda o contrato de saída** — fazer antes de o
   AR existir, que é justamente o motivo de o AR ter sido empurrado para o fim.
-- **3d — ISS. PROMOVIDA A PRIMEIRA** (antes era a última; ver "Ordem revista" acima).
-  Tabela própria por `ibge_municipio` + item da LC 116 (ajuste nº 2: ISS não é por UF).
-  É a perna legada de quem vende **serviço**, que é o mercado-alvo. Continua sendo o
-  pior dado de todos — 5.570 municípios legislando cada um o seu —, e por isso entra
-  com default 5% (teto da LC 116) + override por município, em vez de esperar carga
-  completa. Junto dela vem o **local da prestação**: quem decide se o ISS é do
-  prestador ou do tomador é a LC 116 art. 3º, com ~20 exceções, e hoje o motor recebe
-  `ibgeLocalPrestacao` pronto — se quem chama errar, o cálculo sai certo para o
-  município errado.
+- **3d — ISS.** ✅ **feita e verde em 18 de agosto de 2026** (confirmado na mesma
+  rodada de `mvn verify -pl fiscal-service` que fechou a 3b: 61/61 testes totais,
+  30 em `TabelaFiscalJdbcTest`, incluindo os 4 de ISS; Liquibase aplicado e
+  conferido pelo usuário). Tabela própria por
+  `ibge_municipio` + item da LC 116 (ajuste nº 2: ISS não é por UF). É a perna legada
+  de quem vende **serviço**, que é o mercado-alvo. Continua sendo o pior dado de
+  todos — 5.570 municípios legislando cada um o seu —, e por isso entra com default
+  5% (teto da LC 116 art. 8-A) + override por município, em vez de esperar carga
+  completa. Novo `fiscal-schema-010.yaml` (incluído em `db.changelog-master.yaml`
+  depois do `009`) com dois changesets: `fiscal-028-cria-aliq-iss-municipio` cria
+  `fiscal.aliq_iss_municipio` (`ibge_municipio varchar(7)`, `item_lc116 varchar(5)`
+  nulável — NULL vale para qualquer item —, `aliquota_pct numeric(5,2)` com CHECK
+  `chk_aliq_iss_municipio_pct` 2–5, `vigente_de`/`vigente_ate`, UNIQUE
+  `(ibge_municipio, item_lc116)`); `fiscal-029-seed-aliq-iss-referencia-nacional`
+  carrega só a linha sentinela (`'0000000'`, item NULL, 5,00%) — nenhum município tem
+  alíquota própria carregada ainda. Novo record `AliquotaIss` (`aliquotaPct
+  BigDecimal`, `referenciaNacional boolean`, mesmo desenho de `AliquotaIbs`) e novo
+  método `Optional<AliquotaIss> aliquotaIss(String ibgeMunicipio, String itemLc116)`
+  na interface `TabelaFiscal`. Implementado em `TabelaFiscalJdbc` (SQL com a mesma
+  precedência item próprio > genérico do município > referência de `SQL_ALIQ_IBS`,
+  mais `lpad` do item como em `cClassTribAdmitido`) e no `TabelaFiscalFake`; 4 testes
+  novos em `TabelaFiscalJdbcTest` (item próprio vence genérico e referência, genérico
+  do município vence referência, sem cadastro nenhum cai na referência, item aceita
+  com ou sem zero à esquerda), com DDL/seed adicionados ao fixture H2. Junto dela vem
+  o **local da prestação**: quem
+  decide se o ISS é do prestador ou do tomador é a LC 116 art. 3º, com ~20 exceções,
+  e o motor já recebia `ibgeLocalPrestacao` pronto desde antes desta fatia (usado
+  hoje para IBS de serviço) — se quem chama errar, o cálculo sai certo para o
+  município errado. É só a tabela e o acesso a ela: o `MotorFiscalService` ainda
+  **não consome** o resultado (isso é a 3c, que segue pendente).
 - **3e — retenção na fonte** (nova, decidida em 30 de julho de 2026). ISS retido, IRRF,
   PIS/COFINS/CSLL e INSS, dentro do motor. Depende da 3d (ISS retido usa a alíquota
   municipal) e mexe no request e no contrato de saída, como a 3c.

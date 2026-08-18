@@ -1,0 +1,81 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # ISS POR MUNICÍPIO — fatia 3d de spec/motor-fiscal-proximos-passos.md §3.
+  #
+  # Mesmo desenho de fiscal.aliq_ibs_municipio (fiscal-023): uma linha de REFERÊNCIA sentinela
+  # ('0000000', fiscal.FISCAL_IBGE_REFERENCIA_NACIONAL) cobre todo município que não legislou
+  # alíquota própria, em vez de replicar a mesma linha em 5.570 municípios. Aqui a referência é
+  # o TETO constitucional da LC 116 art. 8-A (5%) — não uma alíquota publicada por órgão.
+  #
+  # item_lc116 é NULLABLE: NULL = vale para qualquer item do município (linha "curinga"). Um
+  # município que só legislou o teto geral cai nela; um que legislou por item tem linha própria
+  # e vence (mesma precedência "própria > referência" da alíquota de IBS).
+  #
+  # Só a linha de referência é semeada aqui — nenhum município tem alíquota própria carregada
+  # ainda. A tabela existe e é consultável (TabelaFiscal.aliquotaIss), mas o motor NÃO consome o
+  # resultado nesta fatia: o passo de ISS legado no cálculo é a fatia 3c, que depende também da
+  # matriz ICMS (3b) e da curva de transição (3a, já pronta).
+  #
+  # LOCAL DA PRESTAÇÃO: quem decide se o ISS é do prestador ou do tomador é a LC 116 art. 3º
+  # (~20 exceções). O motor já recebe ibgeLocalPrestacao pronto no request (usado hoje para IBS de
+  # serviço) — não há nada a mudar aqui; é responsabilidade de quem chama resolver a exceção.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: fiscal-028-cria-aliq-iss-municipio
+      author: vitor-fernandes
+      comment: Tabela de alíquota de ISS por município e item da LC 116, com referência sentinela
+      changes:
+        - createTable:
+            schemaName: fiscal
+            tableName: aliq_iss_municipio
+            remarks: Alíquota de ISS (legado) por município e item da LC 116 — teto de 5% (art. 8-A)
+            columns:
+              - column: { name: id, type: bigint, autoIncrement: true, constraints: { primaryKey: true } }
+              - column:
+                  name: ibge_municipio
+                  type: varchar(7)
+                  constraints: { nullable: false }
+              - column:
+                  name: item_lc116
+                  type: varchar(5)
+                  remarks: NULL = vale para qualquer item (linha curinga do município ou da referência)
+              - column:
+                  name: aliquota_pct
+                  type: numeric(5,2)
+                  constraints: { nullable: false }
+              - column: { name: descricao, type: varchar(255) }
+              - column:
+                  name: vigente_de
+                  type: date
+                  constraints: { nullable: false }
+              - column: { name: vigente_ate, type: date }
+        - addUniqueConstraint:
+            schemaName: fiscal
+            tableName: aliq_iss_municipio
+            columnNames: ibge_municipio, item_lc116
+            constraintName: uk_aliq_iss_municipio_item
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              ALTER TABLE fiscal.aliq_iss_municipio ADD CONSTRAINT chk_aliq_iss_municipio_pct
+              CHECK (aliquota_pct >= 2 AND aliquota_pct <= 5);
+
+  - changeSet:
+      id: fiscal-029-seed-aliq-iss-referencia-nacional
+      author: vitor-fernandes
+      comment: Semeia só a linha de referência (teto de 5% da LC 116 art. 8-A) — sem município próprio ainda
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.aliq_iss_municipio (ibge_municipio, item_lc116, aliquota_pct, descricao, vigente_de) VALUES
+                ('0000000', NULL, 5.00, 'Teto constitucional da LC 116 art. 8-A — usado enquanto o município não publica alíquota própria', DATE '2026-01-01');
+      rollback:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              DELETE FROM fiscal.aliq_iss_municipio WHERE ibge_municipio = '0000000';

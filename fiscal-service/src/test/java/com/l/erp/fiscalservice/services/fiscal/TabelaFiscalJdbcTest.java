@@ -28,6 +28,9 @@ class TabelaFiscalJdbcTest {
 
     private static TabelaFiscalJdbc tabela;
 
+    /** UUID fixo só para os testes de override de tenant da matriz ICMS. */
+    private static final String TENANT = "11111111-1111-1111-1111-111111111111";
+
     private static final String[] SCHEMA = {
             "CREATE SCHEMA IF NOT EXISTS fiscal",
             """
@@ -84,6 +87,26 @@ class TabelaFiscalJdbcTest {
                 ano int PRIMARY KEY,
                 pct_remanescente numeric(5,2) NOT NULL,
                 pis_cofins_vigente boolean NOT NULL)
+            """,
+            """
+            CREATE TABLE fiscal.aliq_iss_municipio (
+                ibge_municipio varchar(7) NOT NULL,
+                item_lc116 varchar(5),
+                aliquota_pct numeric(5,2) NOT NULL,
+                vigente_de date NOT NULL,
+                vigente_ate date)
+            """,
+            """
+            CREATE TABLE fiscal.matriz_tributaria (
+                tenant_id uuid,
+                ncm_nbs varchar(9) NOT NULL,
+                tipo_item varchar(1) NOT NULL,
+                uf_origem char(2) NOT NULL,
+                uf_destino char(2) NOT NULL,
+                aliq_nominal numeric(5,2) NOT NULL,
+                p_reducao_base numeric(5,2) NOT NULL,
+                vigente_de date NOT NULL,
+                vigente_ate date)
             """
     };
 
@@ -136,6 +159,28 @@ class TabelaFiscalJdbcTest {
                 (2031,  70.00, false),
                 (2032,  60.00, false),
                 (2033,   0.00, false)
+            """,
+            // Referência = teto de 5% (fiscal-029); '3550308' tem item próprio (saúde) e genérico
+            // (qualquer outro item); a linha de '10%' está VENCIDA e não pode vencer a de 3%.
+            """
+            INSERT INTO fiscal.aliq_iss_municipio (ibge_municipio, item_lc116, aliquota_pct, vigente_de, vigente_ate) VALUES
+                ('0000000', NULL,     5.00, DATE '2026-01-01', NULL),
+                ('3550308', '04.01',  3.00, DATE '2026-01-01', NULL),
+                ('3550308', NULL,     4.00, DATE '2026-01-01', NULL),
+                ('3550308', '04.01', 10.00, DATE '2020-01-01', DATE '2025-12-31')
+            """,
+            // 4 níveis: nacional-fallback (SP), nacional-específico ('10063021' em SP), tenant-fallback
+            // e tenant-específico ('20099999' em SP) — mesmo TENANT do campo estático da classe. RJ
+            // prova vigência: a linha de 99% está VENCIDA e não pode ganhar da vigente de 22%.
+            """
+            INSERT INTO fiscal.matriz_tributaria
+                (tenant_id, ncm_nbs, tipo_item, uf_origem, uf_destino, aliq_nominal, p_reducao_base, vigente_de, vigente_ate) VALUES
+                (NULL, '00000000', 'P', 'SP', 'SP', 18.00, 0,  DATE '2026-01-01', NULL),
+                (NULL, '10063021', 'P', 'SP', 'SP', 12.00, 0,  DATE '2026-01-01', NULL),
+                ('11111111-1111-1111-1111-111111111111', '00000000', 'P', 'SP', 'SP', 25.00, 10.00, DATE '2026-01-01', NULL),
+                ('11111111-1111-1111-1111-111111111111', '20099999', 'P', 'SP', 'SP', 30.00, 5.00,  DATE '2026-01-01', NULL),
+                (NULL, '00000000', 'P', 'RJ', 'RJ', 99.00, 0,  DATE '2020-01-01', DATE '2025-12-31'),
+                (NULL, '00000000', 'P', 'RJ', 'RJ', 22.00, 0,  DATE '2026-01-01', NULL)
             """
     };
 
@@ -321,5 +366,90 @@ class TabelaFiscalJdbcTest {
         // alíquota IBS. Assumir qualquer um dos dois erraria o imposto em silêncio.
         assertTrue(tabela.transicao(2025).isEmpty());
         assertTrue(tabela.transicao(2035).isEmpty());
+    }
+
+    @Test
+    void aliquotaIss_itemProprioDoMunicipio_venceOGenericoEAReferencia() {
+        // A linha de 10% pro mesmo par está vencida (vigente_ate no passado) — não pode ganhar da
+        // vigente de 3%, mesmo sendo "mais específica" por ordem de inserção.
+        AliquotaIss aliq = tabela.aliquotaIss("3550308", "04.01").orElseThrow();
+        assertEquals(0, new BigDecimal("3.00").compareTo(aliq.aliquotaPct()));
+        assertFalse(aliq.referenciaNacional());
+    }
+
+    @Test
+    void aliquotaIss_municipioSemItemEspecifico_caiNoGenericoDoMunicipio() {
+        // '9.99' não tem linha própria em SP, mas o município legislou o genérico (item NULL) —
+        // isso ainda vence a referência nacional.
+        AliquotaIss aliq = tabela.aliquotaIss("3550308", "9.99").orElseThrow();
+        assertEquals(0, new BigDecimal("4.00").compareTo(aliq.aliquotaPct()));
+        assertFalse(aliq.referenciaNacional());
+    }
+
+    @Test
+    void aliquotaIss_municipioSemCadastroNenhum_caiNaReferencia() {
+        // Rio não está no seed: cai no teto de 5% da LC 116 art. 8-A, e o motor precisa saber que
+        // veio da referência para avisar (mesmo princípio do aviso de IBS).
+        AliquotaIss aliq = tabela.aliquotaIss("3304557", "04.01").orElseThrow();
+        assertEquals(0, new BigDecimal("5.00").compareTo(aliq.aliquotaPct()));
+        assertTrue(aliq.referenciaNacional());
+    }
+
+    @Test
+    void aliquotaIss_aceitaItemComOuSemZeroAEsquerda() {
+        // Mesma normalização de cClassTribAdmitido: a nota traz o item como a LC 116 publica.
+        assertEquals(0, new BigDecimal("3.00")
+                .compareTo(tabela.aliquotaIss("3550308", "4.01").orElseThrow().aliquotaPct()));
+    }
+
+    @Test
+    void aliquotaIcms_tenantEspecifico_venceTudo() {
+        // Nível 1 (tenant + ncm específico): mais específico que tudo, inclusive o próprio
+        // fallback do mesmo tenant.
+        RegimeIcms icms = tabela.aliquotaIcms(TENANT, "20099999", "SP", "SP").orElseThrow();
+        assertEquals(0, new BigDecimal("30.00").compareTo(icms.aliqNominal()));
+        assertEquals(0, new BigDecimal("5.00").compareTo(icms.pReducaoBase()));
+        assertFalse(icms.ncmGenerico());
+    }
+
+    @Test
+    void aliquotaIcms_tenantFallback_venceNacionalEspecifico() {
+        // '10063021' tem linha nacional específica (12%), mas o tenant não tem override pra esse
+        // NCM — cai no fallback DO TENANT (25%/10%), que vence a nacional específica: override de
+        // tenant sempre manda sobre a base nacional, mesmo quando genérico contra específico.
+        RegimeIcms icms = tabela.aliquotaIcms(TENANT, "10063021", "SP", "SP").orElseThrow();
+        assertEquals(0, new BigDecimal("25.00").compareTo(icms.aliqNominal()));
+        assertEquals(0, new BigDecimal("10.00").compareTo(icms.pReducaoBase()));
+        assertTrue(icms.ncmGenerico());
+    }
+
+    @Test
+    void aliquotaIcms_semTenant_nacionalEspecificoVenceFallback() {
+        // Sem tenant (base pura): NCM específico da tabela nacional vence o fallback '00000000'.
+        RegimeIcms icms = tabela.aliquotaIcms(null, "10063021", "SP", "SP").orElseThrow();
+        assertEquals(0, new BigDecimal("12.00").compareTo(icms.aliqNominal()));
+        assertFalse(icms.ncmGenerico());
+    }
+
+    @Test
+    void aliquotaIcms_semTenantESemNcmEspecifico_caiNoFallbackNacional() {
+        // NCM sem linha nenhuma (nacional ou tenant): cai no fallback geral da UF.
+        RegimeIcms icms = tabela.aliquotaIcms(null, "99999999", "SP", "SP").orElseThrow();
+        assertEquals(0, new BigDecimal("18.00").compareTo(icms.aliqNominal()));
+        assertTrue(icms.ncmGenerico());
+    }
+
+    @Test
+    void aliquotaIcms_vigenciaVencidaIgnorada() {
+        // RJ tem uma linha de 99% VENCIDA e outra de 22% vigente — a vencida não pode ganhar.
+        RegimeIcms icms = tabela.aliquotaIcms(null, Constants.FISCAL_NCM_NBS_FALLBACK, "RJ", "RJ").orElseThrow();
+        assertEquals(0, new BigDecimal("22.00").compareTo(icms.aliqNominal()));
+    }
+
+    @Test
+    void aliquotaIcms_semCobertura_vazio() {
+        // Acre não está no seed deste teste: sem linha nenhuma, o motor devolve 400 em vez de
+        // assumir alíquota zero — mesmo princípio de aliquotaIbs/transicao.
+        assertTrue(tabela.aliquotaIcms(null, Constants.FISCAL_NCM_NBS_FALLBACK, "AC", "AC").isEmpty());
     }
 }

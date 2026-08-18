@@ -30,6 +30,8 @@ public class TabelaFiscalFake implements TabelaFiscal {
     private final Map<String, BigDecimal> cbsMap = new HashMap<>();
     private final Map<String, BigDecimal> isMap = new HashMap<>();
     private final Map<Integer, TransicaoAno> transicaoMap = new HashMap<>();
+    private final Map<String, AliquotaIss> issMap = new HashMap<>();
+    private final Map<String, RegimeIcms> matrizMap = new HashMap<>();
 
     public TabelaFiscalFake() {
         cfopMap.put("5101", new CfopInfo("5101", TipoOperacaoFiscal.SAIDA, true, true, true));
@@ -77,6 +79,17 @@ public class TabelaFiscalFake implements TabelaFiscal {
         transicaoMap.put(2031, new TransicaoAno(new BigDecimal("70.00"), false));
         transicaoMap.put(2032, new TransicaoAno(new BigDecimal("60.00"), false));
         transicaoMap.put(2033, new TransicaoAno(new BigDecimal("0.00"), false));
+
+        // ISS (fatia 3d): só a referência (teto de 5% da LC 116 art. 8-A, fiscal-029) — nenhum
+        // município tem alíquota própria carregada ainda. Ainda não consumido pelo motor (3c).
+        issMap.put(chaveIss(Constants.FISCAL_IBGE_REFERENCIA_NACIONAL, null),
+                new AliquotaIss(new BigDecimal("5.00"), true));
+
+        // Matriz ICMS (fatia 3b): só a linha-base nacional (fallback de NCM) de SP — mesmo
+        // recorte da carga real (27 linhas, uma por UF, sem override de tenant ainda). Precedência
+        // dos 4 níveis é testada no TabelaFiscalJdbcTest; aqui é só o suficiente pro oráculo.
+        matrizMap.put(chaveMatriz(null, Constants.FISCAL_NCM_NBS_FALLBACK, "SP", "SP"),
+                new RegimeIcms(new BigDecimal("18.00"), BigDecimal.ZERO, true));
     }
 
     @Override
@@ -120,11 +133,51 @@ public class TabelaFiscalFake implements TabelaFiscal {
         return Optional.ofNullable(transicaoMap.get(ano));
     }
 
+    /** Item próprio > item genérico do município > referência — precedência real é do SQL/JdbcTest. */
+    @Override
+    public Optional<AliquotaIss> aliquotaIss(String ibgeMunicipio, String itemLc116) {
+        AliquotaIss porItem = issMap.get(chaveIss(ibgeMunicipio, itemLc116));
+        if (porItem != null) {
+            return Optional.of(porItem);
+        }
+        return Optional.ofNullable(issMap.get(chaveIss(Constants.FISCAL_IBGE_REFERENCIA_NACIONAL, null)));
+    }
+
+    /** 4 níveis (tenant+ncm > tenant+fallback > nacional+ncm > nacional+fallback); real é o SQL/JdbcTest. */
+    @Override
+    public Optional<RegimeIcms> aliquotaIcms(String tenantId, String ncmNbs, String ufOrigem, String ufDestino) {
+        if (tenantId != null) {
+            RegimeIcms doTenant = matrizMap.get(chaveMatriz(tenantId, ncmNbs, ufOrigem, ufDestino));
+            if (doTenant != null) {
+                return Optional.of(doTenant);
+            }
+            RegimeIcms doTenantFallback =
+                    matrizMap.get(chaveMatriz(tenantId, Constants.FISCAL_NCM_NBS_FALLBACK, ufOrigem, ufDestino));
+            if (doTenantFallback != null) {
+                return Optional.of(doTenantFallback);
+            }
+        }
+        RegimeIcms nacional = matrizMap.get(chaveMatriz(null, ncmNbs, ufOrigem, ufDestino));
+        if (nacional != null) {
+            return Optional.of(nacional);
+        }
+        return Optional.ofNullable(
+                matrizMap.get(chaveMatriz(null, Constants.FISCAL_NCM_NBS_FALLBACK, ufOrigem, ufDestino)));
+    }
+
     private static String chave(String valor, int ano) {
         return valor + ":" + ano;
     }
 
     private static String par(String itemLc116, String cClassTrib) {
         return itemLc116 + "|" + cClassTrib;
+    }
+
+    private static String chaveIss(String ibgeMunicipio, String itemLc116) {
+        return ibgeMunicipio + "|" + itemLc116;
+    }
+
+    private static String chaveMatriz(String tenantId, String ncmNbs, String ufOrigem, String ufDestino) {
+        return tenantId + "|" + ncmNbs + "|" + ufOrigem + "|" + ufDestino;
     }
 }
