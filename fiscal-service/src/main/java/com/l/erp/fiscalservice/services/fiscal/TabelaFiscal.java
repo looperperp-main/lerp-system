@@ -44,14 +44,14 @@ public interface TabelaFiscal {
      * Curva da transição no ano: quanto de ICMS/ISS ainda é devido e se PIS/COFINS ainda incidem.
      *
      * <p>Vazio para ano fora de 2026-2033 — o motor devolve 400 em vez de assumir 100% ou 0%,
-     * mesmo princípio de {@link #aliquotaIbs}. Ainda não consumido pelo motor (fatia 3c).
+     * mesmo princípio de {@link #aliquotaIbs}. Consumida pelo motor na fatia 3c.
      */
     Optional<TransicaoAno> transicao(int ano);
 
     /**
      * Alíquota de ISS do município do local da prestação, pelo item LC 116. Vazio quando nem o
      * município nem a referência têm linha para o item — hoje só a referência (teto de 5% da
-     * LC 116 art. 8-A) está carregada. Ainda não consumida pelo motor (fatia 3c).
+     * LC 116 art. 8-A) está carregada. Consumida pelo motor na fatia 3c.
      */
     Optional<AliquotaIss> aliquotaIss(String ibgeMunicipio, String itemLc116);
 
@@ -60,10 +60,20 @@ public interface TabelaFiscal {
      * 4 níveis — override do tenant vence base nacional, NCM/NBS específico vence o fallback
      * {@code Constants.FISCAL_NCM_NBS_FALLBACK}: (tenant, ncm) > (tenant, fallback) >
      * (nacional, ncm) > (nacional, fallback). Vazio quando nenhum dos quatro casa — o motor
-     * devolve 400, nunca assume alíquota zero. Ainda não consumida pelo motor (fatia 3c).
+     * devolve 400, nunca assume alíquota zero. Consumida pelo motor na fatia 3c.
      *
      * <p>{@code tenantId} pode ser {@code null} (sem override, só a base nacional é elegível).
      * Hoje só a base nacional (27 linhas, uma por UF, sem override de NCM) está carregada.
      */
     Optional<RegimeIcms> aliquotaIcms(String tenantId, String ncmNbs, String ufOrigem, String ufDestino);
+
+    /**
+     * Alíquota e piso de dispensa de um tributo retido na fonte (fatia 3e — IRRF, CSRF, INSS;
+     * {@code Constants.TRIBUTO_*}). Busca em 2 níveis, igual ao ISS: override do tenant vence a
+     * linha nacional ({@code tenant_id IS NULL}). Vazio quando nem o tenant nem a base nacional
+     * têm linha — o motor devolve 400 em vez de deixar de reter calado.
+     *
+     * <p>{@code tenantId} pode ser {@code null} (sem override, só a base nacional é elegível).
+     */
+    Optional<AliquotaRetencao> retencao(String tenantId, String tributo);
 }

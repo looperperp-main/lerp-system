@@ -448,6 +448,177 @@ class MotorFiscalServiceTest {
                 .anyMatch(l -> l.contains("sem regime cadastrado")));
     }
 
+    // ── Fatia 3c — legado (ICMS/ISS) durante a transição 2026-2033 ──
+
+    @Test
+    void legado_icms_produto_transicao2029() {
+        OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()
+                .cfop("5101").ncm("84713012").ibgeDestino(SP)
+                .ufOrigem("SP").ufDestino("SP")
+                .valorOperacao(new BigDecimal("10000")).dataCompetencia(LocalDate.of(2029, 3, 15))
+                .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null);
+
+        assertValor("1620.00", r.getValorIcms()); // 10000 * 18% (fallback SP) * 90% remanescente
+        assertNull(r.getValorIss());
+    }
+
+    @Test
+    void legado_iss_servico_transicao2029() {
+        OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()
+                .cfop("5933").codigoServico("4.01").cClassTrib("200029").ibgeLocalPrestacao(SP)
+                .valorOperacao(new BigDecimal("300")).dataCompetencia(LocalDate.of(2029, 3, 15))
+                .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null);
+
+        assertValor("13.50", r.getValorIss()); // 300 * 5% (referência) * 90% remanescente
+        assertNull(r.getValorIcms());
+    }
+
+    @Test
+    void legado_transicaoZero_naoCalculaIcmsNemIss() {
+        // COMP = 2033, pctRemanescente 0: os 26 testes originais já provam isso implicitamente,
+        // este só deixa explícito que os dois campos ficam null no regime permanente.
+        OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()
+                .cfop("5101").ncm("84713012").ibgeDestino(SP)
+                .valorOperacao(new BigDecimal("10000")).dataCompetencia(COMP)
+                .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null);
+        assertNull(r.getValorIcms());
+        assertNull(r.getValorIss());
+    }
+
+    @Test
+    void legado_produtoSemUf_transicaoAtiva_lancaFiscalException() {
+        FiscalException ex = assertThrows(FiscalException.class, () -> motor.calcular(
+                MotorFiscalRequest.builder()
+                        .cfop("5101").ncm("84713012").ibgeDestino(SP)
+                        .valorOperacao(new BigDecimal("10000")).dataCompetencia(LocalDate.of(2029, 3, 15))
+                        .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null));
+        assertEquals(Constants.FISCAL_UF_OBRIGATORIA_TRANSICAO, ex.getCodigo());
+    }
+
+    @Test
+    void legado_icmsSemCobertura_lancaFiscalException() {
+        // RJ→RJ não está na matriz do fake (só SP→SP): 400 em vez de assumir ICMS zero.
+        FiscalException ex = assertThrows(FiscalException.class, () -> motor.calcular(
+                MotorFiscalRequest.builder()
+                        .cfop("5101").ncm("84713012").ibgeDestino(SP)
+                        .ufOrigem("RJ").ufDestino("RJ")
+                        .valorOperacao(new BigDecimal("10000")).dataCompetencia(LocalDate.of(2029, 3, 15))
+                        .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null));
+        assertEquals(Constants.FISCAL_ICMS_SEM_COBERTURA, ex.getCodigo());
+    }
+
+    @Test
+    void anoForaDaCurvaDeTransicao_lancaFiscalException() {
+        FiscalException ex = assertThrows(FiscalException.class, () -> motor.calcular(
+                MotorFiscalRequest.builder()
+                        .cfop("5101").ncm("84713012").ibgeDestino(SP)
+                        .ufOrigem("SP").ufDestino("SP")
+                        .valorOperacao(new BigDecimal("10000")).dataCompetencia(LocalDate.of(2025, 3, 15))
+                        .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null));
+        assertEquals(Constants.FISCAL_VIGENCIA_SEM_COBERTURA, ex.getCodigo());
+    }
+
+    // ── Fatia 3e — retenção na fonte (ISS/IRRF/CSRF/INSS) ──
+
+    @Test
+    void retencao_naoDeclarada_todosOsCamposNulos() {
+        OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()
+                .cfop("5933").codigoServico("1.01").cClassTrib("000001").ibgeLocalPrestacao(SP)
+                .valorOperacao(new BigDecimal("10000")).dataCompetencia(COMP)
+                .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null);
+        assertNull(r.getValorIssRetido());
+        assertNull(r.getValorIrrf());
+        assertNull(r.getValorCsrf());
+        assertNull(r.getValorInss());
+    }
+
+    @Test
+    void retencaoEmProduto_lancaFiscalException() {
+        // Retenção na fonte é conceito de serviço (tomador retém do prestador) — declarar a flag
+        // numa operação de produto é erro do chamador, não silenciosamente ignorado.
+        FiscalException ex = assertThrows(FiscalException.class, () -> motor.calcular(
+                MotorFiscalRequest.builder()
+                        .cfop("5101").ncm("84713012").ibgeDestino(SP)
+                        .valorOperacao(new BigDecimal("10000")).dataCompetencia(COMP)
+                        .reterIrrf(true)
+                        .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null));
+        assertEquals(Constants.FISCAL_RETENCAO_APENAS_SERVICO, ex.getCodigo());
+    }
+
+    @Test
+    void retencao_issRetidoNaFonte_igualAoIssLegado() {
+        OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()
+                .cfop("5933").codigoServico("4.01").cClassTrib("200029").ibgeLocalPrestacao(SP)
+                .valorOperacao(new BigDecimal("300")).dataCompetencia(LocalDate.of(2029, 3, 15))
+                .regimeEmpresa(Constants.REGIME_LUCRO_REAL)
+                .issRetidoNaFonte(true).build(), null);
+        assertValor("13.50", r.getValorIss());
+        assertValor("13.50", r.getValorIssRetido());
+    }
+
+    @Test
+    void retencao_irrf_calculaSobreValorTributavel() {
+        OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()
+                .cfop("5933").codigoServico("1.01").cClassTrib("000001").ibgeLocalPrestacao(SP)
+                .valorOperacao(new BigDecimal("10000")).dataCompetencia(COMP)
+                .regimeEmpresa(Constants.REGIME_LUCRO_REAL)
+                .reterIrrf(true).build(), null);
+        assertValor("150.00", r.getValorIrrf()); // 10000 * 1,50%
+        assertNull(r.getValorCsrf());
+        assertNull(r.getValorInss());
+    }
+
+    @Test
+    void retencao_irrf_pisoMensal_dispensaSemAcumuloERetemComAcumulo() {
+        // 500 * 1,50% = 7,50 — sozinho não supera o piso de 10,00 (Lei 13.137/2015 art. 67).
+        OperacaoFiscalDTO semAcumulo = motor.calcular(MotorFiscalRequest.builder()
+                .cfop("5933").codigoServico("1.01").cClassTrib("000001").ibgeLocalPrestacao(SP)
+                .valorOperacao(new BigDecimal("500")).dataCompetencia(COMP)
+                .regimeEmpresa(Constants.REGIME_LUCRO_REAL)
+                .reterIrrf(true).build(), null);
+        assertNull(semAcumulo.getValorIrrf());
+
+        // Com 5,00 já retido no mês, o acumulado (5,00 + 7,50 = 12,50) supera o piso — retém só
+        // a parcela desta operação (7,50), não o acumulado inteiro.
+        OperacaoFiscalDTO comAcumulo = motor.calcular(MotorFiscalRequest.builder()
+                .cfop("5933").codigoServico("1.01").cClassTrib("000001").ibgeLocalPrestacao(SP)
+                .valorOperacao(new BigDecimal("500")).dataCompetencia(COMP)
+                .regimeEmpresa(Constants.REGIME_LUCRO_REAL)
+                .reterIrrf(true).valorAcumuladoMesIrrf(new BigDecimal("5.00")).build(), null);
+        assertValor("7.50", comAcumulo.getValorIrrf());
+    }
+
+    @Test
+    void retencao_csrf_acimaDoPiso_retem() {
+        OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()
+                .cfop("5933").codigoServico("1.01").cClassTrib("000001").ibgeLocalPrestacao(SP)
+                .valorOperacao(new BigDecimal("6000")).dataCompetencia(COMP)
+                .regimeEmpresa(Constants.REGIME_LUCRO_REAL)
+                .reterCsrf(true).build(), null);
+        assertValor("279.00", r.getValorCsrf()); // 6000 * 4,65%
+    }
+
+    @Test
+    void retencao_csrf_noPisoOuAbaixo_dispensada() {
+        // Piso é <= (igual dispensa): valor bruto igual a 5000,00 não supera o piso de 5000,00.
+        OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()
+                .cfop("5933").codigoServico("1.01").cClassTrib("000001").ibgeLocalPrestacao(SP)
+                .valorOperacao(new BigDecimal("5000")).dataCompetencia(COMP)
+                .regimeEmpresa(Constants.REGIME_LUCRO_REAL)
+                .reterCsrf(true).build(), null);
+        assertNull(r.getValorCsrf());
+    }
+
+    @Test
+    void retencao_inss_semPiso_sempreRetem() {
+        OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()
+                .cfop("5933").codigoServico("1.01").cClassTrib("000001").ibgeLocalPrestacao(SP)
+                .valorOperacao(new BigDecimal("1000")).dataCompetencia(COMP)
+                .regimeEmpresa(Constants.REGIME_LUCRO_REAL)
+                .reterInss(true).build(), null);
+        assertValor("110.00", r.getValorInss()); // 1000 * 11,00%, piso 0 no fake
+    }
+
     /** Notebook do ex1 (IBS 1850,00 / CBS 850,00), variando só a aplicabilidade do split. */
     private static MotorFiscalRequest notebookSplit(Boolean splitAplicavel) {
         return MotorFiscalRequest.builder()

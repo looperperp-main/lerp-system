@@ -6,10 +6,14 @@ import com.l.erp.fiscalservice.api.dto.OperacaoFiscalDTO;
 import com.l.erp.fiscalservice.exception.FiscalException;
 import com.l.erp.fiscalservice.infra.config.SplitPaymentProperties;
 import com.l.erp.fiscalservice.services.fiscal.AliquotaIbs;
+import com.l.erp.fiscalservice.services.fiscal.AliquotaIss;
+import com.l.erp.fiscalservice.services.fiscal.AliquotaRetencao;
 import com.l.erp.fiscalservice.services.fiscal.CfopInfo;
 import com.l.erp.fiscalservice.services.fiscal.RegimeDiferenciado;
+import com.l.erp.fiscalservice.services.fiscal.RegimeIcms;
 import com.l.erp.fiscalservice.services.fiscal.TabelaFiscal;
 import com.l.erp.fiscalservice.services.fiscal.TipoOperacaoFiscal;
+import com.l.erp.fiscalservice.services.fiscal.TransicaoAno;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -87,6 +91,15 @@ public class MotorFiscalService {
         if (splitLigado && req.getSplitPaymentAplicavel() == null) {
             throw new FiscalException(Constants.FISCAL_SPLIT_SEM_FORMA_PAGAMENTO);
         }
+        // Retenção (fatia 3e) só existe em serviço — ISS/IRRF/CSRF/INSS aqui são sobre pagamento
+        // de serviço a PJ. Declarar retenção numa nota de produto é erro de entrada, não zero calado.
+        boolean pedeRetencao = Boolean.TRUE.equals(req.getIssRetidoNaFonte())
+                || Boolean.TRUE.equals(req.getReterIrrf())
+                || Boolean.TRUE.equals(req.getReterCsrf())
+                || Boolean.TRUE.equals(req.getReterInss());
+        if (produto && pedeRetencao) {
+            throw new FiscalException(Constants.FISCAL_RETENCAO_APENAS_SERVICO);
+        }
 
         // PASSO 0.5 — compor a base a partir dos componentes, em vez de confiar num número pronto:
         // frete, seguro e acessórias ENTRAM, desconto incondicional SAI (LC 214 art. 12, §2º).
@@ -158,6 +171,12 @@ public class MotorFiscalService {
         BigDecimal aliqCbs = tabela.aliquotaCbs(req.getRegimeEmpresa(), ano)
                 .orElseThrow(() -> new FiscalException(Constants.FISCAL_REGIME_SEM_ALIQUOTA_CBS));
 
+        // PASSO 3.5 — legado da transição (fatia 3c): ICMS (produto) ou ISS (serviço), na mesma
+        // competência do IBS/CBS. Mesmo princípio de vigência sem cobertura de FISCAL_VIGENCIA_SEM_COBERTURA.
+        TransicaoAno transicao = tabela.transicao(ano)
+                .orElseThrow(() -> new FiscalException(Constants.FISCAL_VIGENCIA_SEM_COBERTURA));
+        Legado legado = calcularLegado(req, servico, valorTributavel, transicao, tenantId, memoria);
+
         // PASSO 4 — IS antes do IBS/CBS (incide sobre o valor bruto, sem redução)
         BigDecimal aliqIs = servico ? BigDecimal.ZERO : tabela.aliquotaIs(req.getNcm()).orElse(BigDecimal.ZERO);
         BigDecimal valorIs = pct(valorTributavel, aliqIs);
@@ -184,6 +203,11 @@ public class MotorFiscalService {
         BigDecimal valorSplitIbs = split(splitLigado, aplicavel ? valorIbs : null);
         BigDecimal valorSplitCbs = split(splitLigado, aplicavel ? valorCbs : null);
 
+        // PASSO 9 — retenção na fonte (fatia 3e): valores retidos, dentro do próprio motor
+        // (decisão de 30/07/2026, spec/motor-fiscal-proximos-passos.md §3) — persistir título e
+        // gerar guia é responsabilidade do futuro AR/contas-a-receber, não deste serviço.
+        Retencao retencao = calcularRetencao(req, valorTributavel, legado.iss(), tenantId, memoria);
+
         memoria.add("Regime: " + regime.name() + " (redução de alíquota " + regime.reducaoPercentual() + "%)");
         memoria.add("IS: " + valorIs + " (alíquota " + aliqIs + "%)");
         memoria.add("Base IBS/CBS (valor + IS): " + base);
@@ -199,11 +223,20 @@ public class MotorFiscalService {
                 .valorCbs(valorCbs)
                 .valorSplitIbs(valorSplitIbs)
                 .valorSplitCbs(valorSplitCbs)
+                .valorIcms(legado.icms())
+                .valorIss(legado.iss())
+                .valorIssRetido(retencao.issRetido())
+                .valorIrrf(retencao.irrf())
+                .valorCsrf(retencao.csrf())
+                .valorInss(retencao.inss())
                 .regimeAplicado(regime.name())
                 .memoriaCalculo(memoria)
                 .build();
     }
 
+    // ponytail: MEI/alíquota-zero/monofásico não calculam legado nem retenção nesta fatia —
+    // campos saem null (mesmo comportamento de antes de 3c/3e). Escopo real desses casos fica
+    // pra quando um caso de teste real exigir (ex.: serviço isento com ISS retido na fonte).
     private OperacaoFiscalDTO zerado(BigDecimal valorTributavel, RegimeDiferenciado regime,
                                      List<String> memoria, boolean splitLigado) {
         BigDecimal zero = BigDecimal.ZERO.setScale(ESCALA);
@@ -273,5 +306,131 @@ public class MotorFiscalService {
     /** Fator multiplicador da redução de alíquota: (1 − redução/100). */
     private BigDecimal fatorReducao(BigDecimal reducaoPercentual) {
         return BigDecimal.ONE.subtract(reducaoPercentual.divide(CEM));
+    }
+
+    /**
+     * ICMS (produto) ou ISS (serviço) proporcional ao remanescente da transição (fatia 3c) — o
+     * motor MULTIPLICA o tributo cheio pelo {@code pctRemanescente} da competência; nunca os
+     * dois juntos, já que produto x serviço são mutuamente exclusivos desde o PASSO 0.
+     * PIS/COFINS (vigente só em 2026) fica de fora: sem tabela de alíquota carregada, o motor só
+     * avisa — vale carregar, não vale investir numa fatia que ainda nem tem fonte de dado.
+     */
+    private Legado calcularLegado(MotorFiscalRequest req, boolean servico, BigDecimal valorTributavel,
+                                   TransicaoAno transicao, String tenantId, List<String> memoria) {
+        if (transicao.pctRemanescente().signum() == 0) {
+            return Legado.NENHUM;
+        }
+        if (transicao.pisCofinsVigente()) {
+            log.warn("{} (tenant={}, cfop={})", Constants.FISCAL_AVISO_PIS_COFINS_SEM_DADO, tenantId, req.getCfop());
+            memoria.add(Constants.FISCAL_AVISO_PIS_COFINS_SEM_DADO);
+        }
+        BigDecimal fatorLegado = transicao.pctRemanescente().divide(CEM);
+
+        if (servico) {
+            AliquotaIss aliqIss = tabela.aliquotaIss(req.getIbgeLocalPrestacao(), req.getCodigoServico())
+                    .orElseThrow(() -> new FiscalException(Constants.FISCAL_ISS_SEM_COBERTURA));
+            if (aliqIss.referenciaNacional()) {
+                String aviso = Constants.FISCAL_AVISO_ALIQUOTA_REFERENCIA.formatted(req.getIbgeLocalPrestacao());
+                log.warn("{} (tenant={}, cfop={})", aviso, tenantId, req.getCfop());
+                memoria.add(aviso);
+            }
+            BigDecimal valorIss = pct(valorTributavel, aliqIss.aliquotaPct())
+                    .multiply(fatorLegado).setScale(ESCALA, RoundingMode.HALF_UP);
+            memoria.add("ISS legado (" + transicao.pctRemanescente() + "% remanescente): " + valorIss);
+            return new Legado(null, valorIss);
+        }
+
+        if (!preenchido(req.getUfOrigem()) || !preenchido(req.getUfDestino())) {
+            throw new FiscalException(Constants.FISCAL_UF_OBRIGATORIA_TRANSICAO);
+        }
+        RegimeIcms regimeIcms = tabela.aliquotaIcms(tenantId, req.getNcm(), req.getUfOrigem(), req.getUfDestino())
+                .orElseThrow(() -> new FiscalException(Constants.FISCAL_ICMS_SEM_COBERTURA));
+        BigDecimal aliqIcmsEfetiva = regimeIcms.aliqNominal().multiply(fatorReducao(regimeIcms.pReducaoBase()));
+        BigDecimal valorIcms = pct(valorTributavel, aliqIcmsEfetiva)
+                .multiply(fatorLegado).setScale(ESCALA, RoundingMode.HALF_UP);
+        memoria.add("ICMS legado (" + transicao.pctRemanescente() + "% remanescente): " + valorIcms);
+        return new Legado(valorIcms, null);
+    }
+
+    /**
+     * Retenção na fonte (fatia 3e) — ISS/IRRF/CSRF/INSS, cada um só quando declarado no request
+     * (padrão "declarado, não deduzido", igual ao cClassTrib). Piso de dispensa usa {@code <=}
+     * uniformemente (CSRF já é "igual ou inferior" na IN 1234/2012; IRRF e INSS seguem o mesmo
+     * corte por simplicidade). Campo fica {@code null} tanto quando não declarado quanto quando
+     * dispensado pelo piso — o chamador não precisa distinguir os dois: em nenhum dos casos há
+     * valor a reter.
+     */
+    private Retencao calcularRetencao(MotorFiscalRequest req, BigDecimal valorTributavel,
+                                       BigDecimal valorIssLegado, String tenantId, List<String> memoria) {
+        boolean pedeAlgo = Boolean.TRUE.equals(req.getIssRetidoNaFonte())
+                || Boolean.TRUE.equals(req.getReterIrrf())
+                || Boolean.TRUE.equals(req.getReterCsrf())
+                || Boolean.TRUE.equals(req.getReterInss());
+        if (!pedeAlgo) {
+            return Retencao.NENHUMA;
+        }
+
+        BigDecimal issRetido = null;
+        if (Boolean.TRUE.equals(req.getIssRetidoNaFonte())) {
+            issRetido = valorIssLegado; // mesmo valor do ISS calculado no PASSO 3.5 — só muda quem paga
+            memoria.add(issRetido != null
+                    ? "ISS retido na fonte pelo tomador: " + issRetido
+                    : "ISS retido na fonte: sem ISS legado nesta competência (nada a reter)");
+        }
+
+        BigDecimal irrf = null;
+        if (Boolean.TRUE.equals(req.getReterIrrf())) {
+            AliquotaRetencao aliq = tabela.retencao(tenantId, Constants.TRIBUTO_IRRF)
+                    .orElseThrow(() -> new FiscalException(Constants.FISCAL_TRIBUTO_SEM_ALIQUOTA_RETENCAO));
+            BigDecimal calculado = pct(valorTributavel, aliq.aliquotaPct());
+            // Lei 13.137/2015 art. 67: piso é sobre o RETIDO acumulado no mês pro mesmo
+            // prestador, não sobre a operação isolada — só o IRRF acumula nesta fatia.
+            BigDecimal totalMes = ouZero(req.getValorAcumuladoMesIrrf()).add(calculado);
+            if (totalMes.compareTo(aliq.valorMinimoBase()) <= 0) {
+                memoria.add("IRRF dispensado: retido acumulado no mês (" + totalMes
+                        + ") não supera o piso de " + aliq.valorMinimoBase());
+            } else {
+                irrf = calculado;
+                memoria.add("IRRF retido: " + irrf + " (alíquota " + aliq.aliquotaPct() + "%)");
+            }
+        }
+
+        BigDecimal csrf = null;
+        if (Boolean.TRUE.equals(req.getReterCsrf())) {
+            AliquotaRetencao aliq = tabela.retencao(tenantId, Constants.TRIBUTO_CSRF)
+                    .orElseThrow(() -> new FiscalException(Constants.FISCAL_TRIBUTO_SEM_ALIQUOTA_RETENCAO));
+            if (valorTributavel.compareTo(aliq.valorMinimoBase()) <= 0) {
+                memoria.add("CSRF dispensado: valor bruto (" + valorTributavel
+                        + ") não supera o piso de " + aliq.valorMinimoBase());
+            } else {
+                csrf = pct(valorTributavel, aliq.aliquotaPct());
+                memoria.add("CSRF retido: " + csrf + " (alíquota " + aliq.aliquotaPct() + "%)");
+            }
+        }
+
+        BigDecimal inss = null;
+        if (Boolean.TRUE.equals(req.getReterInss())) {
+            AliquotaRetencao aliq = tabela.retencao(tenantId, Constants.TRIBUTO_INSS)
+                    .orElseThrow(() -> new FiscalException(Constants.FISCAL_TRIBUTO_SEM_ALIQUOTA_RETENCAO));
+            if (valorTributavel.compareTo(aliq.valorMinimoBase()) <= 0) {
+                memoria.add("INSS dispensado: valor bruto (" + valorTributavel
+                        + ") não supera o piso de " + aliq.valorMinimoBase());
+            } else {
+                inss = pct(valorTributavel, aliq.aliquotaPct());
+                memoria.add("INSS retido: " + inss + " (alíquota " + aliq.aliquotaPct() + "%)");
+            }
+        }
+
+        return new Retencao(issRetido, irrf, csrf, inss);
+    }
+
+    /** ICMS (produto) xor ISS (serviço) da transição — os dois {@code null} quando pctRemanescente = 0. */
+    private record Legado(BigDecimal icms, BigDecimal iss) {
+        private static final Legado NENHUM = new Legado(null, null);
+    }
+
+    /** Valores retidos na fonte — cada campo {@code null} quando não declarado ou dispensado pelo piso. */
+    private record Retencao(BigDecimal issRetido, BigDecimal irrf, BigDecimal csrf, BigDecimal inss) {
+        private static final Retencao NENHUMA = new Retencao(null, null, null, null);
     }
 }

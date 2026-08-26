@@ -1,6 +1,6 @@
 # Motor Fiscal — próximos passos
 
-> Última atualização: 18 de agosto de 2026
+> Última atualização: 26 de agosto de 2026
 
 Handoff das fatias seguintes do motor fiscal. Escrito para ser lido do zero, sem
 contexto de conversa anterior.
@@ -164,6 +164,11 @@ pauta fiscal e CSOSN do Simples.
 
 ### Plano de execução — 5 fatias (30 de julho de 2026)
 
+**Status em 26 de agosto de 2026: as 5 fatias estão código-completas** (3a, 3b, 3d
+confirmadas verdes por `mvn verify -pl fiscal-service`; 3c e 3e escritas hoje, **ainda
+não verificadas** — build é sempre do usuário). Falta rodar `mvn verify -pl fiscal-service`
+(e aplicar `fiscal-schema-012.yaml` via `liquibase-service`) para confirmar 3c/3e.
+
 O caro aqui não é schema nem código, é **a alíquota interna de ICMS**. O resto do
 ICMS é mais barato do que o rascunho acima sugere: a **interestadual não precisa de
 tabela** — é Resolução do Senado 22/89 + 13/12 (12% geral, 7% saindo de S/SE exceto
@@ -209,9 +214,9 @@ necessária mas deixou de ser urgente. Pelo mesmo motivo o backlog de
   ano) e no `TabelaFiscalFake` (as 8 linhas); 3 testes novos em
   `TabelaFiscalJdbcTest` (anos íntegros + PIS/COFINS só em 2026, degraus
   2029–2033, ano fora da curva volta vazio), com DDL/seed adicionados ao fixture
-  H2. **Nada foi rodado** — nem `mvn`, nem Liquibase. É só a tabela e o acesso a
-  ela: o `MotorFiscalService` ainda **não consome** a curva (isso é a 3c, que
-  segue pendente).
+  H2. É só a tabela e o acesso a ela: o `MotorFiscalService` já **consome** a
+  curva desde a 3c (26 de agosto de 2026, código-completa mas ainda não verificada
+  — ver seção 3c abaixo).
 - **3b — matriz ICMS.** ✅ **feita e verde em 18 de agosto de 2026** (`mvn verify -pl
   fiscal-service`: 61/61 testes, 0 falhas — 6 novos em `TabelaFiscalJdbcTest` cobrindo a
   precedência de 4 níveis).
@@ -242,12 +247,22 @@ necessária mas deixou de ser urgente. Pelo mesmo motivo o backlog de
   fallback nacional, sem tenant e sem NCM cai no fallback nacional, vigência
   vencida ignorada, sem cobertura nenhuma volta vazio), com DDL/seed
   adicionados ao fixture H2. É só a tabela e o acesso a ela: o
-  `MotorFiscalService` ainda **não consome** o resultado (isso é a 3c, que
-  segue pendente).
-- **3c — motor multiplica.** `MotorFiscalService` ganha o passo legado,
-  `OperacaoFiscalDTO` ganha o bloco (`valorIcms`, `valorPisCofins`, base reduzida) e
-  as linhas na memória de cálculo. **Muda o contrato de saída** — fazer antes de o
-  AR existir, que é justamente o motivo de o AR ter sido empurrado para o fim.
+  `MotorFiscalService` já **consome** o resultado desde a 3c (26 de agosto de 2026,
+  ver abaixo).
+- **3c — motor multiplica.** ✅ **código-completa em 26 de agosto de 2026, ainda NÃO
+  verificada** (build/`mvn verify` é sempre do usuário — não rodei nada). `MotorFiscalService`
+  ganhou `calcularLegado(...)`: ICMS (produto) ou ISS (serviço) proporcional ao
+  `pctRemanescente` da transição — nunca os dois juntos, produto x serviço são mutuamente
+  exclusivos desde o PASSO 0. Serviço busca `TabelaFiscal.aliquotaIss(...)`; produto busca
+  `TabelaFiscal.aliquotaIcms(...)` (exige `ufOrigem`/`ufDestino`, senão 400
+  `FISCAL_UF_OBRIGATORIA_TRANSICAO`). PIS/COFRINS — PIS/COFINS (vigente só em 2026) fica de
+  fora: sem tabela de alíquota carregada, o motor só avisa
+  (`Constants.FISCAL_AVISO_PIS_COFINS_SEM_DADO`, log + `memoriaCalculo`) em vez de calcular.
+  `pctRemanescente = 0` (2033) ou ano fora da curva pulam o legado sem exigir UF. `OperacaoFiscalDTO`
+  ganhou `valorIcms`/`valorIss` (mutuamente exclusivos com o novo bloco de retenção da 3e,
+  abaixo). 6 testes novos em `MotorFiscalServiceTest` (ICMS em 2029, ISS em 2029, transição
+  zero não calcula nenhum, produto sem UF com transição ativa → 400, ICMS sem cobertura → 400,
+  ano fora da curva 2026–2033 → 400).
 - **3d — ISS.** ✅ **feita e verde em 18 de agosto de 2026** (confirmado na mesma
   rodada de `mvn verify -pl fiscal-service` que fechou a 3b: 61/61 testes totais,
   30 em `TabelaFiscalJdbcTest`, incluindo os 4 de ISS; Liquibase aplicado e
@@ -276,11 +291,30 @@ necessária mas deixou de ser urgente. Pelo mesmo motivo o backlog de
   decide se o ISS é do prestador ou do tomador é a LC 116 art. 3º, com ~20 exceções,
   e o motor já recebia `ibgeLocalPrestacao` pronto desde antes desta fatia (usado
   hoje para IBS de serviço) — se quem chama errar, o cálculo sai certo para o
-  município errado. É só a tabela e o acesso a ela: o `MotorFiscalService` ainda
-  **não consome** o resultado (isso é a 3c, que segue pendente).
-- **3e — retenção na fonte** (nova, decidida em 30 de julho de 2026). ISS retido, IRRF,
-  PIS/COFINS/CSLL e INSS, dentro do motor. Depende da 3d (ISS retido usa a alíquota
-  municipal) e mexe no request e no contrato de saída, como a 3c.
+  município errado. O `MotorFiscalService` já **consome** o resultado desde a 3c
+  (26 de agosto de 2026, ver abaixo).
+- **3e — retenção na fonte** (decidida em 30 de julho de 2026). ✅ **código-completa em
+  26 de agosto de 2026, ainda NÃO verificada** (`mvn verify` não rodado — build é sempre
+  do usuário). `MotorFiscalService` ganhou `calcularRetencao(...)`: ISS retido, IRRF, CSRF
+  (PIS/COFINS/CSLL combinados) e INSS, cada um só quando **declarado** no request
+  (`issRetidoNaFonte`/`reterIrrf`/`reterCsrf`/`reterInss` — mesmo padrão "declarado, não
+  deduzido" do `cClassTrib`; nunca inferido). Produto + qualquer flag de retenção ⇒ 400
+  `FISCAL_RETENCAO_APENAS_SERVICO` (retenção é só de serviço). Piso de dispensa usa `<=`
+  uniformemente nos três (CSRF/INSS comparam o piso contra o `valorTributavel` da operação;
+  IRRF soma `valorAcumuladoMesIrrf` + o calculado desta operação contra o piso, mas retorna
+  só a parcela calculada desta operação — sem ajuste retroativo no mês, simplificação
+  deliberada). ISS retido usa a alíquota municipal já calculada na 3c/3d (dependência
+  cumprida). Nova tabela `fiscal.retencao_config` (`fiscal-schema-012.yaml`,
+  changesets `fiscal-032`/`fiscal-033`) com override por tenant, 2 níveis de precedência
+  igual ao ISS (`tenant > nacional`), seed nacional de IRRF (1,50%, piso 10,00),
+  CSRF (4,65%, piso 5.000,00) e INSS (11,00%, piso 0). Novo método
+  `Optional<AliquotaRetencao> retencao(String tenantId, String tributo)` em `TabelaFiscal`,
+  implementado em `TabelaFiscalJdbc` e `TabelaFiscalFake`. 4 testes novos em
+  `TabelaFiscalJdbcTest` (sem tenant traz nacional, tenant com override vence, tenant sem
+  override cai no nacional, sem cobertura volta vazio) e 8 em `MotorFiscalServiceTest`
+  (nenhuma flag → tudo nulo, retenção em produto → 400, ISS retido = ISS legado, IRRF sobre
+  valor tributável, IRRF piso mensal dispensa sem acúmulo e retém com acúmulo, CSRF acima do
+  piso retém, CSRF no piso ou abaixo dispensa, INSS sem piso sempre retém).
 
 ---
 

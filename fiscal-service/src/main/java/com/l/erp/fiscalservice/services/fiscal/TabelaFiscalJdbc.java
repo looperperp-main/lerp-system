@@ -134,6 +134,18 @@ public class TabelaFiscalJdbc implements TabelaFiscal {
              LIMIT 1
             """;
 
+    // Mesma técnica de 2 níveis de SQL_ALIQ_ISS (sem o degrau de item genérico: retenção não tem
+    // essa granularidade): override do tenant vence a linha nacional (tenant_id IS NULL).
+    private static final String SQL_RETENCAO = """
+            SELECT aliquota_pct, valor_minimo_base
+              FROM fiscal.retencao_config
+             WHERE tributo = :tributo
+               AND (tenant_id = :tenantId OR tenant_id IS NULL)
+               AND ativo = true
+             ORDER BY CASE WHEN tenant_id = :tenantId THEN 0 ELSE 1 END
+             LIMIT 1
+            """;
+
     private final JdbcClient jdbc;
 
     public TabelaFiscalJdbc(JdbcClient jdbc) {
@@ -245,6 +257,17 @@ public class TabelaFiscalJdbc implements TabelaFiscal {
                         rs.getBigDecimal("aliq_nominal"),
                         rs.getBigDecimal("p_reducao_base"),
                         Constants.FISCAL_NCM_NBS_FALLBACK.equals(rs.getString("ncm_nbs"))))
+                .optional();
+    }
+
+    @Override
+    public Optional<AliquotaRetencao> retencao(String tenantId, String tributo) {
+        return jdbc.sql(SQL_RETENCAO)
+                .param("tenantId", tenantId)
+                .param("tributo", tributo)
+                .query((rs, n) -> new AliquotaRetencao(
+                        rs.getBigDecimal("aliquota_pct"),
+                        rs.getBigDecimal("valor_minimo_base")))
                 .optional();
     }
 

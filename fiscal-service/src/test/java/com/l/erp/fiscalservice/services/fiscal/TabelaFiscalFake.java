@@ -32,6 +32,7 @@ public class TabelaFiscalFake implements TabelaFiscal {
     private final Map<Integer, TransicaoAno> transicaoMap = new HashMap<>();
     private final Map<String, AliquotaIss> issMap = new HashMap<>();
     private final Map<String, RegimeIcms> matrizMap = new HashMap<>();
+    private final Map<String, AliquotaRetencao> retencaoMap = new HashMap<>();
 
     public TabelaFiscalFake() {
         cfopMap.put("5101", new CfopInfo("5101", TipoOperacaoFiscal.SAIDA, true, true, true));
@@ -90,6 +91,22 @@ public class TabelaFiscalFake implements TabelaFiscal {
         // dos 4 níveis é testada no TabelaFiscalJdbcTest; aqui é só o suficiente pro oráculo.
         matrizMap.put(chaveMatriz(null, Constants.FISCAL_NCM_NBS_FALLBACK, "SP", "SP"),
                 new RegimeIcms(new BigDecimal("18.00"), BigDecimal.ZERO, true));
+
+        // 2029 = degrau intermediário da transição (pctRemanescente 90%, fiscal-025) — só pra
+        // exercitar o legado (fatia 3c) fora do regime permanente de 2033. Mesmos valores de
+        // 2033 por simplicidade (o fake não modela a alíquota IBS/CBS variando ano a ano).
+        ibsMap.put(chave("3550308", 2029),
+                new AliquotaIbs(new BigDecimal("16.00"), new BigDecimal("2.50"), false));
+        cbsMap.put(chave(Constants.REGIME_LUCRO_REAL, 2029), new BigDecimal("8.50"));
+
+        // Retenção (fatia 3e): só a linha-base nacional (tenant_id NULL) de cada tributo — igual
+        // ao recorte do ISS/ICMS acima, sem override de tenant nesta carga.
+        retencaoMap.put(chaveRetencao(null, Constants.TRIBUTO_IRRF),
+                new AliquotaRetencao(new BigDecimal("1.50"), new BigDecimal("10.00")));
+        retencaoMap.put(chaveRetencao(null, Constants.TRIBUTO_CSRF),
+                new AliquotaRetencao(new BigDecimal("4.65"), new BigDecimal("5000.00")));
+        retencaoMap.put(chaveRetencao(null, Constants.TRIBUTO_INSS),
+                new AliquotaRetencao(new BigDecimal("11.00"), BigDecimal.ZERO));
     }
 
     @Override
@@ -165,6 +182,18 @@ public class TabelaFiscalFake implements TabelaFiscal {
                 matrizMap.get(chaveMatriz(null, Constants.FISCAL_NCM_NBS_FALLBACK, ufOrigem, ufDestino)));
     }
 
+    /** Tenant > nacional; real é o SQL/JdbcTest. */
+    @Override
+    public Optional<AliquotaRetencao> retencao(String tenantId, String tributo) {
+        if (tenantId != null) {
+            AliquotaRetencao doTenant = retencaoMap.get(chaveRetencao(tenantId, tributo));
+            if (doTenant != null) {
+                return Optional.of(doTenant);
+            }
+        }
+        return Optional.ofNullable(retencaoMap.get(chaveRetencao(null, tributo)));
+    }
+
     private static String chave(String valor, int ano) {
         return valor + ":" + ano;
     }
@@ -179,5 +208,9 @@ public class TabelaFiscalFake implements TabelaFiscal {
 
     private static String chaveMatriz(String tenantId, String ncmNbs, String ufOrigem, String ufDestino) {
         return tenantId + "|" + ncmNbs + "|" + ufOrigem + "|" + ufDestino;
+    }
+
+    private static String chaveRetencao(String tenantId, String tributo) {
+        return tenantId + "|" + tributo;
     }
 }

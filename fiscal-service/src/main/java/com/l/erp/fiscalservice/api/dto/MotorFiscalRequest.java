@@ -62,4 +62,19 @@ public class MotorFiscalRequest {
     private String origemProduto;          // 'NACIONAL' | 'ESTRANGEIRO' | 'ZFM'
     private Boolean splitPaymentAplicavel; // da condicao_pagamento
     private String tipoDocumento;          // 'NFe' | 'NFCe' | 'NFSe' | 'CTe'
+    // UF de origem/destino (fatia 3c) — só obrigatórias quando há ICMS remanescente na transição
+    // (pctRemanescente > 0); em produto, alimentam TabelaFiscal.aliquotaIcms.
+    private String ufOrigem;
+    private String ufDestino;
+    // Retenção na fonte (fatia 3e, declarada pelo chamador — mesmo padrão de cClassTrib): o motor
+    // calcula os VALORES retidos, nunca decide sozinho se uma operação sofre retenção.
+    private Boolean issRetidoNaFonte;
+    private Boolean reterIrrf;
+    private Boolean reterCsrf;
+    private Boolean reterInss;
+    // Soma do que já foi pago ao MESMO prestador na competência (antes desta operação) — só o
+    // IRRF acumula por mês (piso de dispensa é sobre o total, não por nota isolada; CSRF/INSS
+    // ficam por operação nesta fatia).
+    @PositiveOrZero
+    private BigDecimal valorAcumuladoMesIrrf;
 }

@@ -107,6 +107,14 @@ class TabelaFiscalJdbcTest {
                 p_reducao_base numeric(5,2) NOT NULL,
                 vigente_de date NOT NULL,
                 vigente_ate date)
+            """,
+            """
+            CREATE TABLE fiscal.retencao_config (
+                tenant_id uuid,
+                tributo varchar(10) NOT NULL,
+                aliquota_pct numeric(5,2) NOT NULL,
+                valor_minimo_base numeric(12,2) NOT NULL,
+                ativo boolean NOT NULL)
             """
     };
 
@@ -181,6 +189,14 @@ class TabelaFiscalJdbcTest {
                 ('11111111-1111-1111-1111-111111111111', '20099999', 'P', 'SP', 'SP', 30.00, 5.00,  DATE '2026-01-01', NULL),
                 (NULL, '00000000', 'P', 'RJ', 'RJ', 99.00, 0,  DATE '2020-01-01', DATE '2025-12-31'),
                 (NULL, '00000000', 'P', 'RJ', 'RJ', 22.00, 0,  DATE '2026-01-01', NULL)
+            """,
+            // Nacional só tem IRRF e CSRF (INSS fica de propósito sem cobertura, prova o 400).
+            // Tenant tem override só de IRRF, com alíquota e piso diferentes da linha nacional.
+            """
+            INSERT INTO fiscal.retencao_config (tenant_id, tributo, aliquota_pct, valor_minimo_base, ativo) VALUES
+                (NULL, 'IRRF', 1.50, 10.00, true),
+                (NULL, 'CSRF', 4.65, 5000.00, true),
+                ('11111111-1111-1111-1111-111111111111', 'IRRF', 2.00, 0.00, true)
             """
     };
 
@@ -451,5 +467,34 @@ class TabelaFiscalJdbcTest {
         // Acre não está no seed deste teste: sem linha nenhuma, o motor devolve 400 em vez de
         // assumir alíquota zero — mesmo princípio de aliquotaIbs/transicao.
         assertTrue(tabela.aliquotaIcms(null, Constants.FISCAL_NCM_NBS_FALLBACK, "AC", "AC").isEmpty());
+    }
+
+    @Test
+    void retencao_semTenant_trazAliquotaEPisoNacional() {
+        AliquotaRetencao csrf = tabela.retencao(null, Constants.TRIBUTO_CSRF).orElseThrow();
+        assertEquals(0, new BigDecimal("4.65").compareTo(csrf.aliquotaPct()));
+        assertEquals(0, new BigDecimal("5000.00").compareTo(csrf.valorMinimoBase()));
+    }
+
+    @Test
+    void retencao_tenantComOverride_venceNacional() {
+        // Nacional de IRRF é 1,50%/piso 10 — o override do tenant (2,00%/sem piso) precisa vencer.
+        AliquotaRetencao irrf = tabela.retencao(TENANT, Constants.TRIBUTO_IRRF).orElseThrow();
+        assertEquals(0, new BigDecimal("2.00").compareTo(irrf.aliquotaPct()));
+        assertEquals(0, BigDecimal.ZERO.compareTo(irrf.valorMinimoBase()));
+    }
+
+    @Test
+    void retencao_tenantSemOverride_caiNaNacional() {
+        // Tenant não tem override de CSRF: usa a linha nacional normalmente.
+        AliquotaRetencao csrf = tabela.retencao(TENANT, Constants.TRIBUTO_CSRF).orElseThrow();
+        assertEquals(0, new BigDecimal("4.65").compareTo(csrf.aliquotaPct()));
+    }
+
+    @Test
+    void retencao_semCobertura_vazio() {
+        // INSS não tem linha nem nacional nem de tenant neste seed — 400, nunca zero.
+        assertTrue(tabela.retencao(null, Constants.TRIBUTO_INSS).isEmpty());
+        assertTrue(tabela.retencao(TENANT, Constants.TRIBUTO_INSS).isEmpty());
     }
 }

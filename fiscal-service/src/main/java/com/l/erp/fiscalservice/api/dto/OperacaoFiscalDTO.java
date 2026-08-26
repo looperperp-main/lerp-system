@@ -27,6 +27,16 @@ public class OperacaoFiscalDTO {
     private BigDecimal valorCbs;
     private BigDecimal valorSplitIbs;
     private BigDecimal valorSplitCbs;
+    // Legado da transição (fatia 3c) — ICMS em produto OU ISS em serviço, nunca os dois; null
+    // quando pctRemanescente = 0 (regime permanente) ou fora do escopo (early-return de zerado()).
+    private BigDecimal valorIcms;
+    private BigDecimal valorIss;
+    // Retenção na fonte (fatia 3e) — valores retidos, não guias/títulos (isso é do AR). Todos
+    // null quando a flag de retenção correspondente não foi declarada no request.
+    private BigDecimal valorIssRetido;
+    private BigDecimal valorIrrf;
+    private BigDecimal valorCsrf;
+    private BigDecimal valorInss;
     private String regimeAplicado;
     private List<String> memoriaCalculo;
 }

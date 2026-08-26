@@ -399,4 +399,32 @@ public class Constants {
     public static final String FISCAL_AVISO_ORIGEM_ZFM =
             "AVISO: origem 'ZFM' informada — tratamento da Zona Franca de Manaus não implementado; "
                     + "item tributado como NACIONAL";
+
+    // Fatia 3c — legado (ICMS/ISS) durante a transição 2026-2033 (spec/motor-fiscal-proximos-passos.md §3)
+    // Produto sem UF de origem/destino DURANTE A TRANSICAO: sem elas a matriz de ICMS nao tem como
+    // resolver a aliquota interna. So exigido quando ha ICMS remanescente (pctRemanescente > 0) —
+    // em 2033 (regime permanente) a checagem nem roda.
+    public static final String FISCAL_UF_OBRIGATORIA_TRANSICAO = "FISCAL_UF_OBRIGATORIA_TRANSICAO";
+    // Nenhuma linha na matriz (nem tenant, nem nacional, nem fallback) para o par de UF/NCM: o
+    // motor devolve 400 em vez de assumir ICMS zero — mesmo princípio de FISCAL_VIGENCIA_SEM_COBERTURA.
+    public static final String FISCAL_ICMS_SEM_COBERTURA = "FISCAL_ICMS_SEM_COBERTURA";
+    // Idem para ISS: nem o município nem a referência nacional tem linha para o item.
+    public static final String FISCAL_ISS_SEM_COBERTURA = "FISCAL_ISS_SEM_COBERTURA";
+    // PIS/COFINS ainda vigentes (só 2026) não tem tabela de alíquota carregada — vale carregar,
+    // não vale investir (fatia futura): o motor avisa e não destaca o tributo, nunca inventa valor.
+    public static final String FISCAL_AVISO_PIS_COFINS_SEM_DADO =
+            "AVISO: PIS/COFINS ainda vigentes nesta competência, mas o motor não calcula o valor "
+                    + "(sem tabela de alíquota carregada) — recolhimento deve ser apurado à parte";
+
+    // Fatia 3e — retenção na fonte (ISS/IRRF/CSRF/INSS), dentro do motor (spec §3, decisão de
+    // 30/07/2026). Tributo de fiscal.retencao_config; mesmos valores de Constants.TRIBUTO_*.
+    public static final String TRIBUTO_IRRF = "IRRF";
+    public static final String TRIBUTO_CSRF = "CSRF"; // PIS/COFINS/CSLL retidos de forma unificada (IN RFB 1234/2012)
+    public static final String TRIBUTO_INSS = "INSS"; // cessão de mão de obra/empreitada (IN RFB 971/2009)
+    // Retenção só existe em operação de serviço: produto não tem ISS, e IRRF/CSRF/INSS aqui são
+    // sobre pagamento de serviço a PJ. Declarar retenção numa nota de produto é erro de entrada.
+    public static final String FISCAL_RETENCAO_APENAS_SERVICO = "FISCAL_RETENCAO_APENAS_SERVICO";
+    // Tributo declarado (reterIrrf/reterCsrf/reterInss) sem linha em fiscal.retencao_config (nem
+    // do tenant, nem nacional): o motor devolve 400 em vez de deixar de reter calado.
+    public static final String FISCAL_TRIBUTO_SEM_ALIQUOTA_RETENCAO = "FISCAL_TRIBUTO_SEM_ALIQUOTA_RETENCAO";
 }
