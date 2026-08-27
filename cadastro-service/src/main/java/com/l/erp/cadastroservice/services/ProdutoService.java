@@ -176,8 +176,10 @@ public class ProdutoService {
                     config.setCreatedAt(Instant.now());
                     config.setCreatedBy(userId);
                 }else{
-                    config.setCreatedAt(configDto.createdAt());
-                    config.setCreatedBy(configDto.createdBy());
+                    // Front não envia createdAt/createdBy nas linhas de estoqueConfig — sem
+                    // fallback, todo update com estoqueConfigs quebrava com ConstraintViolationException (NotNull).
+                    config.setCreatedAt(configDto.createdAt() != null ? configDto.createdAt() : Instant.now());
+                    config.setCreatedBy(configDto.createdBy() != null ? configDto.createdBy() : userId);
                     config.setUpdatedAt(Instant.now());
                     config.setLastUpdatedBy(userId);
                 }
@@ -198,8 +200,10 @@ public class ProdutoService {
                 fornecedor.setLeadTimeDias(fornDto.leadTimeDias());
                 fornecedor.setPreferencial(fornDto.preferencial());
                 fornecedor.setAtivo(fornDto.ativo());
-                fornecedor.setCreatedAt(isCreate ? Instant.now() : fornDto.createdAt());
-                fornecedor.setCreatedBy(isCreate ? userId : fornDto.createdBy());
+                // Front não envia createdAt/createdBy nas linhas de fornecedor — sem fallback,
+                // todo update com fornecedores quebrava com ConstraintViolationException (NotNull).
+                fornecedor.setCreatedAt(isCreate || fornDto.createdAt() == null ? Instant.now() : fornDto.createdAt());
+                fornecedor.setCreatedBy(isCreate || fornDto.createdBy() == null ? userId : fornDto.createdBy());
                 if (!isCreate) {
                     fornecedor.setUpdatedAt(Instant.now());
                     fornecedor.setLastUpdatedBy(userId);
@@ -219,8 +223,10 @@ public class ProdutoService {
                 preco.setPreco(precoDto.preco());
                 preco.setInicioVigencia(precoDto.inicioVigencia());
                 preco.setFimVigencia(precoDto.fimVigencia());
-                preco.setCreatedAt(isCreate ? Instant.now() : precoDto.createdAt());
-                preco.setCreatedBy(isCreate ? userId : precoDto.createdBy());
+                // Front não envia createdAt/createdBy nas linhas de preço — sem fallback, todo
+                // update com precos quebrava com ConstraintViolationException (NotNull).
+                preco.setCreatedAt(isCreate || precoDto.createdAt() == null ? Instant.now() : precoDto.createdAt());
+                preco.setCreatedBy(isCreate || precoDto.createdBy() == null ? userId : precoDto.createdBy());
                 if (!isCreate) {
                     preco.setUpdatedAt(Instant.now());
                     preco.setLastUpdatedBy(userId);

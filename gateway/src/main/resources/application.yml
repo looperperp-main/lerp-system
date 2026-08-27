@@ -59,6 +59,10 @@ api:
     jwt:
       secret: ${JWT_SECRET}
 
+internal:
+  gateway:
+    secret: ${INTERNAL_GATEWAY_SECRET}
+
 management:
   endpoints:
     web:

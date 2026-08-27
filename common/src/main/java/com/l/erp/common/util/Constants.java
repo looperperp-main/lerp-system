@@ -296,6 +296,9 @@ public class Constants {
     public static final String HEADER_IS_OWNER = "X-Is-Owner";
     public static final String HEADER_PARTNER_ID = "X-Partner-Id";
     public static final String HEADER_AUTHORITIES = "X-Authorities";
+    // Segredo compartilhado gateway -> serviços internos (cadastro/partner/billing), prova de que
+    // a request passou pelo gateway e não bateu direto no serviço (issue #62)
+    public static final String HEADER_INTERNAL_SECRET = "X-Internal-Secret";
     public static final String HEADER_ASAAS_ACCESS_TOKEN = "asaas-access-token";
     public static final String HEADER_CORRELATION_ID = "X-Correlation-ID";
 

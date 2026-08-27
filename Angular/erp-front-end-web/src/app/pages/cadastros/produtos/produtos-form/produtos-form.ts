@@ -1,6 +1,28 @@
-import { Component, EventEmitter, inject, Input, OnInit, Output, signal } from '@angular/core';
-import { Produto, ProdutoEstoqueConfigDTO, ProdutoFornecedorDTO, ProdutoPrecoDTO } from '../produto.model';
-import { FormArray, FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  Component,
+  EventEmitter,
+  inject,
+  Input,
+  OnChanges,
+  OnInit,
+  Output,
+  signal,
+  SimpleChanges,
+} from '@angular/core';
+import {
+  Produto,
+  ProdutoEstoqueConfigDTO,
+  ProdutoFornecedorDTO,
+  ProdutoPrecoDTO,
+} from '../produto.model';
+import {
+  FormArray,
+  FormBuilder,
+  FormGroup,
+  FormsModule,
+  ReactiveFormsModule,
+  Validators,
+} from '@angular/forms';
 import { ProdutoService } from '../produto.service';
 import { Checkbox } from 'primeng/checkbox';
 import { Select } from 'primeng/select';
@@ -28,12 +50,12 @@ import { TabsModule } from 'primeng/tabs';
     DatePicker,
     InputNumberModule,
     Ripple,
-    TabsModule
+    TabsModule,
   ],
   templateUrl: './produtos-form.html',
   styleUrl: './produtos-form.scss',
 })
-export class ProdutosForm implements OnInit {
+export class ProdutosForm implements OnInit, OnChanges {
   @Input() ProdutoData: Produto | null = null;
   @Output() saved = new EventEmitter<void>();
   @Output() canceled = new EventEmitter<void>();
@@ -69,7 +91,7 @@ export class ProdutosForm implements OnInit {
       // Coleções Aninhadas
       precos: this.fb.array([]),
       fornecedores: this.fb.array([]),
-      estoqueConfigs: this.fb.array([])
+      estoqueConfigs: this.fb.array([]),
     });
   }
 
@@ -79,7 +101,20 @@ export class ProdutosForm implements OnInit {
     this.loadTabelasPreco();
     this.loadDepositos();
 
-    // Limpar os arrays sempre que iniciar o formulário (útil ao fechar/abrir)
+    this.populateForm();
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    // O diálogo de edição abre com os dados parciais da linha da tabela (evita o NG0100 do
+    // p-dialog ao abrir de dentro de um subscribe assíncrono); quando o produto completo chega
+    // do backend, ProdutoData troca de referência e precisa repopular o form/FormArrays.
+    if (changes['ProdutoData'] && !changes['ProdutoData'].firstChange) {
+      this.populateForm();
+    }
+  }
+
+  private populateForm(): void {
+    // Limpar os arrays sempre que popular o formulário (útil ao fechar/abrir e ao repopular)
     this.precosFormArray.clear();
     this.fornecedoresFormArray.clear();
     this.estoqueConfigsFormArray.clear();
@@ -99,18 +134,18 @@ export class ProdutosForm implements OnInit {
         ncm: this.ProdutoData.ncm,
         ean: this.ProdutoData.ean,
         cest: this.ProdutoData.cest,
-        origem: this.ProdutoData.origem
+        origem: this.ProdutoData.origem,
       });
 
       // Preencher FormArrays se existirem dados (atenção: dependendo do mapper do Spring e como chega)
       if (this.ProdutoData.precos && Array.isArray(this.ProdutoData.precos)) {
-        this.ProdutoData.precos.forEach(p => this.addPreco(p));
+        this.ProdutoData.precos.forEach((p) => this.addPreco(p));
       }
       if (this.ProdutoData.fornecedores && Array.isArray(this.ProdutoData.fornecedores)) {
-        this.ProdutoData.fornecedores.forEach(f => this.addFornecedor(f));
+        this.ProdutoData.fornecedores.forEach((f) => this.addFornecedor(f));
       }
       if (this.ProdutoData.estoqueConfigs && Array.isArray(this.ProdutoData.estoqueConfigs)) {
-        this.ProdutoData.estoqueConfigs.forEach(e => this.addEstoqueConfig(e));
+        this.ProdutoData.estoqueConfigs.forEach((e) => this.addEstoqueConfig(e));
       }
     }
   }
@@ -119,27 +154,35 @@ export class ProdutosForm implements OnInit {
   loadCategorias() {
     this.produtoService.getCategoriasDropdown().subscribe({
       next: (res) => {
-        const content = res._embedded ? (res._embedded.produtoCategoriaResponseDTOList || res._embedded.produto_categoria || []) : (res.content || []);
+        const content = res._embedded
+          ? res._embedded.produtoCategoriaResponseDTOList || res._embedded.produto_categoria || []
+          : res.content || [];
         this.categoriasOptions.set(content.map((c: any) => ({ label: c.nome, value: c.id })));
-      }
+      },
     });
   }
 
   loadFornecedores() {
     this.produtoService.getFornecedoresDropdown().subscribe({
       next: (res) => {
-        const content = res._embedded ? (res._embedded.fornecedorResponseDTOList || res._embedded.fornecedor || []) : (res.content || []);
-        this.fornecedoresOptions.set(content.map((f: any) => ({ label: f.pessoaNomeRazao || f.id, value: f.id })));
-      }
+        const content = res._embedded
+          ? res._embedded.fornecedorResponseDTOList || res._embedded.fornecedor || []
+          : res.content || [];
+        this.fornecedoresOptions.set(
+          content.map((f: any) => ({ label: f.pessoaNomeRazao || f.id, value: f.id })),
+        );
+      },
     });
   }
 
   loadTabelasPreco() {
     this.produtoService.getTabelasPrecoDropdown().subscribe({
       next: (res) => {
-        const content = res._embedded ? (res._embedded.tabelaPrecoResponseDTOList || res._embedded.tabela_preco || []) : (res.content || []);
+        const content = res._embedded
+          ? res._embedded.tabelaPrecoResponseDTOList || res._embedded.tabela_preco || []
+          : res.content || [];
         this.tabelasPrecoOptions.set(content.map((t: any) => ({ label: t.nome, value: t.id })));
-      }
+      },
     });
   }
 
@@ -148,23 +191,34 @@ export class ProdutosForm implements OnInit {
       next: (res) => {
         const content = res.content || []; // Dependendo do HATEOAS: res._embedded?.depositos || res.content
         this.depositosOptions.set(content.map((d: any) => ({ label: d.nome, value: d.id })));
-      }
+      },
     });
   }
 
   // --- Gestão dos FormArrays ---
-  get precosFormArray() { return this.form.get('precos') as FormArray; }
-  get fornecedoresFormArray() { return this.form.get('fornecedores') as FormArray; }
-  get estoqueConfigsFormArray() { return this.form.get('estoqueConfigs') as FormArray; }
+  get precosFormArray() {
+    return this.form.get('precos') as FormArray;
+  }
+  get fornecedoresFormArray() {
+    return this.form.get('fornecedores') as FormArray;
+  }
+  get estoqueConfigsFormArray() {
+    return this.form.get('estoqueConfigs') as FormArray;
+  }
 
   addPreco(precoData?: ProdutoPrecoDTO) {
-    this.precosFormArray.push(this.fb.group({
-      id: [precoData?.id || null],
-      tabelaPrecoId: [precoData?.tabelaPrecoId || null, Validators.required],
-      preco: [precoData?.preco || null, Validators.required],
-      inicioVigencia: [precoData?.inicioVigencia ? new Date(precoData.inicioVigencia) : null, Validators.required],
-      fimVigencia: [precoData?.fimVigencia ? new Date(precoData.fimVigencia) : null]
-    }));
+    this.precosFormArray.push(
+      this.fb.group({
+        id: [precoData?.id || null],
+        tabelaPrecoId: [precoData?.tabelaPrecoId || null, Validators.required],
+        preco: [precoData?.preco || null, Validators.required],
+        inicioVigencia: [
+          precoData?.inicioVigencia ? new Date(precoData.inicioVigencia) : null,
+          Validators.required,
+        ],
+        fimVigencia: [precoData?.fimVigencia ? new Date(precoData.fimVigencia) : null],
+      }),
+    );
   }
 
   removePreco(index: number) {
@@ -172,15 +226,17 @@ export class ProdutosForm implements OnInit {
   }
 
   addFornecedor(fornecedorData?: ProdutoFornecedorDTO) {
-    this.fornecedoresFormArray.push(this.fb.group({
-      id: [fornecedorData?.id || null],
-      fornecedorId: [fornecedorData?.fornecedorId || null, Validators.required],
-      codigoProdutoFornecedor: [fornecedorData?.codigoProdutoFornecedor || ''],
-      precoCusto: [fornecedorData?.precoCusto || null],
-      leadTimeDias: [fornecedorData?.leadTimeDias || null],
-      preferencial: [fornecedorData?.preferencial ?? false],
-      ativo: [fornecedorData?.ativo ?? true]
-    }));
+    this.fornecedoresFormArray.push(
+      this.fb.group({
+        id: [fornecedorData?.id || null],
+        fornecedorId: [fornecedorData?.fornecedorId || null, Validators.required],
+        codigoProdutoFornecedor: [fornecedorData?.codigoProdutoFornecedor || ''],
+        precoCusto: [fornecedorData?.precoCusto || null],
+        leadTimeDias: [fornecedorData?.leadTimeDias || null],
+        preferencial: [fornecedorData?.preferencial ?? false],
+        ativo: [fornecedorData?.ativo ?? true],
+      }),
+    );
   }
 
   removeFornecedor(index: number) {
@@ -188,15 +244,17 @@ export class ProdutosForm implements OnInit {
   }
 
   addEstoqueConfig(estoqueData?: ProdutoEstoqueConfigDTO) {
-    this.estoqueConfigsFormArray.push(this.fb.group({
-      id: [estoqueData?.id || null],
-      fornecedorPreferencialId: [estoqueData?.fornecedorPreferencialId || null],
-      depositoId: [estoqueData?.depositoId || null, Validators.required],
-      estoqueMinimo: [estoqueData?.estoqueMinimo || null],
-      estoqueMaximo: [estoqueData?.estoqueMaximo || null],
-      pontoReposicao: [estoqueData?.pontoReposicao || null],
-      leadTimeDias: [estoqueData?.leadTimeDias || null]
-    }));
+    this.estoqueConfigsFormArray.push(
+      this.fb.group({
+        id: [estoqueData?.id || null],
+        fornecedorPreferencialId: [estoqueData?.fornecedorPreferencialId || null],
+        depositoId: [estoqueData?.depositoId || null, Validators.required],
+        estoqueMinimo: [estoqueData?.estoqueMinimo || null],
+        estoqueMaximo: [estoqueData?.estoqueMaximo || null],
+        pontoReposicao: [estoqueData?.pontoReposicao || null],
+        leadTimeDias: [estoqueData?.leadTimeDias || null],
+      }),
+    );
   }
 
   removeEstoqueConfig(index: number) {
@@ -216,8 +274,10 @@ export class ProdutosForm implements OnInit {
     if (produtoData.precos) {
       produtoData.precos = produtoData.precos.map((p: any) => ({
         ...p,
-        inicioVigencia: p.inicioVigencia ? new Date(p.inicioVigencia).toISOString().split('T')[0] : null,
-        fimVigencia: p.fimVigencia ? new Date(p.fimVigencia).toISOString().split('T')[0] : null
+        inicioVigencia: p.inicioVigencia
+          ? new Date(p.inicioVigencia).toISOString().split('T')[0]
+          : null,
+        fimVigencia: p.fimVigencia ? new Date(p.fimVigencia).toISOString().split('T')[0] : null,
       }));
     }
 
@@ -225,17 +285,35 @@ export class ProdutosForm implements OnInit {
       this.produtoService.update(this.ProdutoData.id, produtoData).subscribe({
         next: () => {
           this.saved.emit();
-          this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Produto atualizado.' });
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Sucesso',
+            detail: 'Produto atualizado.',
+          });
         },
-        error: (err: HttpErrorResponse) => this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao atualizar produto!' })
+        error: (err: HttpErrorResponse) =>
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Erro',
+            detail: 'Erro ao atualizar produto!',
+          }),
       });
     } else {
       this.produtoService.create(produtoData).subscribe({
         next: () => {
           this.saved.emit();
-          this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Produto criado.' });
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Sucesso',
+            detail: 'Produto criado.',
+          });
         },
-        error: (err: HttpErrorResponse) => this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao criar produto! ' })
+        error: (err: HttpErrorResponse) =>
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Erro',
+            detail: 'Erro ao criar produto! ',
+          }),
       });
     }
   }

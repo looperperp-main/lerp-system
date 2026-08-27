@@ -112,16 +112,20 @@ export class Produtos implements OnInit {
   editProduto(produto: Produto) {
     if (!produto.id) return;
 
-    // Busca o produto atualizado com todos os relacionamentos preenchidos
+    // Abre o diálogo já no clique (síncrono, como openNew()) com os dados da linha —
+    // abrir só dentro do subscribe do HTTP causava NG0100 no [(visible)] do p-dialog
+    // (o setter de visible do PrimeNG grava signals internos durante o ciclo de CD,
+    // e isso só quebra quando a mudança vem de um callback assíncrono, não de um clique).
+    this.selectedProduto = produto;
+    this.displayForm = true;
+
+    // Complementa com os relacionamentos (fornecedores, preços, estoque) que a linha da tabela não traz
     this.produtoService.getById(produto.id).subscribe({
       next: (dadosCompletos) => {
-        // Envolver a atribuição em um setTimeout evita o ExpressionChangedAfterItHasBeenCheckedError
-        setTimeout(() => {
-          this.selectedProduto = dadosCompletos;
-          this.displayForm = true;
-        });
+        this.selectedProduto = dadosCompletos;
       },
       error: () => {
+        this.displayForm = false;
         this.messageService.add({
           severity: 'error',
           summary: 'Erro',

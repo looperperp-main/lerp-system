@@ -2,9 +2,11 @@ package com.l.erp.cadastroservice;
 
 import com.l.erp.cadastroservice.api.dto.ProdutoDTO;
 import com.l.erp.cadastroservice.api.dto.ProdutoEstoqueConfigDTO;
+import com.l.erp.cadastroservice.api.dto.ProdutoPrecoDTO;
 import com.l.erp.cadastroservice.api.mappers.ProdutoMapper;
 import com.l.erp.cadastroservice.domain.Produto;
 import com.l.erp.cadastroservice.domain.ProdutoCategoria;
+import com.l.erp.cadastroservice.domain.ProdutoPreco;
 import com.l.erp.cadastroservice.repository.DepositoRepository;
 import com.l.erp.cadastroservice.repository.FornecedorRepository;
 import com.l.erp.cadastroservice.repository.ProdutoCategoriaRepository;
@@ -20,6 +22,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -147,6 +151,33 @@ class ProdutoServiceTest {
         Produto updated = produtoService.update(id, USER_ID, dto(null, null), TENANT_ID);
 
         assertThat(updated.getCategoria()).isNull();
+    }
+
+    @Test
+    void update_precoSemCreatedAtCreatedBy_naoLancaExcecao() {
+        // Regressão: o front nunca envia createdAt/createdBy nas linhas de preço/fornecedor/
+        // estoqueConfig (o formulário Angular não tem esses campos), então esses valores chegam
+        // sempre nulos no update — sem fallback, isso violava o @NotNull da entidade.
+        UUID id = UUID.randomUUID();
+        Produto existing = new Produto();
+        existing.setId(id);
+
+        ProdutoPrecoDTO precoSemAuditoria = new ProdutoPrecoDTO(
+                null, TENANT_ID, UUID.randomUUID(), BigDecimal.TEN, LocalDate.now(), null,
+                null, null, null, null);
+        ProdutoDTO dtoComPreco = new ProdutoDTO(null, TENANT_ID, null, "SKU1", null, "Produto 1", null, "UN",
+                null, null, null, null, null, null, null, null, null, null, null, true,
+                null, null, null, null, List.of(precoSemAuditoria), null, null);
+
+        when(produtoRepository.findByIdAndTenantId(id, TENANT_ID)).thenReturn(Optional.of(existing));
+        when(produtoRepository.saveAndFlush(any(Produto.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(produtoRepository.save(any(Produto.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Produto updated = produtoService.update(id, USER_ID, dtoComPreco, TENANT_ID);
+
+        ProdutoPreco preco = updated.getProdutoPrecos().iterator().next();
+        assertThat(preco.getCreatedAt()).isNotNull();
+        assertThat(preco.getCreatedBy()).isEqualTo(USER_ID);
     }
 
     @Test

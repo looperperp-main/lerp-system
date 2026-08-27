@@ -8,7 +8,11 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = "spring")
 public interface ProdutoEstoqueConfigMapper {
 
-    @Mapping(target = "fornecedorPreferencialId", source = "fornecedorPreferencial.id")
+    // fornecedorPreferencial na entidade é o ProdutoFornecedor (linha produto↔fornecedor), não o
+    // Fornecedor em si — sem o .fornecedor.id, o DTO devolvia o id da linha de vínculo, que não bate
+    // com nenhuma option do dropdown de fornecedores no front (que é keyed por Fornecedor.id).
+    @Mapping(target = "depositoId", source = "deposito.id")
+    @Mapping(target = "fornecedorPreferencialId", source = "fornecedorPreferencial.fornecedor.id")
     ProdutoEstoqueConfigDTO toDto(ProdutoEstoqueConfig entity);
 
     @Mapping(target = "id", ignore = true)

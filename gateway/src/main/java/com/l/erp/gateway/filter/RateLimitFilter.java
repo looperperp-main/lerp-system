@@ -109,7 +109,7 @@ public class RateLimitFilter implements Filter {
         httpResponse.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
         httpResponse.setContentType(MediaType.APPLICATION_JSON_VALUE);
         httpResponse.getWriter().write(
-                "{\"status\":429,\"error\":\"Too Many Requests\",\"message\":\"Rate limit exceeded. Try again later.\"}"
+                "{\"status\":429,\"error\":\"Too Many Requests\",\"message\":\"Muitas requisições em pouco tempo. Aguarde alguns instantes e tente novamente.\"}"
         );
     }
 
