@@ -1,6 +1,6 @@
 # Motor Fiscal — próximos passos
 
-> Última atualização: 26 de agosto de 2026
+> Última atualização: 27 de agosto de 2026
 
 Handoff das fatias seguintes do motor fiscal. Escrito para ser lido do zero, sem
 contexto de conversa anterior.
@@ -8,7 +8,7 @@ contexto de conversa anterior.
 ## Onde o motor está hoje
 
 `fiscal-service` (porta 8093) expõe `POST /fiscal/calcular`: determinístico, sem
-persistência, **só saída**. Lê conteúdo fiscal real de `fiscal.*` via
+persistência, **saída e, desde o item 4, entrada (crédito)**. Lê conteúdo fiscal real de `fiscal.*` via
 `TabelaFiscalJdbc` (JdbcClient, read-only; schema e carga pertencem ao
 `liquibase-service`, changesets `fiscal-001..031`).
 
@@ -83,7 +83,7 @@ Migração aplicada e suíte verde em 30 de julho de 2026 (`liquibase-service` +
 
 ---
 
-## 3. Cálculo dual da transição (2026–2032) — decisão tomada
+## 3. Cálculo dual da transição (2026–2032) — decisão tomada ✅ FEITO (27 de agosto de 2026)
 
 Era "o maior buraco: sem isso o ERP não emite documento válido em 2027–2032". Com
 a decisão de **não emitir nota inicialmente** (§5), deixou de ser bloqueante —
@@ -164,10 +164,10 @@ pauta fiscal e CSOSN do Simples.
 
 ### Plano de execução — 5 fatias (30 de julho de 2026)
 
-**Status em 26 de agosto de 2026: as 5 fatias estão código-completas** (3a, 3b, 3d
-confirmadas verdes por `mvn verify -pl fiscal-service`; 3c e 3e escritas hoje, **ainda
-não verificadas** — build é sempre do usuário). Falta rodar `mvn verify -pl fiscal-service`
-(e aplicar `fiscal-schema-012.yaml` via `liquibase-service`) para confirmar 3c/3e.
+**✅ FEITO e VERDE (27 de agosto de 2026): as 5 fatias estão código-completas e
+confirmadas.** 3a/3b/3d já estavam verdes; 3c/3e foram escritas em 26/08 e
+confirmadas em 27/08 pelo `mvn verify -pl fiscal-service -am` do usuário: BUILD
+SUCCESS, 79 testes, 0 falhas, JaCoCo ok. O item 3 está fechado de ponta a ponta.
 
 O caro aqui não é schema nem código, é **a alíquota interna de ICMS**. O resto do
 ICMS é mais barato do que o rascunho acima sugere: a **interestadual não precisa de
@@ -257,7 +257,7 @@ necessária mas deixou de ser urgente. Pelo mesmo motivo o backlog de
   `TabelaFiscal.aliquotaIcms(...)` (exige `ufOrigem`/`ufDestino`, senão 400
   `FISCAL_UF_OBRIGATORIA_TRANSICAO`). PIS/COFRINS — PIS/COFINS (vigente só em 2026) fica de
   fora: sem tabela de alíquota carregada, o motor só avisa
-  (`Constants.FISCAL_AVISO_PIS_COFINS_SEM_DADO`, log + `memoriaCalculo`) em vez de calcular.
+  (`Constants.FISCAL_AVISO_PIS_COFINS_APURACAO_EXTERNA`, log + `memoriaCalculo`; ver item 7.9) em vez de calcular.
   `pctRemanescente = 0` (2033) ou ano fora da curva pulam o legado sem exigir UF. `OperacaoFiscalDTO`
   ganhou `valorIcms`/`valorIss` (mutuamente exclusivos com o novo bloco de retenção da 3e,
   abaixo). 6 testes novos em `MotorFiscalServiceTest` (ICMS em 2029, ISS em 2029, transição
@@ -318,10 +318,10 @@ necessária mas deixou de ser urgente. Pelo mesmo motivo o backlog de
 
 ---
 
-## 4. Crédito de entrada (Fin.md §1.4.3)
+## 4. Crédito de entrada (Fin.md §1.4.3) ✅ FEITO (27 de agosto de 2026)
 
-Hoje o motor só faz saída — `CfopInfo` já carrega `gera_credito_ibs` e
-`gera_credito_cbs`, mas nada consome esses campos.
+`CfopInfo` já carregava `gera_credito_ibs` e `gera_credito_cbs`, mas nada
+consumia esses campos — o motor só fazia saída.
 
 **Decisão (29 de julho de 2026): o crédito é persistido pelo `operacoes-service`
 (AP), e o `fiscal-service` continua só calculando.** O crédito nasce de um
@@ -329,26 +329,46 @@ documento de entrada, que é registro do P2P; um segundo dono de escrita para o
 mesmo fato só criaria divergência. Fim da dúvida de escopo — o fiscal **não** ganha
 schema de escrita.
 
-O que cabe ao `fiscal-service` (é o último código de motor que falta, e dá para
-fazer agora, sem depender de ninguém):
+O que cabia ao `fiscal-service` (era o último código de motor que faltava) foi
+implementado:
 
-- aceitar CFOP de **entrada** — hoje `TipoOperacaoFiscal != SAIDA` devolve 400
-  `FISCAL_CFOP_INVALIDO_SAIDA`;
-- ler `gera_credito_ibs` / `gera_credito_cbs` do `CfopInfo` (já existem na tabela,
-  ninguém consome) e devolver quanto daquela entrada é creditável;
-- aplicar as **vedações**: uso e consumo pessoal não gera crédito, e entrada cujo
-  destino é saída desonerada gera crédito proporcional, não integral;
-- IS **não** gera crédito (é tributo monofásico, cumulativo por desenho);
-- devolver o valor calculado no mesmo formato determinístico da saída, com memória
-  de cálculo — quem grava é o AP.
+- `MotorFiscalService.calcular()` resolve o CFOP no início do fluxo e ramifica
+  por `TipoOperacaoFiscal`: `SAIDA` segue o fluxo existente, `ENTRADA` vai para
+  o novo `calcularCredito(...)` — não existe mais 400 para CFOP de entrada (a
+  constante `FISCAL_CFOP_INVALIDO_SAIDA` foi removida do `common/Constants.java`);
+- `calcularCredito` lê `gera_credito_ibs` / `gera_credito_cbs` do `CfopInfo` e
+  devolve `valorCreditoIbs` / `valorCreditoCbs` em `OperacaoFiscalDTO` (campos
+  novos, `null` em saída) com memória de cálculo citável; IS **nunca** gera
+  crédito (é monofásico, cumulativo por desenho);
+- aplica as **vedações**, declaradas pelo chamador em `MotorFiscalRequest`
+  (campos novos `usoConsumoPessoal` e `percentualSaidaDesonerada`, mesmo padrão
+  de `cClassTrib`/retenção — o motor não deduz intenção): uso e consumo pessoal
+  zera o crédito integralmente (`semCredito`); entrada cujo destino é saída
+  desonerada credita só o complemento (reaproveita `fatorReducao`, já usado no
+  cálculo de saída); CFOP sem `gera_credito_ibs`/`gera_credito_cbs` zera por
+  conta própria, independente das flags do request;
+- devolve o valor calculado no mesmo formato determinístico da saída, com
+  memória de cálculo — quem grava continua sendo o AP.
+- bugfix lateral: o guard de split payment (`splitLigado && aplicavel == null`
+  → 400) virou `!entrada && splitLigado && ...` — antes, com split ligado para
+  o tenant, uma entrada exigia `splitPaymentAplicavel` indevidamente (split é
+  conceito de saída).
 
 O que cabe ao `operacoes-service` (AP): guardar o documento de entrada, o saldo de
 crédito, o que já foi aproveitado e em qual período — nada disso passa pelo fiscal.
 
-**Não depende do item 3 estar pronto.** O único cruzamento é a transição (crédito
+**Não dependeu do item 3.** O único cruzamento é a transição (crédito
 de ICMS na entrada convive com crédito de IBS no mesmo período) — e como o legado
 não é calculado, e sim parametrizado/transportado, o crédito legado também só é
-transportado. Os dois itens podem andar em qualquer ordem.
+transportado. Os dois itens seguem podendo andar em qualquer ordem.
+
+**Testes:** `MotorFiscalServiceTest` ganhou 5 casos novos
+(`entrada_creditaIbsECbsIntegral`, `entrada_usoConsumoPessoal_naoGeraCredito`,
+`entrada_saidaDesonerada_creditaProporcional`, `entrada_cfopSemDireitoACredito_zeraCredito`,
+`entrada_comSplitLigado_naoExigeFormaPagamento`), substituindo o antigo
+`cfopDeEntrada_lancaFiscalException` (testava o 400 removido). `TabelaFiscalFake`
+ganhou o CFOP `1556` (entrada sem direito a crédito). **✅ Confirmado verde pelo
+usuário (27 de agosto de 2026)** via `mvn verify -pl fiscal-service -am`.
 
 ---
 
@@ -469,9 +489,25 @@ quando se olha o motor inteiro, e que não estava escrito em lugar nenhum. Os tr
 
 ### Código
 
-- **7.9 Ano de teste 2026** — CBS 0,9% e IBS 0,1%, compensáveis com PIS/COFINS.
-  Caso especial, não implementado. É **este ano**: se o MVP faturar em 2026, é o
-  primeiro caso que aparece na prática.
+- **7.9 Ano de teste 2026** ✅ **resolvido — não era código faltando (27 de agosto de
+  2026).** Pesquisa no texto da LC 214/2025 (art. 348, cruzado em duas fontes)
+  mudou o entendimento: o contribuinte que cumprir as obrigações acessórias de
+  2026 (§1º) fica **dispensado** do recolhimento de IBS/CBS — não há valor a
+  compensar, porque não há cobrança. O §2º exige o PIS/COFINS **integral**, sem
+  desconto, do mesmo jeito de sempre. A "compensação com PIS/COFINS" só existe
+  para quem **descumprir** a obrigação acessória e for cobrado do IBS/CBS
+  simbólico — aí sim o valor pago vira crédito contra PIS/COFINS (ou outro
+  tributo federal, ou ressarcimento em 60 dias). Isso é apuração
+  multi-competência de quem furou o prazo, não cálculo de uma nota isolada — cai
+  fora do `fiscal-service` pelo mesmo motivo do item 5 (apuração é do
+  `operacoes-service`). O motor já calcula IBS 0,1% e CBS 0,9% de 2026 pelas
+  tabelas existentes (`aliq_cbs_regime`/`fiscal-023`, sem tabela nova); só a
+  constante e o comentário estavam desatualizados — renomeada
+  `FISCAL_AVISO_PIS_COFINS_SEM_DADO` → `FISCAL_AVISO_PIS_COFINS_APURACAO_EXTERNA`
+  em `common/Constants.java`, mensagem cita o art. 348 em vez de insinuar dado
+  faltando. Teste novo em `MotorFiscalServiceTest`
+  (`legado_2026_avisaPisCofinsApuracaoExterna`) cobre o caminho de 2026, que
+  antes não tinha teste nenhum.
 - **7.10 Fallbacks parametrizados da `spec/Fin.md` §1.9** — especificados, não
   implementados (a §1.4.9 do Fin.md já registra isso).
 - **7.11 Split payment é só o valor.** Liquidação real e integração com a
@@ -514,9 +550,9 @@ quando se olha o motor inteiro, e que não estava escrito em lugar nenhum. Os tr
 
 - **7.16 `TabelaFiscalFake` não tinha CFOP de entrada** ✅ **resolvido (30 de julho de
   2026, verde).** Ganhou o `1102` (ENTRADA, gera crédito de IBS e de CBS, não é
-  1ª etapa — mesmas flags do `cfop.csv`). Hoje cobre o caso G5 (entrada em motor de
-  saída ⇒ 400 `FISCAL_CFOP_INVALIDO_SAIDA`); quando a fatia de entrada do item 4
-  chegar, o oráculo do crédito já existe.
+  1ª etapa — mesmas flags do `cfop.csv`). Serviu de oráculo direto para o item 4
+  (crédito de entrada, ✅ feito em 27/08/2026): `1556` (sem crédito) se juntou a
+  ele quando a fatia chegou.
 - **7.17 Não testado** ✅ **rodado e verde (30 de julho de 2026).** `fiscal-021` aplicado
   via `./mvnw spring-boot:run -pl liquibase-service`, e `./mvnw verify -pl fiscal-service`
   com **41 testes / 0 falhas** (22 em `MotorFiscalServiceTest`, 15 em `TabelaFiscalJdbcTest`,
@@ -532,16 +568,15 @@ quando se olha o motor inteiro, e que não estava escrito em lugar nenhum. Os tr
 
 ## Ordem sugerida (dentro deste doc)
 
-6 ✅ → 2 ✅ → **4** (só a parte de cálculo, no fiscal) → 3 (matriz da transição) →
-5 (apuração, e ela já não é do fiscal).
+6 ✅ → 2 ✅ → 4 ✅ → 3 ✅ → **5** (apuração, e ela já não é do fiscal).
 
-Mudou de ordem por três decisões de 29 de julho de 2026: sem motor legado, sem
-emissão inicial e com o fiscal sendo **só cálculo**. O item 3 não bloqueia mais
-nada; o item 5 saiu do escopo do `fiscal-service` (vira trabalho do
-`operacoes-service`); e o item 4, do lado do fiscal, encolheu para "aceitar CFOP de
-entrada e devolver o crédito" — o resto dele é AP.
+6, 2, 4 e 3 estão fechados (2 e 4 código-completos, não testados por mim; 3
+confirmado verde por `mvn verify` do usuário; 6 é doc). O item 5 saiu do escopo
+do `fiscal-service` (vira trabalho do `operacoes-service`) — não sobra mais
+nenhum item de motor de cálculo pendente neste doc, só apuração/persistência
+no `operacoes-service`.
 
-Com 6 e 2 fechados, o que ainda separa o motor de "pronto" fora dos itens 3/4/5 é
+Com 6, 2, 3 e 4 fechados, o que ainda separa o motor de "pronto" fora do item 5 é
 **dado**, não código: alíquota IBS existe para todo município via referência nacional
 2026–2033 (`fiscal-023`, aplicado e verde; só ano fora dessa curva devolve 400
 `FISCAL_VIGENCIA_SEM_COBERTURA`), `aliq_is_ncm` tem uma linha de exemplo e depende
@@ -553,8 +588,8 @@ de lei ordinária, e sobram os 240 itens de anexo de produto em
 ## Próximos passos gerais (fora do motor)
 
 Onde o motor fiscal para e o resto do ERP começa. O `fiscal-service` está
-**funcionalmente fechado para saída** — o que falta nele é uma fatia pequena
-(entrada) e carga de dado, não arquitetura. O inventário fino está no item 7; dos três
+**funcionalmente fechado para saída e entrada** — o que falta é carga de dado
+(IS, anexos de produto), não arquitetura. O inventário fino está no item 7; dos três
 itens de lá que mexem no **contrato** e valiam ser resolvidos antes de o AR chamar o
 motor, **os três estão fechados**: 7.12 (`origemProduto` — avisa em vez de ignorar),
 7.13 (`tipoDocumento` — valida coerência) e 7.14 (o motor compõe a base a partir de

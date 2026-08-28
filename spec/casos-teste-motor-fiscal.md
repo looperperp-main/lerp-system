@@ -1,6 +1,6 @@
 # Casos de Teste — Motor Fiscal (IBS/CBS/IS)
 
-**Última atualização:** 30 de julho de 2026
+**Última atualização:** 27 de agosto de 2026
 **Alvo de teste:** `MotorFiscalService.calcular(MotorFiscalRequest, String tenantId)` (`fiscal-service`, Fin.md §1.4).
 O `tenantId` vem do header `X-Tenant-Id` e **só** decide o split payment por tenant — não entra no cálculo.
 **Oráculo contra:** `TabelaFiscalFake` (fixture de teste, alíquotas **reais** de 2033; espelha o seed de
@@ -276,7 +276,6 @@ D1 + `splitPaymentAplicavel=true` → valorSplitIbs **21.14**, valorSplitCbs **1
 | G2 | Município fora do seed **e** ano fora da curva | `cfop=5101, ncm=84713012, ibgeDestino=9999999, dataCompetencia=2035-03-15, LUCRO_REAL` | `FISCAL_VIGENCIA_SEM_COBERTURA` | ➕ |
 | G3 | Vigência sem cobertura (ano) | `cfop=5101, ncm=84713012, ibge=3550308, dataCompetencia=2035-03-15, LUCRO_REAL` | `FISCAL_VIGENCIA_SEM_COBERTURA` | ➕ |
 | G4 | Regime sem alíquota CBS | `cfop=5101, ncm=84713012, ibge=3550308, 2033, regime=SIMPLES_NACIONAL` | `FISCAL_REGIME_SEM_ALIQUOTA_CBS` | ➕ |
-| G5 | CFOP de entrada em saída | `cfop=1102, ncm=84713012, ibge=3550308, 2033, LUCRO_REAL` | `FISCAL_CFOP_INVALIDO_SAIDA` | ✅ |
 | G6 | Split ligado sem forma de pagamento | A1 + `splitPaymentAplicavel=null`, `enabled=true` | `FISCAL_SPLIT_SEM_FORMA_PAGAMENTO` | ✅ |
 | G7 | NCM e serviço juntos | `cfop=5933, ncm=84713012, codigoServico=4.01` | `FISCAL_NCM_E_SERVICO_CONFLITANTES` | ✅ |
 | G8 | Nem NCM nem serviço | `cfop=5101, ibge=3550308, sem ncm/codigoServico` | `FISCAL_NCM_OU_SERVICO_OBRIGATORIO` | ✅ |
@@ -294,10 +293,9 @@ D1 + `splitPaymentAplicavel=true` → valorSplitIbs **21.14**, valorSplitCbs **1
 > desonerado — erro **contra o contribuinte**, e calado. `200048` existe no Anexo VIII (hotelaria),
 > mas não é par admitido do item `4.01`.
 
-> **G5 passou a ser reproduzível** (30 de julho de 2026): `TabelaFiscalFake` ganhou o CFOP `1102`
-> (ENTRADA, `geraCreditoIbs`/`geraCreditoCbs = true`, não é 1ª etapa — mesmas flags do `cfop.csv`).
-> Enquanto o motor é só de saída, o oráculo do crédito fica adormecido; quando a fatia de entrada
-> entrar, a fixture já existe.
+> **G5 aposentado (27 de agosto de 2026):** CFOP `1102` (ENTRADA) deixou de ser erro — o item 4
+> implementou o crédito de entrada e `FISCAL_CFOP_INVALIDO_SAIDA` foi removido. Os casos que usam
+> esse CFOP e os demais de crédito estão na seção J.
 
 > G11/G12: `tipoDocumento` é **opcional** e `CTe` fica FORA da regra (o motor não trata transporte).
 > Só o par explicitamente incoerente é 400 — documento trocado muda o destino do IBS (local da
@@ -366,9 +364,41 @@ Vale igual para MEI: a composição roda **antes** dos retornos de alíquota zer
 
 ---
 
+## J. Crédito de entrada (item 4, `motor-fiscal-proximos-passos.md` §4) ✅ FEITO (27 de agosto de 2026)
+
+CFOP de **entrada** deixa de ser 400 e passa por `calcularCredito`. Base: SP, NCM
+`84713012`, `LUCRO_REAL`, competência 2033 (IBS 16,00% + 2,50%, CBS 8,50%).
+
+### J1 — Crédito integral ✅
+`cfop=1102 (ENTRADA, geraCreditoIbs/Cbs=true), valorOperacao=10000` → `valorCreditoIbs=1850.00`
+(1600.00 + 250.00), `valorCreditoCbs=850.00`. Sem vedação declarada, credita 100% do que o
+CFOP permite. `valorIs` nunca é creditado (IS não é recuperável).
+
+### J2 — Uso e consumo pessoal veda o crédito ✅
+J1 + `usoConsumoPessoal=true` → `valorCreditoIbs=0`, `valorCreditoCbs=0`, mesmo o CFOP
+permitindo crédito — a vedação declarada pelo chamador tem prioridade.
+
+### J3 — Saída desonerada credita só o complemento ✅
+J1 + `percentualSaidaDesonerada=40` → `valorCreditoIbs=1110.00`, `valorCreditoCbs=510.00`
+(60% do crédito integral — mesmo `fatorReducao` usado no cálculo de saída).
+
+### J4 — CFOP sem direito a crédito zera por conta própria ✅
+`cfop=1556 (ENTRADA, geraCreditoIbs/Cbs=false)` → `valorCreditoIbs=0`, `valorCreditoCbs=0`,
+independente de `usoConsumoPessoal`/`percentualSaidaDesonerada` não terem sido declarados.
+
+### J5 — Split ligado não exige forma de pagamento em entrada ✅
+J1 + split ligado para o tenant (`enabled=true`) e `splitPaymentAplicavel=null` → **não** lança
+`FISCAL_SPLIT_SEM_FORMA_PAGAMENTO` (esse guard é só de saída — bugfix do item 4, antes bloqueava
+entrada indevidamente).
+
+> Persistência de saldo/aproveitamento continua fora do fiscal-service — é do
+> `operacoes-service` (AP), por decisão de 29 de julho de 2026.
+
+---
+
 ## Resumo de cobertura
 
-- **✅ no teste atual (26 métodos no `MotorFiscalServiceTest`):** A1, B1, C1, C2, D1, D3, E1, F1+F2 (mesmo método), F2b, F2c, G1, G5, G6, G7, G8, G9, G10, G11+G12 (mesmo método), G13, H1, H2, I1, I2, I3, + `tipoDocumento` coerente/`CTe` e `memoriaCalculo não vazia`.
+- **✅ no teste atual (30 métodos no `MotorFiscalServiceTest`):** A1, B1, C1, C2, D1, D3, E1, F1+F2 (mesmo método), F2b, F2c, G1, G6, G7, G8, G9, G10, G11+G12 (mesmo método), G13, H1, H2, I1, I2, I3, J1, J2, J3, J4, J5, + `tipoDocumento` coerente/`CTe` e `memoriaCalculo não vazia`.
 - **✅ no `MotorFiscalControllerTest` (4):** 200 com `X-Tenant-Id` e sem campos de split no JSON, 400 de bean validation, 400 de corpo mal-formado, `FiscalException` → 400 com o código no `message`.
 - **➕ candidatos a adicionar:** A2, A3, B2, C2b, C3, D2, E2, F3, G2, G3, G4.
 - **Fora daqui:** acesso a dados (`TabelaFiscalJdbcTest`) — normalização do item LC 116 (`4.01` × `04.01`), casamento por prefixo de NCM e vigência das alíquotas se validam lá, contra PostgreSQL.

@@ -279,6 +279,14 @@ public class Constants {
     public static final String OWNER_ROLE_NAME = "PROPRIETARIO";
     public static final String SYSTEM_BOOTSTRAP = "system-bootstrap";
 
+    // Proteção contra self-demotion / tenant órfão (AttributionsService)
+    public static final String OWNER_ROLE_AUTO_REMOCAO =
+            "Um usuário não pode remover a própria role de proprietário do tenant";
+    public static final String OWNER_ROLE_ULTIMO_PROPRIETARIO =
+            "Esta é a última role de proprietário do tenant — remova-a só depois de atribuir outro proprietário";
+    public static final String OWNER_ROLE_CONCESSAO_NAO_AUTORIZADA =
+            "Apenas um proprietário do tenant pode conceder a role de proprietário a um usuário";
+
     // Origem do cadastro (created_by)
     public static final String SELF_REGISTRATION = "self-registration";
     public static final String SELF_ACTIVATION = "self-activation";
@@ -331,7 +339,6 @@ public class Constants {
 
     // Códigos de erro do motor fiscal (Fin.md §1.4.9)
     public static final String FISCAL_CFOP_NAO_ENCONTRADO = "FISCAL_CFOP_NAO_ENCONTRADO";
-    public static final String FISCAL_CFOP_INVALIDO_SAIDA = "FISCAL_CFOP_INVALIDO_SAIDA";
     public static final String FISCAL_REGIME_SEM_ALIQUOTA_CBS = "FISCAL_REGIME_SEM_ALIQUOTA_CBS";
     public static final String FISCAL_NCM_NAO_ENCONTRADO = "FISCAL_NCM_NAO_ENCONTRADO";
     // Nao ha aliquota de IBS para a data de competencia. Substituiu o antigo
@@ -413,11 +420,14 @@ public class Constants {
     public static final String FISCAL_ICMS_SEM_COBERTURA = "FISCAL_ICMS_SEM_COBERTURA";
     // Idem para ISS: nem o município nem a referência nacional tem linha para o item.
     public static final String FISCAL_ISS_SEM_COBERTURA = "FISCAL_ISS_SEM_COBERTURA";
-    // PIS/COFINS ainda vigentes (só 2026) não tem tabela de alíquota carregada — vale carregar,
-    // não vale investir (fatia futura): o motor avisa e não destaca o tributo, nunca inventa valor.
-    public static final String FISCAL_AVISO_PIS_COFINS_SEM_DADO =
-            "AVISO: PIS/COFINS ainda vigentes nesta competência, mas o motor não calcula o valor "
-                    + "(sem tabela de alíquota carregada) — recolhimento deve ser apurado à parte";
+    // PIS/COFINS ainda vigentes (só 2026): por decisão de escopo (item 7.9), o motor nunca calcula
+    // o tributo — não é dado faltando. O art. 348 da LC 214/2025 dispensa o recolhimento de
+    // IBS/CBS no ano de teste para quem cumprir as obrigações acessórias (§1º) e exige PIS/COFINS
+    // integral do mesmo jeito (§2º); só o contribuinte que descumprir recolhe IBS/CBS e compensa
+    // contra PIS/COFINS — cálculo de apuração multi-competência, fora do escopo de uma nota isolada.
+    public static final String FISCAL_AVISO_PIS_COFINS_APURACAO_EXTERNA =
+            "AVISO: PIS/COFINS ainda vigentes nesta competência (art. 348 da LC 214/2025) — "
+                    + "recolhimento e eventual compensação com IBS/CBS são apurados fora do motor fiscal";
 
     // Fatia 3e — retenção na fonte (ISS/IRRF/CSRF/INSS), dentro do motor (spec §3, decisão de
     // 30/07/2026). Tributo de fiscal.retencao_config; mesmos valores de Constants.TRIBUTO_*.

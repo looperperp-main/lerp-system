@@ -4,7 +4,7 @@
 **Versão:** 12.0 — revisão fiscal/AP-AR (crédito Simples, IS na base, redução de alíquota, split; retenções, estorno, alçada, dunning, PIX, estabelecimento)
 **Stack:** Spring Boot (Java) · PostgreSQL · Angular
 **Schema financeiro:** `financeiro` · `fiscal` · `contabil`
-**Última atualização:** 30 de julho de 2026
+**Última atualização:** 27 de agosto de 2026
 
 ---
 
@@ -886,7 +886,7 @@ ENTRADA
 
 PASSO 1 — Validar CFOP
   ├── CFOP não encontrado → lançar FiscalException("CFOP_NAO_ENCONTRADO")
-  └── CFOP.tipo_operacao ≠ 'SAIDA' → lançar FiscalException("CFOP_INVALIDO_SAIDA")
+  └── CFOP.tipo_operacao = 'ENTRADA' → desvia para o fluxo de crédito (§1.4.3), não é erro
 
 PASSO 2 — Verificar tributação do produto
   ├── NCM não encontrado → warning, usar alíquota padrão sem regime diferenciado
@@ -970,29 +970,34 @@ SAÍDA
 
 ---
 
-### 1.4.3 Fluxo Completo de Cálculo — Entrada (NF-e de Compra / CT-e)
+### 1.4.3 Fluxo Completo de Cálculo — Entrada (NF-e de Compra / CT-e) ✅ FEITO (27 de agosto de 2026)
+
+> Implementado com escopo mais estreito do que o pseudocódigo original desta seção previa —
+> ver decisão de 29 de julho de 2026 em `spec/motor-fiscal-proximos-passos.md` §4. Não existe
+> lógica por `regime_fornecedor` (MEI/SIMPLES_NACIONAL/`ibs_cbs_por_fora`): o crédito é
+> determinado só pelo próprio CFOP (`gera_credito_ibs`/`gera_credito_cbs`) e pelas vedações
+> declaradas no request. E não há passo de escrita: `fiscal-service` não persiste — quem
+> acumula em apuração mensal é o `operacoes-service` (AP), a partir do valor que este fluxo
+> devolve.
 
 ```
-PASSO 1 a 8 → idêntico ao fluxo de saída
+PASSO 1 — CFOP.tipo_operacao = 'ENTRADA' → desvia deste fluxo (em vez do de saída)
+PASSO 2 a 8 → resolução de alíquota IBS/CBS idêntica ao fluxo de saída (mesmo NCM/UF/vigência)
 
-PASSO 9 — Verificar direito a crédito (regime do FORNECEDOR determina o crédito)
+PASSO 9 — Verificar direito a crédito (MotorFiscalService.calcularCredito)
   ├── cfop.gera_credito_ibs = FALSE → credito_ibs = 0
   ├── cfop.gera_credito_cbs = FALSE → credito_cbs = 0
-  ├── regime_fornecedor = 'MEI' → credito_ibs = 0, credito_cbs = 0
-  ├── regime_fornecedor = 'SIMPLES_NACIONAL' (recolhe IBS/CBS dentro do DAS):
-  │     credito_ibs / credito_cbs = montante EQUIVALENTE ao efetivamente
-  │     cobrado dentro do Simples (crédito reduzido — LC 214/2025;
-  │     lógica herdada do art. 23 da LC 123)
-  ├── regime_fornecedor = 'SIMPLES_NACIONAL' com pessoa.ibs_cbs_por_fora = TRUE
-  │     (optante que recolhe IBS/CBS pelo regime regular, fora do DAS):
-  │     credito_ibs = valor_ibs, credito_cbs = valor_cbs (crédito integral)
-  └── Demais regimes (Lucro Real, Lucro Presumido):
-        credito_ibs = valor_ibs (crédito integral do destacado)
-        credito_cbs = valor_cbs
+  ├── request.usoConsumoPessoal = TRUE → credito_ibs = 0, credito_cbs = 0
+  │     (vedação declarada pelo chamador tem prioridade sobre o que o CFOP permite)
+  ├── request.percentualSaidaDesonerada > 0 → credito_ibs/credito_cbs = valor_ibs/cbs ×
+  │     fatorReducao(percentualSaidaDesonerada) (crédito proporcional ao complemento —
+  │     mesma função usada na redução de alíquota de saída)
+  └── Caso contrário → credito_ibs = valor_ibs, credito_cbs = valor_cbs (crédito integral)
 
-PASSO 10 — Acumular na apuração mensal
-  → apuracao_mensal.creditos_ibs += credito_ibs
-  → apuracao_mensal.creditos_cbs += credito_cbs
+IS nunca gera crédito (monofásico, cumulativo por desenho) — não entra no PASSO 9.
+
+Devolve credito_ibs/credito_cbs em OperacaoFiscalDTO, com memória de cálculo. Não escreve —
+quem acumula em apuração mensal e controla saldo/aproveitamento é o operacoes-service (AP).
 ```
 
 ---
@@ -1218,8 +1223,7 @@ Regime:       REDUCAO_60
 | `REGIME_SEM_ALIQUOTA_CBS` | Regime tributário sem alíquota para o ano | Fallback parametrizado (§1.9, default: alíquota do Lucro Real) + alerta |
 | `NCM_NAO_ENCONTRADO` | NCM não cadastrado | Warning — calcular com regime PADRAO + alerta |
 | `VIGENCIA_SEM_COBERTURA` | Data de competência sem alíquota IBS publicada — na prática, ano fora de 2026–2033 | 400. Desde o `fiscal-023` a linha de REFERÊNCIA nacional (`'0000000'`) cobre todos os municípios em 2026–2033, então município sem alíquota própria calcula normalmente com aviso na memória de cálculo; o que resta descoberto é o **ano**. Absorveu o antigo `MUNICIPIO_SEM_ALIQUOTA_IBS` |
-| `SPLIT_SEM_FORMA_PAGAMENTO` | Split payment sem forma de pagamento eletrônico | Com a flag `fiscal.split-payment` ligada, `splitPaymentAplicavel` é obrigatório: ausente ⇒ 400 (não dá pra distinguir "não splitável" de "chamador esqueceu") |
-| `CFOP_INVALIDO_SAIDA` | CFOP de entrada em operação de saída | 400 — o motor só faz saída (crédito de entrada é fatia futura) |
+| `SPLIT_SEM_FORMA_PAGAMENTO` | Split payment sem forma de pagamento eletrônico | Com a flag `fiscal.split-payment` ligada, `splitPaymentAplicavel` é obrigatório em **saída**: ausente ⇒ 400 (não dá pra distinguir "não splitável" de "chamador esqueceu"); entrada nunca exige (item 4, 27 de agosto de 2026) |
 | `NCM_OU_SERVICO_OBRIGATORIO` | Nem `ncm` nem `codigoServico` informados | 400 — não há o que classificar |
 | `NCM_E_SERVICO_CONFLITANTES` | `ncm` **e** `codigoServico` juntos | 400 — produto e serviço são mutuamente exclusivos |
 | `CCLASSTRIB_OBRIGATORIO` | Serviço sem `cClassTrib` | 400 — sem ele o serviço cairia em PADRAO e seria tributado cheio, calado (erro contra o contribuinte) |
@@ -1237,9 +1241,10 @@ motor lança 400 em vez de aplicar fallback.
 
 ### 1.4.10 Interface do MotorFiscalService
 
-> Estado atual: só o `calcular` existe (`fiscal-service`, exposto em `POST /fiscal/calcular`).
-> `calcularEPersistir` e `recalcularPeriodo` dependem de o serviço ganhar persistência — decisão
-> ainda em aberto (`spec/motor-fiscal-proximos-passos.md` §4).
+> Estado atual: só o `calcular` existe (`fiscal-service`, exposto em `POST /fiscal/calcular`), agora
+> cobrindo saída e entrada (crédito). `calcularEPersistir` e `recalcularPeriodo` **não existem e não
+> vão existir**: decisão fechada em 29 de julho de 2026 — o `fiscal-service` é só cálculo, para
+> sempre; quem persiste é o `operacoes-service` (AP/AR) (`spec/motor-fiscal-proximos-passos.md` §4).
 
 ```java
 @Service

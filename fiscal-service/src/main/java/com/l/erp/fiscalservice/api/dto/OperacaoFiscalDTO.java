@@ -37,6 +37,10 @@ public class OperacaoFiscalDTO {
     private BigDecimal valorIrrf;
     private BigDecimal valorCsrf;
     private BigDecimal valorInss;
+    // Crédito de entrada (item 4) — só preenchido quando o CFOP é de ENTRADA; null em saída.
+    // Quem persiste saldo/aproveitamento é o operacoes-service (AP); aqui é só o valor calculado.
+    private BigDecimal valorCreditoIbs;
+    private BigDecimal valorCreditoCbs;
     private String regimeAplicado;
     private List<String> memoriaCalculo;
 }

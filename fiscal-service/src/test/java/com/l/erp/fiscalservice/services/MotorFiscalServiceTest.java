@@ -395,15 +395,72 @@ class MotorFiscalServiceTest {
         assertEquals(Constants.FISCAL_DESCONTO_MAIOR_QUE_OPERACAO, ex.getCodigo());
     }
 
-    /** G5: CFOP de entrada no motor de saída é 400 — crédito de entrada é fatia futura (item 4). */
+    /** Item 4 — crédito de entrada: CFOP 1102 credita IBS+CBS integral, sem redução (PADRAO). */
     @Test
-    void cfopDeEntrada_lancaFiscalException() {
-        FiscalException ex = assertThrows(FiscalException.class, () -> motor.calcular(
-                MotorFiscalRequest.builder()
-                        .cfop("1102").ncm("84713012").ibgeDestino(SP)
-                        .valorOperacao(new BigDecimal("100")).dataCompetencia(COMP)
-                        .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null));
-        assertEquals(Constants.FISCAL_CFOP_INVALIDO_SAIDA, ex.getCodigo());
+    void entrada_creditaIbsECbsIntegral() {
+        OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()
+                .cfop("1102").ncm("84713012").ibgeDestino(SP)
+                .valorOperacao(new BigDecimal("10000")).dataCompetencia(COMP)
+                .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null);
+
+        assertValor("1850.00", r.getValorCreditoIbs());
+        assertValor("850.00", r.getValorCreditoCbs());
+        assertEquals("PADRAO", r.getRegimeAplicado());
+        // entrada não é tributo devido: campos de saída não se aplicam
+        assertNull(r.getValorIbs());
+        assertNull(r.getValorCbs());
+        assertNull(r.getValorIs());
+    }
+
+    /** Vedação: uso e consumo pessoal zera o crédito inteiro, mesmo com CFOP creditável. */
+    @Test
+    void entrada_usoConsumoPessoal_naoGeraCredito() {
+        OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()
+                .cfop("1102").ncm("84713012").ibgeDestino(SP)
+                .valorOperacao(new BigDecimal("10000")).dataCompetencia(COMP)
+                .regimeEmpresa(Constants.REGIME_LUCRO_REAL)
+                .usoConsumoPessoal(true).build(), null);
+
+        assertValor("0", r.getValorCreditoIbs());
+        assertValor("0", r.getValorCreditoCbs());
+    }
+
+    /** Entrada destinada a saída desonerada credita só o complemento (proporcional). */
+    @Test
+    void entrada_saidaDesonerada_creditaProporcional() {
+        OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()
+                .cfop("1102").ncm("84713012").ibgeDestino(SP)
+                .valorOperacao(new BigDecimal("10000")).dataCompetencia(COMP)
+                .regimeEmpresa(Constants.REGIME_LUCRO_REAL)
+                .percentualSaidaDesonerada(new BigDecimal("40")).build(), null);
+
+        assertValor("1110.00", r.getValorCreditoIbs());  // 1850,00 * (1 - 40%)
+        assertValor("510.00", r.getValorCreditoCbs());   // 850,00 * (1 - 40%)
+    }
+
+    /** CFOP sem direito a crédito (ex.: uso e consumo) zera, independente do valor da operação. */
+    @Test
+    void entrada_cfopSemDireitoACredito_zeraCredito() {
+        OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()
+                .cfop("1556").ncm("84713012").ibgeDestino(SP)
+                .valorOperacao(new BigDecimal("10000")).dataCompetencia(COMP)
+                .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null);
+
+        assertValor("0", r.getValorCreditoIbs());
+        assertValor("0", r.getValorCreditoCbs());
+    }
+
+    /** Split payment é conceito só de saída — entrada não precisa declarar splitPaymentAplicavel. */
+    @Test
+    void entrada_comSplitLigado_naoExigeFormaPagamento() {
+        MotorFiscalService comSplit = motorCom(new SplitPaymentProperties(true, Set.of()));
+
+        OperacaoFiscalDTO r = comSplit.calcular(MotorFiscalRequest.builder()
+                .cfop("1102").ncm("84713012").ibgeDestino(SP)
+                .valorOperacao(new BigDecimal("10000")).dataCompetencia(COMP)
+                .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null);
+
+        assertValor("1850.00", r.getValorCreditoIbs());
     }
 
     @Test
@@ -460,6 +517,20 @@ class MotorFiscalServiceTest {
 
         assertValor("1620.00", r.getValorIcms()); // 10000 * 18% (fallback SP) * 90% remanescente
         assertNull(r.getValorIss());
+    }
+
+    @Test
+    void legado_2026_avisaPisCofinsApuracaoExterna() {
+        // Item 7.9: 2026 é ano de teste (art. 348, LC 214/2025) — motor calcula o legado normal
+        // e só avisa que PIS/COFINS é apurado fora daqui, nunca tenta compensar sozinho.
+        OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()
+                .cfop("5101").ncm("84713012").ibgeDestino(SP)
+                .ufOrigem("SP").ufDestino("SP")
+                .valorOperacao(new BigDecimal("10000")).dataCompetencia(LocalDate.of(2026, 3, 15))
+                .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null);
+
+        assertValor("1800.00", r.getValorIcms()); // 10000 * 18% (fallback SP) * 100% remanescente
+        assertTrue(r.getMemoriaCalculo().contains(Constants.FISCAL_AVISO_PIS_COFINS_APURACAO_EXTERNA));
     }
 
     @Test

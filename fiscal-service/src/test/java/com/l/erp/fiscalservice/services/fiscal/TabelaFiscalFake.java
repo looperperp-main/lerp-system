@@ -40,9 +40,11 @@ public class TabelaFiscalFake implements TabelaFiscal {
         cfopMap.put("5405", new CfopInfo("5405", TipoOperacaoFiscal.SAIDA, true, true, false));
         cfopMap.put("5933", new CfopInfo("5933", TipoOperacaoFiscal.SAIDA, true, true, false));
         // ENTRADA, com as mesmas flags do cfop.csv: compra para comercialização gera crédito de IBS
-        // e de CBS e não é 1ª etapa da cadeia. Hoje serve ao caso G5 — o motor recusa entrada com
-        // FISCAL_CFOP_INVALIDO_SAIDA; quando a fatia de crédito entrar (item 4), o oráculo já existe.
+        // e de CBS e não é 1ª etapa da cadeia (item 4 — crédito de entrada).
         cfopMap.put("1102", new CfopInfo("1102", TipoOperacaoFiscal.ENTRADA, true, true, false));
+        // ENTRADA sem direito a crédito pelo próprio CFOP (ex.: uso e consumo) — vedação distinta
+        // de usoConsumoPessoal declarado no request: aqui é o CFOP em si que não credita.
+        cfopMap.put("1556", new CfopInfo("1556", TipoOperacaoFiscal.ENTRADA, false, false, false));
 
         ncmMap.put("10063021", RegimeDiferenciado.de("ANEXO_I_ZERO", new BigDecimal("100"))); // arroz
         ncmMap.put("24022000", RegimeDiferenciado.de(Constants.REGIME_DIF_MONOFASICO, BigDecimal.ZERO));
@@ -98,6 +100,13 @@ public class TabelaFiscalFake implements TabelaFiscal {
         ibsMap.put(chave("3550308", 2029),
                 new AliquotaIbs(new BigDecimal("16.00"), new BigDecimal("2.50"), false));
         cbsMap.put(chave(Constants.REGIME_LUCRO_REAL, 2029), new BigDecimal("8.50"));
+
+        // Ano de teste 2026 (item 7.9): alíquota REAL da curva de transição (fiscal-schema-007,
+        // fonte piloto CBS/RFB) — 0,10% estadual + 0,00% municipal de IBS, 0,90% de CBS, só
+        // referência nacional (nenhum município legislou ainda).
+        ibsMap.put(chave("3550308", 2026),
+                new AliquotaIbs(new BigDecimal("0.10"), new BigDecimal("0.00"), true));
+        cbsMap.put(chave(Constants.REGIME_LUCRO_REAL, 2026), new BigDecimal("0.90"));
 
         // Retenção (fatia 3e): só a linha-base nacional (tenant_id NULL) de cada tributo — igual
         // ao recorte do ISS/ICMS acima, sem override de tenant nesta carga.

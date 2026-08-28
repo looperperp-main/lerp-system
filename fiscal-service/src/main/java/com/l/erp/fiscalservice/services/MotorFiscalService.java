@@ -27,8 +27,9 @@ import java.util.List;
  * Motor Fiscal — núcleo de cálculo IBS/CBS/IS (Fin.md Módulo I, §1.4).
  *
  * <p>Determinístico e sem side effects: mesmos inputs → mesmo output; não persiste nada (MF-06).
- * Fatia 1: apenas SAÍDA (NF-e/NFC-e/NFS-e). Entrada/crédito (§1.4.3), persistência
- * ({@code calcularEPersistir}), recálculo de período e apuração mensal ficam para fatias seguintes.
+ * Cobre SAÍDA (NF-e/NFC-e/NFS-e) e o crédito de ENTRADA (§1.4.3, item 4 — quem persiste saldo e
+ * aproveitamento é o {@code operacoes-service}/AP). Persistência ({@code calcularEPersistir}),
+ * recálculo de período e apuração mensal ficam para fatias seguintes.
  */
 @Service
 public class MotorFiscalService {
@@ -54,7 +55,13 @@ public class MotorFiscalService {
         List<String> memoria = new ArrayList<>();
         boolean splitLigado = splitProps.habilitadoPara(tenantId);
 
-        // PASSO 0 — entrada inconsistente é 400, nunca tributo calculado no escuro.
+        // PASSO 0 — CFOP determina o tipo de operação (SAÍDA/ENTRADA); vem primeiro porque o
+        // split (só existe do lado da saída) e o resto da validação dependem de já saber qual é.
+        CfopInfo cfop = tabela.cfop(req.getCfop())
+                .orElseThrow(() -> new FiscalException(Constants.FISCAL_CFOP_NAO_ENCONTRADO));
+        boolean entrada = cfop.tipoOperacao() == TipoOperacaoFiscal.ENTRADA;
+
+        // PASSO 0.1 — entrada inconsistente é 400, nunca tributo calculado no escuro.
         boolean produto = preenchido(req.getNcm());
         boolean servico = preenchido(req.getCodigoServico());
         if (produto == servico) {
@@ -88,7 +95,8 @@ public class MotorFiscalService {
         }
         // Com o split ligado, splitPaymentAplicavel vem da condicao_pagamento e é obrigatório:
         // sem ele não dá pra distinguir "pagamento não splitável" de "o chamador esqueceu".
-        if (splitLigado && req.getSplitPaymentAplicavel() == null) {
+        // Split só existe do lado da saída (segregação no recebimento) — entrada não participa.
+        if (!entrada && splitLigado && req.getSplitPaymentAplicavel() == null) {
             throw new FiscalException(Constants.FISCAL_SPLIT_SEM_FORMA_PAGAMENTO);
         }
         // Retenção (fatia 3e) só existe em serviço — ISS/IRRF/CSRF/INSS aqui são sobre pagamento
@@ -121,11 +129,10 @@ public class MotorFiscalService {
             return zerado(valorTributavel, RegimeDiferenciado.PADRAO, memoria, splitLigado);
         }
 
-        // PASSO 1 — validar CFOP
-        CfopInfo cfop = tabela.cfop(req.getCfop())
-                .orElseThrow(() -> new FiscalException(Constants.FISCAL_CFOP_NAO_ENCONTRADO));
-        if (cfop.tipoOperacao() != TipoOperacaoFiscal.SAIDA) {
-            throw new FiscalException(Constants.FISCAL_CFOP_INVALIDO_SAIDA);
+        // Entrada (item 4, §1.4.3) — crédito, não tributo devido. Segue por cálculo próprio;
+        // quem persiste saldo e aproveitamento é o operacoes-service (AP).
+        if (entrada) {
+            return calcularCredito(req, cfop, servico, valorTributavel, memoria);
         }
 
         // Serviço (NFS-e): IBS é pelo LOCAL DA PRESTAÇÃO, não pelo tomador (§1.4.5)
@@ -312,8 +319,10 @@ public class MotorFiscalService {
      * ICMS (produto) ou ISS (serviço) proporcional ao remanescente da transição (fatia 3c) — o
      * motor MULTIPLICA o tributo cheio pelo {@code pctRemanescente} da competência; nunca os
      * dois juntos, já que produto x serviço são mutuamente exclusivos desde o PASSO 0.
-     * PIS/COFINS (vigente só em 2026) fica de fora: sem tabela de alíquota carregada, o motor só
-     * avisa — vale carregar, não vale investir numa fatia que ainda nem tem fonte de dado.
+     * PIS/COFINS (vigente só em 2026) fica de fora por decisão de escopo (item 7.9): o art. 348 da
+     * LC 214/2025 dispensa o recolhimento de IBS/CBS no ano de teste para quem cumpre as obrigações
+     * acessórias, e exige PIS/COFINS integral do mesmo jeito — não há compensação para calcular numa
+     * nota isolada, só na apuração multi-competência de quem descumprir, que fica fora do fiscal-service.
      */
     private Legado calcularLegado(MotorFiscalRequest req, boolean servico, BigDecimal valorTributavel,
                                    TransicaoAno transicao, String tenantId, List<String> memoria) {
@@ -321,8 +330,8 @@ public class MotorFiscalService {
             return Legado.NENHUM;
         }
         if (transicao.pisCofinsVigente()) {
-            log.warn("{} (tenant={}, cfop={})", Constants.FISCAL_AVISO_PIS_COFINS_SEM_DADO, tenantId, req.getCfop());
-            memoria.add(Constants.FISCAL_AVISO_PIS_COFINS_SEM_DADO);
+            log.warn("{} (tenant={}, cfop={})", Constants.FISCAL_AVISO_PIS_COFINS_APURACAO_EXTERNA, tenantId, req.getCfop());
+            memoria.add(Constants.FISCAL_AVISO_PIS_COFINS_APURACAO_EXTERNA);
         }
         BigDecimal fatorLegado = transicao.pctRemanescente().divide(CEM);
 
@@ -422,6 +431,71 @@ public class MotorFiscalService {
         }
 
         return new Retencao(issRetido, irrf, csrf, inss);
+    }
+
+    /**
+     * Crédito de entrada (item 4, §1.4.3) — quanto da entrada é creditável de IBS/CBS. IS nunca
+     * credita (monofásico/cumulativo por desenho, fora daqui). Vedações: uso e consumo pessoal
+     * zera o crédito inteiro; entrada cujo destino é saída desonerada credita só o complemento do
+     * {@code percentualSaidaDesonerada}. Quem persiste saldo e aproveitamento é o
+     * operacoes-service (AP) — aqui só o valor calculado, com a mesma memória de cálculo da saída.
+     */
+    private OperacaoFiscalDTO calcularCredito(MotorFiscalRequest req, CfopInfo cfop, boolean servico,
+                                               BigDecimal valorTributavel, List<String> memoria) {
+        if (Boolean.TRUE.equals(req.getUsoConsumoPessoal())) {
+            memoria.add("Uso e consumo pessoal: entrada não gera crédito (§1.4.3)");
+            return semCredito(valorTributavel, memoria);
+        }
+
+        String ibgeDestino = servico ? req.getIbgeLocalPrestacao() : req.getIbgeDestino();
+        RegimeDiferenciado regime = servico
+                ? tabela.regimeCClassTrib(req.getCClassTrib())
+                : tabela.regimeNcm(req.getNcm());
+
+        int ano = req.getDataCompetencia().getYear();
+        AliquotaIbs aliqIbs = tabela.aliquotaIbs(ibgeDestino, ano)
+                .orElseThrow(() -> new FiscalException(Constants.FISCAL_VIGENCIA_SEM_COBERTURA));
+        BigDecimal aliqCbs = tabela.aliquotaCbs(req.getRegimeEmpresa(), ano)
+                .orElseThrow(() -> new FiscalException(Constants.FISCAL_REGIME_SEM_ALIQUOTA_CBS));
+
+        BigDecimal fator = fatorReducao(regime.reducaoPercentual());
+        BigDecimal aliqIbsEfetiva = aliqIbs.estadual().add(aliqIbs.municipal()).multiply(fator);
+        BigDecimal aliqCbsEfetiva = aliqCbs.multiply(fator);
+
+        BigDecimal fatorProporcional = BigDecimal.ONE
+                .subtract(ouZero(req.getPercentualSaidaDesonerada()).divide(CEM));
+
+        BigDecimal creditoIbs = cfop.geraCreditoIbs()
+                ? pct(valorTributavel, aliqIbsEfetiva).multiply(fatorProporcional).setScale(ESCALA, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO.setScale(ESCALA);
+        BigDecimal creditoCbs = cfop.geraCreditoCbs()
+                ? pct(valorTributavel, aliqCbsEfetiva).multiply(fatorProporcional).setScale(ESCALA, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO.setScale(ESCALA);
+
+        memoria.add("Regime: " + regime.name() + " (redução de alíquota " + regime.reducaoPercentual() + "%)");
+        if (req.getPercentualSaidaDesonerada() != null) {
+            memoria.add("Crédito proporcional: " + req.getPercentualSaidaDesonerada()
+                    + "% da entrada destinada a saída desonerada");
+        }
+        memoria.add("Crédito IBS: " + creditoIbs + " | CBS: " + creditoCbs);
+
+        return OperacaoFiscalDTO.builder()
+                .baseCalculo(valorTributavel)
+                .valorCreditoIbs(creditoIbs)
+                .valorCreditoCbs(creditoCbs)
+                .regimeAplicado(regime.name())
+                .memoriaCalculo(memoria)
+                .build();
+    }
+
+    private OperacaoFiscalDTO semCredito(BigDecimal valorTributavel, List<String> memoria) {
+        BigDecimal zero = BigDecimal.ZERO.setScale(ESCALA);
+        return OperacaoFiscalDTO.builder()
+                .baseCalculo(valorTributavel)
+                .valorCreditoIbs(zero)
+                .valorCreditoCbs(zero)
+                .memoriaCalculo(memoria)
+                .build();
     }
 
     /** ICMS (produto) xor ISS (serviço) da transição — os dois {@code null} quando pctRemanescente = 0. */

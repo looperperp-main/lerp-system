@@ -77,4 +77,10 @@ public class MotorFiscalRequest {
     // ficam por operação nesta fatia).
     @PositiveOrZero
     private BigDecimal valorAcumuladoMesIrrf;
+    // Crédito de entrada (item 4, Fin.md §1.4.3) — só relevante quando o CFOP é de ENTRADA;
+    // declarado pelo chamador (mesmo padrão de cClassTrib/retenção), o motor não deduz intenção.
+    private Boolean usoConsumoPessoal;     // veda o crédito integralmente
+    @PositiveOrZero
+    private BigDecimal percentualSaidaDesonerada; // 0-100: parcela da entrada destinada a saída
+                                                   // desonerada — credita só o complemento
 }
