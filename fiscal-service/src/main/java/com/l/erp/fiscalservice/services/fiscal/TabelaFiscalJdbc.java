@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -146,6 +147,16 @@ public class TabelaFiscalJdbc implements TabelaFiscal {
              LIMIT 1
             """;
 
+    // ano_vigencia IS NULL: override vale pra todos os anos (ex.: Prouni, redução fixa). Quando
+    // presente (curva do serviço financeiro), casa só o ano exato — sem fallback pra ano vizinho,
+    // mesmo princípio de SQL_ALIQ_IBS/SQL_TRANSICAO: ano sem linha publicada não é erro do motor.
+    private static final String SQL_ALIQUOTA_REGIME_TRIBUTO = """
+            SELECT tributo, tipo, valor
+              FROM fiscal.aliquota_regime_tributo
+             WHERE regime = :regime
+               AND (ano_vigencia IS NULL OR ano_vigencia = :ano)
+            """;
+
     private final JdbcClient jdbc;
 
     public TabelaFiscalJdbc(JdbcClient jdbc) {
@@ -269,6 +280,18 @@ public class TabelaFiscalJdbc implements TabelaFiscal {
                         rs.getBigDecimal("aliquota_pct"),
                         rs.getBigDecimal("valor_minimo_base")))
                 .optional();
+    }
+
+    @Override
+    public List<RegimeTributoOverride> overridesRegime(String regime, int ano) {
+        return jdbc.sql(SQL_ALIQUOTA_REGIME_TRIBUTO)
+                .param("regime", regime)
+                .param("ano", ano)
+                .query((rs, n) -> new RegimeTributoOverride(
+                        rs.getString("tributo"),
+                        rs.getString("tipo"),
+                        rs.getBigDecimal("valor")))
+                .list();
     }
 
     private static RegimeDiferenciado regimeDaLinha(ResultSet rs, int rowNum) throws SQLException {

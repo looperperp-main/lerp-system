@@ -1,0 +1,130 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # OVERRIDE DE ALÍQUOTA POR TRIBUTO — item 7.7 de spec/motor-fiscal-proximos-passos.md §7.
+  #
+  # fiscal.regime_dif_ncm/regime_cclasstrib guardam UM percentual_reducao aplicado igual a IBS e
+  # CBS — não expressa (a) redução isolada por tributo (Prouni, art. 308: zera só a CBS, IBS segue
+  # cheio) nem (b) alíquota somada em VALOR ABSOLUTO (serviço financeiro, art. 233: fixa a soma de
+  # IBS+CBS por ano, não é percentual sobre referência). São os 2 cClassTrib que o fiscal-021 deixou
+  # de fora de propósito (200025 e 010002 — ver comentário lá e spec/anexos-lc214-revisar.md).
+  #
+  # Tabela SEPARADA, aditiva: regime sem linha aqui continua só com o fator único de
+  # regime_dif_ncm/regime_cclasstrib (a imensa maioria — zero impacto nos ~267 regimes já
+  # funcionando). Existir à parte também é deliberado por outro motivo: dá pra montar um CRUD
+  # simples (regime/tributo/tipo/valor/ano) num backend futuro sem tocar nas tabelas de
+  # classificação nem no código do motor.
+  #
+  # ano_vigencia NULL = override vale pra qualquer ano (Prouni, redução fixa por lei). Preenchido =
+  # casa só o ano exato (curva do serviço financeiro), sem herdar do ano vizinho — mesmo princípio
+  # de fiscal.transicao_ano: ano sem linha publicada devolve lista vazia, o motor não assume nada.
+  - changeSet:
+      id: fiscal-034-cria-aliquota-regime-tributo
+      author: vitor-fernandes
+      comment: Tabela de override de alíquota por tributo (Prouni CBS-zero, serviço financeiro absoluto)
+      changes:
+        - createTable:
+            schemaName: fiscal
+            tableName: aliquota_regime_tributo
+            remarks: Override de percentual_reducao por tributo (IBS/CBS/TOTAL) — item 7.7
+            columns:
+              - column:
+                  name: regime
+                  type: varchar(30)
+                  constraints: { nullable: false }
+              - column:
+                  name: tributo
+                  type: varchar(10)
+                  constraints: { nullable: false }
+              - column:
+                  name: tipo
+                  type: varchar(20)
+                  constraints: { nullable: false }
+              - column:
+                  name: valor
+                  type: numeric(5,2)
+                  constraints: { nullable: false }
+              - column:
+                  name: ano_vigencia
+                  type: int
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              ALTER TABLE fiscal.aliquota_regime_tributo ADD CONSTRAINT chk_aliq_regime_trib_tributo
+              CHECK (tributo IN ('IBS', 'CBS', 'TOTAL'));
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              ALTER TABLE fiscal.aliquota_regime_tributo ADD CONSTRAINT chk_aliq_regime_trib_tipo
+              CHECK (tipo IN ('PERCENTUAL_REDUCAO', 'ALIQUOTA_ABSOLUTA'));
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              ALTER TABLE fiscal.aliquota_regime_tributo ADD CONSTRAINT chk_aliq_regime_trib_valor
+              CHECK (valor >= 0);
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              ALTER TABLE fiscal.aliquota_regime_tributo ADD CONSTRAINT uk_aliq_regime_trib
+              UNIQUE NULLS NOT DISTINCT (regime, tributo, ano_vigencia);
+      rollback:
+        - dropTable: { schemaName: fiscal, tableName: aliquota_regime_tributo }
+
+  # Fecha a lacuna que o fiscal-021 deixou de propósito: os 2 cClassTrib entram agora em
+  # regime_cclasstrib com percentual_reducao = 0 (o percentual único não vale pra eles — quem
+  # decide a redução real é o override do fiscal-036) e regime nomeado igual ao usado lá.
+  - changeSet:
+      id: fiscal-035-seed-regime-cclasstrib-overrides
+      author: vitor-fernandes
+      comment: Prouni (200025) e serviço financeiro (010002) — cadastro em regime_cclasstrib
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.regime_cclasstrib (cclasstrib, regime, percentual_reducao, vigente_de) VALUES
+              ('200025', 'PROUNI', 0, DATE '2027-01-01'),
+              ('010002', 'SERVICO_FINANCEIRO', 0, DATE '2027-01-01');
+      rollback:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              DELETE FROM fiscal.regime_cclasstrib WHERE cclasstrib IN ('200025', '010002');
+
+  # Prouni (art. 308): reduz a ZERO só a CBS — sem linha de IBS aqui de propósito, o IBS já sai
+  # cheio por ausência de override (ver TabelaFiscal#overridesRegime).
+  #
+  # Serviço financeiro (art. 233, caput, incisos I-VI): soma de IBS+CBS fixada por ano, conferida
+  # via WebSearch cruzado em múltiplas fontes em 27/08/2026 (modeloinicial.com.br, reformatributaria
+  # .sefin.ro.gov.br, biank.com.br — mesmos 6 valores nas 3). NÃO inclui o redutor do §10 (mais
+  # alíquota menor pra serviço financeiro que também sofre ISS, ex.: corretagem de seguros) — regra
+  # à parte, delimitada de propósito fora desta fatia; ver spec/anexos-lc214-revisar.md.
+  - changeSet:
+      id: fiscal-036-seed-aliquota-regime-tributo
+      author: vitor-fernandes
+      comment: Prouni zera CBS (sem teto de ano) + curva 2027-2033 da soma IBS+CBS do serviço financeiro
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.aliquota_regime_tributo (regime, tributo, tipo, valor, ano_vigencia) VALUES
+              ('PROUNI', 'CBS', 'PERCENTUAL_REDUCAO', 100.00, NULL),
+              ('SERVICO_FINANCEIRO', 'TOTAL', 'ALIQUOTA_ABSOLUTA', 10.85, 2027),
+              ('SERVICO_FINANCEIRO', 'TOTAL', 'ALIQUOTA_ABSOLUTA', 10.85, 2028),
+              ('SERVICO_FINANCEIRO', 'TOTAL', 'ALIQUOTA_ABSOLUTA', 11.00, 2029),
+              ('SERVICO_FINANCEIRO', 'TOTAL', 'ALIQUOTA_ABSOLUTA', 11.15, 2030),
+              ('SERVICO_FINANCEIRO', 'TOTAL', 'ALIQUOTA_ABSOLUTA', 11.30, 2031),
+              ('SERVICO_FINANCEIRO', 'TOTAL', 'ALIQUOTA_ABSOLUTA', 11.50, 2032),
+              ('SERVICO_FINANCEIRO', 'TOTAL', 'ALIQUOTA_ABSOLUTA', 12.50, 2033);
+      rollback:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              DELETE FROM fiscal.aliquota_regime_tributo WHERE regime IN ('PROUNI', 'SERVICO_FINANCEIRO');

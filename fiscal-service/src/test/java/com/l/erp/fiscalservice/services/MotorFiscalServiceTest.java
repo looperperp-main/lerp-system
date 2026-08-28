@@ -136,6 +136,48 @@ class MotorFiscalServiceTest {
         assertEquals("INTEGRAL", r.getRegimeAplicado());
     }
 
+    /**
+     * Item 7.7 — Prouni (art. 308, cClassTrib 200025): a redução atinge só a CBS, que zera; o
+     * IBS segue na alíquota de referência CHEIA. Um {@code reducaoPercentual} único não consegue
+     * expressar isso — exercita o override por tributo de {@code fiscal.aliquota_regime_tributo}.
+     */
+    @Test
+    void ex6_prouni_reduzSoCbs() {
+        OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()
+                .cfop("5933").codigoServico("08.01").cClassTrib("200025").ibgeLocalPrestacao(SP)
+                .valorOperacao(new BigDecimal("1000")).dataCompetencia(COMP)
+                .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null);
+
+        assertValor("1000", r.getBaseCalculo());
+        assertValor("160.00", r.getValorIbsEstadual());  // 1000 * 16.00% — IBS SEM redução
+        assertValor("25.00", r.getValorIbsMunicipal());   // 1000 * 2.50%
+        assertValor("185.00", r.getValorIbs());
+        assertValor("0", r.getValorCbs());                // CBS zerada (override 100%)
+        assertEquals("PROUNI", r.getRegimeAplicado());
+    }
+
+    /**
+     * Item 7.7 — serviço financeiro (art. 233, cClassTrib 010002): a soma IBS+CBS é travada em
+     * valor ABSOLUTO, não reduzida em percentual. O fake usa 13,50% (metade da referência 27,00%
+     * de 2033) pra dividir exato; o motor faz o rateio proporcional entre as 3 componentes
+     * (16,00/2,50/8,50) preservando o peso relativo — ver {@code fatoresEfetivos}.
+     */
+    @Test
+    void ex7_servicoFinanceiro_aliquotaAbsoluta() {
+        OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()
+                .cfop("5933").codigoServico("15.01").cClassTrib("010002").ibgeLocalPrestacao(SP)
+                .valorOperacao(new BigDecimal("1000")).dataCompetencia(COMP)
+                .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null);
+
+        assertValor("1000", r.getBaseCalculo());
+        assertValor("80.00", r.getValorIbsEstadual());   // 1000 * (16.00% * 0.5)
+        assertValor("12.50", r.getValorIbsMunicipal());   // 1000 * (2.50% * 0.5)
+        assertValor("92.50", r.getValorIbs());
+        assertValor("42.50", r.getValorCbs());             // 1000 * (8.50% * 0.5)
+        assertValor("135.00", r.getValorIbs().add(r.getValorCbs())); // 13,50% travado da base
+        assertEquals("SERVICO_FINANCEIRO", r.getRegimeAplicado());
+    }
+
     @Test
     void mei_naoDestaca_zeraTudo() {
         OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()

@@ -5,6 +5,7 @@ import com.l.erp.common.util.Constants;
 import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -33,6 +34,7 @@ public class TabelaFiscalFake implements TabelaFiscal {
     private final Map<String, AliquotaIss> issMap = new HashMap<>();
     private final Map<String, RegimeIcms> matrizMap = new HashMap<>();
     private final Map<String, AliquotaRetencao> retencaoMap = new HashMap<>();
+    private final Map<String, List<RegimeTributoOverride>> overridesMap = new HashMap<>();
 
     public TabelaFiscalFake() {
         cfopMap.put("5101", new CfopInfo("5101", TipoOperacaoFiscal.SAIDA, true, true, true));
@@ -116,6 +118,25 @@ public class TabelaFiscalFake implements TabelaFiscal {
                 new AliquotaRetencao(new BigDecimal("4.65"), new BigDecimal("5000.00")));
         retencaoMap.put(chaveRetencao(null, Constants.TRIBUTO_INSS),
                 new AliquotaRetencao(new BigDecimal("11.00"), BigDecimal.ZERO));
+
+        // Overrides de regime (item 7.7) — os 2 casos que reducaoPercentual sozinho não expressa.
+        // PROUNI (art. 308): zera só a CBS; sem linha de IBS aqui = IBS segue na referência cheia.
+        // Item "08.01" = par admitido real do Anexo VIII (servico-cclasstrib.csv linha 89).
+        servicoMap.put("200025", RegimeDiferenciado.de("PROUNI", BigDecimal.ZERO));
+        paresAdmitidos.add(par("08.01", "200025"));
+        overridesMap.put("PROUNI", List.of(
+                new RegimeTributoOverride(Constants.FISCAL_TRIBUTO_CBS,
+                        Constants.FISCAL_TIPO_PERCENTUAL_REDUCAO, new BigDecimal("100"))));
+        // Serviço financeiro (art. 233): soma IBS+CBS travada em valor absoluto, por ano. Item
+        // "15.01" = par admitido real do Anexo VIII (servico-cclasstrib.csv linha 164). Valor do
+        // teste é 13,50 (metade da referência 27,00 = 16,00+2,50+8,50 de 2033), não o 10,85% real
+        // da curva do art. 233 — escolhido só pra dividir exato e testar a ARITMÉTICA do rateio
+        // proporcional sem depender de arredondamento; o valor real vive no seed do Liquibase.
+        servicoMap.put("010002", RegimeDiferenciado.de("SERVICO_FINANCEIRO", BigDecimal.ZERO));
+        paresAdmitidos.add(par("15.01", "010002"));
+        overridesMap.put("SERVICO_FINANCEIRO", List.of(
+                new RegimeTributoOverride(Constants.FISCAL_TRIBUTO_TOTAL,
+                        Constants.FISCAL_TIPO_ALIQUOTA_ABSOLUTA, new BigDecimal("13.50"))));
     }
 
     @Override
@@ -201,6 +222,12 @@ public class TabelaFiscalFake implements TabelaFiscal {
             }
         }
         return Optional.ofNullable(retencaoMap.get(chaveRetencao(null, tributo)));
+    }
+
+    /** Sem versão por ano no fake — os 2 cenários de teste valem pra qualquer ano (real é o JdbcTest). */
+    @Override
+    public List<RegimeTributoOverride> overridesRegime(String regime, int ano) {
+        return overridesMap.getOrDefault(regime, List.of());
     }
 
     private static String chave(String valor, int ano) {

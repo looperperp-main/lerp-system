@@ -1,6 +1,7 @@
 package com.l.erp.fiscalservice.services.fiscal;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -76,4 +77,13 @@ public interface TabelaFiscal {
      * <p>{@code tenantId} pode ser {@code null} (sem override, só a base nacional é elegível).
      */
     Optional<AliquotaRetencao> retencao(String tenantId, String tributo);
+
+    /**
+     * Overrides de {@code fiscal.aliquota_regime_tributo} (item 7.7) para o regime e ano — vazio
+     * quando o regime não tem override (a imensa maioria: continuam só com o {@code fator} único
+     * de {@link RegimeDiferenciado#reducaoPercentual()}). Cobre os 2 casos que um percentual só
+     * não expressa: redução isolada por tributo (Prouni, art. 308) e alíquota somada em valor
+     * absoluto (serviço financeiro, art. 233, curva por ano). Consumida pelo motor na fatia 3d.
+     */
+    List<RegimeTributoOverride> overridesRegime(String regime, int ano);
 }

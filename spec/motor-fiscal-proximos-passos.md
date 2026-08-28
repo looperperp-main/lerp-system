@@ -70,13 +70,14 @@ atualizada pela LC 227/2026) que fixa o percentual:
 | 30% | `200052` profissões intelectuais | art. 127 |
 | 0% | `000002` exploração de via | art. 11, VIII (integral; só define o local) |
 
-Ficaram de fora os **2** que o modelo não expressa — `percentual_reducao` é um só
-para IBS e CBS: `010002` (serviços financeiros, art. 233 fixa a *soma* de IBS+CBS
-em valor absoluto, 10,85% em 2027-2028) e `200025` (Prouni, art. 308 zera só a
-CBS). Seguem em `PADRAO`, tributando cheio, registrados em
-`spec/anexos-lc214-revisar.md` junto com duas ressalvas dos que entraram
-(`200045` tem 80% na locação do art. 162, VI; `000002` exige rateio por extensão
-da via, que o motor não faz).
+Ficaram de fora, de propósito, os **2** que o modelo então não expressava —
+`percentual_reducao` era um só para IBS e CBS: `010002` (serviços financeiros,
+art. 233 fixa a *soma* de IBS+CBS em valor absoluto, 10,85% em 2027-2028) e
+`200025` (Prouni, art. 308 zera só a CBS). Resolvido em 27 de agosto de 2026
+pelo item **7.7** (tabela `fiscal.aliquota_regime_tributo`); ver
+`spec/anexos-lc214-revisar.md`, que também registra duas ressalvas dos que
+entraram (`200045` tem 80% na locação do art. 162, VI; `000002` exige rateio
+por extensão da via, que o motor não faz).
 
 Migração aplicada e suíte verde em 30 de julho de 2026 (`liquibase-service` +
 `verify -pl fiscal-service`).
@@ -478,11 +479,17 @@ quando se olha o motor inteiro, e que não estava escrito em lugar nenhum. Os tr
 
 ### Modelo (o schema não expressa)
 
-- **7.7 `percentual_reducao` é um valor único para IBS e CBS.** Não expressa
-  redução por tributo (art. 308: Prouni zera só a CBS) nem alíquota em valor
-  absoluto (art. 233: serviços financeiros, soma fixa de 10,85%). São exatamente os
-  2 `cClassTrib` que ficaram fora do `fiscal-021`. Correção: coluna por tributo ou
-  tabela de alíquota absoluta.
+- **7.7 `percentual_reducao` é um valor único para IBS e CBS** ✅ **feito (27 de
+  agosto de 2026, `fiscal-034`/`035`/`036`, `mvn verify` não rodado nesta sessão).**
+  Não expressava redução por tributo (art. 308: Prouni zera só a CBS) nem alíquota
+  em valor absoluto (art. 233: serviços financeiros, soma fixa por ano, 10,85% a
+  12,50% de 2027 a 2033). São exatamente os 2 `cClassTrib` que tinham ficado fora do
+  `fiscal-021`. Resolvido com tabela **separada** e aditiva,
+  `fiscal.aliquota_regime_tributo` (regime/tributo/tipo/valor/ano_vigencia) —
+  regime sem linha lá cai só no `percentual_reducao` único, os ~267 regimes
+  existentes ficam intactos. Separada de propósito: dá pra expor um CRUD simples
+  num backend futuro sem tocar em classificação nem no motor. Detalhe em
+  `spec/anexos-lc214-revisar.md`.
 - **7.8 Vigência.** Nem alíquota nem regime têm `vigencia_inicio`/`vigencia_fim`; o
   ano está solto na chave. Dói na transição, quando o mesmo NCM muda de percentual
   de um ano para o outro.

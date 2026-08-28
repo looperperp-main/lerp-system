@@ -11,6 +11,7 @@ import com.l.erp.fiscalservice.services.fiscal.AliquotaRetencao;
 import com.l.erp.fiscalservice.services.fiscal.CfopInfo;
 import com.l.erp.fiscalservice.services.fiscal.RegimeDiferenciado;
 import com.l.erp.fiscalservice.services.fiscal.RegimeIcms;
+import com.l.erp.fiscalservice.services.fiscal.RegimeTributoOverride;
 import com.l.erp.fiscalservice.services.fiscal.TabelaFiscal;
 import com.l.erp.fiscalservice.services.fiscal.TipoOperacaoFiscal;
 import com.l.erp.fiscalservice.services.fiscal.TransicaoAno;
@@ -190,10 +191,10 @@ public class MotorFiscalService {
 
         // PASSO 5 — base (o IS INTEGRA a base — LC 214/2025) + redução de ALÍQUOTA (não de base)
         BigDecimal base = valorTributavel.add(valorIs);
-        BigDecimal fator = fatorReducao(regime.reducaoPercentual());
-        BigDecimal aliqIbsEstEfetiva = aliqIbs.estadual().multiply(fator);
-        BigDecimal aliqIbsMunEfetiva = aliqIbs.municipal().multiply(fator);
-        BigDecimal aliqCbsEfetiva = aliqCbs.multiply(fator);
+        FatoresRegime fatores = fatoresEfetivos(regime, aliqIbs.estadual(), aliqIbs.municipal(), aliqCbs, ano, memoria);
+        BigDecimal aliqIbsEstEfetiva = aliqIbs.estadual().multiply(fatores.fatorIbs());
+        BigDecimal aliqIbsMunEfetiva = aliqIbs.municipal().multiply(fatores.fatorIbs());
+        BigDecimal aliqCbsEfetiva = aliqCbs.multiply(fatores.fatorCbs());
 
         // PASSO 6 — IBS estadual + municipal
         BigDecimal valorIbsEstadual = pct(base, aliqIbsEstEfetiva);
@@ -313,6 +314,52 @@ public class MotorFiscalService {
     /** Fator multiplicador da redução de alíquota: (1 − redução/100). */
     private BigDecimal fatorReducao(BigDecimal reducaoPercentual) {
         return BigDecimal.ONE.subtract(reducaoPercentual.divide(CEM));
+    }
+
+    /**
+     * Fator de IBS e de CBS a aplicar sobre a alíquota de referência — item 7.7. Parte do fator
+     * único de {@code regime.reducaoPercentual()} (default hoje, vale pros ~267 regimes que não
+     * precisam de mais nada) e aplica por cima os overrides de {@code fiscal.aliquota_regime_tributo},
+     * se houver, para os 2 casos que um percentual só não expressa: redução isolada por tributo
+     * (Prouni, art. 308 — zera só CBS) e alíquota somada em valor ABSOLUTO (serviço financeiro,
+     * art. 233 — soma IBS+CBS fixa por ano). Overrides de tenant/backend futuro entram aqui, sem
+     * mexer no resto do motor.
+     */
+    private FatoresRegime fatoresEfetivos(RegimeDiferenciado regime, BigDecimal aliqIbsEst,
+                                           BigDecimal aliqIbsMun, BigDecimal aliqCbs, int ano,
+                                           List<String> memoria) {
+        BigDecimal fatorPadrao = fatorReducao(regime.reducaoPercentual());
+        BigDecimal fatorIbs = fatorPadrao;
+        BigDecimal fatorCbs = fatorPadrao;
+
+        for (RegimeTributoOverride override : tabela.overridesRegime(regime.name(), ano)) {
+            if (Constants.FISCAL_TIPO_ALIQUOTA_ABSOLUTA.equals(override.tipo())) {
+                // ponytail: a lei fixa a SOMA (art. 233), não o split IBS/CBS interno — escalamos
+                // as 3 componentes de referência proporcionalmente pelo mesmo fator, preservando
+                // o peso relativo entre elas. Upgrade: coluna própria se algum regime futuro
+                // exigir alíquota absoluta por tributo em vez de só a soma.
+                BigDecimal referenciaTotal = aliqIbsEst.add(aliqIbsMun).add(aliqCbs);
+                BigDecimal fatorAbsoluto = referenciaTotal.signum() == 0
+                        ? BigDecimal.ZERO
+                        : override.valor().divide(referenciaTotal, 10, RoundingMode.HALF_UP);
+                fatorIbs = fatorAbsoluto;
+                fatorCbs = fatorAbsoluto;
+                memoria.add("Override de regime (" + regime.name() + "): alíquota total travada em "
+                        + override.valor() + "% (referência seria " + referenciaTotal + "%)");
+            } else if (Constants.FISCAL_TRIBUTO_IBS.equals(override.tributo())) {
+                fatorIbs = fatorReducao(override.valor());
+                memoria.add("Override de regime (" + regime.name() + "): IBS com redução própria de "
+                        + override.valor() + "%");
+            } else if (Constants.FISCAL_TRIBUTO_CBS.equals(override.tributo())) {
+                fatorCbs = fatorReducao(override.valor());
+                memoria.add("Override de regime (" + regime.name() + "): CBS com redução própria de "
+                        + override.valor() + "%");
+            }
+        }
+        return new FatoresRegime(fatorIbs, fatorCbs);
+    }
+
+    private record FatoresRegime(BigDecimal fatorIbs, BigDecimal fatorCbs) {
     }
 
     /**
@@ -458,9 +505,9 @@ public class MotorFiscalService {
         BigDecimal aliqCbs = tabela.aliquotaCbs(req.getRegimeEmpresa(), ano)
                 .orElseThrow(() -> new FiscalException(Constants.FISCAL_REGIME_SEM_ALIQUOTA_CBS));
 
-        BigDecimal fator = fatorReducao(regime.reducaoPercentual());
-        BigDecimal aliqIbsEfetiva = aliqIbs.estadual().add(aliqIbs.municipal()).multiply(fator);
-        BigDecimal aliqCbsEfetiva = aliqCbs.multiply(fator);
+        FatoresRegime fatores = fatoresEfetivos(regime, aliqIbs.estadual(), aliqIbs.municipal(), aliqCbs, ano, memoria);
+        BigDecimal aliqIbsEfetiva = aliqIbs.estadual().add(aliqIbs.municipal()).multiply(fatores.fatorIbs());
+        BigDecimal aliqCbsEfetiva = aliqCbs.multiply(fatores.fatorCbs());
 
         BigDecimal fatorProporcional = BigDecimal.ONE
                 .subtract(ouZero(req.getPercentualSaidaDesonerada()).divide(CEM));

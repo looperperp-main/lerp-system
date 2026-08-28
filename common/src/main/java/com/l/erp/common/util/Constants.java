@@ -440,4 +440,14 @@ public class Constants {
     // Tributo declarado (reterIrrf/reterCsrf/reterInss) sem linha em fiscal.retencao_config (nem
     // do tenant, nem nacional): o motor devolve 400 em vez de deixar de reter calado.
     public static final String FISCAL_TRIBUTO_SEM_ALIQUOTA_RETENCAO = "FISCAL_TRIBUTO_SEM_ALIQUOTA_RETENCAO";
+
+    // fiscal.aliquota_regime_tributo (item 7.7): override por regime que o percentual único de
+    // regime_dif_ncm/regime_cclasstrib não expressa — redução isolada por tributo (Prouni, art.
+    // 308, zera só CBS) ou alíquota somada em valor ABSOLUTO (serviço financeiro, art. 233).
+    // Distintos de TRIBUTO_IRRF/CSRF/INSS acima, que são de retenção, não do cálculo de saída.
+    public static final String FISCAL_TRIBUTO_IBS = "IBS";
+    public static final String FISCAL_TRIBUTO_CBS = "CBS";
+    public static final String FISCAL_TRIBUTO_TOTAL = "TOTAL";
+    public static final String FISCAL_TIPO_PERCENTUAL_REDUCAO = "PERCENTUAL_REDUCAO";
+    public static final String FISCAL_TIPO_ALIQUOTA_ABSOLUTA = "ALIQUOTA_ABSOLUTA";
 }

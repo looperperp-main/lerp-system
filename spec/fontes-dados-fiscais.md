@@ -1,6 +1,6 @@
 # Fontes de Dados Fiscais — Checklist de Coleta (Motor Fiscal)
 
-**Última atualização:** 18 de agosto de 2026
+**Última atualização:** 27 de agosto de 2026
 **Contexto:** o motor fiscal (`fiscal-service`, Fin.md Módulo I) **já lê do banco** — `TabelaFiscalJdbc`
 consulta o schema `fiscal.*` (JdbcClient; não há JPA aqui). O que era estimativa em memória virou
 conteúdo carregado por Liquibase. Este doc é o roteiro de coleta: o que já está dentro, com que
@@ -26,6 +26,11 @@ Legenda de **Bloqueio**:
 > têm redução). Só `010002` (serviços financeiros) e `200025` (Prouni) ficaram fora, porque
 > `percentual_reducao` é único para IBS e CBS e esses dois pedem alíquota absoluta / redução só de
 > CBS — detalhe em `spec/anexos-lc214-revisar.md`.
+>
+> **Mudança 27/08/2026 — `fiscal-034`/`035`/`036` (item 7.7):** os 2 que faltavam entraram. Tabela
+> nova e separada `fiscal.aliquota_regime_tributo` cobre os dois casos que `percentual_reducao`
+> sozinho não expressava — **27 dos 27** `cClassTrib` do Anexo VIII têm redução agora. Detalhe em
+> `spec/anexos-lc214-revisar.md`.
 >
 > **Mudança estrutural:** regime de **serviço** saiu de `regime_dif_ncm` e virou `regime_cclasstrib`
 > (`fiscal-020`). A classificação de um serviço vem do **`cClassTrib` declarado**, não do código
@@ -54,8 +59,9 @@ Legenda de **Bloqueio**:
   `FISCAL_REGIME_SEM_ALIQUOTA_CBS`). Carregar os ~5.570 municípios do IBGE deixou de ser bloqueio e virou
   **conferência**: confirma a uniformidade e captura entes que publicarem alíquota própria.
 - **Item 3 (IS):** sem tabela oficial. Só cigarro (`2402.20`, 150%) e é estimativa.
-- **Item 10 (redução por cClassTrib):** resolvido para 25 dos 27 (`fiscal-019` + `fiscal-021`). Faltam só
-  `010002` e `200025`, que o modelo de um percentual único para IBS e CBS não expressa.
+- **Item 10 (redução por cClassTrib):** ✅ resolvido para 27 dos 27 (`fiscal-019` + `fiscal-021` +
+  `fiscal-034`/`035`/`036`, item 7.7). `010002` e `200025` — os 2 que um `percentual_reducao` único
+  para IBS e CBS não expressava — ganharam a tabela separada `fiscal.aliquota_regime_tributo`.
 - **Item 9 (split):** a feature flag existe (`fiscal.split-payment`, default off, allowlist por tenant); o que
   falta é a **integração com o PSP/Plataforma Pública**, que não é carga de dado.
 
@@ -263,10 +269,11 @@ não mais a estimativa 13,12 + 4,50 / 8,80 do `fiscal-010`, que o `fiscal-022` s
   reabilitação urbana (art. 158); 50% demais operações com imóveis (art. 261); 40% hotelaria (art. 281) e
   agências de turismo (art. 289, II); 30% plano de saúde animal (art. 243) e profissões intelectuais (art. 127);
   0% exploração de via (art. 11, VIII — integral).
-- **Faltam 2, e é limitação de modelo, não de pesquisa:** `010002` serviços financeiros (art. 233 fixa a *soma*
-  de IBS+CBS em valor absoluto — 10,85% em 2027-2028) e `200025` Prouni (art. 308 zera **só a CBS**).
-  `percentual_reducao` é um só para os dois tributos; resolver exige coluna por tributo ou tabela de alíquota
-  absoluta. Ver `spec/anexos-lc214-revisar.md`.
+- **✅ Os 2 que faltavam, resolvidos em 27/08/2026 (item 7.7):** `010002` serviços financeiros (art. 233
+  fixa a *soma* de IBS+CBS em valor absoluto — curva completa 10,85% a 12,50% de 2027 a 2033) e `200025`
+  Prouni (art. 308 zera **só a CBS**). Como `percentual_reducao` é um só para os dois tributos, a solução
+  foi uma tabela separada, `fiscal.aliquota_regime_tributo`, aditiva sobre o fator único existente. Ver
+  `spec/anexos-lc214-revisar.md`.
 - **⚠️ O sinal do erro aqui é CONTRA o contribuinte.** `cClassTrib` ausente de `regime_cclasstrib` cai em
   PADRAO e sai **tributado cheio** — por isso esses 2 continuam bloqueando NFS-e nos respectivos ramos.
 - **Não confundir INTEGRAL com PADRAO:** os dois tributam cheio, mas INTEGRAL é classificação declarada e
@@ -320,9 +327,10 @@ referência nacional) e 12 (matriz ICMS legado, 27 UFs) também estão carregado
 1. **Anos fora da curva 2026–2033** (itens 1, 2, 7) — qualquer município já calcula IBS via alíquota de
    referência nacional (`fiscal-023`, não testado); só um ano fora dessa faixa (ex. 2035) ainda devolve
    400. Carregar os ~5.570 municípios do IBGE via API virou conferência de uniformidade, não pré-requisito.
-2. ✅ **Os 20 `cClassTrib` sem percentual** (item 10) — 18 entraram no `fiscal-021`; sobraram `010002` e
-   `200025`, que precisam de mudança de modelo (redução por tributo / alíquota absoluta), não de pesquisa —
-   e enquanto isso esses dois ramos seguem tributando cheio, com o erro contra o contribuinte.
+2. ✅ **Os 20 `cClassTrib` sem percentual** (item 10) — 18 entraram no `fiscal-021`; os 2 que sobraram,
+   `010002` e `200025`, precisavam de mudança de modelo (redução por tributo / alíquota absoluta), não de
+   pesquisa — resolvidos em 27/08/2026 (item 7.7, tabela `fiscal.aliquota_regime_tributo`), não testado
+   ainda por build/teste rodado nesta sessão.
 3. **Tabela do IS** (item 3) — depende de publicação oficial; a matemática (IS integra a base) já está testada
    em `MotorFiscalServiceTest`, é só trocar a tabela.
 4. **Integração PSP do split** (item 9) — a flag existe, a liquidação não.

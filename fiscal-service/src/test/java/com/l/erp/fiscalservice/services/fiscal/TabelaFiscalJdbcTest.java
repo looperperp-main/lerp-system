@@ -115,6 +115,14 @@ class TabelaFiscalJdbcTest {
                 aliquota_pct numeric(5,2) NOT NULL,
                 valor_minimo_base numeric(12,2) NOT NULL,
                 ativo boolean NOT NULL)
+            """,
+            """
+            CREATE TABLE fiscal.aliquota_regime_tributo (
+                regime varchar(30) NOT NULL,
+                tributo varchar(10) NOT NULL,
+                tipo varchar(20) NOT NULL,
+                valor numeric(5,2) NOT NULL,
+                ano_vigencia int)
             """
     };
 
@@ -197,6 +205,16 @@ class TabelaFiscalJdbcTest {
                 (NULL, 'IRRF', 1.50, 10.00, true),
                 (NULL, 'CSRF', 4.65, 5000.00, true),
                 ('11111111-1111-1111-1111-111111111111', 'IRRF', 2.00, 0.00, true)
+            """,
+            // PROUNI (art. 308): override sem ano_vigencia = vale pra qualquer ano, só zera CBS.
+            // SERVICO_FINANCEIRO (art. 233): override por ano — 2027 e 2029 aqui, 2028 de propósito
+            // sem linha (prova que ano sem override publicado devolve lista vazia, não repete 2027).
+            // 'ANEXO_III_60' não ganha linha aqui: prova que regime sem override cai só no fator único.
+            """
+            INSERT INTO fiscal.aliquota_regime_tributo (regime, tributo, tipo, valor, ano_vigencia) VALUES
+                ('PROUNI', 'CBS', 'PERCENTUAL_REDUCAO', 100.00, NULL),
+                ('SERVICO_FINANCEIRO', 'TOTAL', 'ALIQUOTA_ABSOLUTA', 10.85, 2027),
+                ('SERVICO_FINANCEIRO', 'TOTAL', 'ALIQUOTA_ABSOLUTA', 11.00, 2029)
             """
     };
 
@@ -496,5 +514,35 @@ class TabelaFiscalJdbcTest {
         // INSS não tem linha nem nacional nem de tenant neste seed — 400, nunca zero.
         assertTrue(tabela.retencao(null, Constants.TRIBUTO_INSS).isEmpty());
         assertTrue(tabela.retencao(TENANT, Constants.TRIBUTO_INSS).isEmpty());
+    }
+
+    @Test
+    void overridesRegime_semAnoVigencia_valeParaQualquerAno() {
+        // PROUNI não tem ano_vigencia no seed — precisa casar tanto em 2027 quanto em 2033.
+        assertEquals(1, tabela.overridesRegime("PROUNI", 2027).size());
+        RegimeTributoOverride override = tabela.overridesRegime("PROUNI", 2033).getFirst();
+        assertEquals(Constants.FISCAL_TRIBUTO_CBS, override.tributo());
+        assertEquals(Constants.FISCAL_TIPO_PERCENTUAL_REDUCAO, override.tipo());
+        assertEquals(0, new BigDecimal("100.00").compareTo(override.valor()));
+    }
+
+    @Test
+    void overridesRegime_comAnoVigencia_casaSoOAnoExato() {
+        // SERVICO_FINANCEIRO só tem linha pra 2027 e 2029 — 2028 fica de propósito sem cobertura,
+        // pra provar que o motor não herda o valor do ano vizinho.
+        RegimeTributoOverride override2027 = tabela.overridesRegime("SERVICO_FINANCEIRO", 2027).getFirst();
+        assertEquals(0, new BigDecimal("10.85").compareTo(override2027.valor()));
+
+        assertTrue(tabela.overridesRegime("SERVICO_FINANCEIRO", 2028).isEmpty());
+
+        RegimeTributoOverride override2029 = tabela.overridesRegime("SERVICO_FINANCEIRO", 2029).getFirst();
+        assertEquals(0, new BigDecimal("11.00").compareTo(override2029.valor()));
+    }
+
+    @Test
+    void overridesRegime_regimeSemOverride_listaVazia() {
+        // 'ANEXO_III_60' é regime real do seed (regime_cclasstrib), mas sem linha em
+        // aliquota_regime_tributo — a imensa maioria dos regimes cai aqui, só com o fator único.
+        assertTrue(tabela.overridesRegime("ANEXO_III_60", 2027).isEmpty());
     }
 }

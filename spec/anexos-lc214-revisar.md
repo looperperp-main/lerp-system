@@ -8,21 +8,23 @@ Total pendente: **240** itens. Carregados automaticamente: **242** códigos.
 
 ## Pendências de `cClassTrib` (serviço) — seção mantida À MÃO, não sai do script
 
-> Atualizada em 29 de julho de 2026, junto com o changeset `fiscal-021`.
+> Atualizada em 27 de agosto de 2026, junto com os changesets `fiscal-034`/`035`/`036` (item 7.7).
 
-`fiscal.regime_cclasstrib` passou a ter **25 dos 27** `cClassTrib` do Anexo VIII: 7 do
-`fiscal-019` (fundamentados pelo próprio nome do anexo) + 18 do `fiscal-021` (cada linha com o
-artigo da LC 214 no comentário). Sobraram **2**, porque o modelo de dados não consegue expressá-los
-— um único `percentual_reducao` que vale para IBS e CBS ao mesmo tempo:
+`fiscal.regime_cclasstrib` tem os **27 dos 27** `cClassTrib` do Anexo VIII: 7 do `fiscal-019`
+(fundamentados pelo próprio nome do anexo) + 18 do `fiscal-021` (cada linha com o artigo da LC 214
+no comentário) + os **2 últimos**, abaixo, que o `fiscal-021` deixou de fora de propósito porque um
+único `percentual_reducao` (vale igual para IBS e CBS) não conseguia expressá-los:
 
-| `cClassTrib` | setor | por que ficou fora | o que falta para resolver |
+| `cClassTrib` | setor | por que não cabia num `percentual_reducao` só | como foi resolvido |
 |---|---|---|---|
-| `010002` | operações do serviço financeiro | art. 233 não dá redução: fixa a **soma** de IBS + CBS em valor absoluto (10,85% em 2027-2028, 11,00% em 2029, 11,15% em 2030 ...). Não é percentual sobre a alíquota de referência, é outra alíquota. | coluna/tabela de alíquota absoluta por ano, ou uma linha em `aliq_cbs_regime`/`aliq_ibs_municipio` com regime próprio |
-| `200025` | Prouni | art. 308 reduz a zero **apenas a CBS**; o IBS segue cheio. Um percentual só, aplicado aos dois tributos, erra um dos lados. | separar a redução por tributo (`percentual_reducao_ibs` / `_cbs`) |
+| `010002` | operações do serviço financeiro | art. 233 não dá redução: fixa a **soma** de IBS + CBS em valor absoluto por ano (10,85% em 2027-2028, 11,00% em 2029, 11,15% em 2030, 11,30% em 2031, 11,50% em 2032, 12,50% em 2033). Não é percentual sobre a alíquota de referência, é outra alíquota. | ✅ **Resolvido**: nova tabela `fiscal.aliquota_regime_tributo` (regime `SERVICO_FINANCEIRO`, tributo `TOTAL`, tipo `ALIQUOTA_ABSOLUTA`, uma linha por ano — curva completa conferida via WebSearch cruzado em 3 fontes) — `fiscal-034`/`fiscal-036`. `regime_cclasstrib` ganhou a linha do cClassTrib com `percentual_reducao = 0` (placeholder; quem decide o valor real é o override) — `fiscal-035`. **Não inclui** o redutor adicional do §10 do art. 233 (serviço financeiro que também sofre ISS, ex. corretagem de seguros) — regra à parte, ainda pendente. |
+| `200025` | Prouni | art. 308 reduz a zero **apenas a CBS**; o IBS segue cheio. Um percentual só, aplicado aos dois tributos, erra um dos lados. | ✅ **Resolvido**: mesma tabela `fiscal.aliquota_regime_tributo` (regime `PROUNI`, tributo `CBS`, tipo `PERCENTUAL_REDUCAO`, 100%, sem `ano_vigencia` — vale pra sempre) — `fiscal-034`/`fiscal-036`. Ausência de linha de `IBS` é intencional: sai cheio por padrão. |
 
-Os dois continuam caindo em `RegimeDiferenciado.PADRAO` — **tributam cheio, e aqui o erro é contra
-o contribuinte**. Emitir NFS-e de serviço financeiro ou de ensino superior no Prouni depende de
-resolver isto antes.
+Os dois passam a sair com a alíquota correta (`MotorFiscalService.fatoresEfetivos`) — antes caíam em
+`RegimeDiferenciado.PADRAO` (tributação cheia), erro que era **contra o contribuinte**. Tabela nova
+e separada de propósito: dá pra montar um CRUD (regime/tributo/tipo/valor/ano) num backend futuro
+sem tocar nas tabelas de classificação nem no código do motor. **Não testado ainda** (build/testes
+não rodados nesta sessão).
 
 Dois códigos entraram no `fiscal-021`, mas **com ressalva** — a alíquota está certa, o resto do
 regime não:
