@@ -1,0 +1,126 @@
+.jb-dialog-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+}
+
+.jb-label {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+:host ::ng-deep {
+  // Campos Nome/CNPJ
+  .p-inputtext,
+  .p-inputmask {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--line-2);
+    border-radius: 12px;
+    color: var(--ink);
+  }
+  .p-inputtext::placeholder,
+  .p-inputmask::placeholder { color: var(--muted); }
+  .p-inputtext:enabled:focus,
+  .p-inputmask:enabled:focus {
+    border-color: var(--syax);
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  // Select de Status (edição)
+  .p-select {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--line-2);
+    color: var(--ink-2);
+  }
+
+  .p-select-overlay {
+    background: var(--bg-panel-2);
+    border: 1px solid var(--line-2);
+    color: var(--ink-2);
+  }
+
+  .p-select-option.p-select-option-selected {
+    background: rgba(255, 75, 18, 0.15) !important;
+    color: var(--syax) !important;
+  }
+  .p-select-option:not(.p-select-option-selected):hover {
+    background: rgba(255, 255, 255, 0.06) !important;
+  }
+
+  // Botão "Salvar": sem severity, pega o laranja padrão do app
+  .p-button:not(.p-button-secondary) {
+    background: var(--brand-grad) !important;
+    border: none !important;
+    color: #fff !important;
+  }
+
+  // Botão "Cancelar": vidro em vez do cinza claro padrão
+  .p-button-secondary {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--line-2);
+    color: var(--ink-2);
+  }
+  .p-button-secondary:hover {
+    background: rgba(255, 255, 255, 0.09);
+  }
+
+  // Fundo por trás do modal sem escurecimento — só o modal em si tem o vidro/blur
+  .p-dialog-mask {
+    background: transparent !important;
+  }
+
+  // Modal: vidro fosco (translúcido + blur forte)
+  .p-dialog {
+    background: rgba(40, 40, 50, 0.32);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 20px;
+    backdrop-filter: blur(35px) saturate(180%);
+    -webkit-backdrop-filter: blur(35px) saturate(180%);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  }
+
+  .p-dialog-header {
+    background: transparent;
+    color: var(--ink);
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 16px;
+  }
+
+  .p-dialog-header-icon,
+  .p-dialog-close-button {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px !important;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    color: var(--ink-3);
+  }
+  .p-dialog-header-icon:hover,
+  .p-dialog-close-button:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--ink);
+  }
+
+  .p-dialog-content {
+    background: transparent;
+    color: var(--ink-2);
+  }
+}

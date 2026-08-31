@@ -1,22 +1,23 @@
-import {Component, OnInit, signal} from '@angular/core';
-import {DatePipe, NgForOf, NgIf} from '@angular/common';
-import {Toast} from 'primeng/toast';
-import {TableModule} from 'primeng/table';
-import {ButtonDirective} from 'primeng/button';
-import {Ripple} from 'primeng/ripple';
-import {ColumnConfig} from '../../../../components/table/data-table';
-import {RoleModel} from './role.model';
-import {ConfirmationService, MessageService} from 'primeng/api';
-import {RoleService} from './role.service';
-import {HttpErrorResponse} from '@angular/common/http';
-import {FormsModule} from '@angular/forms';
-import {Tooltip} from 'primeng/tooltip';
-import {HtmlDecodePipe} from '../../../../util/pipe/html-decode.pipe';
-import {CnpjPipe} from '../../../../util/pipe/cnpj.pipe';
-import {RoleForm} from './role-form/role-form';
-import {TenantModel} from '../../tenant/tenant/tenant.model';
-import {TenantService} from '../../tenant/tenant/tenant.service';
-import {Dialog} from 'primeng/dialog';
+import { Component, OnInit, signal } from '@angular/core';
+import { DatePipe, NgClass, NgForOf, NgIf } from '@angular/common';
+import { Toast } from 'primeng/toast';
+import { TableModule } from 'primeng/table';
+import { ButtonDirective } from 'primeng/button';
+import { Ripple } from 'primeng/ripple';
+import { ColumnConfig } from '../../../../components/table/data-table';
+import { RoleModel } from './role.model';
+import { ConfirmationService, MessageService } from 'primeng/api';
+import { RoleService } from './role.service';
+import { HttpErrorResponse } from '@angular/common/http';
+import { FormsModule } from '@angular/forms';
+import { Tooltip } from 'primeng/tooltip';
+import { HtmlDecodePipe } from '../../../../util/pipe/html-decode.pipe';
+import { CnpjPipe } from '../../../../util/pipe/cnpj.pipe';
+import { RoleForm } from './role-form/role-form';
+import { TenantModel } from '../../tenant/tenant/tenant.model';
+import { TenantService } from '../../tenant/tenant/tenant.service';
+import { Dialog } from 'primeng/dialog';
+import { PrimaryButtonComponent } from '../../../../components/primary-button/primary-button';
 
 @Component({
   selector: 'app-roles',
@@ -30,17 +31,18 @@ import {Dialog} from 'primeng/dialog';
     Tooltip,
     NgForOf,
     NgIf,
+    NgClass,
     HtmlDecodePipe,
     CnpjPipe,
     RoleForm,
-    Dialog
+    Dialog,
+    PrimaryButtonComponent,
   ],
   providers: [MessageService, ConfirmationService],
   templateUrl: './roles.html',
   styleUrl: './roles.scss',
 })
-export class Roles implements OnInit{
-
+export class Roles implements OnInit {
   roleDialog: boolean = false;
   roles = signal<RoleModel[]>([]);
   totalRecords = signal<number>(0);
@@ -62,13 +64,13 @@ export class Roles implements OnInit{
     { field: 'createdBy', header: 'Criado Por', type: 'text' },
     { field: 'lastUpdateDate', header: 'Data da Última Atualização', type: 'date' },
     { field: 'lastUpdateBy', header: 'Atualizado Por', type: 'text' },
-    { field: 'actions', header: 'Ações', type: 'actions' }
+    { field: 'actions', header: 'Ações', type: 'actions' },
   ];
 
   constructor(
     private messageService: MessageService,
     private roleService: RoleService,
-    private tenantService: TenantService
+    private tenantService: TenantService,
   ) {}
   ngOnInit() {
     this.loadRoles();
@@ -80,13 +82,18 @@ export class Roles implements OnInit{
       next: (res) => {
         this.tenantsList.set(res.content || []);
       },
-      error: () => this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Falha ao carregar lista de Tenants' })
+      error: () =>
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Erro',
+          detail: 'Falha ao carregar lista de Tenants',
+        }),
     });
   }
 
   loadRoles(page: number = 0, size: number = 10, sortStr: string = '') {
     this.loading.set(true);
-    this.roleService.getRolesbyPage(page, size,sortStr).subscribe({
+    this.roleService.getRolesbyPage(page, size, sortStr).subscribe({
       next: (response) => {
         this.roles.set(response.content || []);
         this.totalRecords.set(response.totalElements || 0);
@@ -95,7 +102,7 @@ export class Roles implements OnInit{
       error: (err: HttpErrorResponse) => {
         this.handleError(err, 'Erro ao carregar roles');
         this.loading.set(false);
-      }
+      },
     });
   }
 
@@ -110,19 +117,49 @@ export class Roles implements OnInit{
     this.submitted = false;
   }
 
+  editRole(role: RoleModel) {
+    this.role = { ...role };
+    this.submitted = false;
+    this.roleDialog = true;
+  }
+
   saveRole(role: RoleModel) {
     this.submitted = true;
 
-    if (role.name?.trim() && role.tenantId) {
-      this.roleService.createRole(role).subscribe({
-        next: (newRole) => {
-          this.roles.update(current => [...current, newRole]);
-          this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Role Criada com sucesso!', life: 3000 });
-          this.hideDialog();
-        },
-        error: (err: HttpErrorResponse) => this.handleError(err, 'Falha ao criar a Role')
-      });
+    if (!role.name?.trim() || !role.tenantId) {
+      return;
     }
+
+    const isEdit = !!role.id;
+    const request = isEdit
+      ? this.roleService.updateRole(role.id!, role)
+      : this.roleService.createRole(role);
+
+    request.subscribe({
+      next: (savedRole) => {
+        if (!savedRole) {
+          this.handleError(
+            new HttpErrorResponse({ status: 0 }),
+            isEdit ? 'Falha ao atualizar a Role' : 'Falha ao criar a Role',
+          );
+          return;
+        }
+        this.roles.update((current) =>
+          isEdit
+            ? current.map((r) => (r.id === savedRole.id ? savedRole : r))
+            : [...current, savedRole],
+        );
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Sucesso',
+          detail: isEdit ? 'Role atualizada com sucesso!' : 'Role Criada com sucesso!',
+          life: 3000,
+        });
+        this.hideDialog();
+      },
+      error: (err: HttpErrorResponse) =>
+        this.handleError(err, isEdit ? 'Falha ao atualizar a Role' : 'Falha ao criar a Role'),
+    });
   }
 
   // --- Fluxo de Deleção ---
@@ -140,11 +177,16 @@ export class Roles implements OnInit{
     if (this.roleToDelete && this.roleToDelete.id) {
       this.roleService.deleteRole(this.roleToDelete.id).subscribe({
         next: () => {
-          this.roles.update(current => current.filter(r => r.id !== this.roleToDelete?.id));
-          this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Role deletada.', life: 3000 });
+          this.roles.update((current) => current.filter((r) => r.id !== this.roleToDelete?.id));
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Sucesso',
+            detail: 'Role deletada.',
+            life: 3000,
+          });
           this.hideDeleteDialog();
         },
-        error: (err: HttpErrorResponse) => this.handleError(err, 'Erro ao deletar Role')
+        error: (err: HttpErrorResponse) => this.handleError(err, 'Erro ao deletar Role'),
       });
     }
   }
@@ -152,14 +194,28 @@ export class Roles implements OnInit{
   private handleError(err: HttpErrorResponse, defaultSummary: string) {
     if (err.error && err.error.message && err.error.error && err.error.status) {
       const detailMsg = `[${err.error.status}] ${err.error.error} - ${err.error.message}`;
-      this.messageService.add({ severity: 'error', summary: defaultSummary, detail: detailMsg, life: 5000 });
+      this.messageService.add({
+        severity: 'error',
+        summary: defaultSummary,
+        detail: detailMsg,
+        life: 5000,
+      });
     } else {
-      this.messageService.add({ severity: 'error', summary: defaultSummary, detail: 'Erro inesperado de comunicação com o servidor.', life: 5000 });
+      this.messageService.add({
+        severity: 'error',
+        summary: defaultSummary,
+        detail: 'Erro inesperado de comunicação com o servidor.',
+        life: 5000,
+      });
     }
   }
 
   exportData() {
-    this.messageService.add({ severity: 'info', summary: 'Info', detail: 'Funcionalidade de exportação aqui' });
+    this.messageService.add({
+      severity: 'info',
+      summary: 'Info',
+      detail: 'Funcionalidade de exportação aqui',
+    });
   }
 
   onLazyLoad(event: any) {

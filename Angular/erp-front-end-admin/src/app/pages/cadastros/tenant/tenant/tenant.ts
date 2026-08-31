@@ -19,6 +19,7 @@ import { HtmlDecodePipe } from '../../../../util/pipe/html-decode.pipe';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Tooltip } from 'primeng/tooltip';
 import { Router } from '@angular/router';
+import { PrimaryButtonComponent } from '../../../../components/primary-button/primary-button';
 
 @Component({
   selector: 'app-tenant',
@@ -38,6 +39,7 @@ import { Router } from '@angular/router';
     CnpjPipe,
     HtmlDecodePipe,
     Tooltip,
+    PrimaryButtonComponent,
   ],
   providers: [MessageService, ConfirmationService],
   templateUrl: './tenant.html',

@@ -79,6 +79,12 @@ public class PartnerController {
         return ResponseEntity.of(service.getOrigemPorTenant(tenantId));
     }
 
+    @GetMapping("/engajamento/by-tenant/{tenantId}")
+    public ResponseEntity<com.l.erp.partnerservice.api.dto.EngajamentoTenantDTO> engajamentoPorTenant(@PathVariable Long tenantId) {
+        logger.info("Consultando engajamento do tenant {}", tenantId);
+        return ResponseEntity.ok(service.getEngajamentoPorTenant(tenantId));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<PartnerResponseDTO> findById(@PathVariable UUID id) {
         logger.info("Buscando parceiro por ID: {}", id);

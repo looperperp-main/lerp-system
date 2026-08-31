@@ -46,6 +46,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -205,6 +206,59 @@ class RoleControllerTest {
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.error").value("Erro de Negócio"));
         }
+    }
+
+    @Test
+    @WithMockUser(authorities = {"ROLE_READ", "ROLE_INSERT", "ROLE_UPDATE", "ROLE_DELETE", "PERMISSION_READ", "PERMISSION_UPDATE", "ROLE_APP_OWNER"})
+    void shouldUpdateRole() throws Exception {
+        UUID roleId = UUID.randomUUID();
+
+        Tenant tenant = new Tenant();
+        tenant.setId(1L);
+
+        Role role = new Role();
+        role.setId(roleId);
+        role.setName("GESTOR");
+        role.setTenant(tenant);
+
+        RoleDTO input = new RoleDTO(null, "GESTOR_ATUALIZADO", 1L, null, null, null, null, "Descrição atualizada");
+        RoleDTO output = new RoleDTO(roleId, "GESTOR_ATUALIZADO", 1L, null, "seed", Instant.now(), "test@test.com", "Descrição atualizada");
+
+        when(roleRepository.findById(roleId)).thenReturn(Optional.of(role));
+        when(roleRepository.findByNameAndTenant_Id("GESTOR_ATUALIZADO", 1L)).thenReturn(Optional.empty());
+        when(roleRepository.save(any(Role.class))).thenReturn(role);
+        when(roleMapper.toRoleDTO(role)).thenReturn(output);
+
+        try (MockedStatic<SecurityUtils> utils = Mockito.mockStatic(SecurityUtils.class)) {
+            utils.when(SecurityUtils::getCurrentUserInfo)
+                    .thenReturn(new CurrentUser(UUID.randomUUID(), "test@test.com"));
+            utils.when(() -> SecurityUtils.getCorrelationIdFromRequest(any()))
+                    .thenReturn(UUID.randomUUID());
+
+            mockMvc.perform(put("/auth/roles/{Id}", roleId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(input)))
+                    .andDo(print())
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.name").value("GESTOR_ATUALIZADO"));
+        }
+    }
+
+    @Test
+    @WithMockUser(authorities = {"ROLE_READ", "ROLE_INSERT", "ROLE_UPDATE", "ROLE_DELETE", "PERMISSION_READ", "PERMISSION_UPDATE", "ROLE_APP_OWNER"})
+    void shouldUpdateRoleNotFound() throws Exception {
+        UUID roleId = UUID.randomUUID();
+
+        RoleDTO input = new RoleDTO(null, "GESTOR_ATUALIZADO", 1L, null, null, null, null, null);
+
+        when(roleRepository.findById(roleId)).thenReturn(Optional.empty());
+
+        mockMvc.perform(put("/auth/roles/{Id}", roleId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(input)))
+                .andDo(print())
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("Erro de Negócio"));
     }
 
     @Test

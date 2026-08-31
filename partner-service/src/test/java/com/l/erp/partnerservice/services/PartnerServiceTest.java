@@ -5,6 +5,7 @@ import com.l.erp.partnerservice.api.dto.AssinaturaResumoDTO;
 import com.l.erp.partnerservice.api.dto.ClienteDetalheResponseDTO;
 import com.l.erp.partnerservice.api.dto.ConviteRequestDTO;
 import com.l.erp.partnerservice.api.dto.DashboardResponseDTO;
+import com.l.erp.partnerservice.api.dto.EngajamentoTenantDTO;
 import com.l.erp.partnerservice.api.dto.ExtratoComissoesDTO;
 import com.l.erp.partnerservice.api.dto.FollowupRequestDTO;
 import com.l.erp.partnerservice.api.dto.IndicacoesPorContadorDTO;
@@ -14,6 +15,7 @@ import com.l.erp.partnerservice.api.dto.PartnerReviewDTO;
 import com.l.erp.partnerservice.api.dto.PayoutInfoDTO;
 import com.l.erp.partnerservice.domain.Partner;
 import com.l.erp.partnerservice.domain.PartnerReferral;
+import com.l.erp.partnerservice.domain.TrialEngagement;
 import com.l.erp.partnerservice.infra.billing.BillingAssinaturaResumoDTO;
 import com.l.erp.partnerservice.infra.billing.BillingClient;
 import com.l.erp.partnerservice.infra.billing.BillingComissaoItemDTO;
@@ -690,5 +692,33 @@ class PartnerServiceTest {
         Optional<OrigemTenantDTO> result = partnerService.getOrigemPorTenant(42L);
 
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    void shouldGetEngajamentoPorTenantWithReferral() {
+        PartnerReferral referral = buildReferral(Constants.CONVERTIDO, 0);
+        referral.setTrialStartedAt(OffsetDateTime.now().minusDays(5));
+        when(referralRepository.findByTenantIdWithPartner(42L)).thenReturn(List.of(referral));
+
+        TrialEngagement login = new TrialEngagement();
+        login.setAccessCount(3);
+        login.setLastAccessedAt(OffsetDateTime.now());
+        when(engagementService.getLoginStats(42L)).thenReturn(Optional.of(login));
+
+        EngajamentoTenantDTO result = partnerService.getEngajamentoPorTenant(42L);
+
+        assertThat(result.loginCount()).isEqualTo(3);
+        assertThat(result.lastLoginAt()).isNotNull();
+        assertThat(result.daysActive()).isEqualTo(5);
+    }
+
+    @Test
+    void shouldGetEngajamentoPorTenantWithoutReferral() {
+        when(referralRepository.findByTenantIdWithPartner(42L)).thenReturn(List.of());
+
+        EngajamentoTenantDTO result = partnerService.getEngajamentoPorTenant(42L);
+
+        assertThat(result.loginCount()).isZero();
+        assertThat(result.daysActive()).isZero();
     }
 }

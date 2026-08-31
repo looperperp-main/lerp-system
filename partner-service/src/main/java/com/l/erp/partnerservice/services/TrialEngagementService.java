@@ -20,14 +20,29 @@ public class TrialEngagementService {
 
     public static final String FEATURE_LOGIN = "LOGIN";
 
-    // Catálogo fixo de features rastreadas (exibidas no painel do parceiro)
-    public static final Map<String, String> FEATURE_CATALOG = Map.of(
-            "nfe",                "Emissão de NF-e",
-            "contas_pagar_receber","Contas a pagar/receber",
-            "relatorios",         "Relatórios financeiros",
-            "conciliacao",        "Conciliação bancária",
-            "folha_pagamento",    "Folha de pagamento",
-            "integracao_contabil","Integração contábil"
+    // Catálogo fixo de features rastreadas (exibidas no painel do parceiro/admin).
+    // Map.ofEntries porque Map.of trava em 10 pares — cadastros sozinho já usa 12.
+    public static final Map<String, String> FEATURE_CATALOG = Map.ofEntries(
+            // cadastros — módulo em produção hoje
+            Map.entry("grupo_clientes",      "Grupo de Clientes"),
+            Map.entry("depositos",           "Depósitos"),
+            Map.entry("cond_pagamento",      "Condições de Pagamento"),
+            Map.entry("pessoas",             "Pessoas (Geral)"),
+            Map.entry("vendedores",          "Vendedores"),
+            Map.entry("clientes",            "Clientes"),
+            Map.entry("categorias",          "Categorias"),
+            Map.entry("fornecedores",        "Fornecedores"),
+            Map.entry("transportadoras",     "Transportadoras"),
+            Map.entry("tabela_preco",        "Tabelas de Preço"),
+            Map.entry("tabela_preco_grupo",  "Preços por Grupo"),
+            Map.entry("produtos",            "Produtos"),
+            // telas ainda não implementadas — mantidas pro dia em que existirem
+            Map.entry("nfe",                 "Emissão de NF-e"),
+            Map.entry("contas_pagar_receber","Contas a pagar/receber"),
+            Map.entry("relatorios",          "Relatórios financeiros"),
+            Map.entry("conciliacao",         "Conciliação bancária"),
+            Map.entry("folha_pagamento",     "Folha de pagamento"),
+            Map.entry("integracao_contabil", "Integração contábil")
     );
 
     private static final Logger logger = LoggerFactory.getLogger(TrialEngagementService.class);

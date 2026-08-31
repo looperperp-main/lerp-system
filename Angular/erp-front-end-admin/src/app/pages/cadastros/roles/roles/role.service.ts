@@ -1,8 +1,8 @@
-import {environment} from '../../../../../environments/environment';
-import {HttpClient, HttpParams} from '@angular/common/http';
-import {RoleModel} from './role.model';
-import {Injectable} from '@angular/core';
-import {Observable} from 'rxjs';
+import { environment } from '../../../../../environments/environment';
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { RoleModel } from './role.model';
+import { Injectable } from '@angular/core';
+import { Observable } from 'rxjs';
 
 export interface PageResponse<T> {
   content: T[];
@@ -13,20 +13,22 @@ export interface PageResponse<T> {
 }
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class RoleService {
-
   private apiUrl = `${environment.apiUrl}/auth/roles`;
 
-  constructor(private http: HttpClient) {
-  }
+  constructor(private http: HttpClient) {}
 
   getRoles(): Observable<RoleModel[]> {
     return this.http.get<RoleModel[]>(this.apiUrl);
   }
 
-  getRolesbyPage(page: number, size: number, sort: string = 'name,asc') : Observable<PageResponse<RoleModel>> {
+  getRolesbyPage(
+    page: number,
+    size: number,
+    sort: string = 'name,asc',
+  ): Observable<PageResponse<RoleModel>> {
     let params = new HttpParams()
       .set('page', page.toString())
       .set('size', size.toString())
@@ -34,7 +36,12 @@ export class RoleService {
     return this.http.get<PageResponse<RoleModel>>(`${this.apiUrl}/pages`, { params });
   }
 
-  searchRoles(page: number, size: number, filters: any, sort: string = 'name,asc') : Observable<PageResponse<RoleModel>> {
+  searchRoles(
+    page: number,
+    size: number,
+    filters: any,
+    sort: string = 'name,asc',
+  ): Observable<PageResponse<RoleModel>> {
     let params = new HttpParams()
       .set('page', page.toString())
       .set('size', size.toString())
@@ -44,6 +51,10 @@ export class RoleService {
 
   createRole(role: RoleModel): Observable<RoleModel> {
     return this.http.post<RoleModel>(this.apiUrl, role);
+  }
+
+  updateRole(id: string, role: RoleModel): Observable<RoleModel> {
+    return this.http.put<RoleModel>(`${this.apiUrl}/${id}`, role);
   }
 
   // Endpoints para gerenciar permissões da Role
