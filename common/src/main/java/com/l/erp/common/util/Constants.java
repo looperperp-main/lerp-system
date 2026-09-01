@@ -254,6 +254,11 @@ public class Constants {
     public static final String METRIC_TAG_JOB = "job";
     public static final double METRIC_JOB_NUNCA_EXECUTADO = -1.0;
 
+    // Tag de tenant nas métricas http.server.requests (load test estruturado do billing-service,
+    // ver billing-service/loadtest/README.md). Cardinalidade só é aceitável porque o número de
+    // tenants é limitado ao load test controlado — não usar tenant_id como label fora desse cenário.
+    public static final String METRIC_TAG_TENANT = "tenant_id";
+
     //Parceiros
     public static final String PARCEIRO = "PARCEIRO";
     public static final String PARCEIRO_CREATION = PARCEIRO + "_" + INSERT;

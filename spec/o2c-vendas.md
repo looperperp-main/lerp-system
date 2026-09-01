@@ -1,6 +1,6 @@
 # O2C — Vendas (Order-to-Cash): orçamento → pedido → expedição → faturamento — Plano de implementação
 
-**Status:** PLANEJADO (não iniciado) · **Data:** 2026-07-10 · **Rev.:** 2026-07-11 (decisões do usuário aplicadas) · **Rev. 2:** 2026-07-11 (arquitetura consolidada) · **Rev. 3:** 2026-07-23 (ordem de implementação com estoque + pré-requisito de UI do bloqueio de expedição) · **Serviços:** `operacoes-service` (**novo**, foco — também dono de P2P e estoque, ver `p2p-compras.md`) · `cadastro-service` (validação de referências + motor de preço, via API) · `fiscal-service` (**novo** — dono futuro de NF-e/motor fiscal) · `liquibase-service` (migração) · `auth-service` (seed de permissões) · `Angular/erp-front-end-web` (última fase)
+**Status:** EM IMPLEMENTAÇÃO — Fase 0 (infra) feita, não testada · **Data:** 2026-07-10 · **Rev.:** 2026-07-11 (decisões do usuário aplicadas) · **Rev. 2:** 2026-07-11 (arquitetura consolidada) · **Rev. 3:** 2026-07-23 (ordem de implementação com estoque + pré-requisito de UI do bloqueio de expedição) · **Rev. 4:** 2026-09-01 (Fase 0 implementada — módulo `operacoes-service` criado, não testada) · **Serviços:** `operacoes-service` (**novo**, foco — também dono de P2P e estoque, ver `p2p-compras.md`) · `cadastro-service` (validação de referências + motor de preço, via API) · `fiscal-service` (**novo** — dono futuro de NF-e/motor fiscal) · `liquibase-service` (migração) · `auth-service` (seed de permissões) · `Angular/erp-front-end-web` (última fase)
 
 **Decisões fechadas (rev. 2026-07-11):**
 - **[Rev. 2] O módulo nasce dentro de um único microsserviço novo, `operacoes-service`** — decisão revista do usuário: em vez de 3 serviços separados (venda/compra/estoque), **vendas, compras e estoque vivem juntos num só serviço** (`operacoes-service`, schemas `vendas`/`compras`/`estoque` no mesmo Postgres `loop-erp`), porque os três domínios compartilhariam banco mesmo sendo serviços distintos — juntar evita pagar o custo de 3 infra novas (Maven/Docker/Eureka/gateway/Jenkins × 3) sem ganhar isolamento real. Só o **`fiscal-service`** continua separado (ciclo de vida próprio — NF-e/SEFAZ). Consequências na seção "Onde o módulo vive".
@@ -367,7 +367,17 @@ Mesma checagem do spec do motor de preço: 3 workspaces Angular.
 
 ## 10. Fases de implementação
 
-0. **Infra do serviço novo (custo aceito pela decisão)** — módulo Maven `operacoes-service` no POM raiz (porta 8089), `Dockerfile`, registro no Eureka, rota no gateway (`/api/v1/pedidos/**` **antes** do catch-all `/api/**` do cadastro), `SecurityConfig` + `TenantInterceptor`/`TenantContext`/`SecurityUtils`/`BaseTenantEntity` replicados do cadastro-service, `RestClient` `@LoadBalanced` para `lb://cadastro-service`, estágio no Jenkinsfile/Sonar/JaCoCo. No cadastro-service: endpoint interno de validação de referências em lote (§2).
+0. **Infra do serviço novo (custo aceito pela decisão)** — módulo Maven `operacoes-service` no POM raiz (porta 8089), `Dockerfile`, registro no Eureka, rota no gateway (`/api/v1/pedidos/**` **antes** do catch-all `/api/**` do cadastro), `SecurityConfig` + `TenantInterceptor`/`TenantContext`/`SecurityUtils`/`BaseTenantEntity`/`TenantFilterAspect` replicados do cadastro-service, `RestClient` `@LoadBalanced` para `lb://cadastro-service`, estágio no Jenkinsfile/Sonar/JaCoCo. No cadastro-service: endpoint interno de validação de referências em lote (§2).
+   **✅ Feito em 01/09/2026, não testado** — módulo `operacoes-service` criado (pom.xml,
+   Dockerfile, `OperacoesServiceApplication`, `application.yaml`), scaffolding multi-tenant
+   completo (`SecurityConfig`, `TenantInterceptor`, `TenantContext`, `BaseTenantEntity`,
+   `TenantFilterAspect`, `SecurityUtils`, `CurrentUser`), `RestClientConfig` com
+   `@LoadBalanced RestClient.Builder`, módulo adicionado ao `pom.xml` raiz, rota
+   `operacoes-service` inserida no gateway antes do catch-all do cadastro, `Jenkinsfile`
+   com `operacoes-service` nas 4 listas (verify/sonar/docker build/docker cleanup).
+   **Pendente dentro da Fase 0:** o endpoint interno `POST /api/v1/interno/referencias/validar`
+   no cadastro-service ainda não foi criado — sem ele a fase 3 (services) não tem como validar
+   referências em lote.
 1. **Schema** — `vendas/vendas-schema-001.yaml` (4 tabelas, FKs internas, uniques, índices) + include no master. Seed de permissões `PEDIDO_*` (incluindo `PEDIDO_CONFIRMACAO_SEM_LIMITE`) no auth (padrão `DOMINIO_ACAO`, changelog `auth-schema-0XX` idempotente, próximo número livre na implementação).
 2. **Domínio + repositories** — entidades `Pedido`, `PedidoItem`, `PedidoStatusHistorico`, `PedidoSequencia`, enums `StatusPedido` (com `BLOQUEADO_CREDITO`)/`ModalidadeFrete`; repositories; `ddl-auto=validate` contra o schema da fase 1.
 3. **Services** — `PedidoNumeroService`; `PedidoService`: CRUD do orçamento, máquina de estados (tabela de transições válidas), validações §7 (limite de crédito com query de exposição), cálculo de totais e parcelas. Integração com `PrecoResolverService` (§6) — **depende da fase 3 do motor de preço**; até lá, stub que força `preco_manual`. Testes unitários: transições válidas/inválidas, limite de crédito (com/sem limite, estouro, exposição acumulada), arredondamento de parcelas (soma exata), resolver 404 + preço manual, numeração concorrente.

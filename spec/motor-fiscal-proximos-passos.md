@@ -653,6 +653,14 @@ alíquota própria (essa linha vence a referência automaticamente) — não par
 motor de saída que já existe e está testado, sem escrever uma linha de fiscal.
 Orçamento → pedido → expedição → faturamento (`spec/o2c-vendas.md`). É também o que
 valida o motor com dado de verdade, em vez de `curl`.
+**Fase 0 (infra do serviço) implementada em 01/09/2026, não testada** — módulo Maven
+`operacoes-service` (porta 8089) no reactor raiz, `Dockerfile`, rota no gateway,
+scaffolding multi-tenant (`SecurityConfig`/`TenantInterceptor`/`TenantContext`/
+`BaseTenantEntity`/`TenantFilterAspect`/`SecurityUtils`) replicado do cadastro-service,
+`RestClient` `@LoadBalanced` para `lb://cadastro-service`, `Jenkinsfile` atualizado.
+Falta ainda dentro da própria Fase 0: endpoint interno de validação de referências em
+lote no cadastro-service (`POST /api/v1/interno/referencias/validar`, `spec/o2c-vendas.md`
+§2/§10). Fases 1-6 (schema, domínio, services, API, eventos, frontend) não iniciadas.
 
 **3. Fatia de entrada do motor** (item 4 acima, lado fiscal) — pequena, e
 pré-requisito do AP. Pode ser feita em paralelo com o AR ou imediatamente antes do
