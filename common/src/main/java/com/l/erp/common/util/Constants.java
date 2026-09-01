@@ -471,4 +471,17 @@ public class Constants {
     public static final String FISCAL_TRIBUTO_TOTAL = "TOTAL";
     public static final String FISCAL_TIPO_PERCENTUAL_REDUCAO = "PERCENTUAL_REDUCAO";
     public static final String FISCAL_TIPO_ALIQUOTA_ABSOLUTA = "ALIQUOTA_ABSOLUTA";
+
+    // Art. 57 §7º da LC 214/2025 (incluído pela LC 227/2026) — revenda de bem que não gerou
+    // crédito na entrada (uso e consumo pessoal) pode excluir da base de saída o valor de
+    // aquisição, até o limite do valor da venda. Só existe do lado da SAÍDA — a vedação em si
+    // já é decidida na entrada (item 4), então declarar o flag numa entrada não faz sentido.
+    public static final String FISCAL_VEDACAO_57_APENAS_SAIDA = "FISCAL_VEDACAO_57_APENAS_SAIDA";
+    // Flag ligada sem o valor de aquisição: sem ele não dá pra calcular a exclusão — 400 em vez
+    // de tratar como zero (o que devolveria o mesmo imposto de uma venda comum, calado).
+    public static final String FISCAL_VEDACAO_57_SEM_VALOR_AQUISICAO = "FISCAL_VEDACAO_57_SEM_VALOR_AQUISICAO";
+    // Memória de cálculo da exclusão (art. 57 §7º). Placeholders: valor excluído, valor de aquisição.
+    public static final String FISCAL_MEMORIA_VEDACAO_57 =
+            "Art. 57 §7º LC 214/2025: exclusão de %s da base de cálculo (bem sem crédito na "
+                    + "entrada, valor de aquisição %s)";
 }

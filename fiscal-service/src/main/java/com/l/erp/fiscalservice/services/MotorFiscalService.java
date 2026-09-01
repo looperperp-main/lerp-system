@@ -109,11 +109,31 @@ public class MotorFiscalService {
         if (produto && pedeRetencao) {
             throw new FiscalException(Constants.FISCAL_RETENCAO_APENAS_SERVICO);
         }
+        // Vedação de crédito (art. 57 §7º) só existe do lado da SAÍDA — a vedação em si já foi
+        // decidida na entrada (item 4, usoConsumoPessoal). Declarar numa entrada é erro de entrada.
+        if (entrada && Boolean.TRUE.equals(req.getBemSemCreditoNaEntrada())) {
+            throw new FiscalException(Constants.FISCAL_VEDACAO_57_APENAS_SAIDA);
+        }
 
         // PASSO 0.5 — compor a base a partir dos componentes, em vez de confiar num número pronto:
         // frete, seguro e acessórias ENTRAM, desconto incondicional SAI (LC 214 art. 12, §2º).
         // Vem antes de MEI e alíquota zero porque esses caminhos também devolvem baseCalculo.
         BigDecimal valorTributavel = valorTributavel(req, memoria);
+
+        // PASSO 0.6 — art. 57 §7º da LC 214/2025 (incluído pela LC 227/2026): revenda de um bem
+        // que não gerou crédito na entrada pode excluir da base o valor de aquisição, até o limite
+        // do valor da venda — evita tributar em cascata algo que já "pagou" imposto sem nunca ter
+        // tido crédito a abater. Declarado pelo chamador (AR/O2C, que sabe se aquele bem específico
+        // gerou crédito no item 4) — o motor não deduz isso sozinho.
+        if (Boolean.TRUE.equals(req.getBemSemCreditoNaEntrada())) {
+            BigDecimal valorAquisicao = req.getValorAquisicaoSemCredito();
+            if (valorAquisicao == null) {
+                throw new FiscalException(Constants.FISCAL_VEDACAO_57_SEM_VALOR_AQUISICAO);
+            }
+            BigDecimal exclusao = valorAquisicao.min(valorTributavel);
+            valorTributavel = valorTributavel.subtract(exclusao);
+            memoria.add(Constants.FISCAL_MEMORIA_VEDACAO_57.formatted(exclusao, valorAquisicao));
+        }
 
         // ZFM tem tratamento próprio na LC 214 que o motor NÃO implementa (fatia futura). O item é
         // tributado como nacional — pode dar imposto a mais —, então avisa antes de qualquer
@@ -139,8 +159,8 @@ public class MotorFiscalService {
         // Serviço (NFS-e): IBS é pelo LOCAL DA PRESTAÇÃO, não pelo tomador (§1.4.5)
         String ibgeDestino = servico ? req.getIbgeLocalPrestacao() : req.getIbgeDestino();
         RegimeDiferenciado regime = servico
-                ? tabela.regimeCClassTrib(req.getCClassTrib())
-                : tabela.regimeNcm(req.getNcm());
+                ? tabela.regimeCClassTrib(req.getCClassTrib(), req.getDataCompetencia())
+                : tabela.regimeNcm(req.getNcm(), req.getDataCompetencia());
 
         // PADRAO aqui não é classificação declarada (isso é INTEGRAL): é ausência de linha em
         // regime_dif_ncm/regime_cclasstrib. O motor segue e tributa cheio — erro contra o
@@ -186,7 +206,8 @@ public class MotorFiscalService {
         Legado legado = calcularLegado(req, servico, valorTributavel, transicao, tenantId, memoria);
 
         // PASSO 4 — IS antes do IBS/CBS (incide sobre o valor bruto, sem redução)
-        BigDecimal aliqIs = servico ? BigDecimal.ZERO : tabela.aliquotaIs(req.getNcm()).orElse(BigDecimal.ZERO);
+        BigDecimal aliqIs = servico ? BigDecimal.ZERO
+                : tabela.aliquotaIs(req.getNcm(), req.getDataCompetencia()).orElse(BigDecimal.ZERO);
         BigDecimal valorIs = pct(valorTributavel, aliqIs);
 
         // PASSO 5 — base (o IS INTEGRA a base — LC 214/2025) + redução de ALÍQUOTA (não de base)
@@ -383,7 +404,8 @@ public class MotorFiscalService {
         BigDecimal fatorLegado = transicao.pctRemanescente().divide(CEM);
 
         if (servico) {
-            AliquotaIss aliqIss = tabela.aliquotaIss(req.getIbgeLocalPrestacao(), req.getCodigoServico())
+            AliquotaIss aliqIss = tabela
+                    .aliquotaIss(req.getIbgeLocalPrestacao(), req.getCodigoServico(), req.getDataCompetencia())
                     .orElseThrow(() -> new FiscalException(Constants.FISCAL_ISS_SEM_COBERTURA));
             if (aliqIss.referenciaNacional()) {
                 String aviso = Constants.FISCAL_AVISO_ALIQUOTA_REFERENCIA.formatted(req.getIbgeLocalPrestacao());
@@ -399,7 +421,8 @@ public class MotorFiscalService {
         if (!preenchido(req.getUfOrigem()) || !preenchido(req.getUfDestino())) {
             throw new FiscalException(Constants.FISCAL_UF_OBRIGATORIA_TRANSICAO);
         }
-        RegimeIcms regimeIcms = tabela.aliquotaIcms(tenantId, req.getNcm(), req.getUfOrigem(), req.getUfDestino())
+        RegimeIcms regimeIcms = tabela
+                .aliquotaIcms(tenantId, req.getNcm(), req.getUfOrigem(), req.getUfDestino(), req.getDataCompetencia())
                 .orElseThrow(() -> new FiscalException(Constants.FISCAL_ICMS_SEM_COBERTURA));
         BigDecimal aliqIcmsEfetiva = regimeIcms.aliqNominal().multiply(fatorReducao(regimeIcms.pReducaoBase()));
         BigDecimal valorIcms = pct(valorTributavel, aliqIcmsEfetiva)
@@ -496,8 +519,8 @@ public class MotorFiscalService {
 
         String ibgeDestino = servico ? req.getIbgeLocalPrestacao() : req.getIbgeDestino();
         RegimeDiferenciado regime = servico
-                ? tabela.regimeCClassTrib(req.getCClassTrib())
-                : tabela.regimeNcm(req.getNcm());
+                ? tabela.regimeCClassTrib(req.getCClassTrib(), req.getDataCompetencia())
+                : tabela.regimeNcm(req.getNcm(), req.getDataCompetencia());
 
         int ano = req.getDataCompetencia().getYear();
         AliquotaIbs aliqIbs = tabela.aliquotaIbs(ibgeDestino, ano)

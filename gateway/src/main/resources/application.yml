@@ -22,6 +22,10 @@ spring:
                 - Path=/billing/**
               filters:
                 - StripPrefix=1
+            - id: operacoes-service
+              uri: lb://operacoes-service
+              predicates:
+                - Path=/api/v1/pedidos/**,/api/v1/compras/**,/api/v1/estoque/**
             - id: cadastro-service
               uri: lb://cadastro-service
               predicates:

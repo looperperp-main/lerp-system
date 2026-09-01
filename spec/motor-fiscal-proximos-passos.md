@@ -1,6 +1,6 @@
 # Motor Fiscal — próximos passos
 
-> Última atualização: 27 de agosto de 2026
+> Última atualização: 01 de setembro de 2026
 
 Handoff das fatias seguintes do motor fiscal. Escrito para ser lido do zero, sem
 contexto de conversa anterior.
@@ -474,8 +474,21 @@ quando se olha o motor inteiro, e que não estava escrito em lugar nenhum. Os tr
   com as alíquotas.
 - **7.5 240 itens de anexo de produto**, pendentes em
   `spec/anexos-lc214-revisar.md`.
-- **7.6 Lista de vedação de crédito** (art. 57, uso e consumo pessoal): não existe
-  tabela nenhuma. Pré-requisito do item 4 se a vedação não vier declarada pelo AP.
+- **7.6 Lista de vedação de crédito** (art. 57, uso e consumo pessoal) — ✅ FEITO em
+  01/09/2026, **não testado**. A premissa original (tabela por NCM) estava errada: a
+  vedação em si já é resolvida pelo item 4, via flag declarada (`usoConsumoPessoal`) —
+  não dá pra amarrar por NCM porque depende de USO (mesmo bem, ora pessoal, ora
+  insumo), não de classificação fiscal. O gap real era o **§7º do art. 57** (incluído
+  pela LC 227/2026): na revenda de um bem que não gerou crédito na entrada, o
+  contribuinte pode excluir da base de cálculo da venda o valor de aquisição, até o
+  limite do valor da venda (evita tributar em cascata algo que já "pagou" imposto sem
+  nunca ter tido crédito a abater). Implementado em `MotorFiscalRequest`
+  (`bemSemCreditoNaEntrada` + `valorAquisicaoSemCredito`, mesmo padrão declarado de
+  `usoConsumoPessoal`/`percentualSaidaDesonerada`) e `MotorFiscalService` (PASSO 0.6,
+  só do lado SAÍDA — declarar na entrada é 400, `FISCAL_VEDACAO_57_APENAS_SAIDA`; flag
+  sem valor também é 400, `FISCAL_VEDACAO_57_SEM_VALOR_AQUISICAO`); 5 testes novos em
+  `MotorFiscalServiceTest` (exclusão parcial, base zerada no teto, regressão sem flag,
+  e os 2 erros de validação).
 
 ### Modelo (o schema não expressa)
 
@@ -490,9 +503,26 @@ quando se olha o motor inteiro, e que não estava escrito em lugar nenhum. Os tr
   existentes ficam intactos. Separada de propósito: dá pra expor um CRUD simples
   num backend futuro sem tocar em classificação nem no motor. Detalhe em
   `spec/anexos-lc214-revisar.md`.
-- **7.8 Vigência.** Nem alíquota nem regime têm `vigencia_inicio`/`vigencia_fim`; o
-  ano está solto na chave. Dói na transição, quando o mesmo NCM muda de percentual
-  de um ano para o outro.
+- **7.8 Vigência.** ✅ **FEITO em 1 de setembro de 2026, não testado.** Premissa
+  original errada: `regime_dif_ncm`, `regime_cclasstrib`, `aliq_is_ncm`,
+  `aliq_iss_municipio` e `matriz_tributaria` já tinham `vigente_de`/`vigente_ate`
+  desde os changelogs 001/002/007/010/011 — o gap real era o SQL sempre filtrar
+  `vigente_ate IS NULL` ("a linha corrente"), nunca comparando com a
+  `dataCompetencia` da nota. Isso quebrava (a) reprocessar uma nota antiga depois
+  que a regra mudou (pegaria a regra de hoje, não a da época dela) e (b) uma
+  troca de versão só funcionava se quem mantém o seed fechasse a linha antiga no
+  exato instante em que abre a nova (senão duas linhas casam `vigente_ate IS NULL`
+  ao mesmo tempo e o `.optional()` do JDBC estoura). Corrigido: os 5 métodos de
+  `TabelaFiscal` (`regimeNcm`, `regimeCClassTrib`, `aliquotaIs`, `aliquotaIss`,
+  `aliquotaIcms`) agora recebem `LocalDate competencia`, e o SQL filtra
+  `vigente_de <= :data AND (vigente_ate IS NULL OR vigente_ate > :data)`;
+  `MotorFiscalService` passa `req.getDataCompetencia()` em todos os call-sites
+  (saída, crédito de entrada, ISS, ICMS legado). `aliq_ibs_municipio`/
+  `aliq_cbs_regime`/`aliquota_regime_tributo` (item 7.7) continuam com
+  `ano_vigencia` solto de propósito — a curva de transição da LC 214 só muda em
+  1º de janeiro, granularidade anual é suficiente ali, não é o mesmo gap. 5
+  testes novos em `TabelaFiscalJdbcTest` provando que uma competência histórica
+  pega a regra que valia na época (nem a vencida-hoje nem a atual).
 
 ### Código
 

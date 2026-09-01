@@ -1,0 +1,498 @@
+# ──────────────────────────────────────────
+# Continuação da carga de regime por NCM — spec/anexos-lc214-revisar.md, item 7.5.
+#
+# Cobre os itens do backlog de 240 pendências que dava pra confirmar por texto integral da lei
+# (spec/ANEXOS.md) e cruzar contra o que já está carregado (data/regime-lc214-v2.csv +
+# fiscal-009/026/027). NÃO é a lista inteira — o que ficou de fora está documentado no rodapé
+# deste arquivo e em spec/anexos-lc214-revisar.md (atualizado na mesma leva).
+#
+# REGIME NOVO — EXCECAO_INTEGRAL (percentual_reducao = 0):
+# Vários itens dos anexos trazem "código X, EXCETO os subitens Y e Z" — Y/Z têm que sair
+# tributados cheio, não com a redução do código guarda-chuva X. O motor casa por PREFIXO MAIS
+# LONGO (TabelaFiscalJdbc#SQL_REGIME_NCM), então basta cadastrar Y/Z com um regime próprio de
+# percentual_reducao=0 que os protege do prefixo largo de X.
+#
+# Por que não usar o literal 'PADRAO' (Constants.REGIME_DIF_PADRAO) pra essas linhas: PADRAO no
+# motor não é "classificado, tributação cheia" — é "SEM linha em regime_dif_ncm", e dispara aviso
+# de log + memória de cálculo avisando que o produto não está cadastrado (MotorFiscalService,
+# ~linha 145). Se a exceção entrasse com regime='PADRAO', o motor acusaria falso positivo de
+# "não cadastrado" pra um código que está, sim, classificado de propósito. EXCECAO_INTEGRAL entra
+# como regime nomeado de verdade — mesmo efeito tributário (zero redução), sem o alarme falso.
+#
+# Quando a exceção pertence a OUTRO anexo já reduzido (não é tributação cheia), a linha entra com
+# o regime daquele anexo, não com EXCECAO_INTEGRAL — ver Anexo XV item 2 (fiscal-047) e o próprio
+# padrão já usado no fiscal-027.
+# ──────────────────────────────────────────
+databaseChangeLog:
+
+  # Anexo I item 19 (carnes, exceto foie gras) e item 20 (peixes, exceto salmonídeos/atuns/
+  # bacalhaus/hadoque/saithe/fígados/ovas/sêmen) — nenhum código de carne/peixe estava carregado
+  # antes desta leva (conferido: grep '^0[23]' no CSV não retornou nada).
+  - changeSet:
+      id: fiscal-037-seed-anexo-i-carnes-peixes
+      author: vitor-fernandes
+      comment: Anexo I itens 19/20 — carnes (exceto foie gras) e peixes (exceto espécies nobres)
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.regime_dif_ncm (ncm, descricao, regime, percentual_reducao, vigente_de) VALUES
+                ('0201', 'Carnes bovinas frescas/refrigeradas - Anexo I item 19a', 'ANEXO_I_ZERO', 100, DATE '2027-01-01'),
+                ('0202', 'Carnes bovinas congeladas - Anexo I item 19a', 'ANEXO_I_ZERO', 100, DATE '2027-01-01'),
+                ('02061000', 'Línguas bovinas comestíveis - Anexo I item 19a', 'ANEXO_I_ZERO', 100, DATE '2027-01-01'),
+                ('02062', 'Miudezas bovinas comestíveis, congeladas - Anexo I item 19a', 'ANEXO_I_ZERO', 100, DATE '2027-01-01'),
+                ('02102000', 'Carnes bovinas salgadas/secas/defumadas - Anexo I item 19a', 'ANEXO_I_ZERO', 100, DATE '2027-01-01'),
+                ('0203', 'Carnes suínas frescas/refrigeradas/congeladas - Anexo I item 19b', 'ANEXO_I_ZERO', 100, DATE '2027-01-01'),
+                ('02063000', 'Miudezas suínas comestíveis, frescas/refrigeradas - Anexo I item 19b', 'ANEXO_I_ZERO', 100, DATE '2027-01-01'),
+                ('02064', 'Miudezas suínas comestíveis, congeladas - Anexo I item 19b', 'ANEXO_I_ZERO', 100, DATE '2027-01-01'),
+                ('020910', 'Toucinho sem partes magras - Anexo I item 19b', 'ANEXO_I_ZERO', 100, DATE '2027-01-01'),
+                ('02101', 'Carnes suínas salgadas/secas/defumadas - Anexo I item 19b', 'ANEXO_I_ZERO', 100, DATE '2027-01-01'),
+                ('0204', 'Carnes ovinas/caprinas frescas/refrigeradas/congeladas - Anexo I item 19c', 'ANEXO_I_ZERO', 100, DATE '2027-01-01'),
+                ('02109920', 'Carne caprina salgada/seca/defumada - Anexo I item 19c', 'ANEXO_I_ZERO', 100, DATE '2027-01-01'),
+                ('02109990', 'Outras carnes salgadas/secas/defumadas (exceto bovina/suína/caprina) - Anexo I item 19c', 'ANEXO_I_ZERO', 100, DATE '2027-01-01'),
+                ('02068000', 'Miudezas comestíveis de outros animais, frescas/refrigeradas - Anexo I item 19c', 'ANEXO_I_ZERO', 100, DATE '2027-01-01'),
+                ('02069000', 'Miudezas comestíveis de outros animais, congeladas - Anexo I item 19c', 'ANEXO_I_ZERO', 100, DATE '2027-01-01'),
+                ('0207', 'Carnes e miudezas comestíveis de aves - Anexo I item 19d, exceto foie gras (02.07.43/53)', 'ANEXO_I_ZERO', 100, DATE '2027-01-01'),
+                ('02099000', 'Gorduras de aves não fundidas - Anexo I item 19d', 'ANEXO_I_ZERO', 100, DATE '2027-01-01'),
+                ('0210991', 'Carnes de aves salgadas/secas/defumadas - Anexo I item 19d', 'ANEXO_I_ZERO', 100, DATE '2027-01-01'),
+                ('02074300', 'Fígado gordo de pato ou ganso (foie gras) - excetuado do Anexo I item 19d, sem outra redução; tributação integral', 'EXCECAO_INTEGRAL', 0, DATE '2027-01-01'),
+                ('02075300', 'Fígado gordo de pato ou ganso (foie gras), congelado - excetuado do Anexo I item 19d; tributação integral', 'EXCECAO_INTEGRAL', 0, DATE '2027-01-01'),
+                ('0302', 'Peixes frescos/refrigerados - Anexo I item 20a, exceto salmonídeos/atuns/afins/bacalhaus/hadoque/saithe/fígados/ovas/sêmen', 'ANEXO_I_ZERO', 100, DATE '2027-01-01'),
+                ('0303', 'Peixes congelados - Anexo I item 20b, exceto idem', 'ANEXO_I_ZERO', 100, DATE '2027-01-01'),
+                ('0304', 'Filés e outra carne de peixes - Anexo I item 20c, exceto idem', 'ANEXO_I_ZERO', 100, DATE '2027-01-01'),
+                ('03021', 'Salmonídeos frescos/refrigerados - excetuados do Anexo I item 20a; tributação integral', 'EXCECAO_INTEGRAL', 0, DATE '2027-01-01'),
+                ('03023', 'Atuns e afins frescos/refrigerados - excetuados do Anexo I item 20a; tributação integral', 'EXCECAO_INTEGRAL', 0, DATE '2027-01-01'),
+                ('03025100', 'Peixe nobre (bacalhau/hadoque/saithe), fresco/refrigerado - excetuado do Anexo I item 20a; tributação integral', 'EXCECAO_INTEGRAL', 0, DATE '2027-01-01'),
+                ('03025200', 'Peixe nobre (bacalhau/hadoque/saithe), fresco/refrigerado - excetuado do Anexo I item 20a; tributação integral', 'EXCECAO_INTEGRAL', 0, DATE '2027-01-01'),
+                ('03025300', 'Peixe nobre (bacalhau/hadoque/saithe), fresco/refrigerado - excetuado do Anexo I item 20a; tributação integral', 'EXCECAO_INTEGRAL', 0, DATE '2027-01-01'),
+                ('03029', 'Fígados, ovas e sêmen de peixe, frescos/refrigerados - excetuados do Anexo I item 20a; tributação integral', 'EXCECAO_INTEGRAL', 0, DATE '2027-01-01'),
+                ('03031', 'Salmonídeos congelados - excetuados do Anexo I item 20b; tributação integral', 'EXCECAO_INTEGRAL', 0, DATE '2027-01-01'),
+                ('03034', 'Atuns e afins congelados - excetuados do Anexo I item 20b; tributação integral', 'EXCECAO_INTEGRAL', 0, DATE '2027-01-01'),
+                ('03036300', 'Peixe nobre (bacalhau/hadoque/saithe), congelado - excetuado do Anexo I item 20b; tributação integral', 'EXCECAO_INTEGRAL', 0, DATE '2027-01-01'),
+                ('03036400', 'Peixe nobre (bacalhau/hadoque/saithe), congelado - excetuado do Anexo I item 20b; tributação integral', 'EXCECAO_INTEGRAL', 0, DATE '2027-01-01'),
+                ('03036500', 'Peixe nobre (bacalhau/hadoque/saithe), congelado - excetuado do Anexo I item 20b; tributação integral', 'EXCECAO_INTEGRAL', 0, DATE '2027-01-01'),
+                ('03039', 'Fígados, ovas e sêmen de peixe, congelados - excetuados do Anexo I item 20b; tributação integral', 'EXCECAO_INTEGRAL', 0, DATE '2027-01-01'),
+                ('03044', 'Filés de peixe nobre, frescos/refrigerados - excetuados do Anexo I item 20c; tributação integral', 'EXCECAO_INTEGRAL', 0, DATE '2027-01-01'),
+                ('03045', 'Filés de peixe nobre, congelados - excetuados do Anexo I item 20c; tributação integral', 'EXCECAO_INTEGRAL', 0, DATE '2027-01-01'),
+                ('03047', 'Carne de peixe nobre, mesmo picada, congelada - excetuada do Anexo I item 20c; tributação integral', 'EXCECAO_INTEGRAL', 0, DATE '2027-01-01'),
+                ('03048', 'Outra carne de peixe nobre, fresca/refrigerada/congelada - excetuada do Anexo I item 20c; tributação integral', 'EXCECAO_INTEGRAL', 0, DATE '2027-01-01'),
+                ('03049', 'Outra carne de peixe nobre - excetuada do Anexo I item 20c; tributação integral', 'EXCECAO_INTEGRAL', 0, DATE '2027-01-01');
+      rollback:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              DELETE FROM fiscal.regime_dif_ncm WHERE ncm IN (
+                '0201','0202','02061000','02062','02102000','0203','02063000','02064','020910','02101',
+                '0204','02109920','02109990','02068000','02069000','0207','02099000','0210991',
+                '02074300','02075300','0302','0303','0304','03021','03023','03025100','03025200',
+                '03025300','03029','03031','03034','03036300','03036400','03036500','03039',
+                '03044','03045','03047','03048','03049');
+
+  # Anexo IV itens 48/49/51/54/61 (dispositivos médicos, 60%) — códigos próprios, sem sobreposição
+  # com nada já carregado; "exceto" na descrição da lei é contraste com item irmão, não recorte de
+  # código (conferido código a código contra data/regime-lc214-v2.csv).
+  - changeSet:
+      id: fiscal-038-seed-anexo-iv-complemento
+      author: vitor-fernandes
+      comment: Anexo IV itens 48/49/51/54/61 — dispositivos médicos faltantes na carga original
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.regime_dif_ncm (ncm, descricao, regime, percentual_reducao, vigente_de) VALUES
+                ('30021229', 'Dispositivo médico (soro/plasma) - Anexo IV item 48', 'ANEXO_IV_60', 60, DATE '2027-01-01'),
+                ('38221', 'Reagente de diagnóstico ou de laboratório - Anexo IV item 49', 'ANEXO_IV_60', 60, DATE '2027-01-01'),
+                ('30064012', 'Cimento/produto para obturação dentária - Anexo IV item 51', 'ANEXO_IV_60', 60, DATE '2027-01-01'),
+                ('30069190', 'Aparelho de identificação de ostomia - Anexo IV item 54', 'ANEXO_IV_60', 60, DATE '2027-01-01'),
+                ('90183910', 'Cateter - Anexo IV item 61', 'ANEXO_IV_60', 60, DATE '2027-01-01');
+      rollback:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              DELETE FROM fiscal.regime_dif_ncm WHERE ncm IN ('30021229','38221','30064012','30069190','90183910');
+
+  # Anexo V itens 2.2/2.4/3.2 (dispositivos de acessibilidade, 60%) — o extrator original perdeu
+  # esses códigos por virem em célula de tabela multi-linha (<br><br>) no .docx convertido.
+  - changeSet:
+      id: fiscal-039-seed-anexo-v-complemento
+      author: vitor-fernandes
+      comment: Anexo V itens 2.2/2.4/3.2 — relógio braille, calculadora digital, despertador vibratório
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.regime_dif_ncm (ncm, descricao, regime, percentual_reducao, vigente_de) VALUES
+                ('91021110', 'Relógio de pulso em braille, elétrico - Anexo V item 2.2', 'ANEXO_V_60', 60, DATE '2027-01-01'),
+                ('91021190', 'Relógio de pulso em braille, elétrico - Anexo V item 2.2', 'ANEXO_V_60', 60, DATE '2027-01-01'),
+                ('91029100', 'Relógio em braille, não elétrico - Anexo V item 2.2', 'ANEXO_V_60', 60, DATE '2027-01-01'),
+                ('84701000', 'Calculadora digital com síntese de voz - Anexo V item 2.4', 'ANEXO_V_60', 60, DATE '2027-01-01'),
+                ('84702900', 'Calculadora digital com síntese de voz - Anexo V item 2.4', 'ANEXO_V_60', 60, DATE '2027-01-01'),
+                ('91031000', 'Relógio despertador vibratório, elétrico - Anexo V item 3.2', 'ANEXO_V_60', 60, DATE '2027-01-01'),
+                ('91051100', 'Relógio despertador vibratório, não elétrico - Anexo V item 3.2', 'ANEXO_V_60', 60, DATE '2027-01-01');
+      rollback:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              DELETE FROM fiscal.regime_dif_ncm WHERE ncm IN ('91021110','91021190','91029100','84701000','84702900','91031000','91051100');
+
+  # Anexo VI itens 26/27/29 (nutrição enteral/parenteral, 60%) — mesmo motivo do fiscal-039
+  # (célula multi-linha perdida no extrator). Item 81 (triglicerídeos de cadeia média) NÃO entra
+  # aqui: já cai na posição 1513 carregada pelo Anexo VII (mesmos 60%, sem diferença prática).
+  - changeSet:
+      id: fiscal-040-seed-anexo-vi-complemento
+      author: vitor-fernandes
+      comment: Anexo VI itens 26/27/29 — insumos de nutrição enteral/parenteral faltantes na carga original
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.regime_dif_ncm (ncm, descricao, regime, percentual_reducao, vigente_de) VALUES
+                ('28272010', 'Cloreto de cálcio para nutrição - Anexo VI item 26', 'ANEXO_VI_60', 60, DATE '2027-01-01'),
+                ('28272090', 'Cloreto de cálcio para nutrição - Anexo VI item 26', 'ANEXO_VI_60', 60, DATE '2027-01-01'),
+                ('28273110', 'Cloreto de magnésio para nutrição - Anexo VI item 27', 'ANEXO_VI_60', 60, DATE '2027-01-01'),
+                ('28273190', 'Cloreto de magnésio para nutrição - Anexo VI item 27', 'ANEXO_VI_60', 60, DATE '2027-01-01'),
+                ('31042010', 'Cloreto de potássio para nutrição - Anexo VI item 29', 'ANEXO_VI_60', 60, DATE '2027-01-01'),
+                ('31042090', 'Cloreto de potássio para nutrição - Anexo VI item 29', 'ANEXO_VI_60', 60, DATE '2027-01-01');
+      rollback:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              DELETE FROM fiscal.regime_dif_ncm WHERE ncm IN ('28272010','28272090','28273110','28273190','31042010','31042090');
+
+  # Anexo VII item 1 — crustáceos e moluscos, 60%, exceto lagosta/lagostim (sem outra redução —
+  # tributação integral).
+  - changeSet:
+      id: fiscal-041-seed-anexo-vii-crustaceos
+      author: vitor-fernandes
+      comment: Anexo VII item 1 — crustáceos e moluscos (exceto lagosta/lagostim)
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.regime_dif_ncm (ncm, descricao, regime, percentual_reducao, vigente_de) VALUES
+                ('03061', 'Crustáceos congelados, exceto lagosta/lagostim - Anexo VII item 1a', 'ANEXO_VII_60', 60, DATE '2027-01-01'),
+                ('03063', 'Outros crustáceos, exceto lagosta/lagostim - Anexo VII item 1a', 'ANEXO_VII_60', 60, DATE '2027-01-01'),
+                ('030611', 'Lagosta/lagostim - excetuados do Anexo VII item 1a; tributação integral', 'EXCECAO_INTEGRAL', 0, DATE '2027-01-01'),
+                ('03061500', 'Crustáceo nobre - excetuado do Anexo VII item 1a; tributação integral', 'EXCECAO_INTEGRAL', 0, DATE '2027-01-01'),
+                ('03063100', 'Crustáceo nobre - excetuado do Anexo VII item 1a; tributação integral', 'EXCECAO_INTEGRAL', 0, DATE '2027-01-01'),
+                ('03063400', 'Crustáceo nobre - excetuado do Anexo VII item 1a; tributação integral', 'EXCECAO_INTEGRAL', 0, DATE '2027-01-01'),
+                ('03063910', 'Crustáceo nobre - excetuado do Anexo VII item 1a; tributação integral', 'EXCECAO_INTEGRAL', 0, DATE '2027-01-01'),
+                ('03073100', 'Mexilhões - Anexo VII item 1b', 'ANEXO_VII_60', 60, DATE '2027-01-01'),
+                ('03073200', 'Mexilhões defumados - Anexo VII item 1b', 'ANEXO_VII_60', 60, DATE '2027-01-01'),
+                ('03074200', 'Chocos e lulas - Anexo VII item 1b', 'ANEXO_VII_60', 60, DATE '2027-01-01'),
+                ('030743', 'Chocos e lulas - Anexo VII item 1b', 'ANEXO_VII_60', 60, DATE '2027-01-01'),
+                ('03075100', 'Polvos - Anexo VII item 1b', 'ANEXO_VII_60', 60, DATE '2027-01-01'),
+                ('03075200', 'Polvos congelados - Anexo VII item 1b', 'ANEXO_VII_60', 60, DATE '2027-01-01'),
+                ('03079100', 'Outros moluscos - Anexo VII item 1b', 'ANEXO_VII_60', 60, DATE '2027-01-01'),
+                ('03079200', 'Outros moluscos defumados - Anexo VII item 1b', 'ANEXO_VII_60', 60, DATE '2027-01-01');
+      rollback:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              DELETE FROM fiscal.regime_dif_ncm WHERE ncm IN (
+                '03061','03063','030611','03061500','03063100','03063400','03063910',
+                '03073100','03073200','03074200','030743','03075100','03075200','03079100','03079200');
+
+  # Anexo VII itens 4/5/6 (farinha/grumos/grãos de cereais, 60%, "ressalvados os produtos do
+  # Anexo I") e itens 10/11 (sucos/polpas, posição 20.09/20.08). A ressalva do Anexo I NÃO precisa
+  # de linha de exceção: os códigos do Anexo I nessas mesmas posições (ex. 11010010, 11041200) já
+  # estão carregados e são mais específicos — o motor casa por prefixo mais longo, então continuam
+  # protegidos mesmo com a posição inteira entrando aqui a 60%.
+  - changeSet:
+      id: fiscal-042-seed-anexo-vii-farinhas-sucos
+      author: vitor-fernandes
+      comment: Anexo VII itens 4/5/6 (farinha/grumos/grãos, ressalvado Anexo I) e itens 10/11 (posição 20.09/20.08)
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.regime_dif_ncm (ncm, descricao, regime, percentual_reducao, vigente_de) VALUES
+                ('110100', 'Farinha de trigo/mistura - Anexo VII item 4, ressalvado Anexo I', 'ANEXO_VII_60', 60, DATE '2027-01-01'),
+                ('1102', 'Farinhas de outros cereais - Anexo VII item 4, ressalvado Anexo I', 'ANEXO_VII_60', 60, DATE '2027-01-01'),
+                ('1105', 'Farinha/sêmola/flocos de batata - Anexo VII item 4, ressalvado Anexo I', 'ANEXO_VII_60', 60, DATE '2027-01-01'),
+                ('1106', 'Farinha de legumes/frutas - Anexo VII item 4, ressalvado Anexo I', 'ANEXO_VII_60', 60, DATE '2027-01-01'),
+                ('1208', 'Farinha de sementes/frutos oleaginosos - Anexo VII item 4, ressalvado Anexo I', 'ANEXO_VII_60', 60, DATE '2027-01-01'),
+                ('11031100', 'Grumos e sêmolas de trigo - Anexo VII item 5, ressalvado Anexo I', 'ANEXO_VII_60', 60, DATE '2027-01-01'),
+                ('11031900', 'Grumos e sêmolas de outros cereais - Anexo VII item 5, ressalvado Anexo I', 'ANEXO_VII_60', 60, DATE '2027-01-01'),
+                ('11041', 'Grãos de cereais esmagados/em flocos - Anexo VII item 6, ressalvado Anexo I', 'ANEXO_VII_60', 60, DATE '2027-01-01'),
+                ('11042', 'Outros grãos de cereais trabalhados - Anexo VII item 6, ressalvado Anexo I', 'ANEXO_VII_60', 60, DATE '2027-01-01'),
+                ('2009', 'Sucos de fruta/hortícolas sem açúcar/conservantes - Anexo VII item 10', 'ANEXO_VII_60', 60, DATE '2027-01-01'),
+                ('2008', 'Polpas de fruta/hortícolas sem açúcar/conservantes - Anexo VII item 11', 'ANEXO_VII_60', 60, DATE '2027-01-01');
+      rollback:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              DELETE FROM fiscal.regime_dif_ncm WHERE ncm IN (
+                '110100','1102','1105','1106','1208','11031100','11031900','11041','11042','2009','2008');
+
+  # Anexo VII item 14 (frutas/hortícolas, capítulos 7 e 8, exceto posições 07.11/08.12/0814.00.00,
+  # sem outra redução) e item 15 (cereais/oleaginosas, capítulos 10 e 12, ressalvado Anexo I).
+  #
+  # ATENÇÃO ao raio de alcance: são prefixos de 2 dígitos (capítulo inteiro). Avaliado o risco de
+  # captura indevida — capítulos 7/8/10/12 são só produtos agrícolas/alimentícios "in natura", sem
+  # uso industrial não-alimentar misturado no meio (diferente do capítulo 25 do Anexo IX item 3,
+  # que cobre de gesso agrícola a cimento — esse ficou de fora, ver rodapé). Ressalva do Anexo I no
+  # capítulo 10/12 é automática pelo prefixo mais longo, igual ao changeset anterior.
+  #
+  # NÃO cobre a parte de "frutas de casca rija NÃO regionais" do item 14: é distinção por
+  # ORIGEM/REGIONALIDADE, não por código NCM — o mesmo código serve castanha regional e importada.
+  # Sem campo de origem no cadastro de produto pra decidir isso, fica de fora (ver rodapé).
+  - changeSet:
+      id: fiscal-043-seed-anexo-vii-capitulos-7-8-10-12
+      author: vitor-fernandes
+      comment: Anexo VII itens 14/15 — capítulos 7/8 (frutas/hortícolas) e 10/12 (cereais/oleaginosas)
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.regime_dif_ncm (ncm, descricao, regime, percentual_reducao, vigente_de) VALUES
+                ('07', 'Produtos hortícolas (capítulo 7), sem açúcar - Anexo VII item 14, exceto posição 07.11', 'ANEXO_VII_60', 60, DATE '2027-01-01'),
+                ('08', 'Frutas (capítulo 8), sem açúcar - Anexo VII item 14, exceto posições 08.12 e 0814.00.00', 'ANEXO_VII_60', 60, DATE '2027-01-01'),
+                ('0711', 'Produtos hortícolas conservados provisoriamente (salmoura/água sulfurada) - excetuados do Anexo VII item 14; tributação integral', 'EXCECAO_INTEGRAL', 0, DATE '2027-01-01'),
+                ('0812', 'Frutas conservadas provisoriamente - excetuadas do Anexo VII item 14; tributação integral', 'EXCECAO_INTEGRAL', 0, DATE '2027-01-01'),
+                ('08140000', 'Cascas de cítricos/melões - excetuadas do Anexo VII item 14; tributação integral', 'EXCECAO_INTEGRAL', 0, DATE '2027-01-01'),
+                ('10', 'Cereais (capítulo 10) - Anexo VII item 15, ressalvado Anexo I', 'ANEXO_VII_60', 60, DATE '2027-01-01'),
+                ('12', 'Sementes e frutos oleaginosos (capítulo 12) - Anexo VII item 15, ressalvado Anexo I', 'ANEXO_VII_60', 60, DATE '2027-01-01');
+      rollback:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              DELETE FROM fiscal.regime_dif_ncm WHERE ncm IN ('07','08','0711','0812','08140000','10','12');
+
+  # Anexo IX itens 2/5/6/11/14/15 (insumos agropecuários, 60%). Itens 3 (capítulo 25 — risco de
+  # capturar cimento/cal industrial junto), 7/8 (listas grandes com sobreposição parcial já
+  # coberta por outros anexos ao mesmo percentual) e 12/13/18/19/20/21 (distinção "exceto animais
+  # domésticos" — não dá pra amarrar num código NCM) ficam de fora, ver rodapé.
+  #
+  # Item 11 (mudas, 06.01/06.02) É citado também no Anexo XV item 4 (capítulo 6 inteiro, 100%) —
+  # mesmo caso de NCM em dois anexos do fiscal-027: entra pela redução menor (60%).
+  - changeSet:
+      id: fiscal-044-seed-anexo-ix-complemento
+      author: vitor-fernandes
+      comment: Anexo IX itens 2/5/6/11/14/15 — fertilizantes, defensivos, mudas, sêmen, reprodutores
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.regime_dif_ncm (ncm, descricao, regime, percentual_reducao, vigente_de) VALUES
+                ('31', 'Fertilizantes (capítulo 31) - Anexo IX item 2', 'ANEXO_IX_60', 60, DATE '2027-01-01'),
+                ('38249977', 'Fertilizante especial - Anexo IX item 2', 'ANEXO_IX_60', 60, DATE '2027-01-01'),
+                ('38249979', 'Fertilizante especial - Anexo IX item 2', 'ANEXO_IX_60', 60, DATE '2027-01-01'),
+                ('3824', 'Bioestimulantes e bioinsumos fitossanitários - Anexo IX item 5', 'ANEXO_IX_60', 60, DATE '2027-01-01'),
+                ('38070000', 'Alcatrão de madeira (bioinsumo) - Anexo IX item 5', 'ANEXO_IX_60', 60, DATE '2027-01-01'),
+                ('1211', 'Plantas para uso em bioinsumo fitossanitário - Anexo IX item 5', 'ANEXO_IX_60', 60, DATE '2027-01-01'),
+                ('3808', 'Defensivos agropecuários (inseticidas/fungicidas/herbicidas etc.) - Anexo IX itens 5 e 6', 'ANEXO_IX_60', 60, DATE '2027-01-01'),
+                ('0601', 'Bolbos, tubérculos, raízes tuberosas, mudas - Anexo IX item 11; também no Anexo XV item 4 (capítulo 6, 100%) — entra pela redução menor, mesmo critério do fiscal-027', 'ANEXO_IX_60', 60, DATE '2027-01-01'),
+                ('0602', 'Outras plantas vivas, mudas - Anexo IX item 11; idem', 'ANEXO_IX_60', 60, DATE '2027-01-01'),
+                ('05111000', 'Sêmen bovino - Anexo IX item 14', 'ANEXO_IX_60', 60, DATE '2027-01-01'),
+                ('05119', 'Embriões e sêmen de outros animais - Anexo IX item 14', 'ANEXO_IX_60', 60, DATE '2027-01-01'),
+                ('0102', 'Animais vivos da espécie bovina, reprodutores de raça pura - Anexo IX item 15', 'ANEXO_IX_60', 60, DATE '2027-01-01'),
+                ('0103', 'Animais vivos da espécie suína, reprodutores de raça pura - Anexo IX item 15', 'ANEXO_IX_60', 60, DATE '2027-01-01'),
+                ('0104', 'Animais vivos das espécies ovina/caprina, reprodutores de raça pura - Anexo IX item 15', 'ANEXO_IX_60', 60, DATE '2027-01-01');
+      rollback:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              DELETE FROM fiscal.regime_dif_ncm WHERE ncm IN (
+                '31','38249977','38249979','3824','38070000','1211','3808','0601','0602',
+                '05111000','05119','0102','0103','0104');
+
+  # Anexo XII itens 5 (próteses, exceto dentárias e 9021.39.91/99), 7 (raio X móvel, exceto
+  # 9022.19.91) e 11 (radiações ionizantes — 9022.21.10/20 já são itens próprios já carregados,
+  # 9022.21.90 é o item 11 em si, sem conflito real).
+  - changeSet:
+      id: fiscal-045-seed-anexo-xii-complemento
+      author: vitor-fernandes
+      comment: Anexo XII itens 5/7/11 — próteses, aparelhos de raios X móveis, radiações ionizantes
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.regime_dif_ncm (ncm, descricao, regime, percentual_reducao, vigente_de) VALUES
+                ('90213', 'Artigos e aparelhos de prótese, exceto dentários - Anexo XII item 5', 'ANEXO_XII_ZERO', 100, DATE '2027-01-01'),
+                ('90213991', 'Artigo de prótese - excetuado do Anexo XII item 5; tributação integral', 'EXCECAO_INTEGRAL', 0, DATE '2027-01-01'),
+                ('90213999', 'Artigo de prótese - excetuado do Anexo XII item 5; tributação integral', 'EXCECAO_INTEGRAL', 0, DATE '2027-01-01'),
+                ('902213', 'Aparelho de raios X móvel - Anexo XII item 7', 'ANEXO_XII_ZERO', 100, DATE '2027-01-01'),
+                ('902214', 'Aparelho de raios X móvel - Anexo XII item 7', 'ANEXO_XII_ZERO', 100, DATE '2027-01-01'),
+                ('902219', 'Aparelho de raios X móvel - Anexo XII item 7', 'ANEXO_XII_ZERO', 100, DATE '2027-01-01'),
+                ('90221991', 'Aparelho de raios X - excetuado do Anexo XII item 7; tributação integral', 'EXCECAO_INTEGRAL', 0, DATE '2027-01-01'),
+                ('90222190', 'Aparelho de radiações alfa/beta/gama - Anexo XII item 11', 'ANEXO_XII_ZERO', 100, DATE '2027-01-01');
+      rollback:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              DELETE FROM fiscal.regime_dif_ncm WHERE ncm IN (
+                '90213','90213991','90213999','902213','902214','902219','90221991','90222190');
+
+  # Anexo XIII item 4 (aparelho para facilitar audição, exceto partes — partes já são o item 5,
+  # código 90219092, já carregado a 100%; sem conflito).
+  - changeSet:
+      id: fiscal-046-seed-anexo-xiii-complemento
+      author: vitor-fernandes
+      comment: Anexo XIII item 4 — aparelho para facilitar audição
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.regime_dif_ncm (ncm, descricao, regime, percentual_reducao, vigente_de) VALUES
+                ('90214000', 'Aparelho para facilitar audição, exceto partes - Anexo XIII item 4', 'ANEXO_XIII_ZERO', 100, DATE '2027-01-01');
+      rollback:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              DELETE FROM fiscal.regime_dif_ncm WHERE ncm = '90214000';
+
+  # Anexo XV item 2 (hortícolas 07.01-07.10, exceto cogumelos/trufas e "outros" congelados) e
+  # item 4 (capítulo 6, floricultura).
+  #
+  # Cogumelos/trufas (0709.5) e "outros hortícolas congelados" (0710.80.00) NÃO viram
+  # EXCECAO_INTEGRAL: o Anexo VII item 14 (fiscal-043) já dá 60% pro capítulo 7 inteiro e não
+  # excetua essas duas posições — então a linha aqui é só pra elas NÃO herdarem o ZERO do Anexo XV,
+  # caindo no 60% do Anexo VII pelo prefixo mais curto que sobra.
+  - changeSet:
+      id: fiscal-047-seed-anexo-xv-complemento
+      author: vitor-fernandes
+      comment: Anexo XV itens 2/4 — hortícolas (exceto cogumelos/trufas) e capítulo 6 (floricultura)
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.regime_dif_ncm (ncm, descricao, regime, percentual_reducao, vigente_de) VALUES
+                ('0701', 'Batatas - Anexo XV item 2', 'ANEXO_XV_ZERO', 100, DATE '2027-01-01'),
+                ('0702', 'Tomates - Anexo XV item 2', 'ANEXO_XV_ZERO', 100, DATE '2027-01-01'),
+                ('0703', 'Cebolas, alho, alho-poró - Anexo XV item 2', 'ANEXO_XV_ZERO', 100, DATE '2027-01-01'),
+                ('0704', 'Couves - Anexo XV item 2', 'ANEXO_XV_ZERO', 100, DATE '2027-01-01'),
+                ('0705', 'Alfaces e chicórias - Anexo XV item 2', 'ANEXO_XV_ZERO', 100, DATE '2027-01-01'),
+                ('0706', 'Cenouras, nabos, beterrabas - Anexo XV item 2', 'ANEXO_XV_ZERO', 100, DATE '2027-01-01'),
+                ('0707', 'Pepinos - Anexo XV item 2', 'ANEXO_XV_ZERO', 100, DATE '2027-01-01'),
+                ('0708', 'Legumes de vagem - Anexo XV item 2', 'ANEXO_XV_ZERO', 100, DATE '2027-01-01'),
+                ('0709', 'Produtos hortícolas diversos, exceto cogumelos e trufas - Anexo XV item 2', 'ANEXO_XV_ZERO', 100, DATE '2027-01-01'),
+                ('0710', 'Produtos hortícolas congelados, exceto outros (0710.80.00) - Anexo XV item 2', 'ANEXO_XV_ZERO', 100, DATE '2027-01-01'),
+                ('07095', 'Cogumelos e trufas - excetuados do Anexo XV item 2; cobertos pelo Anexo VII item 14 (capítulo 7, 60%)', 'ANEXO_VII_60', 60, DATE '2027-01-01'),
+                ('07108000', 'Outros produtos hortícolas congelados - excetuados do Anexo XV item 2; cobertos pelo Anexo VII item 14 (capítulo 7, 60%)', 'ANEXO_VII_60', 60, DATE '2027-01-01'),
+                ('06', 'Plantas vivas e produtos de floricultura (capítulo 6) - Anexo XV item 4', 'ANEXO_XV_ZERO', 100, DATE '2027-01-01');
+      rollback:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              DELETE FROM fiscal.regime_dif_ncm WHERE ncm IN (
+                '0701','0702','0703','0704','0705','0706','0707','0708','0709','0710','07095','07108000','06');
+
+# ──────────────────────────────────────────
+# Anexo XI item 2 (bens de defesa/segurança nacional) — releitura limpa de spec/ANEXOS.md linha 475
+# em 01/09/2026 (a leva acima usava uma leitura comprimida, sem confiança pra esse trecho).
+#
+# Dos 30 subitens do item 2, a maioria NÃO é carregável com segurança por NCM sozinho: ou o código
+# é um heading amplo com uso civil real no mesmo código (8709 viaturas/tratores industriais, 8701
+# tratores agrícolas, 8802/8806 aeronaves e drones civis, 8804 paraquedas esportivos, 9014.20
+# instrumento de navegação aérea civil, 2106.90.30 "outras preparações alimentícias", 9306 mistura
+# munição militar com munição de caça/esporte — o mesmo risco já sinalizado pra heading 93.06), ou
+# a distinção entre o bem e seu equivalente civil é só por FINALIDADE ("para uso pela segurança
+# nacional"/"para uso militar"), que o NCM não carrega e o cadastro de produto não tem campo pra
+# guardar (mesma limitação do ponto 6 abaixo). Isso vale também pros itens 2.22-2.30 (dispositivos
+# de segurança da informação/cibernética — IPS, firewall, switch seguro, storage criptografado):
+# os NCM citados (8517.62.x, 8471.49/50/90, 8523.51/52) são classificações genéricas de hardware de
+# rede/TI, carregar cru daria redução pra QUALQUER switch/servidor/SSD comum, não só o de segurança.
+#
+# Só entram os subitens cujo próprio HEADING do NCM é exclusivo de material bélico/militar (sem
+# equivalente civil classificado no mesmo código, verificado subitem a subitem contra a nomenclatura
+# oficial), então dá pra carregar sem o campo de finalidade que falta:
+#   - 2.2  8710.00.00 — carro de combate/blindado de combate (heading 87.10 é só isso)
+#   - 2.7  9301.20.00 — lançador de foguete/arma de guerra (heading 93.01 exclui armas civis por
+#     definição, ao contrário do 93.06)
+#   - 2.17 8805.10.00 — catapulta/gancho de aterrissagem em porta-aviões (uso naval/militar)
+#   - 2.18 8805.21.00 — simulador de COMBATE aéreo (o "de combate" restringe; não é o simulador de
+#     voo civil de 8805.29, que fica de fora de propósito)
+#   - 2.21 8906.10.00 — navio de guerra (o outro código do mesmo item, 8901.20.00 tanque-navio
+#     comercial, fica de fora — não é bem de defesa)
+# Regime reaproveitado: ANEXO_XI_60 (mesmo nome já usado no fiscal-007 pro lado serviço/cClassTrib
+# 200043/200044 — mesmo anexo, mesma redução de 60%, tabela diferente).
+  - changeSet:
+      id: fiscal-048-seed-anexo-xi-bens-defesa
+      author: vitor-fernandes
+      comment: Anexo XI item 2 — só os NCM exclusivamente militares (carro de combate, arma de guerra, lançamento/aterrissagem em porta-aviões, simulador de combate aéreo, navio de guerra)
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.regime_dif_ncm (ncm, descricao, regime, percentual_reducao, vigente_de) VALUES
+                ('87100000', 'Carro de combate/blindado de combate - Anexo XI item 2.2', 'ANEXO_XI_60', 60, DATE '2027-01-01'),
+                ('93012000', 'Lançador de foguete/arma de guerra - Anexo XI item 2.7', 'ANEXO_XI_60', 60, DATE '2027-01-01'),
+                ('88051000', 'Catapulta/gancho de aterrissagem em porta-aviões - Anexo XI item 2.17', 'ANEXO_XI_60', 60, DATE '2027-01-01'),
+                ('88052100', 'Simulador de combate aéreo - Anexo XI item 2.18', 'ANEXO_XI_60', 60, DATE '2027-01-01'),
+                ('89061000', 'Navio de guerra - Anexo XI item 2.21', 'ANEXO_XI_60', 60, DATE '2027-01-01');
+      rollback:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              DELETE FROM fiscal.regime_dif_ncm WHERE ncm IN (
+                '87100000','93012000','88051000','88052100','89061000');
+
+# ──────────────────────────────────────────
+# O QUE FICOU DE FORA DESTA LEVA (não silenciado — documentado em spec/anexos-lc214-revisar.md):
+#
+# 1. Crosswalk NBS <-> item LC 116 (~143 itens, Anexos II/III/X/XI serviços): não muda o cálculo —
+#    regime_cclasstrib já cobre a redução por cClassTrib (fiscal-019). É concern de cadastro/UI,
+#    sem fonte confiável em repo pra montar o de/para sem risco de inventar código.
+#
+# 2. Anexo XI, lado PRODUTO — releitura feita (ver changeset fiscal-048 acima); 5 dos 30 subitens
+#    entraram (heading exclusivamente militar, sem risco de pegar equivalente civil). Os outros 25
+#    ficam pendentes por finalidade não verificável pelo NCM (viaturas/tratores/aeronaves/drones de
+#    uso duplo civil-militar, munição do heading 93.06, hardware de rede/TI genérico dos itens
+#    2.22-2.30) — mesma limitação estrutural do ponto 6 abaixo, não falta de fonte.
+#
+#    Item 2.5 (trator p/ Segurança Pública/Forças Armadas, NCM 8701) checado via web em
+#    01/09/2026 — não é falta de leitura, é confirmado: o próprio texto oficial da lei cita só o
+#    heading genérico "8701" (normaslegais.com.br/legislacao/anexos-XI-a-XV-lc-214.htm), e a NCM
+#    não tem subposição de trator militar — 8701.10/20/30/9x classificam por tipo mecânico
+#    (eixo único, rodoviário, lagartas) e por potência do motor, nunca por uso (ncm.fazcomex.com.br
+#    /8701-tratores-exceto-os-carrostratores-da-posicao-8709/). Carregar "8701" cru daria 60% pra
+#    qualquer trator agrícola/florestal/de obra vendido no país. Fica pendente por desenho — não
+#    adianta reler o texto de novo, o gap é estrutural (falta campo de finalidade no cadastro).
+#
+# 3. Anexo XVII (Imposto Seletivo): bloqueado por lei ordinária ainda não editada.
+#
+# 4. Anexo IX item 3 (capítulo 25 inteiro): capítulo cobre de gesso agrícola a cimento/cal
+#    industrial — largo demais pra tomar ao pé da letra sem uma subposição mais específica.
+#
+# 5. Anexo IX itens 7/8 (listas grandes de insumo agropecuário): parcialmente já cobertos por
+#    outros anexos ao mesmo 60% (ex. 2915.21.00, 3824.99.89) só que sob rótulo de anexo diferente
+#    — sem impacto tributário real, mas o resto da lista precisa de curadoria código a código que
+#    não coube nesta leva.
+#
+# 6. Anexo IX itens 12/13/18/19/20/21 e o restante do item 14/19 do Anexo VII ("frutas de casca
+#    rija não regionais", "exceto animais domésticos", "exceto ornamentais"): distinção por
+#    ORIGEM ou USO FINAL, não por código NCM — o mesmo código atende os dois casos. Não dá pra
+#    resolver sem campo de origem/uso no cadastro de produto.
+#
+# 7. Anexo XII item 1 e Anexo XIII itens 2/3/5/6: já estavam carregados (conferido nesta sessão
+#    contra data/regime-lc214-v2.csv) — o backlog original os listava por artefato do extrator,
+#    não por lacuna real. anexos-lc214-revisar.md foi atualizado pra refletir isso.
+#
+# 8. Os 2 conflitos de NCM em dois anexos já documentados no fiscal-009 (21069090, 25010090) não
+#    foram mexidos — mesma limitação de sempre, entram pela redução maior (Anexo I) de propósito.
+# ──────────────────────────────────────────

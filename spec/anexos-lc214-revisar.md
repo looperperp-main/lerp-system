@@ -4,7 +4,63 @@ Gerado por `extrai-anexos-v2.ps1` a partir de `spec/ANEXOS.md`. Cada linha aqui 
 regra **não é decidível só pelo código** — carregá-la automaticamente erraria imposto em
 silêncio. Resolver um item = decidir o(s) código(s) e acrescentar a linha num changeset novo.
 
-Total pendente: **240** itens. Carregados automaticamente: **242** códigos.
+Total pendente: **196** itens (240 originais − 44 resolvidos/corrigidos em 01 de setembro de 2026,
+ver seção abaixo). Carregados automaticamente: **247** códigos.
+
+## ✅ Resolvido em 01 de setembro de 2026 (changesets `fiscal-037` a `fiscal-048`)
+
+> Tentativa de fechar o máximo do backlog de 240 pendências que dava pra decidir com segurança só
+> lendo o texto integral de `spec/ANEXOS.md` — sem adivinhar nada que dependesse de origem/uso do
+> produto ou de fonte que eu não tivesse 100% de confiança na transcrição. Detalhe item a item (por
+> que cada código entrou, e sob qual regime) está nos comentários do próprio
+> `liquibase-service/.../fiscal/fiscal-schema-014.yaml` — esta seção só resume o resultado.
+
+**44 itens saíram do backlog:**
+- **31 por carga nova** (regime `EXCECAO_INTEGRAL` criado para as exceções "exceto X" sem outro
+  anexo aplicável — não reusa `PADRAO` de propósito, ver comentário do próprio changeset):
+  Anexo I itens 19/20 (carnes/peixes); Anexo IV itens 48/49/51/54/61; Anexo V (relógio braille,
+  calculadora falante, despertador vibratório); Anexo VI itens 26/27/29; Anexo VII itens 1
+  (crustáceos/moluscos), 4/5/6 (farinhas/grumos/grãos), 10/11 (sucos/polpas), 14/15 (capítulos
+  7/8/10/12 — **exceto** a distinção "frutas de casca rija não regionais", que é por origem, não
+  por NCM, e continua pendente); Anexo IX itens 2/5/6/11/14/15; Anexo XII itens 5/7/11; Anexo XIII
+  item 4; Anexo XV itens 2/4.
+- **8 por correção de falso positivo** (o extrator listou como pendente algo que já estava
+  carregado ou já resolvido junto com outro item, sem precisar de changeset à parte): Anexo VI
+  item 81 (triglicerídeo de cadeia média — já cai na posição `1513` do Anexo VII, mesmos 60%);
+  Anexo XII item 1 e a exceção de eletrodiagnóstico (os códigos "exceto" já eram os próprios itens
+  1.1/1.2, já carregados); Anexo XIII item 2 (cadeira de rodas — códigos já carregados); Anexo XII
+  códigos `9022.14`/`9022.19` (eram continuação do item 7, já entraram junto com ele no
+  `fiscal-045`).
+- **5 por releitura limpa do Anexo XI** (`fiscal-048`, feita em 01/09/2026 direto em
+  `spec/ANEXOS.md` linha 475 — a leva anterior tinha ficado de fora por baixa confiança de
+  transcrição): item 2.2 (carro de combate, `8710.00.00`), 2.7 (lançador de foguete/arma de
+  guerra, `9301.20.00`), 2.17 (catapulta/gancho de aterrissagem em porta-aviões, `8805.10.00`),
+  2.18 (simulador de combate aéreo, `8805.21.00`), 2.21 (navio de guerra, `8906.10.00`) — únicos
+  5 dos 30 subitens cujo heading do NCM é exclusivamente militar, sem equivalente civil no mesmo
+  código.
+
+**Ficou de fora de propósito** (não é lacuna esquecida — é risco/indecidibilidade documentada no
+rodapé do `fiscal-schema-014.yaml`):
+- Anexo XI, os outros 25 subitens do item 2 (bens de defesa/segurança nacional) — releitura já
+  feita (ver bullet acima), mas o restante não é decidível só por NCM: ou o heading é largo e tem
+  uso civil real no mesmo código (8709 viaturas/tratores industriais, 8701 tratores agrícolas,
+  8802/8806 aeronaves e drones civis, 8804 paraquedas esportivos, 9014.20 navegação aérea civil,
+  9306 mistura munição militar com munição de caça/esporte), ou a distinção do bem civil é só por
+  FINALIDADE ("para uso pela segurança nacional"), que não tem campo no cadastro de produto —
+  mesma limitação do item 6 abaixo. Vale também pros subitens 2.22-2.30 (dispositivos de segurança
+  da informação/cibernética — IPS, firewall, storage criptografado): os NCM citados são
+  classificações genéricas de hardware de rede/TI (switch, servidor, SSD comuns), não dá pra
+  isolar só o "de segurança" pelo código. **Item 2.5 (trator, NCM `8701`) checado via web em
+  01/09/2026 — confirmado, não é falta de leitura**: o texto oficial da lei cita só o heading
+  genérico "8701" e a NCM não tem subposição de trator militar (8701.10/20/30/9x classificam por
+  tipo mecânico e potência do motor, nunca por uso); carregar traria 60% pra qualquer trator
+  agrícola/florestal/de obra do país. Gap estrutural — não adianta reler o texto de novo.
+- Anexo IX item 3 (capítulo 25 inteiro — mistura corretivo de solo agrícola com cimento/cal
+  industrial, largo demais).
+- Anexo IX itens 7/8 (listas grandes com sobreposição parcial já coberta por outro anexo,
+  precisa curadoria código a código).
+- Anexo IX itens 12/13/18/19/20/21 (distinção "exceto animais domésticos"/"exceto ornamentais" —
+  por USO, não por código NCM).
 
 ## Pendências de `cClassTrib` (serviço) — seção mantida À MÃO, não sai do script
 
@@ -187,31 +243,22 @@ chegando pronta em `valorOperacao`, por conta de quem chama o motor.
 | XI |  | Unidades de armazenamento criptografadas para a segurança da informação/cibernética |
 | XI |  | Servidores de armazenamento seguro para a segurança da informação/cibernética |
 
-## Sem referência a código NCM na descrição e sem coluna NCM/SH — 37 itens
+## Sem referência a código NCM na descrição e sem coluna NCM/SH — 22 itens
+
+> Resolvidos em 01/09/2026 (ver seção "✅ Resolvido" acima) e removidos desta lista: V (relógio
+> braille, calculadora falante), V (despertador vibratório), VI itens 26/27/29/81, IX itens
+> 2/5/6/11/14/15, XII item 1, XIII item 2.
 
 | Anexo | Item | Descrição |
 |---|---|---|
 | V | 1 | ACESSÓRIOS E ADAPTAÇÕES ESPECIAIS PARA SEREM INSTALADOS EM VEÍCULOS AUTOMOTORES PERTENCENTES OU QUE FOREM DESTINADOS A PESSOAS COM DEFICIÊNCIA FÍSICA |
 | V | 2 | PRODUTOS DESTINADOS A USO DE PESSOA COM DEFICIÊNCIA VISUAL |
-| V |  | Relógio em **braille,** com sintetizador de voz e mostrador ampliado |
-| V |  | Calculadora digital com sistema de voz, com verbalização dos ajustes de minutos e horas, tanto no modo horário, como no modo alarme, e comunicação por voz dos dígitos de cálculo e resultados |
 | V | 3 | PRODUTOS DESTINADOS AO USO DE PESSOAS COM DEFICIÊNCIA AUDITIVA |
-| V |  | Relógio despertador vibratório e/ou luminoso |
-| VI | 26 | 2827.20.10<br><br>2827.20.90 |
-| VI | 27 | 2827.31.10<br><br>2827.31.90 |
-| VI | 29 | 3104.20.10<br><br>3104.20.90 |
 | VI | 67 | 2930.40.10<br><br>2930.40.90 |
-| VI | 81 | Triglicerídeos de cadeia média |
-| IX | 2 | Fertilizantes (adubos), em conformidade com as definições e demais requisitos da legislação específica |
 | IX | 3 | Corretivos de solo (inclusive condicionadores), remineralizadores e substratos para plantas; em conformidade com as definições e demais requisitos da legislação específica |
-| IX | 5 | Bioestimulantes e bioinsumos para controle fitossanitário, em conformidade com as definições e demais requisitos da legislação específica |
-| IX | 6 | Inseticidas, fungicidas, formicidas, herbicidas, parasiticidas, germicidas, acaricidas, nematicidas, raticidas, desfolhantes, dessecantes, espalhantes adesivos, estimuladores e inibidores de crescimento (reguladores); todos destinados diretamente ao uso agropecuário ou destinados diretamente à fa... |
 | IX | 7 | Calcário, casca de coco triturada, turfa; tortas, bagaços e demais resíduos e desperdícios vegetais das indústrias alimentares; cascas, serragens e demais resíduos e desperdícios de madeira; resíduos da indústria de celulose (dregs e grits), ossos, borra de carnaúba, cinzas, resíduos agroindustri... |
 | IX | 8 | 2503.00.10 <br> 2503.00.90 <br> 2510.10.10 <br> 2510.10.90 <br> 2510.20.10 <br> 2510.20.90 <br> 2802.00.00 <br> 2806.10.20 <br> 2807.00.10 <br> 2808.00.10 <br> 2809.20.11 <br> 2809.20.19 <br> 2811.19.20 <br> 2815.11.00 <br> 2815.12.00 <br> 2836.20.10 <br> 2836.20.90 <br> 2915.21.00 |
 | IX | 10 | Semente genética, semente básica, semente nativa in natura, semente certificada de primeira geração (C1), semente certificada de segunda geração (C2), semente não certificada de primeira geração (S1), semente não certificada de segunda geração (S2) e sementes de cultivar local, tradicional ou cri... |
-| IX | 11 | Mudas de plantas e demais materiais propagativos de plantas e fungos, inclusive plantas e fungos nativos de espécies florestais; em conformidade com as definições e demais requisitos da legislação específica |
-| IX | 14 | Embriões e sêmen, congelado ou resfriado |
-| IX | 15 | Reprodutores de raça pura, inclusive matrizes de animais puros de origem com registro genealógico; em conformidade com as definições e demais requisitos da legislação específica |
 | IX | 22 | Serviços agronômicos |
 | IX | 23 | Serviços de técnico agrícola, agropecuário ou em agroecologia |
 | IX | 24 | 1.1405.21.00<br><br>1.1405.22.00 1.1405.90.00 |
@@ -229,35 +276,23 @@ chegando pronta em `valorOperacao`, por conta de quem chama o motor.
 | XII | 1 | Aparelhos de eletrodiagnóstico (incluídos os aparelhos de exploração funcional e os de verificação de parâmetros fisiológicos) |
 | XIII | 2 | CADEIRA DE RODAS E OUTROS VEÍCULOS PARA DEFICIENTES, MESMO COM MOTOR OU OUTRO MECANISMO DE PROPULSÃO |
 
-## Redação exclui parte dos códigos citados (exceto/ressalvado) — decidir a lista à mão — 25 itens
+## Redação exclui parte dos códigos citados (exceto/ressalvado) — decidir a lista à mão — 6 itens
+
+> Resolvidos em 01/09/2026 (ver seção "✅ Resolvido" acima) e removidos desta lista: I itens 19/20;
+> IV itens 48/49/51/54/61; VII itens 1/4/5/6/14/15 (a exceção "casca rija não regional" do item 14
+> continua indecidível por NCM, mas os códigos-base já entraram); XII (eletrodiagnóstico, já
+> carregado) e itens 5/7/11; XIII item 4; XV item 2. Os 6 que sobram (IX 12/13/18/19/20/21) são
+> todos distinção por USO ("exceto animais domésticos"/"exceto ornamentais"), não por NCM — sem
+> campo de uso final no cadastro de produto não dá pra resolver sem arriscar mistributar.
 
 | Anexo | Item | Descrição |
 |---|---|---|
-| I | 19 | Carnes bovina, suína, ovina, caprina e de aves e produtos de origem animal (exceto _foies_ _gras_**)** dos seguintes códigos, subposições e posições da NCM/SH: a) 02.01, 02.02, 0206.10.00, 0206.2 e 0210.20.00; b) 02.03, 0206.30.00, 0206.4, 0209.10 e 0210.1; c) 02.04 e 0210.99.20, carne caprina cl... |
-| I | 20 | Peixes e carnes de peixes (exceto salmonídeos, atuns, bacalhaus, hadoque, saithe e ovas e outros subprodutos) dos seguintes códigos, subposições e posições da NCM/SH: a) 03.02; exceto os produtos das subposições e dos códigos 0302.1, 0302.3, 0302.51.00, 0302.52.00, 0302.53.00 e 0302.9 da NCM/SH; ... |
-| IV | 48 | Outras frações do sangue, exceto as preparadas como medicamentos, as imunoglobulinas séricas, o concentrado de fator VIII e a soroalbumina sob a forma de gel para preparação de reagentes de diagnóstico |
-| IV | 49 | Reagentes de diagnóstico ou de laboratório em qualquer suporte e reagentes de diagnóstico ou de laboratório preparados, mesmo em um suporte, mesmo apresentados sob a forma de estojos, exceto os da posição 30.06; materiais de referência certificados |
-| IV | 51 | Produtos para obturação dentária, exceto cimentos |
-| IV | 54 | Equipamentos identificáveis para ostomia, exceto bolsas para uso em colostomia, ileostomia e urostomia |
-| IV | 61 | Agulhas, exceto as de metal e as para suturas |
-| VII | 1 | Crustáceos (exceto lagostas e lagostim) e moluscos dos seguintes códigos e subposições da NCM/SH: a) 0306.1 e 0306.3, exceto os produtos da subposição 0306.11 e dos códigos 0306.15.00, 0306.31.00, 0306.34.00, 0306.39.10; e b) 0307.31.00, 0307.32.00, 0307.42.00, 0307.43, 0307.51.00, 0307.52.00, 03... |
-| VII | 4 | Farinha das posições 1101.00, 11.02, 11.05, 11.06 e 12.08 da NCM/SH; ressalvados os produtos relacionados no Anexo I |
-| VII | 5 | Grumos e sêmolas de cereais dos códigos 1103.11.00 e 1103.19.00 da NCM/SH; ressalvados os produtos relacionados no Anexo I |
-| VII | 6 | Grãos de cereais das subposições 1104.1 e 1104.2 da NCM/SH; ressalvados os produtos relacionados no Anexo I |
-| VII | 14 | Frutas, produtos hortícolas e demais produtos vegetais, sem adição de açúcar ou de outros edulcorantes, classificados nos capítulos 7 e 8 da NCM/SH, ressalvados as frutas de casca rija não regionais e os produtos relacionados nos Anexos I e XV e excetuadas as posições 07.11, 08.12 e 0814.00.00 |
-| VII | 15 | Cereais do capítulo 10 e sementes e frutos oleaginosos classificados no capítulo 12, ambos da NCM/SH, ressalvados os produtos relacionados no Anexo I |
 | IX | 12 | Vacinas, soros e medicamentos, de uso veterinário, exceto de animais domésticos |
 | IX | 13 | Aves de um dia, exceto as ornamentais |
 | IX | 18 | Rações para animais, concentrados, suplementos, aditivos, premix ou núcleo, exceto para animais domésticos |
 | IX | 19 | Sementes e cereais, mesmo triturados, em grãos esmagados ou trabalhados de outro modo; todos destinados diretamente à fabricação de ração para animais ou diretamente à alimentação animal, exceto de animais domésticos |
 | IX | 20 | Farelos e tortas de produtos vegetais e demais resíduos e desperdícios das indústrias alimentares; todos destinados diretamente à fabricação de ração para animais ou diretamente à alimentação animal, exceto de animais domésticos |
 | IX | 21 | Alho em pó, sal mineralizado, farinhas de peixe, de ostra, de carne, de osso, de pena, de sangue e de víscera, calcário calcítico, gorduras e óleos animais, resíduos de óleo e de gordura de origem animal ou vegetal descartados por empresas do ramo alimentício, e DL-Metionina e seus análogos; todo... |
-| XII |  | Aparelhos de eletrodiagnóstico, exceto os produtos classificados nos códigos 9018.11.00, 9018.12.10, 9018.12.90, 9018.13.00, 9018.14.10, 9018.14.20, 9018.14.90, 9018.19.10 e 9018.19.20 |
-| XII | 5 | Artigos e aparelhos de prótese, exceto os dentários e os produtos classificados nos códigos 9021.39.91 e 9021.39.99 |
-| XII | 7 | Aparelhos de raio X, móveis, exceto os produtos classificados no código 9022.19.91 |
-| XII | 11 | Aparelhos que utilizem radiações alfa, beta, gama ou outras radiações ionizantes, para usos médicos, cirúrgicos, odontológicos ou veterinários, incluídos os aparelhos de radiofotografia ou de radioterapia, exceto os produtos classificados nos códigos 9022.21.10 e 9022.21.20 |
-| XIII | 4 | Aparelhos para facilitar a audição dos surdos, exceto partes e acessórios |
-| XV | 2 | Produtos hortícolas das posições 07.01, 07.02.00.00, 07.03, 07.04, 07.05, 07.06, 0707.00.00, 07.08, 07.09 e 07.10, exceto os cogumelos e trufas classificados na subposição 0709.5 e no código 0710.80.00 da NCM/SH |
 
 ## CARREGADO, mas com condição não verificável pelo ERP (registro/destinação) — 11 itens
 
@@ -298,21 +333,23 @@ chegando pronta em `valorOperacao`, por conta de quem chama o motor.
 | IV/XII | 90211010 | Implantes osseointegráveis, na forma de parafuso, e seus componentes manufaturados, tais como tampas de proteção, montadores, conjuntos, pilares (cicatrizador, conector, de transferência ou temporário), cilindros, seus acessórios, destinados a sustentar, amparar, acoplar ou fixar próteses dentári... |
 | IV/XII | 90211020 | Implantes osseointegráveis, na forma de parafuso, e seus componentes manufaturados, tais como tampas de proteção, montadores, conjuntos, pilares (cicatrizador, conector, de transferência ou temporário), cilindros, seus acessórios, destinados a sustentar, amparar, acoplar ou fixar próteses dentári... |
 
-## Nenhum código NCM identificável na descrição — 4 itens
+## Nenhum código NCM identificável na descrição — 1 item
+
+> Resolvidos em 01/09/2026: VII itens 10/11 (sucos/polpas) e XV item 4 (capítulo 6, floricultura).
+> A linha `IX |  | NBS / NCM/SH` que sobra é artefato do extrator (capturou o cabeçalho da coluna
+> como se fosse linha de dado) — não é item real, não precisa de changeset.
 
 | Anexo | Item | Descrição |
 |---|---|---|
-| VII | 10 | Sucos naturais de fruta ou de produtos hortícolas sem adição de açúcar ou de outros edulcorantes e sem conservantes classificados na posição 20.09 da NCM/SH |
-| VII | 11 | Polpas de frutas ou de produtos hortícolas sem adição de açúcar ou de outros edulcorantes e sem conservantes classificadas na posição 20.08 da NCM/SH |
 | IX |  | NBS / NCM/SH |
-| XV | 4 | Plantas e produtos de floricultura relativos à horticultura e cultivados para fins alimentares, ornamentais ou medicinais classificados no Capítulo 6 da NCM/SH |
 
-## Continuação de item pendente — 4 itens
+## Continuação de item pendente — 2 itens
+
+> Resolvidos em 01/09/2026: `9022.14` e `9022.19` já entraram no fiscal-045 junto com o item 7 do
+> Anexo XII (raio X móvel) — eram continuação daquele item, não algo separado.
 
 | Anexo | Item | Descrição |
 |---|---|---|
-| XII | 9022.14 | (código de continuação do item acima, que não entrou na carga) |
-| XII | 9022.19 | (código de continuação do item acima, que não entrou na carga) |
 | XVII | 2202.10.00 | (código de continuação do item acima, que não entrou na carga) |
 | XVII | 2709.00.10 2711.11.00 2711.21.00 | (código de continuação do item acima, que não entrou na carga) |
 

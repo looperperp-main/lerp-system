@@ -732,6 +732,75 @@ class MotorFiscalServiceTest {
         assertValor("110.00", r.getValorInss()); // 1000 * 11,00%, piso 0 no fake
     }
 
+    // ── Art. 57 §7º da LC 214/2025 (incluído pela LC 227/2026) — exclusão de base na revenda de
+    // bem sem crédito na entrada. Base do ex1: notebook, 84713012, SP, 10000 → sem exclusão daria
+    // IBS 1850,00 / CBS 850,00.
+
+    @Test
+    void vedacao57_valorAquisicaoMenorQueOperacao_excluiParcial() {
+        // Exclusão = min(3000, 10000) = 3000 → base tributável 7000.
+        OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()
+                .cfop("5101").ncm("84713012").ibgeDestino(SP)
+                .valorOperacao(new BigDecimal("10000")).dataCompetencia(COMP)
+                .regimeEmpresa(Constants.REGIME_LUCRO_REAL)
+                .bemSemCreditoNaEntrada(true).valorAquisicaoSemCredito(new BigDecimal("3000"))
+                .build(), null);
+
+        assertValor("7000", r.getBaseCalculo());
+        assertValor("1295.00", r.getValorIbs());  // 7000 * (16,00% + 2,50%)
+        assertValor("595.00", r.getValorCbs());   // 7000 * 8,50%
+        assertTrue(r.getMemoriaCalculo().contains(
+                Constants.FISCAL_MEMORIA_VEDACAO_57.formatted(new BigDecimal("3000"), new BigDecimal("3000"))));
+    }
+
+    @Test
+    void vedacao57_valorAquisicaoMaiorQueOperacao_zeraABase() {
+        // Exclusão travada no limite do valor da venda (min(15000, 10000) = 10000) → base zero.
+        OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()
+                .cfop("5101").ncm("84713012").ibgeDestino(SP)
+                .valorOperacao(new BigDecimal("10000")).dataCompetencia(COMP)
+                .regimeEmpresa(Constants.REGIME_LUCRO_REAL)
+                .bemSemCreditoNaEntrada(true).valorAquisicaoSemCredito(new BigDecimal("15000"))
+                .build(), null);
+
+        assertValor("0", r.getBaseCalculo());
+        assertValor("0", r.getValorIbs());
+        assertValor("0", r.getValorCbs());
+    }
+
+    @Test
+    void vedacao57_flagDesligada_naoAlteraOCalculo() {
+        // Regressão: sem o flag, comportamento idêntico ao ex1 (nenhum campo novo influencia).
+        assertValor("1850.00", motor.calcular(MotorFiscalRequest.builder()
+                .cfop("5101").ncm("84713012").ibgeDestino(SP)
+                .valorOperacao(new BigDecimal("10000")).dataCompetencia(COMP)
+                .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null).getValorIbs());
+    }
+
+    @Test
+    void vedacao57_declaradaNaEntrada_lancaFiscalException() {
+        // A vedação em si já foi decidida na entrada (item 4) — declarar o flag do §7º junto de
+        // um CFOP de entrada não faz sentido, é erro do chamador, não ignorado calado.
+        FiscalException ex = assertThrows(FiscalException.class, () -> motor.calcular(
+                MotorFiscalRequest.builder()
+                        .cfop("1102").ncm("84713012").ibgeDestino(SP)
+                        .valorOperacao(new BigDecimal("10000")).dataCompetencia(COMP)
+                        .regimeEmpresa(Constants.REGIME_LUCRO_REAL)
+                        .bemSemCreditoNaEntrada(true).build(), null));
+        assertEquals(Constants.FISCAL_VEDACAO_57_APENAS_SAIDA, ex.getCodigo());
+    }
+
+    @Test
+    void vedacao57_semValorDeAquisicao_lancaFiscalException() {
+        FiscalException ex = assertThrows(FiscalException.class, () -> motor.calcular(
+                MotorFiscalRequest.builder()
+                        .cfop("5101").ncm("84713012").ibgeDestino(SP)
+                        .valorOperacao(new BigDecimal("10000")).dataCompetencia(COMP)
+                        .regimeEmpresa(Constants.REGIME_LUCRO_REAL)
+                        .bemSemCreditoNaEntrada(true).build(), null));
+        assertEquals(Constants.FISCAL_VEDACAO_57_SEM_VALOR_AQUISICAO, ex.getCodigo());
+    }
+
     /** Notebook do ex1 (IBS 1850,00 / CBS 850,00), variando só a aplicabilidade do split. */
     private static MotorFiscalRequest notebookSplit(Boolean splitAplicavel) {
         return MotorFiscalRequest.builder()

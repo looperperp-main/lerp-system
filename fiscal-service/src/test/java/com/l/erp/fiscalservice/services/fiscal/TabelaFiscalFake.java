@@ -3,6 +3,7 @@ package com.l.erp.fiscalservice.services.fiscal;
 import com.l.erp.common.util.Constants;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -144,13 +145,15 @@ public class TabelaFiscalFake implements TabelaFiscal {
         return Optional.ofNullable(cfopMap.get(cfop));
     }
 
+    /** Sem versão por data no fake (item 7.8) — só a linha corrente; real é o JdbcTest. */
     @Override
-    public RegimeDiferenciado regimeNcm(String ncm) {
+    public RegimeDiferenciado regimeNcm(String ncm, LocalDate competencia) {
         return ncmMap.getOrDefault(ncm, RegimeDiferenciado.PADRAO);
     }
 
+    /** Sem versão por data no fake (item 7.8) — só a linha corrente; real é o JdbcTest. */
     @Override
-    public RegimeDiferenciado regimeCClassTrib(String cClassTrib) {
+    public RegimeDiferenciado regimeCClassTrib(String cClassTrib, LocalDate competencia) {
         return servicoMap.getOrDefault(cClassTrib, RegimeDiferenciado.PADRAO);
     }
 
@@ -171,7 +174,7 @@ public class TabelaFiscalFake implements TabelaFiscal {
     }
 
     @Override
-    public Optional<BigDecimal> aliquotaIs(String ncm) {
+    public Optional<BigDecimal> aliquotaIs(String ncm, LocalDate competencia) {
         return Optional.ofNullable(isMap.get(ncm));
     }
 
@@ -182,7 +185,7 @@ public class TabelaFiscalFake implements TabelaFiscal {
 
     /** Item próprio > item genérico do município > referência — precedência real é do SQL/JdbcTest. */
     @Override
-    public Optional<AliquotaIss> aliquotaIss(String ibgeMunicipio, String itemLc116) {
+    public Optional<AliquotaIss> aliquotaIss(String ibgeMunicipio, String itemLc116, LocalDate competencia) {
         AliquotaIss porItem = issMap.get(chaveIss(ibgeMunicipio, itemLc116));
         if (porItem != null) {
             return Optional.of(porItem);
@@ -192,7 +195,8 @@ public class TabelaFiscalFake implements TabelaFiscal {
 
     /** 4 níveis (tenant+ncm > tenant+fallback > nacional+ncm > nacional+fallback); real é o SQL/JdbcTest. */
     @Override
-    public Optional<RegimeIcms> aliquotaIcms(String tenantId, String ncmNbs, String ufOrigem, String ufDestino) {
+    public Optional<RegimeIcms> aliquotaIcms(String tenantId, String ncmNbs, String ufOrigem, String ufDestino,
+                                              LocalDate competencia) {
         if (tenantId != null) {
             RegimeIcms doTenant = matrizMap.get(chaveMatriz(tenantId, ncmNbs, ufOrigem, ufDestino));
             if (doTenant != null) {

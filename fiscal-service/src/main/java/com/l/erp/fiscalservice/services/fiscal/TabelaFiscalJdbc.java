@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -31,16 +32,18 @@ public class TabelaFiscalJdbc implements TabelaFiscal {
              WHERE codigo = :codigo
             """;
 
-    // ponytail: vigência corrente = vigente_ate IS NULL. A interface não recebe data aqui;
-    // quando existirem duas versões da mesma regra, passar a dataCompetencia e filtrar
-    // por vigente_de/vigente_ate.
+    // item 7.8: vigência é POR DATA (:data = dataCompetencia da nota), não "a linha atual" — uma
+    // nota reprocessada com competência antiga tem que enxergar a regra que valia na época dela,
+    // mesmo que hoje já exista uma versão mais nova. vigente_de DESC desempata se a carga deixar
+    // duas linhas vigentes na mesma janela (não deveria acontecer com dado correto, mas SELECT com
+    // .optional() estoura exception se vier mais de uma linha — o LIMIT 1 já evita isso sozinho).
     private static final String SQL_REGIME_NCM = """
             SELECT regime, percentual_reducao
               FROM fiscal.regime_dif_ncm
              WHERE ncm IS NOT NULL
-               AND vigente_ate IS NULL
+               AND vigente_de <= :data AND (vigente_ate IS NULL OR vigente_ate > :data)
                AND :ncm LIKE replace(ncm, '.', '') || '%'
-             ORDER BY length(replace(ncm, '.', '')) DESC
+             ORDER BY length(replace(ncm, '.', '')) DESC, vigente_de DESC
              LIMIT 1
             """;
 
@@ -50,7 +53,9 @@ public class TabelaFiscalJdbc implements TabelaFiscal {
             SELECT regime, percentual_reducao
               FROM fiscal.regime_cclasstrib
              WHERE cclasstrib = :cclasstrib
-               AND vigente_ate IS NULL
+               AND vigente_de <= :data AND (vigente_ate IS NULL OR vigente_ate > :data)
+             ORDER BY vigente_de DESC
+             LIMIT 1
             """;
 
     // lpad: a LC 116 escreve o item sem zero à esquerda ('4.01') e o Anexo VIII com ele ('04.01').
@@ -89,9 +94,9 @@ public class TabelaFiscalJdbc implements TabelaFiscal {
             SELECT aliquota_pct
               FROM fiscal.aliq_is_ncm
              WHERE aliquota_pct IS NOT NULL
-               AND vigente_ate IS NULL
+               AND vigente_de <= :data AND (vigente_ate IS NULL OR vigente_ate > :data)
                AND :ncm LIKE replace(ncm, '.', '') || '%'
-             ORDER BY length(replace(ncm, '.', '')) DESC
+             ORDER BY length(replace(ncm, '.', '')) DESC, vigente_de DESC
              LIMIT 1
             """;
 
@@ -111,9 +116,10 @@ public class TabelaFiscalJdbc implements TabelaFiscal {
               FROM fiscal.aliq_iss_municipio
              WHERE ibge_municipio IN (:ibge, :referencia)
                AND (item_lc116 = lpad(:item, 5, '0') OR item_lc116 IS NULL)
-               AND vigente_ate IS NULL
+               AND vigente_de <= :data AND (vigente_ate IS NULL OR vigente_ate > :data)
              ORDER BY CASE WHEN ibge_municipio = :referencia THEN 1 ELSE 0 END,
-                      CASE WHEN item_lc116 IS NULL THEN 1 ELSE 0 END
+                      CASE WHEN item_lc116 IS NULL THEN 1 ELSE 0 END,
+                      vigente_de DESC
              LIMIT 1
             """;
 
@@ -129,9 +135,10 @@ public class TabelaFiscalJdbc implements TabelaFiscal {
                AND uf_destino = :ufDestino
                AND ncm_nbs IN (:ncmNbs, :fallback)
                AND (tenant_id = :tenantId OR tenant_id IS NULL)
-               AND vigente_ate IS NULL
+               AND vigente_de <= :data AND (vigente_ate IS NULL OR vigente_ate > :data)
              ORDER BY CASE WHEN tenant_id = :tenantId THEN 0 ELSE 1 END,
-                      CASE WHEN ncm_nbs = :ncmNbs THEN 0 ELSE 1 END
+                      CASE WHEN ncm_nbs = :ncmNbs THEN 0 ELSE 1 END,
+                      vigente_de DESC
              LIMIT 1
             """;
 
@@ -177,18 +184,20 @@ public class TabelaFiscalJdbc implements TabelaFiscal {
     }
 
     @Override
-    public RegimeDiferenciado regimeNcm(String ncm) {
+    public RegimeDiferenciado regimeNcm(String ncm, LocalDate competencia) {
         return jdbc.sql(SQL_REGIME_NCM)
                 .param("ncm", somenteDigitos(ncm))
+                .param("data", competencia)
                 .query(TabelaFiscalJdbc::regimeDaLinha)
                 .optional()
                 .orElse(RegimeDiferenciado.PADRAO);
     }
 
     @Override
-    public RegimeDiferenciado regimeCClassTrib(String cClassTrib) {
+    public RegimeDiferenciado regimeCClassTrib(String cClassTrib, LocalDate competencia) {
         return jdbc.sql(SQL_REGIME_CCLASSTRIB)
                 .param("cclasstrib", cClassTrib)
+                .param("data", competencia)
                 .query(TabelaFiscalJdbc::regimeDaLinha)
                 .optional()
                 .orElse(RegimeDiferenciado.PADRAO);
@@ -227,9 +236,10 @@ public class TabelaFiscalJdbc implements TabelaFiscal {
     }
 
     @Override
-    public Optional<BigDecimal> aliquotaIs(String ncm) {
+    public Optional<BigDecimal> aliquotaIs(String ncm, LocalDate competencia) {
         return jdbc.sql(SQL_ALIQ_IS)
                 .param("ncm", somenteDigitos(ncm))
+                .param("data", competencia)
                 .query((rs, n) -> rs.getBigDecimal("aliquota_pct"))
                 .optional();
     }
@@ -245,11 +255,12 @@ public class TabelaFiscalJdbc implements TabelaFiscal {
     }
 
     @Override
-    public Optional<AliquotaIss> aliquotaIss(String ibgeMunicipio, String itemLc116) {
+    public Optional<AliquotaIss> aliquotaIss(String ibgeMunicipio, String itemLc116, LocalDate competencia) {
         return jdbc.sql(SQL_ALIQ_ISS)
                 .param("ibge", ibgeMunicipio)
                 .param("referencia", Constants.FISCAL_IBGE_REFERENCIA_NACIONAL)
                 .param("item", itemLc116)
+                .param("data", competencia)
                 .query((rs, n) -> new AliquotaIss(
                         rs.getBigDecimal("aliquota_pct"),
                         Constants.FISCAL_IBGE_REFERENCIA_NACIONAL.equals(rs.getString("ibge_municipio"))))
@@ -257,13 +268,15 @@ public class TabelaFiscalJdbc implements TabelaFiscal {
     }
 
     @Override
-    public Optional<RegimeIcms> aliquotaIcms(String tenantId, String ncmNbs, String ufOrigem, String ufDestino) {
+    public Optional<RegimeIcms> aliquotaIcms(String tenantId, String ncmNbs, String ufOrigem, String ufDestino,
+                                              LocalDate competencia) {
         return jdbc.sql(SQL_MATRIZ_ICMS)
                 .param("tenantId", tenantId)
                 .param("ncmNbs", ncmNbs)
                 .param("fallback", Constants.FISCAL_NCM_NBS_FALLBACK)
                 .param("ufOrigem", ufOrigem)
                 .param("ufDestino", ufDestino)
+                .param("data", competencia)
                 .query((rs, n) -> new RegimeIcms(
                         rs.getBigDecimal("aliq_nominal"),
                         rs.getBigDecimal("p_reducao_base"),
