@@ -38,7 +38,10 @@ public class InternalRequestFilter extends OncePerRequestFilter {
             "/api/v1/webhooks/asaas",
             "/api/v1/plans",
             "/actuator/health",
-            "/actuator/info"
+            "/actuator/info",
+            // prometheus: alvo de scrape do Prometheus, que chega sem token nenhum.
+            // Somente leitura e sem label de alta cardinalidade (nada de tenantId/id de pagamento).
+            "/actuator/prometheus"
     );
 
     @Override

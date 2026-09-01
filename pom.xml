@@ -33,7 +33,7 @@
         <spring-cloud.version>2025.1.1</spring-cloud.version>
         <jacoco.version>0.8.14</jacoco.version>
         <coverage.minimum>0.40</coverage.minimum>
-        <testcontainers.version>1.21.0</testcontainers.version>
+        <testcontainers.version>2.0.5</testcontainers.version>
         <!-- SonarQube -->
         <sonar.projectKey>erp-vsd</sonar.projectKey>
         <sonar.projectName>ERP VSD</sonar.projectName>
@@ -77,10 +77,12 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- Appender do Loki (substitui o logstash-logback-encoder): empurra log por HTTP direto
+             do logback, sem Promtail nem agente. Herdado por todos os módulos filhos deste POM. -->
         <dependency>
-            <groupId>net.logstash.logback</groupId>
-            <artifactId>logstash-logback-encoder</artifactId>
-            <version>7.4</version>
+            <groupId>com.github.loki4j</groupId>
+            <artifactId>loki-logback-appender</artifactId>
+            <version>1.6.0</version>
         </dependency>
     </dependencies>
     <dependencyManagement>
@@ -198,6 +200,15 @@
             <plugin>
                 <groupId>org.cyclonedx</groupId>
                 <artifactId>cyclonedx-maven-plugin</artifactId>
+            </plugin>
+            <!-- Declarado aqui (não só em pluginManagement) pra "sonar:sonar" resolver via
+                 prefixo no CLI do Jenkins: pluginManagement sozinho não registra o plugin como
+                 "usado" pelo projeto, e o settings.xml do agente não tem org.sonarsource.scanner.maven
+                 no pluginGroups (dá "No plugin found for prefix 'sonar'"). Sem <executions>: só
+                 fica resolvível pro goal explícito, não roda em nenhuma fase do build normal. -->
+            <plugin>
+                <groupId>org.sonarsource.scanner.maven</groupId>
+                <artifactId>sonar-maven-plugin</artifactId>
             </plugin>
 
         </plugins>

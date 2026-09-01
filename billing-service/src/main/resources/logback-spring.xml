@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <!-- Pega o nome da aplicação do application.yml/.properties -->
+    <springProperty scope="context" name="springAppName" source="spring.application.name"/>
+
+    <!-- Este serviço não tinha logback-spring.xml: o log de webhook/cobrança nunca saiu do console.
+         correlationId vem do MDC (CorrelationIdFilter lê o header X-Correlation-ID) — é ele que
+         amarra o webhook do Asaas ao que aconteceu nos outros serviços. -->
+    <property name="PADRAO_CONSOLE"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{correlationId:-}] %-5level %logger{36} - %msg%n"/>
+    <!-- Sem a data: o Loki carimba o timestamp do evento, repetir só polui a linha. -->
+    <property name="PADRAO_LOKI"
+              value="[%thread] [%X{correlationId:-}] %-5level %logger{36} - %msg%n"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${PADRAO_CONSOLE}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Push HTTP direto pro Loki, sem agente intermediário.
+         Labels SÓ de baixa cardinalidade (app/host/level). tenantId, correlationId, asaasEventId e id
+         de pagamento NUNCA viram label — cada valor distinto criaria um stream novo e derrubaria o Loki.
+         Eles ficam no corpo e se filtra no LogQL: {app="billing-service"} |= "PAYMENT_RECEIVED". -->
+    <appender name="LOKI" class="com.github.loki4j.logback.Loki4jAppender">
+        <http>
+            <url>${LOKI_URL:-http://localhost:3100/loki/api/v1/push}</url>
+        </http>
+        <format>
+            <label>
+                <pattern>app=${springAppName},host=${HOSTNAME},level=%level</pattern>
+            </label>
+            <message>
+                <pattern>${PADRAO_LOKI}</pattern>
+            </message>
+        </format>
+    </appender>
+
+    <!-- Loki só fora dos testes: em CI/local de teste não há sink em :3100.
+         springProfile precisa envolver o <root> inteiro — não pode ser aninhado dentro dele. -->
+    <springProfile name="!test">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="LOKI"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="test">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+</configuration>

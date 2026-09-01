@@ -7,17 +7,17 @@ pipeline {
     }
 
     environment {
-        DOCKER_HUB_CREDS                      = credentials('docker-hub-creds')
-        SONAR_TOKEN                           = credentials('sonarqube-token')
-        DOCKER_HOST                           = 'tcp://dind:2375'
-        TESTCONTAINERS_HOST_OVERRIDE          = 'dind'
+        DOCKER_HUB_CREDS = credentials('docker-hub-creds')
+        SONAR_TOKEN = credentials('sonarqube-token')
+        DOCKER_HOST = 'tcp://dind:2375'
+        TESTCONTAINERS_HOST_OVERRIDE = 'dind'
         // Ryuk não consegue manter o heartbeat com o controller via rede do DinD e acaba
         // matando os containers de teste no meio do build (→ "Connection refused" em dind:<porta>).
         // Seguro desabilitar aqui: o DinD é efêmero por build e o post{cleanup} já limpa tudo.
-        // TESTCONTAINERS_RYUK_DISABLED          = 'true'
-        DOCKER_REGISTRY                       = 'vitorff1234'
-        IMAGE_TAG                             = "${env.BUILD_NUMBER}"
-        SONAR_HOST_URL                        = 'http://erp-sonarqube:9000'
+        // TESTCONTAINERS_RYUK_DISABLED = 'true'
+        DOCKER_REGISTRY = 'vitorff1234'
+        IMAGE_TAG = "${env.BUILD_NUMBER}"
+        SONAR_HOST_URL = 'http://erp-sonarqube:9000'
     }
 
     options {
@@ -35,7 +35,7 @@ pipeline {
 
         stage('Build & Test') {
             steps {
-                sh './mvnw clean verify -pl auth-service,cadastro-service,partner-service,billing-service,fiscal-service -am --batch-mode --no-transfer-progress'
+                sh './mvnw clean verify -pl auth-service,cadastro-service,partner-service,billing-service,fiscal-service,gateway,registry -am --batch-mode --no-transfer-progress'
             }
             post {
                 always {
@@ -53,7 +53,7 @@ pipeline {
                     // GAV completo em vez do prefixo 'sonar:sonar': o primeiro projeto do reator é o
                     // 'common', que herda do spring-boot-starter-parent e não enxerga o pluginManagement
                     // do pom raiz — o prefixo não resolve. Versão espelha a do pom.xml raiz.
-                    sh './mvnw org.sonarsource.scanner.maven:sonar-maven-plugin:5.1.0.4751:sonar -pl auth-service,cadastro-service,partner-service,billing-service,fiscal-service -am -Dsonar.token=${SONAR_TOKEN} --batch-mode --no-transfer-progress'
+                    sh './mvnw org.sonarsource.scanner.maven:sonar-maven-plugin:5.1.0.4751:sonar -pl auth-service,cadastro-service,partner-service,billing-service,fiscal-service,gateway,registry -am -Dsonar.token=${SONAR_TOKEN} --batch-mode --no-transfer-progress'
                 }
             }
         }

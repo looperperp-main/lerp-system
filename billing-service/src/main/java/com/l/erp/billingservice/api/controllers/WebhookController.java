@@ -61,7 +61,9 @@ public class WebhookController {
         try {
             payload = objectMapper.readValue(rawPayload, AsaasWebhookPayload.class);
         } catch (Exception e) {
-            log.error("Webhook Asaas com payload inválido — ignorado, tamanho={}", rawPayload.length(), e);
+            // 4xx: WARN de uma linha, sem stacktrace (padrão de erros/logs do projeto)
+            log.warn("Webhook Asaas com payload inválido — ignorado, tamanho={}, motivo={}",
+                    rawPayload.length(), e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
 

@@ -26,7 +26,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/login", "/auth/tenant/login", "/auth/partner/login", "/auth/refresh", "/auth/logout", "/auth/ativar", "/auth/criar-conta", "/auth/tenant/esqueci-senha", "/auth/redefinir-senha").permitAll()
                         // loggers: usado pelo painel de diagnóstico (proxy interno); actuator não passa pelo gateway
-                        .requestMatchers("/actuator/health", "/actuator/info", "/actuator/loggers", "/actuator/loggers/**").permitAll()
+                        // prometheus: alvo de scrape do Prometheus, que chega sem token nenhum
+                        .requestMatchers("/actuator/health", "/actuator/info", "/actuator/prometheus", "/actuator/loggers", "/actuator/loggers/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         //.requestMatchers("/auth/**").permitAll()
                         .anyRequest().authenticated()

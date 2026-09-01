@@ -8,6 +8,7 @@ import com.auth0.jwt.interfaces.DecodedJWT;
 import com.l.erp.authservice.dominio.Tenant;
 import com.l.erp.authservice.dominio.UserAccount;
 import com.l.erp.authservice.infra.config.Roles;
+import com.l.erp.common.exception.custom.BusinessException;
 import com.l.erp.common.util.Constants;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,6 +23,9 @@ public class TokenService {
 
     @Value("${api.security.jwt.secret}")
     private String secret;
+
+    @Value("${api.security.jwt.expiration-hours:1}")
+    private long expirationHours;
 
     @PostConstruct
     void validateSecret() {
@@ -134,11 +138,11 @@ public class TokenService {
                     .build()
                     .verify(token);
         } catch (JWTVerificationException e) {
-            throw new RuntimeException("Token de ativação inválido ou expirado", e);
+            throw new BusinessException("Token de ativação inválido ou expirado");
         }
     }
 
     private Instant generateExpirationDate(){
-        return Instant.now().plus(1, ChronoUnit.HOURS);
+        return Instant.now().plus(expirationHours, ChronoUnit.HOURS);
     }
 }

@@ -63,7 +63,7 @@ docker compose up -d
 # health agregado do billing fica DOWN (503) e o painel de saúde do admin mostra billing DOWN.
 docker compose up -d postgres zookeeper kafka redis
 
-# Web UIs: Kafka UI :8080, Adminer :8081, Prometheus :9090, Grafana :3000, Kibana :5601
+# Web UIs: Kafka UI :8080, Adminer :8081, Prometheus :9090, Grafana :3000 (métricas + logs)
 ```
 
 ### Frontend
@@ -126,7 +126,8 @@ Both `auth-service` and `cadastro-service` run with `spring.jpa.hibernate.ddl-au
 
 - Prometheus scrapes `/actuator/prometheus` from each service.
 - Grafana (`:3000`, admin/admin123) for dashboards.
-- Logback → Logstash (`:5000`) → Elasticsearch (`:9200`) → Kibana (`:5601`) for logs.
+- Logback → Loki (`:3100`, push HTTP direto via loki4j) → Grafana (`:3000`, Explore) for logs. Substituiu o ELK. Todos os 6 serviços têm `logback-spring.xml` com o appender `Loki4jAppender` e o `correlationId` no pattern; labels só de baixa cardinalidade (`app`/`host`/`level`) — `tenantId`, `correlationId` e ids de pagamento nunca viram label, filtram-se com `|=` no LogQL.
+- Métricas de pagamento no `billing-service`: `webhook_processado_total{evento,resultado}`, `webhook_pendente` e `job_segundos_desde_ok{job}` em `/actuator/prometheus`.
 - Sentry BOM is managed in the parent POM (not yet wired per service).
 
 ### Required Environment Variables

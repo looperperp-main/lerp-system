@@ -101,6 +101,17 @@ class InternalRequestFilterTest {
     }
 
     @Test
+    void actuatorPrometheus_passaSemHeader() throws Exception {
+        var req = new MockHttpServletRequest("GET", "/actuator/prometheus");
+        var res = new MockHttpServletResponse();
+        var chain = new CountingChain();
+
+        filter.doFilter(req, res, chain);
+
+        assertThat(chain.calls).isEqualTo(1);
+    }
+
+    @Test
     void pathDoSwagger_passaSemHeader() throws Exception {
         var req = new MockHttpServletRequest("GET", "/v3/api-docs");
         var res = new MockHttpServletResponse();
