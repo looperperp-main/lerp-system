@@ -136,6 +136,10 @@ export class SecurityService {
     return this.http.patch<void>(`${this.api}/users/${userId}/status`, null);
   }
 
+  unlockUser(userId: string): Observable<void> {
+    return this.http.patch<void>(`${this.api}/users/${userId}/unlock`, null);
+  }
+
   // ----- User <-> Roles -----
   getUserRoles(userId: string): Observable<RoleModel[]> {
     return this.http.get<RoleModel[]>(`${this.api}/users/${userId}/roles`);

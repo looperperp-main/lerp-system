@@ -85,6 +85,16 @@
                 (click)="toggleStatus(user)"
                 tooltipPosition="top">
               </button>
+              <button
+                *ngIf="isLocked(user)"
+                pButton
+                pRipple
+                icon="pi pi-lock-open"
+                class="p-button-rounded p-button-text p-button-sm w-8 h-8 p-button-help"
+                pTooltip="Desbloquear"
+                (click)="unlockUser(user)"
+                tooltipPosition="top">
+              </button>
             </td>
           </tr>
         </ng-template>

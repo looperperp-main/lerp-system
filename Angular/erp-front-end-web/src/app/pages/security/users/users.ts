@@ -95,6 +95,31 @@ export class SecurityUsers {
     this.dialog = false;
   }
 
+  isLocked(user: UserModel): boolean {
+    return !!user.lockedUntil && new Date(user.lockedUntil).getTime() > Date.now();
+  }
+
+  unlockUser(user: UserModel) {
+    if (!user.id) return;
+    this.service.unlockUser(user.id).subscribe({
+      next: () => {
+        this.messages.add({
+          severity: 'success',
+          summary: 'Sucesso',
+          detail: 'Usuário desbloqueado!',
+        });
+        this.load();
+      },
+      error: () => {
+        this.messages.add({
+          severity: 'error',
+          summary: 'Erro',
+          detail: 'Erro ao desbloquear usuário',
+        });
+      },
+    });
+  }
+
   toggleStatus(user: UserModel) {
     if (!user.id) return;
     this.service.updateUserStatus(user.id).subscribe({

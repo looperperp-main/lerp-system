@@ -149,4 +149,16 @@ class TenantSecurityControllerTest {
 
         verify(userService).updateUserStatusForTenant(eq(userId), eq(TENANT));
     }
+
+    @Test
+    @WithMockUser(authorities = "USER_STATUS")
+    void unlockUserPassesTenant() throws Exception {
+        UUID userId = UUID.randomUUID();
+
+        mockMvc.perform(patch("/auth/tenant/security/users/{userId}/unlock", userId)
+                        .header("X-Tenant-Id", TENANT))
+                .andExpect(status().isNoContent());
+
+        verify(userService).unlockUserForTenant(eq(userId), eq(TENANT));
+    }
 }

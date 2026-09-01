@@ -65,7 +65,9 @@ public class Constants {
 
     public static final String USER_CREATION = USER + "_" + INSERT;
     public static final String USER_UPDATE = USER + "_" + UPDATE;
+    public static final String USER_UNLOCK = USER + "_UNLOCK";
     public static final String USER_NOT_FOUND= "Usuário não Encontrado";
+    public static final String USER_NOT_LOCKED = "Usuário não está bloqueado";
 
     public static final String USER_HAS_OWNER_MARKER= "Usuário não pode ser cancelado/excluído pois possui um marker de proprietário";
 

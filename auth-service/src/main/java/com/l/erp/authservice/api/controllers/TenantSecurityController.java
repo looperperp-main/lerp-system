@@ -174,6 +174,14 @@ public class TenantSecurityController {
         return ResponseEntity.noContent().build();
     }
 
+    @PatchMapping("/users/{userId}/unlock")
+    @PreAuthorize("hasAuthority('USER_STATUS')")
+    public ResponseEntity<Void> unlockUser(@RequestHeader(Constants.HEADER_TENANT_ID) Long tenantId,
+                                           @PathVariable UUID userId) {
+        userService.unlockUserForTenant(userId, tenantId);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/users/{userId}/roles")
     @PreAuthorize("hasAuthority('USER_READ')")
     public ResponseEntity<List<RoleDTO>> getUserRoles(@RequestHeader(Constants.HEADER_TENANT_ID) Long tenantId,
