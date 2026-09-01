@@ -69,7 +69,28 @@ export class TenantLoginService {
   }
 
   isAuthenticated(): boolean {
-    return !!sessionStorage.getItem(this.STORAGE_KEYS.TOKEN);
+    const token = sessionStorage.getItem(this.STORAGE_KEYS.TOKEN);
+    if (!token) return false;
+    if (this.isExpired(token)) {
+      // Token presente mas vencido (ex.: "manter conectado" rehidratou um JWT de sessão
+      // anterior já expirada) — limpa pra não deixar o guard aprovar e só depois o
+      // interceptor derrubar no primeiro 401.
+      for (const key of Object.values(this.STORAGE_KEYS)) {
+        sessionStorage.removeItem(key);
+        localStorage.removeItem(key);
+      }
+      return false;
+    }
+    return true;
+  }
+
+  private isExpired(token: string): boolean {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return !payload.exp || Date.now() >= payload.exp * 1000;
+    } catch {
+      return true;
+    }
   }
 
   getToken(): string | null {

@@ -18,6 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SecurityFilterTest {
 
     private static final String SECRET = "test-secret-with-at-least-32-characters-long!!";
+    private static final String INTERNAL_SECRET = "test-internal-secret";
     private static final String ISSUER = "L-ERP-auth-service";
 
     private SecurityFilter filter;
@@ -26,6 +27,7 @@ class SecurityFilterTest {
     void setUp() {
         filter = new SecurityFilter();
         ReflectionTestUtils.setField(filter, "secret", SECRET);
+        ReflectionTestUtils.setField(filter, "internalSecret", INTERNAL_SECRET);
         SecurityContextHolder.clearContext();
     }
 
@@ -80,6 +82,17 @@ class SecurityFilterTest {
     }
 
     @Test
+    void publicPath_recebeSegredoInternoDoGateway() throws Exception {
+        var req = new MockHttpServletRequest("POST", "/auth/login");
+        var res = new MockHttpServletResponse();
+        var chain = new CapturingChain();
+
+        filter.doFilter(req, res, chain);
+
+        assertThat(chain.forwarded.getHeader("X-Internal-Secret")).isEqualTo(INTERNAL_SECRET);
+    }
+
+    @Test
     void semAuthorizationHeader_emPathProtegido_retorna401() throws Exception {
         var req = new MockHttpServletRequest("GET", "/cadastro/api/v1/produtos");
         var res = new MockHttpServletResponse();
@@ -104,6 +117,20 @@ class SecurityFilterTest {
         assertThat(chain.forwarded.getHeader("X-User-Id")).isEqualTo("user-1");
         assertThat(chain.forwarded.getHeader("X-Tenant-Id")).isEqualTo("42");
         assertThat(chain.forwarded.getHeader("X-Is-Owner")).isEqualTo("true");
+        assertThat(chain.forwarded.getHeader("X-Internal-Secret")).isEqualTo(INTERNAL_SECRET);
+    }
+
+    @Test
+    void headerInternoDeSegredoForjadoPeloCliente_eDescartado() throws Exception {
+        var req = new MockHttpServletRequest("GET", "/cadastro/api/v1/produtos");
+        req.addHeader("Authorization", "Bearer " + tokenTenant());
+        req.addHeader("X-Internal-Secret", "segredo-forjado-pelo-cliente");
+        var res = new MockHttpServletResponse();
+        var chain = new CapturingChain();
+
+        filter.doFilter(req, res, chain);
+
+        assertThat(chain.forwarded.getHeader("X-Internal-Secret")).isEqualTo(INTERNAL_SECRET);
     }
 
     @Test

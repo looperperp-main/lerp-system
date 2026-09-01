@@ -39,6 +39,21 @@ interface TenantUser {
   active: boolean;
 }
 
+interface FeatureStat {
+  featureKey: string;
+  label: string;
+  accessCount: number;
+  lastAccessedAt: string | null;
+}
+
+interface EngajamentoModel {
+  loginCount: number;
+  lastLoginAt: string | null;
+  daysActive: number;
+  features: FeatureStat[];
+  adoptionGaps: string[];
+}
+
 interface OrigemModel {
   contador: string;
   crc: string;
@@ -98,12 +113,14 @@ export class TenantDetail implements OnInit {
   readonly users = signal<TenantUser[]>([]);
   readonly origem = signal<OrigemModel | null>(null);
   readonly semOrigem = signal(false);
+  readonly engajamento = signal<EngajamentoModel | null>(null);
   readonly audits = signal<AuditRow[]>([]);
 
   readonly loadingTenant = signal(true);
   readonly loadingSubs = signal(true);
   readonly loadingUsers = signal(true);
   readonly loadingOrigem = signal(true);
+  readonly loadingEngajamento = signal(true);
   readonly loadingAudits = signal(false);
 
   // Drill-down de cobranças (assinatura)
@@ -130,6 +147,7 @@ export class TenantDetail implements OnInit {
     this.loadSubscriptions();
     this.loadUsers();
     this.loadOrigem();
+    this.loadEngajamento();
   }
 
   voltar() {
@@ -215,6 +233,32 @@ export class TenantDetail implements OnInit {
           }
         },
       });
+  }
+
+  loadEngajamento() {
+    this.loadingEngajamento.set(true);
+    this.http
+      .get<EngajamentoModel>(`${this.partnerBase}/engajamento/by-tenant/${this.tenantId}`)
+      .subscribe({
+        next: (e) => {
+          this.engajamento.set(e);
+          this.loadingEngajamento.set(false);
+        },
+        error: () => {
+          this.loadingEngajamento.set(false);
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Erro',
+            detail: 'Erro ao carregar o engajamento.',
+          });
+        },
+      });
+  }
+
+  /** % da barra de uso de uma feature, relativo à mais usada. */
+  barraFeature(f: FeatureStat): number {
+    const max = Math.max(1, ...this.engajamento()!.features.map((x) => x.accessCount));
+    return Math.round((f.accessCount / max) * 100);
   }
 
   loadAudits() {

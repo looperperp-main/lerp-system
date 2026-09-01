@@ -46,6 +46,10 @@ logging:
 server:
   port: 8087
 
+internal:
+  gateway:
+    secret: ${INTERNAL_GATEWAY_SECRET}
+
 eureka:
   client:
     service-url:

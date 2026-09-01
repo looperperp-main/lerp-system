@@ -1,0 +1,347 @@
+databaseChangeLog:
+
+  # ══════════════════════════════════════════════════════════════════════
+  # FATIA A1 — conteúdo fiscal em tabela (sai do in-memory do fiscal-service).
+  #
+  # Tabelas nacionais: NÃO têm tenant_id e NÃO são editáveis por tela (ADR Fin.md §1.4.4).
+  # Mudam por migração/import, seguindo publicação de CGIBS/RFB/SEFAZ.
+  #
+  # ⚠️ Todo seed marcado ESTIMADO abaixo é valor de trabalho do §1.4.8 (usado como oráculo
+  # dos testes do motor), NÃO alíquota oficial. Substituir quando o CGIBS publicar.
+  # ══════════════════════════════════════════════════════════════════════
+
+  # ──────────────────────────────────────────
+  # TABELA: fiscal.ncm — catálogo NCM (MDIC).
+  # Só descrição/unidade: o REGIME de cada NCM mora em fiscal.regime_dif_ncm (schema-001),
+  # que é quem o motor consulta. Duplicar regime aqui criaria duas verdades.
+  # Sem seed nesta fatia — os ~61k NCM vêm do CSV do MDIC por loadData próprio.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: fiscal-004-create-ncm
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: fiscal
+            tableName: ncm
+            columns:
+              - column:
+                  name: codigo
+                  type: varchar(8)
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: descricao
+                  type: text
+              - column:
+                  name: unidade_medida
+                  type: varchar(10)
+      rollback:
+        - dropTable:
+            schemaName: fiscal
+            tableName: ncm
+
+  # ──────────────────────────────────────────
+  # TABELA: fiscal.cfop
+  # `primeira_etapa_cadeia` = produção própria/importação; o motor usa isso para decidir se
+  # o monofásico recolhe (1ª etapa) ou já veio recolhido da origem (§1.4.2 Passo 2).
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: fiscal-005-create-cfop
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: fiscal
+            tableName: cfop
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: codigo
+                  type: varchar(4)
+                  constraints:
+                    nullable: false
+                    unique: true
+                    uniqueConstraintName: uk_cfop_codigo
+              - column:
+                  name: descricao
+                  type: varchar(300)
+              - column:
+                  name: tipo_operacao
+                  type: varchar(10)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: gera_credito_ibs
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: gera_credito_cbs
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: primeira_etapa_cadeia
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+        - sql:
+            sql: >
+              ALTER TABLE fiscal.cfop
+              ADD CONSTRAINT chk_cfop_tipo_operacao
+              CHECK (tipo_operacao IN ('ENTRADA', 'SAIDA'));
+      rollback:
+        - dropTable:
+            schemaName: fiscal
+            tableName: cfop
+
+  # ──────────────────────────────────────────
+  # SEED CFOP — parcial. Só os CFOPs já exercitados pelo motor/oráculo (§1.4.8).
+  # A tabela SEFAZ completa (~600) entra por loadData quando houver o CSV; fabricar aqui
+  # os 600 de cabeça = flag de crédito errada em CFOP que ninguém conferiu.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: fiscal-006-seed-cfop-parcial
+      author: vitor-fernandes
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.cfop
+                (codigo, descricao, tipo_operacao, gera_credito_ibs, gera_credito_cbs, primeira_etapa_cadeia) VALUES
+              ('5101', 'Venda de produção do estabelecimento',        'SAIDA',   true, true, true),
+              ('5102', 'Venda de mercadoria adquirida de terceiros',  'SAIDA',   true, true, false),
+              ('5405', 'Venda de mercadoria sujeita a monofásico/ST', 'SAIDA',   true, true, false),
+              ('5933', 'Prestação de serviço tributado',              'SAIDA',   true, true, false),
+              ('1101', 'Compra para industrialização',                'ENTRADA', true, true, false),
+              ('1102', 'Compra para comercialização',                 'ENTRADA', true, true, false);
+      rollback:
+        - sql:
+            dbms: postgresql
+            sql: DELETE FROM fiscal.cfop WHERE codigo IN ('5101', '5102', '5405', '5933', '1101', '1102');
+
+  # ──────────────────────────────────────────
+  # TABELA: fiscal.aliq_ibs_municipio — IBS é do DESTINO e vem decomposto em
+  # parcela estadual + municipal; a soma não é armazenada (o motor soma).
+  # Chave de negócio (ibge_municipio, ano_vigencia): uma alíquota por município por ano
+  # durante a transição 2026–2033 (MF-07).
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: fiscal-007-create-aliq-ibs-municipio
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: fiscal
+            tableName: aliq_ibs_municipio
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: ibge_municipio
+                  type: varchar(7)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: uf
+                  type: varchar(2)
+              - column:
+                  name: nome_municipio
+                  type: varchar(200)
+              - column:
+                  name: ano_vigencia
+                  type: int
+                  constraints:
+                    nullable: false
+              - column:
+                  name: aliquota_estadual
+                  type: numeric(6,4)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: aliquota_municipal
+                  type: numeric(6,4)
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            schemaName: fiscal
+            tableName: aliq_ibs_municipio
+            columnNames: ibge_municipio, ano_vigencia
+            constraintName: uk_aliq_ibs_municipio_ano
+      rollback:
+        - dropTable:
+            schemaName: fiscal
+            tableName: aliq_ibs_municipio
+
+  # ──────────────────────────────────────────
+  # TABELA: fiscal.aliq_cbs_regime — CBS é federal, varia por regime da empresa e ano.
+  # MEI não destaca CBS (MF-02): o motor corta antes, por isso não há linha de MEI aqui.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: fiscal-008-create-aliq-cbs-regime
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: fiscal
+            tableName: aliq_cbs_regime
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: regime
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: ano_vigencia
+                  type: int
+                  constraints:
+                    nullable: false
+              - column:
+                  name: aliquota_pct
+                  type: numeric(6,4)
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            schemaName: fiscal
+            tableName: aliq_cbs_regime
+            columnNames: regime, ano_vigencia
+            constraintName: uk_aliq_cbs_regime_ano
+      rollback:
+        - dropTable:
+            schemaName: fiscal
+            tableName: aliq_cbs_regime
+
+  # ──────────────────────────────────────────
+  # TABELA: fiscal.aliq_is_ncm — Imposto Seletivo por NCM.
+  # `aliquota_pct` é NULLABLE de propósito: o Anexo XVII já define QUAIS NCM sofrem IS, mas
+  # as alíquotas ainda serão regulamentadas (§1.8.7). Linha com alíquota NULL = "sujeito ao IS,
+  # alíquota pendente" — o motor IGNORA essas linhas em vez de calcular com valor inventado.
+  # `ncm` guarda o código como publicado (com pontos); o motor normaliza e casa por prefixo.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: fiscal-009-create-aliq-is-ncm
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: fiscal
+            tableName: aliq_is_ncm
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: ncm
+                  type: varchar(10)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: descricao
+                  type: varchar(200)
+              - column:
+                  name: aliquota_pct
+                  type: numeric(5,2)
+              - column:
+                  name: vigente_de
+                  type: date
+                  constraints:
+                    nullable: false
+              - column:
+                  name: vigente_ate
+                  type: date
+        - createIndex:
+            schemaName: fiscal
+            tableName: aliq_is_ncm
+            indexName: idx_aliq_is_ncm_ncm
+            columns:
+              - column:
+                  name: ncm
+      rollback:
+        - dropTable:
+            schemaName: fiscal
+            tableName: aliq_is_ncm
+
+  # ──────────────────────────────────────────
+  # SEED das alíquotas — ⚠️ TODOS ESTIMADOS (§1.4.8), não oficiais.
+  # Existem para o motor rodar ponta a ponta e reproduzir os exemplos numéricos da spec.
+  # Trocar por publicação do CGIBS antes de qualquer uso real (MF-07).
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: fiscal-010-seed-aliquotas-estimadas
+      author: vitor-fernandes
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.aliq_ibs_municipio
+                (ibge_municipio, uf, nome_municipio, ano_vigencia, aliquota_estadual, aliquota_municipal) VALUES
+              ('3550308', 'SP', 'São Paulo', 2027, 13.1200, 4.5000);
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.aliq_cbs_regime (regime, ano_vigencia, aliquota_pct) VALUES
+              ('LUCRO_REAL',       2027, 8.8000),
+              ('LUCRO_PRESUMIDO',  2027, 8.8000),
+              ('SIMPLES_NACIONAL', 2027, 8.8000);
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.aliq_is_ncm (ncm, descricao, aliquota_pct, vigente_de) VALUES
+              ('2402.20', 'Cigarros que contêm tabaco', 150.00, DATE '2027-01-01');
+      rollback:
+        - sql:
+            dbms: postgresql
+            sql: DELETE FROM fiscal.aliq_is_ncm WHERE ncm = '2402.20';
+        - sql:
+            dbms: postgresql
+            sql: DELETE FROM fiscal.aliq_cbs_regime WHERE ano_vigencia = 2027;
+        - sql:
+            dbms: postgresql
+            sql: DELETE FROM fiscal.aliq_ibs_municipio WHERE ibge_municipio = '3550308' AND ano_vigencia = 2027;
+
+  # ──────────────────────────────────────────
+  # SEED regime por SERVIÇO (coluna nbs de regime_dif_ncm, criada no schema-001).
+  # O seed do 001 só cobriu produto (ncm); sem isto, serviço de saúde cai em PADRAO e
+  # o motor cobra alíquota cheia num item que tem 60% de redução.
+  # Código LC 116 ('4.01'); casamento é hierárquico por prefixo ('4' cobriria '4.01').
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: fiscal-011-seed-regime-servico-parcial
+      author: vitor-fernandes
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.regime_dif_ncm (nbs, descricao, regime, percentual_reducao, vigente_de) VALUES
+              ('4.01', 'Medicina e biomedicina (LC 116)', 'ANEXO_III_60', 60, DATE '2027-01-01');
+      rollback:
+        - sql:
+            dbms: postgresql
+            sql: DELETE FROM fiscal.regime_dif_ncm WHERE nbs = '4.01';

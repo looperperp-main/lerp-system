@@ -39,6 +39,7 @@ export class EsqueciSenha {
           'Solicitação enviada',
           { timeOut: 8000 },
         );
+        this.router.navigate(['/login']);
       },
       // Mesmo em erro mostramos mensagem genérica (anti-enumeração; o backend já responde 200).
       error: (_err: HttpErrorResponse) => {
@@ -48,6 +49,7 @@ export class EsqueciSenha {
           'Solicitação enviada',
           { timeOut: 8000 },
         );
+        this.router.navigate(['/login']);
       },
     });
   }

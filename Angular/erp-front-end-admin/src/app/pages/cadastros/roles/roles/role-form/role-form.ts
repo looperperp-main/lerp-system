@@ -1,26 +1,27 @@
-import {Component, EventEmitter, Input, Output} from '@angular/core';
-import {NgClass} from '@angular/common';
-import {PrimeTemplate} from 'primeng/api';
-import {InputText} from 'primeng/inputtext';
-import {Dialog} from 'primeng/dialog';
-import {FormsModule} from '@angular/forms';
-import {Ripple} from 'primeng/ripple';
-import {ButtonDirective} from 'primeng/button';
-import {RoleModel} from '../role.model';
-import {TenantModel} from '../../../tenant/tenant/tenant.model';
-import {Select} from 'primeng/select';
+import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { NgClass, NgIf } from '@angular/common';
+import { PrimeTemplate } from 'primeng/api';
+import { InputText } from 'primeng/inputtext';
+import { Dialog } from 'primeng/dialog';
+import { FormsModule } from '@angular/forms';
+import { Ripple } from 'primeng/ripple';
+import { ButtonDirective } from 'primeng/button';
+import { RoleModel } from '../role.model';
+import { TenantModel } from '../../../tenant/tenant/tenant.model';
+import { Select } from 'primeng/select';
 
 @Component({
   selector: 'app-role-form',
   imports: [
     NgClass,
+    NgIf,
     PrimeTemplate,
     InputText,
     Dialog,
     FormsModule,
     Ripple,
     ButtonDirective,
-    Select
+    Select,
   ],
   templateUrl: './role-form.html',
   styleUrl: './role-form.scss',

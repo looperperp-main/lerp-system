@@ -245,7 +245,7 @@ export class WebLayout {
         /*sessionStorage.removeItem('auth-token');
         sessionStorage.removeItem('username');
         sessionStorage.removeItem('refresh-token');*/
-        this.router.navigate(['/login-admin']);
+        this.router.navigate(['/login']);
       },
       error: () => {
         this.logoutError = 'Erro ao sair. Tente novamente.';

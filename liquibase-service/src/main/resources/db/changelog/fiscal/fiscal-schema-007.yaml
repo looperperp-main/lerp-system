@@ -1,0 +1,500 @@
+databaseChangeLog:
+
+  # Serviços na reforma — Anexo VIII (correlação Item LC 116 x NBS x cClassTrib).
+  #
+  # POR QUE DUAS TABELAS E NÃO UMA COLUNA A MAIS
+  # No arquivo oficial, dentro de um mesmo item LC 116 a coluna NBS e a coluna cClassTrib são
+  # listas INDEPENDENTES — existe linha com NBS e sem cClassTrib e vice-versa (item 01.01: cinco
+  # NBS, e os cClassTrib 000001/200043/200044 em linhas próprias). Não é par linha a linha, são
+  # dois conjuntos por item. Modelar como uma tabela só inventaria um pareamento que a lei não faz.
+  #
+  # POR QUE O CÓDIGO DO SERVIÇO CONTINUA SENDO LC 116
+  # Até 2032 os dois sistemas convivem: ISS (LC 116) e IBS/CBS (NBS + cClassTrib). O ERP precisa
+  # dos dois no mesmo cadastro, não de um substituindo o outro.
+  #
+  # POR QUE O MOTOR NÃO DERIVA O cClassTrib
+  # O mesmo NBS aparece sob cClassTrib diferentes conforme o contexto da operação (o mesmo serviço
+  # vendido à administração pública vira 200043). Igual à NF-e, o cClassTrib é DECLARADO no
+  # documento, não deduzido. Estas tabelas servem para o cadastro escolher e para validar a
+  # combinação — não são lookup silencioso.
+  - changeSet:
+      id: fiscal-017-cria-tabelas-servico
+      author: vitor-fernandes
+      comment: Tabelas de serviço da reforma — correlação LC 116 x NBS e classificações cClassTrib
+      changes:
+        - createTable:
+            schemaName: fiscal
+            tableName: servico_nbs
+            remarks: Correlação oficial item LC 116 -> NBS (Anexo VIII). Picklist do cadastro de serviços.
+            columns:
+              - column:
+                  name: id
+                  type: bigserial
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: item_lc116
+                  type: varchar(10)
+                  constraints: { nullable: false }
+              - column:
+                  name: nbs
+                  type: varchar(15)
+                  constraints: { nullable: false }
+              - column:
+                  name: descricao_nbs
+                  type: varchar(500)
+        - addUniqueConstraint:
+            schemaName: fiscal
+            tableName: servico_nbs
+            columnNames: item_lc116, nbs
+            constraintName: uk_servico_nbs
+        - createIndex:
+            schemaName: fiscal
+            tableName: servico_nbs
+            indexName: ix_servico_nbs_lc116
+            columns:
+              - column: { name: item_lc116 }
+
+        - createTable:
+            schemaName: fiscal
+            tableName: servico_cclasstrib
+            remarks: cClassTrib admitidos para cada item LC 116 (Anexo VIII). Valida o que a nota declara.
+            columns:
+              - column:
+                  name: id
+                  type: bigserial
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: item_lc116
+                  type: varchar(10)
+                  constraints: { nullable: false }
+              - column:
+                  name: cclasstrib
+                  type: varchar(10)
+                  constraints: { nullable: false }
+              - column:
+                  name: nome_cclasstrib
+                  type: varchar(500)
+        - addUniqueConstraint:
+            schemaName: fiscal
+            tableName: servico_cclasstrib
+            columnNames: item_lc116, cclasstrib
+            constraintName: uk_servico_cclasstrib
+
+        - createTable:
+            schemaName: fiscal
+            tableName: regime_cclasstrib
+            remarks: cClassTrib -> redução de alíquota IBS/CBS. Ausente = sem percentual fundamentado, cai em PADRAO.
+            columns:
+              - column:
+                  name: cclasstrib
+                  type: varchar(10)
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: regime
+                  type: varchar(30)
+                  constraints: { nullable: false }
+              - column:
+                  name: percentual_reducao
+                  type: numeric(5,2)
+                  constraints: { nullable: false }
+              - column:
+                  name: vigente_de
+                  type: date
+                  constraints: { nullable: false }
+              - column:
+                  name: vigente_ate
+                  type: date
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              ALTER TABLE fiscal.regime_cclasstrib ADD CONSTRAINT chk_regime_cclasstrib_percentual
+              CHECK (percentual_reducao >= 0 AND percentual_reducao <= 100);
+
+  # Carga da correlação. ATENÇÃO: loadData guarda checksum do CSV — editar os arquivos quebra a
+  # validação em quem já rodou; correção entra como changeset novo.
+  - changeSet:
+      id: fiscal-018-load-servico-anexo-viii
+      author: vitor-fernandes
+      comment: Anexo VIII — 895 pares LC 116 x NBS (675 NBS distintos) e 246 pares LC 116 x cClassTrib
+      changes:
+        - loadData:
+            schemaName: fiscal
+            tableName: servico_nbs
+            file: data/servico-nbs.csv
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            separator: ","
+            quotchar: '"'
+            usePreparedStatements: true
+            columns:
+              - column: { header: item_lc116, name: item_lc116, type: STRING }
+              - column: { header: nbs, name: nbs, type: STRING }
+              - column: { header: descricao_nbs, name: descricao_nbs, type: STRING }
+        - loadData:
+            schemaName: fiscal
+            tableName: servico_cclasstrib
+            file: data/servico-cclasstrib.csv
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            separator: ","
+            quotchar: '"'
+            usePreparedStatements: true
+            columns:
+              - column: { header: item_lc116, name: item_lc116, type: STRING }
+              - column: { header: cclasstrib, name: cclasstrib, type: STRING }
+              - column: { header: nome_cclasstrib, name: nome_cclasstrib, type: STRING }
+      rollback:
+        - delete: { schemaName: fiscal, tableName: servico_nbs }
+        - delete: { schemaName: fiscal, tableName: servico_cclasstrib }
+
+  # CARGA PARCIAL E DELIBERADA — 7 dos 27 cClassTrib.
+  #
+  # O Anexo VIII lista os cClassTrib mas NÃO traz o percentual de redução. Só dá para fundamentar
+  # os que citam um anexo no próprio nome (anexos II/III/IX/X/XI são todos de redução de 60%)
+  # mais o 000001, que por definição é tributação integral.
+  #
+  # Os outros 20 têm redução fixada em artigos da LC 214 que não estão neste arquivo — hotelaria
+  # (200048), bens imóveis (200046/200027), profissões intelectuais (200052), transporte público
+  # (200021/400001), planos de saúde (011002), Prouni (200025), ICT (200016) etc. Escrever
+  # percentual de cabeça dentro de motor fiscal é pior do que não ter o dado.
+  #
+  # cClassTrib ausente daqui cai em RegimeDiferenciado.PADRAO: sai tributado cheio, com warn.
+  # ATENÇÃO ao sinal do erro — aqui ele é CONTRA o contribuinte, não a favor, ao contrário do que
+  # acontece com NCM pendente. Transporte público coletivo, que a LC 214 desonera, hoje sairia com
+  # carga integral. Preencher os 20 restantes é pré-requisito para emitir NFS-e nesses ramos.
+  - changeSet:
+      id: fiscal-019-seed-regime-cclasstrib
+      author: vitor-fernandes
+      comment: Redução por cClassTrib — só os 7 fundamentáveis pelo Anexo VIII (6 de anexo + integral)
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.regime_cclasstrib (cclasstrib, regime, percentual_reducao, vigente_de) VALUES
+              ('000001', 'INTEGRAL', 0, DATE '2027-01-01'),
+              ('200028', 'ANEXO_II_60', 60, DATE '2027-01-01'),
+              ('200029', 'ANEXO_III_60', 60, DATE '2027-01-01'),
+              ('200038', 'ANEXO_IX_60', 60, DATE '2027-01-01'),
+              ('200039', 'ANEXO_X_60', 60, DATE '2027-01-01'),
+              ('200043', 'ANEXO_XI_60', 60, DATE '2027-01-01'),
+              ('200044', 'ANEXO_XI_60', 60, DATE '2027-01-01');
+      rollback:
+        - delete: { schemaName: fiscal, tableName: regime_cclasstrib }
+
+  # Remove regime_dif_ncm.nbs. A coluna se chamava "nbs" mas guardava código LC 116 (ver o
+  # comentário do antigo SQL_REGIME_SERVICO em TabelaFiscalJdbc e o seed do fiscal-011) — nome
+  # mentindo sobre o conteúdo, que é o tipo de armadilha que fez a extração dos anexos ser
+  # classificada errado. Com o regime de serviço vindo de regime_cclasstrib, a coluna perdeu
+  # função: sai ela, sai o CHECK XOR, sai a ambiguidade. regime_dif_ncm passa a ser só produto.
+  - changeSet:
+      id: fiscal-020-remove-nbs-de-regime-dif
+      author: vitor-fernandes
+      comment: regime_dif_ncm vira exclusivamente produto — regime de serviço migrou para regime_cclasstrib
+      changes:
+        - delete:
+            schemaName: fiscal
+            tableName: regime_dif_ncm
+            where: ncm IS NULL
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              ALTER TABLE fiscal.regime_dif_ncm DROP CONSTRAINT chk_regime_dif_ncm_codigo;
+        - dropColumn:
+            schemaName: fiscal
+            tableName: regime_dif_ncm
+            columnName: nbs
+        - addNotNullConstraint:
+            schemaName: fiscal
+            tableName: regime_dif_ncm
+            columnName: ncm
+            columnDataType: varchar(10)
+      rollback:
+        - dropNotNullConstraint:
+            schemaName: fiscal
+            tableName: regime_dif_ncm
+            columnName: ncm
+            columnDataType: varchar(10)
+        - addColumn:
+            schemaName: fiscal
+            tableName: regime_dif_ncm
+            columns:
+              - column: { name: nbs, type: varchar(20) }
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.regime_dif_ncm (nbs, descricao, regime, percentual_reducao, vigente_de)
+              VALUES ('4.01', 'Medicina e biomedicina (LC 116)', 'ANEXO_III_60', 60, DATE '2027-01-01');
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              ALTER TABLE fiscal.regime_dif_ncm ADD CONSTRAINT chk_regime_dif_ncm_codigo
+              CHECK ((ncm IS NOT NULL) <> (nbs IS NOT NULL));
+
+  # Fecha a carga que o fiscal-019 deixou pela metade: os 18 dos 20 cClassTrib pendentes cujo
+  # percentual dá para fundamentar num artigo da LC 214. Texto conferido em
+  # spec/leicomplementar-214-16-janeiro-2025-796905-normaatualizada-pl.pdf (redação atualizada pela
+  # LC 227, de 13/1/2026). O fiscal-019 NÃO foi tocado — já rodou, e editar changeset aplicado
+  # quebra o checksum.
+  #
+  # A redução aqui é sempre de ALÍQUOTA (§1.4.2, Passo 5). Vários destes são regimes específicos que
+  # também mexem na BASE (hotelaria, agências de turismo, planos de saúde, bens imóveis): a base
+  # continua sendo responsabilidade de quem chama o motor — valorOperacao entra pronto.
+  #
+  # FICARAM DE FORA, de propósito, os 2 que este modelo não consegue expressar:
+  #   010002 (serviços financeiros) — o art. 233 não dá redução: fixa a SOMA de IBS + CBS em valor
+  #           absoluto (10,85% em 2027-2028, 11,00% em 2029, 11,15% em 2030 ...). Não é percentual
+  #           sobre a alíquota de referência, é outra alíquota; precisa de coluna/tabela própria.
+  #   200025 (Prouni) — o art. 308 reduz a zero apenas a CBS, o IBS segue cheio. Há um único
+  #           percentual_reducao para os dois tributos, então qualquer valor aqui erra um dos lados.
+  # Os dois seguem em PADRAO (tributam cheio) e estão registrados em spec/anexos-lc214-revisar.md.
+  - changeSet:
+      id: fiscal-021-seed-regime-cclasstrib-lc214
+      author: vitor-fernandes
+      comment: Redução por cClassTrib — 18 dos 20 pendentes, um artigo da LC 214 por linha
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: |
+              INSERT INTO fiscal.regime_cclasstrib (cclasstrib, regime, percentual_reducao, vigente_de) VALUES
+              -- art. 11, VIII: só define o LOCAL da prestação (rateio proporcional à extensão da via
+              -- entre Municípios/Estados). Nenhum artigo reduz alíquota de exploração de via, e o
+              -- prefixo 000 do cClassTrib é tributação integral. O rateio proporcional NÃO está
+              -- implementado no motor — pendência em spec/anexos-lc214-revisar.md.
+              ('000002', 'EXPLORACAO_VIA_INTEGRAL',   0, DATE '2027-01-01'),
+              -- art. 236: plano de assistência funerária fica sujeito aos arts. 234 a 242, logo à
+              -- alíquota do art. 237 — redução de 60%.
+              ('011001', 'PLANO_FUNERARIA_60',       60, DATE '2027-01-01'),
+              -- art. 237: alíquotas nacionalmente uniformes = alíquotas de referência de cada esfera
+              -- federativa reduzidas em 60%.
+              ('011002', 'PLANO_SAUDE_60',           60, DATE '2027-01-01'),
+              -- art. 240: intermediação de plano de assistência à saúde incide "pela mesma alíquota
+              -- aplicável ao plano de assistência à saúde" — a do art. 237, 60%.
+              ('011003', 'PLANO_SAUDE_INTERM_60',    60, DATE '2027-01-01'),
+              -- art. 243: plano de saúde de animal doméstico segue os arts. 234 a 242, exceto as
+              -- alíquotas, que são a soma das de referência reduzidas em 30%, vedado o crédito ao
+              -- adquirente.
+              ('011005', 'PLANO_SAUDE_ANIMAL_30',    30, DATE '2027-01-01'),
+              -- art. 156 (redação da LC 227/2026): alíquotas reduzidas A ZERO na prestação de pesquisa
+              -- e desenvolvimento por ICT sem fins lucrativos para administração pública direta,
+              -- autarquias e fundações públicas ou para contribuinte do regime regular.
+              ('200016', 'ICT_ZERO',                100, DATE '2027-01-01'),
+              -- art. 285, I: transporte público coletivo de passageiros ferroviário e hidroviário de
+              -- caráter urbano, semiurbano e metropolitano — redução de 100%.
+              ('200021', 'TRANSP_PUBLICO_ZERO',     100, DATE '2027-01-01'),
+              -- art. 261, parágrafo único: locação, cessão onerosa e arrendamento de bens imóveis, 70%.
+              ('200027', 'IMOVEL_LOCACAO_70',        70, DATE '2027-01-01'),
+              -- art. 137, caput + § 3º: serviço ambiental de conservação ou recuperação de vegetação
+              -- nativa é considerado fornecimento de produto florestal in natura — redução de 60%.
+              ('200037', 'AMBIENTAL_FLORESTAL_60',   60, DATE '2027-01-01'),
+              -- art. 140: comunicação institucional fornecida à administração pública, 60%. O parágrafo
+              -- único devolve o fornecedor à alíquota-padrão nos serviços prestados a adquirente fora
+              -- do caput (aí é outro cClassTrib).
+              ('200040', 'COMUNIC_INSTITUCIONAL_60', 60, DATE '2027-01-01'),
+              -- art. 141, I: fornecimento de serviço de educação desportiva, 60%.
+              ('200041', 'EDUC_DESPORTIVA_60',       60, DATE '2027-01-01'),
+              -- art. 141, II: as demais operações desportivas do mesmo artigo (programa sócio-torcedor
+              -- etc.) — mesma redução de 60%.
+              ('200042', 'EDUC_DESPORTIVA_60',       60, DATE '2027-01-01'),
+              -- art. 158, caput: operações de projetos de reabilitação urbana de zonas históricas e de
+              -- áreas críticas de recuperação e reconversão urbanística, 60%. O parágrafo único sobe
+              -- para 80% na locação de imóveis do art. 162, VI — caso que o cClassTrib sozinho não
+              -- distingue, então fica 60% (pendência em spec/anexos-lc214-revisar.md).
+              ('200045', 'REABILITACAO_URBANA_60',   60, DATE '2027-01-01'),
+              -- art. 261, caput: demais operações com bens imóveis do regime específico, 50%.
+              ('200046', 'IMOVEL_50',                50, DATE '2027-01-01'),
+              -- art. 281: hotelaria, parques de diversão e parques temáticos, 40%.
+              ('200048', 'HOTELARIA_40',             40, DATE '2027-01-01'),
+              -- art. 289, II: na intermediação de serviços turísticos por agência de turismo "a alíquota
+              -- é a mesma aplicável aos serviços de hotelaria" (art. 281) — 40%. A dedução dos repasses
+              -- aos fornecedores intermediados (art. 289, I) é redução de BASE e segue fora do motor.
+              ('200051', 'AG_TURISMO_40',            40, DATE '2027-01-01'),
+              -- art. 127: prestação de serviços por profissionais de atividade intelectual científica,
+              -- literária ou artística submetida a fiscalização de conselho profissional (advogados,
+              -- engenheiros, contabilistas, arquitetos ...) — 30%, a única redução de 30% do Capítulo II.
+              ('200052', 'PROFISSAO_INTELECTUAL_30', 30, DATE '2027-01-01'),
+              -- art. 157: ISENÇÃO do transporte público coletivo de passageiros rodoviário e metroviário
+              -- de caráter urbano, semiurbano e metropolitano (daí o prefixo 4 = isenção no cClassTrib).
+              -- Isenção não é redução, mas na saída zera igual: 100% faz RegimeDiferenciado.de marcar
+              -- aliquotaZero (>= 100) e o motor zera IBS/CBS/IS com base = valor da operação.
+              ('400001', 'TRANSP_PUBLICO_ISENTO',   100, DATE '2027-01-01');
+      rollback:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: |
+              DELETE FROM fiscal.regime_cclasstrib WHERE cclasstrib IN
+              ('000002','011001','011002','011003','011005','200016','200021','200027','200037',
+               '200040','200041','200042','200045','200046','200048','200051','200052','400001');
+
+  # ──────────────────────────────────────────
+  # ALÍQUOTAS REAIS da curva de transição — fonte: API de dados abertos da calculadora do
+  # piloto CBS (RFB), consultada em 30/07/2026:
+  #   .../dados-abertos/aliquota-uniao?data=AAAA-MM-DD
+  #   .../dados-abertos/aliquota-uf?data=AAAA-MM-DD&codigoUf=NN
+  #   .../dados-abertos/aliquota-municipio?data=AAAA-MM-DD&codigoMunicipio=NNNNNNN
+  # Todas devolvem {"aliquotaReferencia": n} em PERCENTUAL. Curva lida ano a ano:
+  #
+  #   ano  | união (CBS) | UF (IBS estadual) | município (IBS municipal)
+  #   2026 |     0,9     |        0,1        |        0,0
+  #   2027 |     8,4     |        0,05       |        0,05
+  #   2028 |     8,4     |        0,05       |        0,05
+  #   2029 |     8,5     |        1,6        |        0,25
+  #   2030 |     8,5     |        3,2        |        0,5
+  #   2031 |     8,5     |        4,8        |        0,75
+  #   2032 |     8,5     |        6,4        |        1,0
+  #   2033 |     8,5     |       16,0        |        2,5    ← regime permanente (total 27%)
+  #
+  # A alíquota de REFERÊNCIA é uniforme por tipo de ente, não por ente: MG (31) e SP (35)
+  # devolveram o mesmo valor em todos os anos, e os quatro municípios também (2033 lido nos
+  # quatro, 2026-2028 nos quatro). Por isso uma linha por ano vale para os 4 municípios.
+  # 2029-2032 são 10/20/30/40% de 2033 — conferido no portal, não interpolado.
+  #
+  # Isto CORRIGE o fiscal-010: os 13,12 + 4,50 / 8,80 de lá eram estimativa de regime
+  # permanente, e o real de 2033 é 16,0 + 2,5 / 8,5. Depois deste changeset NÃO sobra
+  # nenhuma alíquota estimada na base — as linhas de 2027 do 010 são sobrescritas com o
+  # valor real do próprio 2027.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: fiscal-022-aliquotas-reais-portal-cbs
+      author: vitor-fernandes
+      changes:
+        # 1) As linhas estimadas do fiscal-010 (que estão em 2027) recebem o valor REAL de 2027.
+        # UPDATE em vez de DELETE+INSERT por causa da unique (ibge_municipio, ano_vigencia) /
+        # (regime, ano_vigencia) — e vem antes dos INSERTs pelo mesmo motivo.
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              UPDATE fiscal.aliq_ibs_municipio
+              SET aliquota_estadual = 0.0500, aliquota_municipal = 0.0500
+              WHERE ibge_municipio = '3550308' AND ano_vigencia = 2027;
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              UPDATE fiscal.aliq_cbs_regime SET aliquota_pct = 8.4000 WHERE ano_vigencia = 2027;
+        # 2) IBS 2026-2033 para os 4 municípios: município × ano, porque a alíquota de
+        # referência não varia por município. São Paulo/2027 já existe (UPDATE acima) e por
+        # isso é o único par excluído do produto.
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.aliq_ibs_municipio
+                (ibge_municipio, uf, nome_municipio, ano_vigencia, aliquota_estadual, aliquota_municipal)
+              SELECT m.ibge, m.uf, m.nome, a.ano, a.est, a.mun
+              FROM (VALUES ('3104205', 'MG', 'Arcos'), ('3126109', 'MG', 'Formiga'),
+                           ('3552502', 'SP', 'Suzano'), ('3550308', 'SP', 'São Paulo'))
+                     AS m (ibge, uf, nome),
+                   (VALUES (2026, 0.1000, 0.0000), (2027, 0.0500, 0.0500), (2028, 0.0500, 0.0500),
+                           (2029, 1.6000, 0.2500), (2030, 3.2000, 0.5000), (2031, 4.8000, 0.7500),
+                           (2032, 6.4000, 1.0000), (2033, 16.0000, 2.5000))
+                     AS a (ano, est, mun)
+              WHERE NOT (m.ibge = '3550308' AND a.ano = 2027);
+        # 3) CBS. A coluna `regime` existe porque Simples/MEI têm tratamento próprio, não
+        # porque a alíquota de referência da união varie por regime — daí o mesmo valor nos
+        # três. 2027 fica fora: já foi ajustado no UPDATE acima.
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.aliq_cbs_regime (regime, ano_vigencia, aliquota_pct)
+              SELECT r.regime, a.ano, a.pct
+              FROM (VALUES ('LUCRO_REAL'), ('LUCRO_PRESUMIDO'), ('SIMPLES_NACIONAL'))
+                     AS r (regime),
+                   (VALUES (2026, 0.9000), (2028, 8.4000), (2029, 8.5000), (2030, 8.5000),
+                           (2031, 8.5000), (2032, 8.5000), (2033, 8.5000)) AS a (ano, pct);
+      rollback:
+        - sql:
+            dbms: postgresql
+            sql: >
+              DELETE FROM fiscal.aliq_cbs_regime
+              WHERE ano_vigencia IN (2026, 2028, 2029, 2030, 2031, 2032, 2033);
+        - sql:
+            dbms: postgresql
+            sql: >
+              DELETE FROM fiscal.aliq_ibs_municipio
+              WHERE ano_vigencia BETWEEN 2026 AND 2033
+                AND ibge_municipio IN ('3104205', '3126109', '3552502', '3550308')
+                AND NOT (ibge_municipio = '3550308' AND ano_vigencia = 2027);
+        - sql:
+            dbms: postgresql
+            sql: UPDATE fiscal.aliq_cbs_regime SET aliquota_pct = 8.8000 WHERE ano_vigencia = 2027;
+        - sql:
+            dbms: postgresql
+            sql: >
+              UPDATE fiscal.aliq_ibs_municipio
+              SET aliquota_estadual = 13.1200, aliquota_municipal = 4.5000
+              WHERE ibge_municipio = '3550308' AND ano_vigencia = 2027;
+
+  # ──────────────────────────────────────────
+  # SEED: alíquota de IBS de REFERÊNCIA como linha-base — fiscal-023
+  #
+  # Problema que isto resolve: antes deste changeset só 4 municípios tinham alíquota, e
+  # qualquer um dos outros ~5.566 devolvia 400 FISCAL_VIGENCIA_SEM_COBERTURA. Como a
+  # alíquota de REFERÊNCIA é fixada pelo Senado e é uniforme por TIPO de ente (conferido no
+  # portal: MG e SP idênticos, e os 4 municípios idênticos entre si), replicá-la por município
+  # seria guardar 8 valores distintos em 44.560 linhas e recarregar tudo a cada ano.
+  #
+  # Em vez disso: UMA linha por ano no código sentinela '0000000' (não existe município com
+  # esse código IBGE, logo não colide com a unique (ibge_municipio, ano_vigencia)). O
+  # SQL_ALIQ_IBS do TabelaFiscalJdbc prefere a linha do município e cai nesta; quem cair aqui
+  # recebe o aviso FISCAL_AVISO_ALIQUOTA_REFERENCIA no log e na memória de cálculo, porque
+  # município que legislou alíquota PRÓPRIA e não está carregado sairia com imposto errado.
+  #
+  # As 32 linhas dos 4 municípios do fiscal-022 saem: elas eram cópias da referência, não
+  # alíquota própria — mantê-las faria esses 4 municípios não receberem o aviso, afirmando uma
+  # publicação própria que não existe. Município volta a ter linha quando (e se) publicar
+  # alíquota própria de verdade.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: fiscal-023-aliquota-ibs-referencia-nacional
+      author: vitor-fernandes
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.aliq_ibs_municipio
+                (ibge_municipio, uf, nome_municipio, ano_vigencia, aliquota_estadual, aliquota_municipal)
+              VALUES
+                ('0000000', NULL, 'ALÍQUOTA DE REFERÊNCIA (SENADO)', 2026,  0.1000, 0.0000),
+                ('0000000', NULL, 'ALÍQUOTA DE REFERÊNCIA (SENADO)', 2027,  0.0500, 0.0500),
+                ('0000000', NULL, 'ALÍQUOTA DE REFERÊNCIA (SENADO)', 2028,  0.0500, 0.0500),
+                ('0000000', NULL, 'ALÍQUOTA DE REFERÊNCIA (SENADO)', 2029,  1.6000, 0.2500),
+                ('0000000', NULL, 'ALÍQUOTA DE REFERÊNCIA (SENADO)', 2030,  3.2000, 0.5000),
+                ('0000000', NULL, 'ALÍQUOTA DE REFERÊNCIA (SENADO)', 2031,  4.8000, 0.7500),
+                ('0000000', NULL, 'ALÍQUOTA DE REFERÊNCIA (SENADO)', 2032,  6.4000, 1.0000),
+                ('0000000', NULL, 'ALÍQUOTA DE REFERÊNCIA (SENADO)', 2033, 16.0000, 2.5000);
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              DELETE FROM fiscal.aliq_ibs_municipio
+              WHERE ibge_municipio IN ('3104205', '3126109', '3552502', '3550308');
+      rollback:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.aliq_ibs_municipio
+                (ibge_municipio, uf, nome_municipio, ano_vigencia, aliquota_estadual, aliquota_municipal)
+              SELECT m.ibge, m.uf, m.nome, a.ano, a.est, a.mun
+              FROM (VALUES ('3104205', 'MG', 'Arcos'), ('3126109', 'MG', 'Formiga'),
+                           ('3552502', 'SP', 'Suzano'), ('3550308', 'SP', 'São Paulo'))
+                     AS m (ibge, uf, nome),
+                   (VALUES (2026, 0.1000, 0.0000), (2027, 0.0500, 0.0500), (2028, 0.0500, 0.0500),
+                           (2029, 1.6000, 0.2500), (2030, 3.2000, 0.5000), (2031, 4.8000, 0.7500),
+                           (2032, 6.4000, 1.0000), (2033, 16.0000, 2.5000))
+                     AS a (ano, est, mun);
+        - sql:
+            dbms: postgresql
+            sql: DELETE FROM fiscal.aliq_ibs_municipio WHERE ibge_municipio = '0000000';

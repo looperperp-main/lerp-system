@@ -92,6 +92,11 @@ export class TenantLogin implements OnInit {
   }
 
   private handleLoginError(err: HttpErrorResponse) {
+    // 429 já ganha um toast amigável do interceptor global (auth.interceptor.ts).
+    if (err.status === 429) {
+      return;
+    }
+
     if (err.status === 423 && err.error?.error === 'USER_LOCKED') {
       this.toastService.error(err.error.message, 'Usuário Bloqueado', {
         timeOut: 10000,

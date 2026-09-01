@@ -1,5 +1,4 @@
 <div>
-  <p-toast></p-toast>
 
   <div class="jb-page-head">
     <div>
@@ -84,6 +83,16 @@
                 [class]="'p-button-rounded p-button-text p-button-sm w-8 h-8 ' + (user.active ? 'p-button-warning' : 'p-button-success')"
                 [pTooltip]="user.active ? 'Inativar' : 'Ativar'"
                 (click)="toggleStatus(user)"
+                tooltipPosition="top">
+              </button>
+              <button
+                *ngIf="isLocked(user)"
+                pButton
+                pRipple
+                icon="pi pi-lock-open"
+                class="p-button-rounded p-button-text p-button-sm w-8 h-8 p-button-help"
+                pTooltip="Desbloquear"
+                (click)="unlockUser(user)"
                 tooltipPosition="top">
               </button>
             </td>

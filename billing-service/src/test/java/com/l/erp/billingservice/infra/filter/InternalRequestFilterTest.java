@@ -5,13 +5,20 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class InternalRequestFilterTest {
 
+    private static final String INTERNAL_SECRET = "test-internal-secret";
+
     private final InternalRequestFilter filter = new InternalRequestFilter();
+
+    {
+        ReflectionTestUtils.setField(filter, "internalSecret", INTERNAL_SECRET);
+    }
 
     private static class CountingChain implements FilterChain {
         int calls;
@@ -28,6 +35,7 @@ class InternalRequestFilterTest {
     @Test
     void semHeaderXUserId_emPathProtegido_retorna401() throws Exception {
         var req = new MockHttpServletRequest("GET", "/api/v1/subscriptions");
+        req.addHeader("X-Internal-Secret", INTERNAL_SECRET);
         var res = new MockHttpServletResponse();
         var chain = new CountingChain();
 
@@ -39,9 +47,23 @@ class InternalRequestFilterTest {
     }
 
     @Test
+    void semSegredoInterno_emPathProtegido_retorna401() throws Exception {
+        var req = new MockHttpServletRequest("GET", "/api/v1/subscriptions");
+        req.addHeader("X-User-Id", "user-1");
+        var res = new MockHttpServletResponse();
+        var chain = new CountingChain();
+
+        filter.doFilter(req, res, chain);
+
+        assertThat(res.getStatus()).isEqualTo(401);
+        assertThat(chain.calls).isZero();
+    }
+
+    @Test
     void comHeaderXUserId_encaminha() throws Exception {
         var req = new MockHttpServletRequest("GET", "/api/v1/subscriptions");
         req.addHeader("X-User-Id", "user-1");
+        req.addHeader("X-Internal-Secret", INTERNAL_SECRET);
         var res = new MockHttpServletResponse();
         var chain = new CountingChain();
 
@@ -96,13 +118,26 @@ class InternalRequestFilterTest {
     }
 
     @Test
+    void segredoInternoInvalido_emPathProtegido_retorna401() throws Exception {
+        var req = new MockHttpServletRequest("GET", "/api/v1/subscriptions");
+        req.addHeader("X-User-Id", "user-1");
+        req.addHeader("X-Internal-Secret", "segredo-forjado");
+        var res = new MockHttpServletResponse();
+        var chain = new CountingChain();
+
+        filter.doFilter(req, res, chain);
+
+        assertThat(res.getStatus()).isEqualTo(401);
+        assertThat(chain.calls).isZero();
+    }
+
+    @Test
     void actuatorHealth_passaSemHeader() throws Exception {
         var req = new MockHttpServletRequest("GET", "/actuator/health");
         var res = new MockHttpServletResponse();
         var chain = new CountingChain();
 
         filter.doFilter(req, res, chain);
-
         assertThat(chain.calls).isEqualTo(1);
     }
 

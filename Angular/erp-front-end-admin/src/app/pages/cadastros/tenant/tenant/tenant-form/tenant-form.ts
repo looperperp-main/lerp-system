@@ -8,6 +8,7 @@ import { InputText } from 'primeng/inputtext';
 import { ButtonDirective } from 'primeng/button';
 import { Ripple } from 'primeng/ripple';
 import { InputMask } from 'primeng/inputmask';
+import { Select } from 'primeng/select';
 
 @Component({
   selector: 'app-tenant-form',
@@ -20,6 +21,7 @@ import { InputMask } from 'primeng/inputmask';
     ButtonDirective,
     Ripple,
     InputMask,
+    Select,
   ],
   templateUrl: './tenant-form.html',
   styleUrl: './tenant-form.scss',

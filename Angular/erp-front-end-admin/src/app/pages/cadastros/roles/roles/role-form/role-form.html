@@ -1,11 +1,18 @@
-<p-dialog [(visible)]="visible" [style]="{width: '450px'}" header="Detalhes da Role" [modal]="true" styleClass="p-fluid">
+<p-dialog [(visible)]="visible" [style]="{width: '450px'}" [modal]="true" styleClass="p-fluid">
+  <ng-template pTemplate="header">
+    <div class="jb-dialog-head">
+      <span class="eyebrow">CADASTROS · ROLES</span>
+      <h2>{{ role.id ? 'Editar Role' : 'Nova Role' }}</h2>
+    </div>
+  </ng-template>
+
   <ng-template pTemplate="content">
     <div class="flex flex-col gap-4 mt-2">
 
       <!-- Nome -->
-      <div class="flex flex-col gap-1">
-        <label for="name" class="text-sm font-medium text-gray-700">
-          Nome da Role <span class="text-red-500">*</span>
+      <div class="flex flex-col gap-2">
+        <label for="name" class="jb-label">
+          Nome da Role <span style="color: var(--bad);">*</span>
         </label>
         <input
           type="text"
@@ -14,16 +21,16 @@
           [(ngModel)]="role.name"
           required
           autofocus
-          class="uppercase w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2 border"
-          [ngClass]="{'border-red-500': submitted && !role.name}"
+          class="uppercase w-full"
+          [ngClass]="{'ng-invalid ng-dirty': submitted && !role.name}"
           placeholder="Ex: ROLE_GERENTE"/>
-        <small class="text-red-500 text-xs mt-1" *ngIf="submitted && !role.name">Nome é obrigatório.</small>
+        <small class="text-red-500 text-xs" *ngIf="submitted && !role.name">Nome é obrigatório.</small>
       </div>
 
       <!-- Tenant ID -->
-      <div class="flex flex-col gap-1">
-        <label for="tenantId" class="text-sm font-medium text-gray-700">
-          Empresa (Tenant) <span class="text-red-500">*</span>
+      <div class="flex flex-col gap-2">
+        <label for="tenantId" class="jb-label">
+          Empresa (Tenant) <span style="color: var(--bad);">*</span>
         </label>
 
         <p-select
@@ -34,20 +41,18 @@
           optionLabel="name"
           optionValue="id"
           placeholder="Selecione um Tenant"
-          styleClass="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 border"
-          [ngClass]="{'border-red-500': submitted && !role.tenantId}">
+          styleClass="w-full"
+          [ngClass]="{'ng-invalid ng-dirty': submitted && !role.tenantId}">
         </p-select>
 
-        <small class="text-red-500 text-xs mt-1" *ngIf="submitted && !role.tenantId">O Tenant é obrigatório.</small>
+        <small class="text-red-500 text-xs" *ngIf="submitted && !role.tenantId">O Tenant é obrigatório.</small>
       </div>
 
     </div>
   </ng-template>
 
   <ng-template pTemplate="footer">
-    <div class="flex justify-end gap-2 mt-4">
-      <button pButton pRipple label="Cancelar" icon="pi pi-times" class="p-button-text text-gray-600 hover:bg-gray-100" (click)="hideDialog()"></button>
-      <button pButton pRipple label="Salvar" icon="pi pi-check" class="p-button-success" (click)="onSave()"></button>
-    </div>
+    <button pButton pRipple label="Cancelar" icon="pi pi-times" class="p-button-secondary" (click)="hideDialog()"></button>
+    <button pButton pRipple label="Salvar" icon="pi pi-check" (click)="onSave()"></button>
   </ng-template>
 </p-dialog>

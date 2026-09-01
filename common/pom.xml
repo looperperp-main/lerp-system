@@ -60,11 +60,14 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webmvc</artifactId>
         </dependency>
-        <!-- Só para o GlobalExceptionHandler mapear AccessDeniedException→403; consumidores já trazem spring-security -->
+        <!-- GlobalExceptionHandler mapeia AccessDeniedException→403, então o common PRECISA exportar
+             essa classe pra todo consumidor. NÃO pode ser optional: optional não propaga transitivo,
+             e um serviço que use o common sem spring-security próprio (ex.: fiscal-service) quebra o
+             advice na introspecção (NoClassDefFoundError no startup). spring-security-core sozinho não
+             liga filter chain — só disponibiliza a classe. -->
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-core</artifactId>
-            <optional>true</optional>
         </dependency>
         <!-- Só para os interceptors de correlationId em infra/kafka; consumidores já trazem spring-kafka -->
         <dependency>

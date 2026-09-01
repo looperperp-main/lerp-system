@@ -205,6 +205,25 @@ public class UserService {
         auditService.logAuditEvent(Constants.USER_UPDATE, Constants.USER, userId, Constants.SUCCESS, null, correlationId);
     }
 
+    /**
+     * Desbloqueia manualmente um usuário travado por brute-force (limpa {@code lockedUntil}).
+     * @param userId Id do User
+     */
+    public void unlockUserById(UUID userId) {
+        UserAccount userAccount = userAccountRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(Constants.USER_NOT_FOUND, HttpStatus.BAD_REQUEST));
+
+        if (userAccount.getLockedUntil() == null) {
+            throw new BusinessException(Constants.USER_NOT_LOCKED, HttpStatus.BAD_REQUEST);
+        }
+
+        userAccount.setLockedUntil(null);
+        userAccountRepository.save(userAccount);
+
+        UUID correlationId = SecurityUtils.getCorrelationIdFromRequest(logger);
+        auditService.logAuditEvent(Constants.USER_UNLOCK, Constants.USER, userId, Constants.SUCCESS, null, correlationId);
+    }
+
     // ==========================================================================
     // Tenant-scoped (portal do tenant) — tenant vem do header X-Tenant-Id.
     // ==========================================================================
@@ -235,6 +254,12 @@ public class UserService {
     public void updateUserStatusForTenant(UUID userId, Long tenantId) {
         assertUserInTenant(userId, tenantId);
         updateUserStatusById(userId);
+    }
+
+    /** Desbloqueia manualmente um usuário do tenant (IDOR-safe). */
+    public void unlockUserForTenant(UUID userId, Long tenantId) {
+        assertUserInTenant(userId, tenantId);
+        unlockUserById(userId);
     }
 
     private void assertUserInTenant(UUID userId, Long tenantId) {

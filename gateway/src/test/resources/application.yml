@@ -2,6 +2,10 @@ eureka:
   client:
     enabled: false
 
+internal:
+  gateway:
+    secret: test-internal-gateway-secret
+
 api:
   security:
     jwt:

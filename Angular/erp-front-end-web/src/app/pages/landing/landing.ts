@@ -12,7 +12,10 @@ export class Landing implements AfterViewInit, OnDestroy {
   private observer!: IntersectionObserver;
   private scrollHandler!: () => void;
 
-  constructor(private router: Router, private el: ElementRef) {}
+  constructor(
+    private router: Router,
+    private el: ElementRef,
+  ) {}
 
   ngAfterViewInit(): void {
     this.setupScrollNav();
@@ -48,14 +51,17 @@ export class Landing implements AfterViewInit, OnDestroy {
   }
 
   private setupReveal() {
-    this.observer = new IntersectionObserver((entries) => {
-      entries.forEach(e => {
-        if (e.isIntersecting) {
-          e.target.classList.add('in');
-          this.observer.unobserve(e.target);
-        }
-      });
-    }, { threshold: 0, rootMargin: '0px 0px -40px 0px' });
+    this.observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            e.target.classList.add('in');
+            this.observer.unobserve(e.target);
+          }
+        });
+      },
+      { threshold: 0, rootMargin: '0px 0px -40px 0px' },
+    );
 
     this.el.nativeElement.querySelectorAll('.reveal').forEach((el: Element) => {
       this.observer.observe(el);

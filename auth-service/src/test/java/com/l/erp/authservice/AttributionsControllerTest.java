@@ -16,6 +16,7 @@ import com.l.erp.authservice.repositorios.UserRoleRepository;
 import com.l.erp.authservice.services.AttributionsService;
 import com.l.erp.authservice.services.audit.AuditService;
 import com.l.erp.authservice.util.SecurityUtils;
+import com.l.erp.common.util.Constants;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
@@ -164,6 +165,94 @@ class AttributionsControllerTest {
 
     @Test
     @WithMockUser(authorities = {"USER_UPDATE", "ROLE_APP_OWNER"})
+    void shouldAssignRolesToUserBlockOwnerSelfDemotionViaSync() throws Exception {
+        UUID userId = UUID.randomUUID();
+        UUID ownerRoleId = UUID.randomUUID();
+
+        Tenant tenant = new Tenant();
+        tenant.setId(1L);
+
+        UserAccount user = new UserAccount();
+        user.setId(userId);
+        user.setTenant(tenant);
+
+        Role ownerRole = new Role();
+        ownerRole.setId(ownerRoleId);
+        ownerRole.setName(Constants.OWNER_ROLE_NAME);
+        ownerRole.setTenant(tenant);
+
+        UserRole existingOwnerUr = new UserRole();
+        existingOwnerUr.setId(new UserRoleId(1L, userId, ownerRoleId));
+        existingOwnerUr.setRole(ownerRole);
+
+        // Sync sem a role de proprietário na lista => o laço de remoção tentaria excluí-la.
+        UserRoleRequestDTO request = new UserRoleRequestDTO(userId, List.of());
+
+        when(userAccountRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userRoleRepository.findAllByUserId(userId)).thenReturn(List.of(existingOwnerUr));
+
+        try (MockedStatic<SecurityUtils> utils = Mockito.mockStatic(SecurityUtils.class)) {
+            utils.when(SecurityUtils::getCurrentUserInfo)
+                    .thenReturn(new CurrentUser(userId, "test@test.com"));
+            utils.when(SecurityUtils::getCurrentUserId)
+                    .thenReturn(Optional.of(userId));
+            utils.when(() -> SecurityUtils.getCorrelationIdFromRequest(any()))
+                    .thenReturn(UUID.randomUUID());
+
+            mockMvc.perform(post("/auth/users/{userId}/roles", userId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andDo(print())
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.message").value(Constants.OWNER_ROLE_AUTO_REMOCAO));
+        }
+    }
+
+    @Test
+    @WithMockUser(authorities = {"USER_UPDATE", "ROLE_APP_OWNER"})
+    void shouldAssignRolesToUserBlockSelfPromotion() throws Exception {
+        UUID userId = UUID.randomUUID();
+        UUID ownerRoleId = UUID.randomUUID();
+
+        Tenant tenant = new Tenant();
+        tenant.setId(1L);
+
+        UserAccount user = new UserAccount();
+        user.setId(userId);
+        user.setTenant(tenant);
+
+        Role ownerRole = new Role();
+        ownerRole.setId(ownerRoleId);
+        ownerRole.setName(Constants.OWNER_ROLE_NAME);
+        ownerRole.setTenant(tenant);
+
+        // Usuário sem a role de proprietário tentando se auto-conceder a role PROPRIETARIO.
+        UserRoleRequestDTO request = new UserRoleRequestDTO(userId, List.of(ownerRoleId));
+
+        when(userAccountRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userRoleRepository.findAllByUserId(userId)).thenReturn(List.of());
+        when(roleRepository.findById(ownerRoleId)).thenReturn(Optional.of(ownerRole));
+        when(userRoleRepository.existsByUserAndRole(userId, ownerRoleId)).thenReturn(false);
+
+        try (MockedStatic<SecurityUtils> utils = Mockito.mockStatic(SecurityUtils.class)) {
+            utils.when(SecurityUtils::getCurrentUserInfo)
+                    .thenReturn(new CurrentUser(userId, "test@test.com"));
+            utils.when(SecurityUtils::getCurrentUserId)
+                    .thenReturn(Optional.of(userId));
+            utils.when(() -> SecurityUtils.getCorrelationIdFromRequest(any()))
+                    .thenReturn(UUID.randomUUID());
+
+            mockMvc.perform(post("/auth/users/{userId}/roles", userId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andDo(print())
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.message").value(Constants.OWNER_ROLE_CONCESSAO_NAO_AUTORIZADA));
+        }
+    }
+
+    @Test
+    @WithMockUser(authorities = {"USER_UPDATE", "ROLE_APP_OWNER"})
     void shouldAssignRolesToUserMismatch() throws Exception {
         UUID userId = UUID.randomUUID();
         UUID differentUserId = UUID.randomUUID();
@@ -249,7 +338,12 @@ class AttributionsControllerTest {
         UUID userId = UUID.randomUUID();
         UUID roleId = UUID.randomUUID();
 
+        Role role = new Role();
+        role.setId(roleId);
+        role.setName("GESTOR");
+
         when(userRoleRepository.existsByUserAndRole(userId, roleId)).thenReturn(true);
+        when(roleRepository.findById(roleId)).thenReturn(Optional.of(role));
 
         try (MockedStatic<SecurityUtils> utils = Mockito.mockStatic(SecurityUtils.class)) {
             utils.when(SecurityUtils::getCurrentUserInfo)
@@ -260,6 +354,69 @@ class AttributionsControllerTest {
             mockMvc.perform(delete("/auth/users/{userId}/roles/{roleId}", userId, roleId))
                     .andDo(print())
                     .andExpect(status().isNoContent());
+        }
+    }
+
+    @Test
+    @WithMockUser(authorities = {"USER_UPDATE", "ROLE_APP_OWNER"})
+    void shouldRemoveRoleFromUserBlockSelfDemotion() throws Exception {
+        UUID userId = UUID.randomUUID();
+        UUID roleId = UUID.randomUUID();
+
+        Role ownerRole = new Role();
+        ownerRole.setId(roleId);
+        ownerRole.setName(Constants.OWNER_ROLE_NAME);
+
+        when(userRoleRepository.existsByUserAndRole(userId, roleId)).thenReturn(true);
+        when(roleRepository.findById(roleId)).thenReturn(Optional.of(ownerRole));
+
+        try (MockedStatic<SecurityUtils> utils = Mockito.mockStatic(SecurityUtils.class)) {
+            utils.when(SecurityUtils::getCurrentUserInfo)
+                    .thenReturn(new CurrentUser(userId, "test@test.com"));
+            utils.when(SecurityUtils::getCurrentUserId)
+                    .thenReturn(Optional.of(userId));
+            utils.when(() -> SecurityUtils.getCorrelationIdFromRequest(any()))
+                    .thenReturn(UUID.randomUUID());
+
+            mockMvc.perform(delete("/auth/users/{userId}/roles/{roleId}", userId, roleId))
+                    .andDo(print())
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.message").value(Constants.OWNER_ROLE_AUTO_REMOCAO));
+        }
+    }
+
+    @Test
+    @WithMockUser(authorities = {"USER_UPDATE", "ROLE_APP_OWNER"})
+    void shouldRemoveRoleFromUserBlockLastOwner() throws Exception {
+        UUID userId = UUID.randomUUID();
+        UUID roleId = UUID.randomUUID();
+        UUID callerId = UUID.randomUUID();
+
+        Tenant tenant = new Tenant();
+        tenant.setId(1L);
+
+        Role ownerRole = new Role();
+        ownerRole.setId(roleId);
+        ownerRole.setName(Constants.OWNER_ROLE_NAME);
+        ownerRole.setTenant(tenant);
+
+        when(userRoleRepository.existsByUserAndRole(userId, roleId)).thenReturn(true);
+        when(roleRepository.findById(roleId)).thenReturn(Optional.of(ownerRole));
+        when(userRoleRepository.countDistinctUsersByTenantIdAndRoleName(1L, Constants.OWNER_ROLE_NAME))
+                .thenReturn(1L);
+
+        try (MockedStatic<SecurityUtils> utils = Mockito.mockStatic(SecurityUtils.class)) {
+            utils.when(SecurityUtils::getCurrentUserInfo)
+                    .thenReturn(new CurrentUser(callerId, "test@test.com"));
+            utils.when(SecurityUtils::getCurrentUserId)
+                    .thenReturn(Optional.of(callerId));
+            utils.when(() -> SecurityUtils.getCorrelationIdFromRequest(any()))
+                    .thenReturn(UUID.randomUUID());
+
+            mockMvc.perform(delete("/auth/users/{userId}/roles/{roleId}", userId, roleId))
+                    .andDo(print())
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.message").value(Constants.OWNER_ROLE_ULTIMO_PROPRIETARIO));
         }
     }
 

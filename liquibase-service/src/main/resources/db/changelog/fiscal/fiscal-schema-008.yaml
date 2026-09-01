@@ -1,0 +1,73 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # CURVA DA TRANSIÇÃO 2026-2033 — fatia 3a de spec/motor-fiscal-proximos-passos.md §3.
+  #
+  # POR QUE UMA TABELA SÓ DE ANO, E NÃO UMA COLUNA DE ANO NA MATRIZ
+  # A matriz tributária (fatia 3b) guarda a alíquota CHEIA de ICMS/ISS por rota fiscal. Se a
+  # redução de 10/20/30/40% de 2029-2032 morasse lá, cada rota precisaria de uma linha por ano
+  # e a carga inteira teria de ser refeita todo 1º de janeiro. Aqui a curva é UMA linha por ano
+  # e a matriz nunca é recarregada — mesmo desenho que aliq_ibs_municipio/aliq_cbs_regime já
+  # usam do lado novo (ajuste nº 1 da spec).
+  #
+  # pct_remanescente = quanto do ICMS/ISS CHEIO ainda é devido naquele ano:
+  #   2026-2028 = 100 (integral; a extinção só começa em 2029)
+  #   2029 = 90, 2030 = 80, 2031 = 70, 2032 = 60  (as reduções de 10/20/30/40% da LC 214)
+  #   2033 = 0  (ICMS e ISS extintos; só IBS/CBS)
+  #
+  # pis_cofins_vigente: PIS/COFINS são extintos em 2027, então só 2026 é true. É boolean e não
+  # percentual de propósito — PIS/COFINS não têm curva de redução, ou incidem ou não incidem.
+  #
+  # ANO SEM LINHA continua sem linha: nada de default 100 no SQL. Competência fora de 2026-2033
+  # tem que devolver 400 (FISCAL_VIGENCIA_SEM_COBERTURA), pelo mesmo princípio da alíquota IBS —
+  # dado faltando nunca vira imposto assumido.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: fiscal-024-cria-transicao-ano
+      author: vitor-fernandes
+      comment: Curva ano a ano da extinção de ICMS/ISS (e vigência de PIS/COFINS) na transição
+      changes:
+        - createTable:
+            schemaName: fiscal
+            tableName: transicao_ano
+            remarks: Percentual de ICMS/ISS ainda devido em cada ano da transição da reforma (LC 214)
+            columns:
+              - column:
+                  name: ano
+                  type: int
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: pct_remanescente
+                  type: numeric(5,2)
+                  constraints: { nullable: false }
+              - column:
+                  name: pis_cofins_vigente
+                  type: boolean
+                  constraints: { nullable: false }
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              ALTER TABLE fiscal.transicao_ano ADD CONSTRAINT chk_transicao_ano_pct
+              CHECK (pct_remanescente >= 0 AND pct_remanescente <= 100);
+
+  - changeSet:
+      id: fiscal-025-seed-transicao-ano
+      author: vitor-fernandes
+      comment: Oito anos da curva — 2026-2028 integral, 2029-2032 em degraus de 10, 2033 extinto
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.transicao_ano (ano, pct_remanescente, pis_cofins_vigente) VALUES
+                (2026, 100.00, true),
+                (2027, 100.00, false),
+                (2028, 100.00, false),
+                (2029,  90.00, false),
+                (2030,  80.00, false),
+                (2031,  70.00, false),
+                (2032,  60.00, false),
+                (2033,   0.00, false);
+      rollback:
+        - delete: { schemaName: fiscal, tableName: transicao_ano }

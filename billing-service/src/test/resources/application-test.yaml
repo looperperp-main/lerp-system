@@ -20,6 +20,10 @@ eureka:
   client:
     enabled: false
 
+internal:
+  gateway:
+    secret: test-internal-gateway-secret
+
 asaas:
   api-key: test-key
   base-url: http://localhost:9999

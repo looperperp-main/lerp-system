@@ -1,0 +1,79 @@
+databaseChangeLog:
+
+  # Recarga dos regimes diferenciados — corrige a extração do fiscal-015.
+  #
+  # O fiscal-015 carregou 95 códigos porque o extrator só procurava NCM DENTRO da descrição. Só
+  # que do Anexo IV em diante a lei publica o código numa coluna NCM/SH própria — o Anexo I é a
+  # exceção, não a regra. Resultado: IV/V/VI/IX/XII/XIII inteiros caíram no relatório de revisão
+  # como "sem referência a NCM", o que era falso. Corrigido: 242 códigos.
+  #
+  # Também trata a linha de continuação: item com mais de um NCM lista o segundo numa linha sem
+  # descrição (Anexo IV item 12 = 9021.90.19 + 9021.90.80).
+  #
+  # O CSV do fiscal-015 (data/regime-lc214.csv) fica onde está e NÃO é editado: loadData guarda
+  # checksum, mexer nele quebraria a validação em quem já rodou. Este changeset apaga o que aquele
+  # carregou e recarrega do arquivo novo.
+  #
+  # AINDA PARCIAL — 229 itens seguem fora, listados um a um em spec/anexos-lc214-revisar.md:
+  #
+  #   143 itens  Anexos II/III/X/XI (serviços) trazem código NBS (ex. 1.2301.99.00). A coluna
+  #              regime_dif_ncm.nbs é casada por prefixo contra MotorFiscalRequest.codigoServico,
+  #              que é código LC 116 ('4.01') — gravar NBS ali não casaria nunca. Falta o de/para.
+  #    37 itens  descrição sem código e sem coluna NCM/SH — o texto da lei nomeia o produto e nada
+  #              mais. Mapear nome -> NCM é decisão fiscal, é o "tax content" que se compra ou mantém.
+  #    25 itens  redação com "exceto"/"ressalvado" — o código sozinho mente sobre a regra
+  #              (ex.: hortícolas da 07.09 "exceto cogumelos da subposição 0709.5").
+  #     9 itens  Anexo XVII (Imposto Seletivo) — outra tabela (aliq_is_ncm) e alíquota pendente de
+  #              lei ordinária.
+  #     7 itens  mesmo NCM em dois anexos com reduções diferentes (60% x 100%) — conflito real da
+  #              lei, escolher por conta própria seria inventar regra.
+  #
+  # Mais 11 itens ENTRARAM mas carregam condição que o ERP não verifica (registro Anvisa,
+  # destinação); estão no relatório também, marcados como carregados.
+  #
+  # Enquanto um item está pendente, o NCM dele cai em RegimeDiferenciado.PADRAO e sai tributado
+  # cheio: erra a favor do fisco, nunca contra — e nunca calado, está tudo no relatório.
+  #
+  # O delete abaixo remove só linhas de PRODUTO com regime ANEXO_*, preservando o MONOFASICO do
+  # cigarro (fiscal-003) e a linha de serviço nbs='4.01' (fiscal-011) — esta carga não repõe nenhum
+  # dos dois.
+  - changeSet:
+      id: fiscal-016-load-regime-lc214-v2
+      author: vitor-fernandes
+      comment: Recarga dos regimes da LC 214/2025 lendo a coluna NCM/SH dos anexos (242 códigos)
+      changes:
+        - delete:
+            schemaName: fiscal
+            tableName: regime_dif_ncm
+            where: ncm IS NOT NULL AND regime LIKE 'ANEXO%'
+        - loadData:
+            schemaName: fiscal
+            tableName: regime_dif_ncm
+            file: data/regime-lc214-v2.csv
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            separator: ","
+            quotchar: '"'
+            usePreparedStatements: true
+            columns:
+              - column:
+                  header: ncm
+                  name: ncm
+                  type: STRING
+              - column:
+                  header: regime
+                  name: regime
+                  type: STRING
+              - column:
+                  header: percentual_reducao
+                  name: percentual_reducao
+                  type: NUMERIC
+              - column:
+                  header: vigente_de
+                  name: vigente_de
+                  type: DATE
+      rollback:
+        - delete:
+            schemaName: fiscal
+            tableName: regime_dif_ncm
+            where: ncm IS NOT NULL AND regime LIKE 'ANEXO%'

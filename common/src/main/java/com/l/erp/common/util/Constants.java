@@ -65,7 +65,9 @@ public class Constants {
 
     public static final String USER_CREATION = USER + "_" + INSERT;
     public static final String USER_UPDATE = USER + "_" + UPDATE;
+    public static final String USER_UNLOCK = USER + "_UNLOCK";
     public static final String USER_NOT_FOUND= "Usuário não Encontrado";
+    public static final String USER_NOT_LOCKED = "Usuário não está bloqueado";
 
     public static final String USER_HAS_OWNER_MARKER= "Usuário não pode ser cancelado/excluído pois possui um marker de proprietário";
 
@@ -298,6 +300,14 @@ public class Constants {
     public static final String OWNER_ROLE_NAME = "PROPRIETARIO";
     public static final String SYSTEM_BOOTSTRAP = "system-bootstrap";
 
+    // Proteção contra self-demotion / tenant órfão (AttributionsService)
+    public static final String OWNER_ROLE_AUTO_REMOCAO =
+            "Um usuário não pode remover a própria role de proprietário do tenant";
+    public static final String OWNER_ROLE_ULTIMO_PROPRIETARIO =
+            "Esta é a última role de proprietário do tenant — remova-a só depois de atribuir outro proprietário";
+    public static final String OWNER_ROLE_CONCESSAO_NAO_AUTORIZADA =
+            "Apenas um proprietário do tenant pode conceder a role de proprietário a um usuário";
+
     // Origem do cadastro (created_by)
     public static final String SELF_REGISTRATION = "self-registration";
     public static final String SELF_ACTIVATION = "self-activation";
@@ -315,6 +325,9 @@ public class Constants {
     public static final String HEADER_IS_OWNER = "X-Is-Owner";
     public static final String HEADER_PARTNER_ID = "X-Partner-Id";
     public static final String HEADER_AUTHORITIES = "X-Authorities";
+    // Segredo compartilhado gateway -> serviços internos (cadastro/partner/billing), prova de que
+    // a request passou pelo gateway e não bateu direto no serviço (issue #62)
+    public static final String HEADER_INTERNAL_SECRET = "X-Internal-Secret";
     public static final String HEADER_ASAAS_ACCESS_TOKEN = "asaas-access-token";
     public static final String HEADER_CORRELATION_ID = "X-Correlation-ID";
 
@@ -333,4 +346,129 @@ public class Constants {
     public static final String JOB_STATUS_RUNNING = "EXECUTANDO";
     public static final String JOB_STATUS_OK = "OK";
     public static final String JOB_STATUS_ERROR = "ERRO";
+
+    // Regime tributário do emitente (motor fiscal — Fin.md §1.4)
+    public static final String REGIME_MEI = "MEI";
+    public static final String REGIME_SIMPLES_NACIONAL = "SIMPLES_NACIONAL";
+    public static final String REGIME_LUCRO_PRESUMIDO = "LUCRO_PRESUMIDO";
+    public static final String REGIME_LUCRO_REAL = "LUCRO_REAL";
+
+    // Regimes de fiscal.regime_dif_ncm que o motor trata por NOME, não só pelo percentual de
+    // redução (§1.4.2 Passo 2). Os demais (ANEXO_*) entram só pelo percentual_reducao da linha.
+    public static final String REGIME_DIF_PADRAO = "PADRAO";
+    public static final String REGIME_DIF_MONOFASICO = "MONOFASICO";
+
+    // Códigos de erro do motor fiscal (Fin.md §1.4.9)
+    public static final String FISCAL_CFOP_NAO_ENCONTRADO = "FISCAL_CFOP_NAO_ENCONTRADO";
+    public static final String FISCAL_REGIME_SEM_ALIQUOTA_CBS = "FISCAL_REGIME_SEM_ALIQUOTA_CBS";
+    public static final String FISCAL_NCM_NAO_ENCONTRADO = "FISCAL_NCM_NAO_ENCONTRADO";
+    // Nao ha aliquota de IBS para a data de competencia. Substituiu o antigo
+    // FISCAL_MUNICIPIO_SEM_ALIQUOTA_IBS: desde o fiscal-023 existe a linha de REFERENCIA nacional
+    // ('0000000') cobrindo 2026-2033, entao municipio sem linha propria calcula normalmente e o que
+    // resta descoberto e o ANO — ex. 2035, fora da curva publicada pelo Senado.
+    public static final String FISCAL_VIGENCIA_SEM_COBERTURA = "FISCAL_VIGENCIA_SEM_COBERTURA";
+    public static final String FISCAL_SPLIT_SEM_FORMA_PAGAMENTO = "FISCAL_SPLIT_SEM_FORMA_PAGAMENTO";
+    // Produto (ncm) e serviço (codigoServico) são mutuamente exclusivos: errar isso muda o destino
+    // do IBS e o regime aplicado — é erro de entrada, nunca tributo calculado no escuro.
+    public static final String FISCAL_NCM_OU_SERVICO_OBRIGATORIO = "FISCAL_NCM_OU_SERVICO_OBRIGATORIO";
+    public static final String FISCAL_NCM_E_SERVICO_CONFLITANTES = "FISCAL_NCM_E_SERVICO_CONFLITANTES";
+    public static final String FISCAL_CCLASSTRIB_OBRIGATORIO = "FISCAL_CCLASSTRIB_OBRIGATORIO";
+    public static final String FISCAL_CCLASSTRIB_INVALIDO_PARA_SERVICO = "FISCAL_CCLASSTRIB_INVALIDO_PARA_SERVICO";
+    // NFS-e é documento de serviço; NF-e/NFC-e, de produto. Documento trocado muda o destino do
+    // IBS (local da prestação x município do destinatário) — erro de entrada, nunca fallback.
+    public static final String FISCAL_TIPO_DOCUMENTO_INCOMPATIVEL = "FISCAL_TIPO_DOCUMENTO_INCOMPATIVEL";
+    // Desconto incondicional não pode zerar nem inverter a operação: base <= 0 é erro de entrada.
+    public static final String FISCAL_DESCONTO_MAIOR_QUE_OPERACAO = "FISCAL_DESCONTO_MAIOR_QUE_OPERACAO";
+
+    // Aviso do fallback para PADRAO: o codigo nao tem linha de regime, entao o motor tributa com
+    // aliquota cheia e SEGUE (nao bloqueia). Vai para o log (WARN) e para a memoria de calculo —
+    // quem consome precisa saber que o numero saiu de dado faltando, nao de regra fiscal.
+    // Placeholders: 1o o tipo do codigo (NCM / cClassTrib), 2o o codigo em si.
+    public static final String FISCAL_AVISO_REGIME_PADRAO =
+            "AVISO: sem regime cadastrado para %s '%s' — tributado com alíquota CHEIA (PADRAO). "
+                    + "Se o item é desonerado pela LC 214, falta carga fiscal";
+    public static final String FISCAL_TIPO_CODIGO_NCM = "NCM";
+    public static final String FISCAL_TIPO_CODIGO_CCLASSTRIB = "cClassTrib";
+
+    // Codigo IBGE sentinela da linha-base de fiscal.aliq_ibs_municipio: a aliquota de REFERENCIA
+    // (fixada pelo Senado) e uniforme por tipo de ente, entao ela vive numa linha por ano em vez de
+    // ser replicada nos 5.570 municipios. Municipio com aliquota PROPRIA tem linha propria e vence.
+    // Nao existe municipio com codigo '0000000', logo nao colide com a UNIQUE (ibge, ano).
+    public static final String FISCAL_IBGE_REFERENCIA_NACIONAL = "0000000";
+
+    // Codigo NCM/NBS sentinela da linha-base de fiscal.matriz_tributaria (fatia 3b): a aliquota
+    // INTERNA geral do ICMS e carregada uma vez por UF (27 linhas), nao por NCM — excecoes por
+    // produto entram como override so quando um cliente real reclamar. 8 digitos (nao 7, que e o
+    // sentinela de municipio acima) porque o NCM tem 8 digitos e o NBS tem 9.
+    public static final String FISCAL_NCM_NBS_FALLBACK = "00000000";
+
+    // Aviso do fallback para a aliquota de referencia: o municipio de destino nao tem linha propria,
+    // entao o motor usa a referencia e SEGUE (nao bloqueia — a referencia e a aliquota legal de quem
+    // nao legislou a propria). Se o ente legislou e a carga nao tem, o imposto sai errado: por isso
+    // o aviso vai pro log (WARN) e pra memoria de calculo. Placeholder: o codigo IBGE do destino.
+    public static final String FISCAL_AVISO_ALIQUOTA_REFERENCIA =
+            "AVISO: município '%s' sem alíquota IBS própria cadastrada — aplicada a alíquota de "
+                    + "REFERÊNCIA nacional. Confirme se o ente publicou alíquota própria";
+
+    // Valores aceitos em MotorFiscalRequest.tipoDocumento (Fin.md §1.4.10). CT-e fica FORA da
+    // coerência produto x serviço: transporte tem regra própria que o motor ainda não trata.
+    public static final String FISCAL_TIPO_DOC_NFE = "NFe";
+    public static final String FISCAL_TIPO_DOC_NFCE = "NFCe";
+    public static final String FISCAL_TIPO_DOC_NFSE = "NFSe";
+
+    // Linha da memória de cálculo da base composta (LC 214 art. 12, §2º): frete, seguro e demais
+    // despesas acessórias ENTRAM na base; desconto incondicional SAI. Só é emitida quando algum
+    // componente vem no request — sem eles o valor da operação já É a base e a linha seria ruído.
+    // Placeholders, na ordem: tributável, operação, frete, seguro, acessórias, desconto.
+    public static final String FISCAL_MEMORIA_BASE_COMPOSTA =
+            "Valor tributável: %s (operação %s + frete %s + seguro %s + acessórias %s - desconto %s)";
+
+    // Origem do produto (MotorFiscalRequest.origemProduto). O tratamento da Zona Franca de Manaus
+    // (LC 214) NÃO está implementado: o motor tributa como nacional e AVISA — mesmo padrão do
+    // aviso de PADRAO, porque o erro é contra o contribuinte e não pode sair calado.
+    public static final String FISCAL_ORIGEM_ZFM = "ZFM";
+    public static final String FISCAL_AVISO_ORIGEM_ZFM =
+            "AVISO: origem 'ZFM' informada — tratamento da Zona Franca de Manaus não implementado; "
+                    + "item tributado como NACIONAL";
+
+    // Fatia 3c — legado (ICMS/ISS) durante a transição 2026-2033 (spec/motor-fiscal-proximos-passos.md §3)
+    // Produto sem UF de origem/destino DURANTE A TRANSICAO: sem elas a matriz de ICMS nao tem como
+    // resolver a aliquota interna. So exigido quando ha ICMS remanescente (pctRemanescente > 0) —
+    // em 2033 (regime permanente) a checagem nem roda.
+    public static final String FISCAL_UF_OBRIGATORIA_TRANSICAO = "FISCAL_UF_OBRIGATORIA_TRANSICAO";
+    // Nenhuma linha na matriz (nem tenant, nem nacional, nem fallback) para o par de UF/NCM: o
+    // motor devolve 400 em vez de assumir ICMS zero — mesmo princípio de FISCAL_VIGENCIA_SEM_COBERTURA.
+    public static final String FISCAL_ICMS_SEM_COBERTURA = "FISCAL_ICMS_SEM_COBERTURA";
+    // Idem para ISS: nem o município nem a referência nacional tem linha para o item.
+    public static final String FISCAL_ISS_SEM_COBERTURA = "FISCAL_ISS_SEM_COBERTURA";
+    // PIS/COFINS ainda vigentes (só 2026): por decisão de escopo (item 7.9), o motor nunca calcula
+    // o tributo — não é dado faltando. O art. 348 da LC 214/2025 dispensa o recolhimento de
+    // IBS/CBS no ano de teste para quem cumprir as obrigações acessórias (§1º) e exige PIS/COFINS
+    // integral do mesmo jeito (§2º); só o contribuinte que descumprir recolhe IBS/CBS e compensa
+    // contra PIS/COFINS — cálculo de apuração multi-competência, fora do escopo de uma nota isolada.
+    public static final String FISCAL_AVISO_PIS_COFINS_APURACAO_EXTERNA =
+            "AVISO: PIS/COFINS ainda vigentes nesta competência (art. 348 da LC 214/2025) — "
+                    + "recolhimento e eventual compensação com IBS/CBS são apurados fora do motor fiscal";
+
+    // Fatia 3e — retenção na fonte (ISS/IRRF/CSRF/INSS), dentro do motor (spec §3, decisão de
+    // 30/07/2026). Tributo de fiscal.retencao_config; mesmos valores de Constants.TRIBUTO_*.
+    public static final String TRIBUTO_IRRF = "IRRF";
+    public static final String TRIBUTO_CSRF = "CSRF"; // PIS/COFINS/CSLL retidos de forma unificada (IN RFB 1234/2012)
+    public static final String TRIBUTO_INSS = "INSS"; // cessão de mão de obra/empreitada (IN RFB 971/2009)
+    // Retenção só existe em operação de serviço: produto não tem ISS, e IRRF/CSRF/INSS aqui são
+    // sobre pagamento de serviço a PJ. Declarar retenção numa nota de produto é erro de entrada.
+    public static final String FISCAL_RETENCAO_APENAS_SERVICO = "FISCAL_RETENCAO_APENAS_SERVICO";
+    // Tributo declarado (reterIrrf/reterCsrf/reterInss) sem linha em fiscal.retencao_config (nem
+    // do tenant, nem nacional): o motor devolve 400 em vez de deixar de reter calado.
+    public static final String FISCAL_TRIBUTO_SEM_ALIQUOTA_RETENCAO = "FISCAL_TRIBUTO_SEM_ALIQUOTA_RETENCAO";
+
+    // fiscal.aliquota_regime_tributo (item 7.7): override por regime que o percentual único de
+    // regime_dif_ncm/regime_cclasstrib não expressa — redução isolada por tributo (Prouni, art.
+    // 308, zera só CBS) ou alíquota somada em valor ABSOLUTO (serviço financeiro, art. 233).
+    // Distintos de TRIBUTO_IRRF/CSRF/INSS acima, que são de retenção, não do cálculo de saída.
+    public static final String FISCAL_TRIBUTO_IBS = "IBS";
+    public static final String FISCAL_TRIBUTO_CBS = "CBS";
+    public static final String FISCAL_TRIBUTO_TOTAL = "TOTAL";
+    public static final String FISCAL_TIPO_PERCENTUAL_REDUCAO = "PERCENTUAL_REDUCAO";
+    public static final String FISCAL_TIPO_ALIQUOTA_ABSOLUTA = "ALIQUOTA_ABSOLUTA";
 }

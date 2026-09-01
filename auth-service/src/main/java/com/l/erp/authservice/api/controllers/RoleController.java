@@ -87,9 +87,9 @@ public class RoleController {
 
     @PutMapping("/{Id}")
     @PreAuthorize("hasRole('APP_OWNER') and hasAuthority('ROLE_UPDATE')")
-    public ResponseEntity<String> updateRoleById(@PathVariable UUID Id){
+    public ResponseEntity<RoleDTO> updateRoleById(@PathVariable UUID Id, @Valid @RequestBody RoleDTO roleDTO){
         log.debug("REST request to update a role by id {}", Id);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(roleService.updateRole(Id, roleDTO));
     }
 
     @DeleteMapping("/{Id}")

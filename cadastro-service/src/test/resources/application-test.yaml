@@ -20,6 +20,10 @@ eureka:
   client:
     enabled: false
 
+internal:
+  gateway:
+    secret: test-internal-gateway-secret
+
 cep:
   service:
     url: http://localhost/stub-cep/

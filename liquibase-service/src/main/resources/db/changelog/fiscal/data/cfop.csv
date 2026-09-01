@@ -1,0 +1,630 @@
+codigo,descricao,tipo_operacao,gera_credito_ibs,gera_credito_cbs,primeira_etapa_cadeia
+1101,"Compra para industrialização ou produção rural",ENTRADA,true,true,false
+1102,"Compra para comercialização",ENTRADA,true,true,false
+1111,"Compra para industrialização de mercadoria recebida anteriormente em consignação industrial",ENTRADA,true,true,false
+1113,"Compra para comercialização, de mercadoria recebida anteriormente em consignação mercantil",ENTRADA,true,true,false
+1116,"Compra para industrialização ou produção rural originada de encomenda para recebimento futuro",ENTRADA,true,true,false
+1117,"Compra para comercialização originada de encomenda para recebimento",ENTRADA,true,true,false
+1118,"Compra de mercadoria para comercialização pelo adquirente originário, entregue pelo vendedor remetente ao destinatário, em venda à ordem",ENTRADA,true,true,false
+1120,"Compra para industrialização, em venda à ordem, já recebida do vendedor remetente",ENTRADA,true,true,false
+1121,"Compra para comercialização, em venda à ordem, já recebida do vendedor remetente",ENTRADA,true,true,false
+1122,"Compra para industrialização em que a mercadoria foi remetida pelo fornecedor ao industrializador sem transitar pelo estabelecimento adquirente",ENTRADA,true,true,false
+1124,"Industrialização efetuada por outra empresa",ENTRADA,true,true,false
+1125,"Industrialização efetuada por outra empresa quando a mercadoria remetida para utilização no processo de industrialização não transitou pelo estabelecimento adquirente da mercadoria",ENTRADA,true,true,false
+1126,"Compra para utilização na prestação de serviço sujeita ao ICMS",ENTRADA,true,true,false
+1128,"Compra para utilização na prestação de serviço sujeita ao ISSQN",ENTRADA,true,true,false
+1131,"Entrada de mercadoria com previsão de posterior ajuste ou fixação de preço, decorrente de operação de ato cooperativo.",ENTRADA,true,true,false
+1132,"Fixação de preço de produção do estabelecimento produtor, inclusive quando remetidas anteriormente com previsão de posterior ajuste ou fixação de preço, em ato cooperativo, para comercialização.",ENTRADA,true,true,false
+1135,"Fixação de preço de produção do estabelecimento produtor, inclusive quando remetidas anteriormente com previsão de posterior ajuste ou fixação de preço, em ato cooperativo, para industrialização.",ENTRADA,true,true,false
+1150,"TRANSFERÊNCIAS PARA INDUSTRIALIZAÇÃO, PRODUÇÃO RURAL, COMERCIALIZAÇÃO OU PRESTAÇÃO DE SERVIÇOS",ENTRADA,true,true,false
+1151,"Transferência para industrialização ou produção rural",ENTRADA,true,true,false
+1152,"Transferência para comercialização",ENTRADA,true,true,false
+1153,"Transferência de energia elétrica para distribuição",ENTRADA,true,true,false
+1154,"Transferência para utilização na prestação de serviço",ENTRADA,true,true,false
+1159,"Entrada decorrente do fornecimento de produto ou mercadoria de ato cooperativo",ENTRADA,true,true,false
+1201,"Devolução de venda de produção do estabelecimento",ENTRADA,true,true,false
+1202,"Devolução de venda de mercadoria adquirida ou recebida de terceiros",ENTRADA,true,true,false
+1203,"Devolução de venda de produção do estabelecimento, destinada à Zona Franca de Manaus ou Áreas de Livre Comércio",ENTRADA,true,true,false
+1204,"Devolução de venda de mercadoria adquirida ou recebida de terceiros, destinada à Zona Franca de Manaus ou Áreas de Livre Comércio",ENTRADA,true,true,false
+1205,"Anulação de valor relativo à prestação de serviço de comunicação",ENTRADA,true,true,false
+1206,"Anulação de valor relativo à prestação de serviço de transporte",ENTRADA,true,true,false
+1207,"Anulação de valor relativo à venda de energia elétrica",ENTRADA,true,true,false
+1208,"Devolução de produção do estabelecimento, remetida em transferência",ENTRADA,true,true,false
+1209,"Devolução de mercadoria adquirida ou recebida de terceiros, remetida em transferência",ENTRADA,true,true,false
+1212,"Devolução de venda no mercado interno de mercadoria industrializada e insumo importado sob o Regime Aduaneiro Especial de Entreposto Industrial sob Controle Informatizado do Sistema Público de Escrituração Digital (Recof-Sped).",ENTRADA,true,true,false
+1213,"Devolução de remessa de produção do estabelecimento com previsão de posterior ajuste ou fixação de preço, em ato cooperativo.",ENTRADA,false,false,false
+1214,"Devolução de fixação de preço de produção do estabelecimento produtor, de ato cooperativo.",ENTRADA,true,true,false
+1215,"Devolução de fornecimento de produção do estabelecimento de ato cooperativo",ENTRADA,true,true,false
+1216,"Devolução de fornecimento de mercadoria adquirida ou recebida de terceiros de ato cooperativo",ENTRADA,true,true,false
+1250,"COMPRAS DE ENERGIA ELÉTRICA",ENTRADA,true,true,false
+1251,"Compra de energia elétrica para distribuição ou comercialização",ENTRADA,true,true,false
+1252,"Compra de energia elétrica por estabelecimento industrial",ENTRADA,true,true,false
+1253,"Compra de energia elétrica por estabelecimento comercial",ENTRADA,true,true,false
+1254,"Compra de energia elétrica por estabelecimento prestador de serviço de transporte",ENTRADA,true,true,false
+1255,"Compra de energia elétrica por estabelecimento prestador de serviço de comunicação",ENTRADA,true,true,false
+1256,"Compra de energia elétrica por estabelecimento de produtor rural",ENTRADA,true,true,false
+1257,"Compra de energia elétrica para consumo por demanda contratada",ENTRADA,true,true,false
+1301,"Aquisição de serviço de comunicação para execução de serviço da mesma natureza",ENTRADA,true,true,false
+1302,"Aquisição de serviço de comunicação por estabelecimento industrial",ENTRADA,true,true,false
+1303,"Aquisição de serviço de comunicação por estabelecimento comercial",ENTRADA,true,true,false
+1304,"Aquisição de serviço de comunicação por estabelecimento de prestador de serviço de transporte",ENTRADA,true,true,false
+1305,"Aquisição de serviço de comunicação por estabelecimento de geradora ou de distribuidora de energia elétrica",ENTRADA,true,true,false
+1306,"Aquisição de serviço de comunicação por estabelecimento de produtor rural",ENTRADA,true,true,false
+1351,"Aquisição de serviço de transporte para execução de serviço da mesma natureza",ENTRADA,true,true,false
+1352,"Aquisição de serviço de transporte por estabelecimento industrial",ENTRADA,true,true,false
+1353,"Aquisição de serviço de transporte por estabelecimento comercial",ENTRADA,true,true,false
+1354,"Aquisição de serviço de transporte por estabelecimento de prestador de serviço de comunicação",ENTRADA,true,true,false
+1355,"Aquisição de serviço de transporte por estabelecimento de geradora ou de distribuidora de energia elétrica",ENTRADA,true,true,false
+1356,"Aquisição de serviço de transporte por estabelecimento de produtor rural",ENTRADA,true,true,false
+1360,"Aquisição de serviço de transporte por contribuinte substituto em relação ao serviço de transporte",ENTRADA,true,true,false
+1401,"Compra para industrialização ou produção rural em operação com mercadoria sujeita ao regime de substituição tributária",ENTRADA,true,true,false
+1403,"Compra para comercialização em operação com mercadoria sujeita ao regime de substituição tributária",ENTRADA,true,true,false
+1406,"Compra de bem para o ativo imobilizado cuja mercadoria está sujeita ao regime de substituição tributária",ENTRADA,true,true,false
+1407,"Compra de mercadoria para uso ou consumo cuja mercadoria está sujeita ao regime de substituição tributária",ENTRADA,true,true,false
+1408,"Transferência para industrialização ou produção rural em operação com mercadoria sujeita ao regime de substituição tributária",ENTRADA,true,true,false
+1409,"Transferência para comercialização em operação com mercadoria sujeita ao regime de substituição tributária",ENTRADA,true,true,false
+1410,"Devolução de venda de produção do estabelecimento em operação com produto sujeito ao regime de substituição tributária",ENTRADA,true,true,false
+1411,"Devolução de venda de mercadoria adquirida ou recebida de terceiros em operação com mercadoria sujeita ao regime de substituição tributária",ENTRADA,true,true,false
+1414,"Retorno de produção do estabelecimento, remetida para venda fora do estabelecimento em operação com produto sujeito ao regime de substituição tributária",ENTRADA,false,false,false
+1415,"Retorno de mercadoria adquirida ou recebida de terceiros, remetida para venda fora do estabelecimento em operação com mercadoria sujeita ao regime de substituição tributária",ENTRADA,false,false,false
+1452,"Entrada de insumo - Sistema de Integração e Parceria Rural",ENTRADA,true,true,false
+1453,"Retorno do animal ou da produção - Sistema de Integração e Parceria Rural",ENTRADA,false,false,false
+1454,"Retorno simbólico do animal ou da produção - Sistema de Integração e Parceria Rural",ENTRADA,false,false,false
+1455,"Retorno de insumo não utilizado na produção - Sistema de Integração e Parceria Rural",ENTRADA,false,false,false
+1456,"Entrada referente a remuneração do produtor no Sistema de Integração e Parceria Rural",ENTRADA,true,true,false
+1501,"Entrada de mercadoria recebida com fim específico de exportação",ENTRADA,true,true,false
+1503,"Entrada decorrente de devolução de produto remetido com fim específico de exportação, de produção do estabelecimento",ENTRADA,true,true,false
+1504,"Entrada decorrente de devolução de mercadoria remetida com fim específico de exportação, adquirida ou recebida de terceiros",ENTRADA,true,true,false
+1505,"Entrada decorrente de devolução de mercadorias remetidas para formação de lote de exportação, de produtos industrializados ou produzidos pelo próprio estabelecimento",ENTRADA,true,true,false
+1506,"Entrada decorrente de devolução de mercadorias, adquiridas ou recebidas de terceiros, remetidas para formação de lote de exportação",ENTRADA,true,true,false
+1550,"OPERAÇÕES COM BENS DE ATIVO IMOBILIZADO E MATERIAIS PARA USO OU CONSUMO",ENTRADA,true,true,false
+1551,"Compra de bem para o ativo imobilizado",ENTRADA,true,true,false
+1552,"Transferência de bem do ativo imobilizado",ENTRADA,true,true,false
+1553,"Devolução de venda de bem do ativo imobilizado",ENTRADA,true,true,false
+1554,"Retorno de bem do ativo imobilizado remetido para uso fora do estabelecimento",ENTRADA,false,false,false
+1555,"Entrada de bem do ativo imobilizado de terceiro, remetido para uso no estabelecimento",ENTRADA,true,true,false
+1556,"Compra de material para uso ou consumo",ENTRADA,true,true,false
+1557,"Transferência de material para uso ou consumo",ENTRADA,true,true,false
+1601,"Recebimento, por transferência, de crédito de ICMS",ENTRADA,true,true,false
+1602,"Recebimento, por transferência, de saldo credor de ICMS de outro estabelecimento da mesma empresa, para compensação de saldo devedor de ICMS",ENTRADA,true,true,false
+1603,"Ressarcimento de ICMS retido por substituição tributária",ENTRADA,true,true,false
+1604,"Lançamento do crédito relativo à compra de bem para o ativo imobilizado",ENTRADA,true,true,false
+1605,"Recebimento, por transferência, de saldo devedor de ICMS de outro estabelecimento da mesma empresa.",ENTRADA,true,true,false
+1650,"ENTRADAS DE COMBUSTÍVEIS, DERIVADOS OU NÃO DE PETRÓLEO E LUBRIFICANTES",ENTRADA,true,true,false
+1651,"Compra de combustível ou lubrificante para industrialização subseqüente",ENTRADA,true,true,false
+1652,"Compra de combustível ou lubrificante para comercialização",ENTRADA,true,true,false
+1653,"Compra de combustível ou lubrificante por consumidor ou usuário final",ENTRADA,true,true,false
+1657,"Retorno de remessa de combustível ou lubrificante para venda fora do estabelecimento.",ENTRADA,false,false,false
+1658,"Transferência de combustível e lubrificante para industrialização",ENTRADA,true,true,false
+1659,"Transferência de combustível e lubrificante para comercialização",ENTRADA,true,true,false
+1660,"Devolução de venda de combustível ou lubrificante destinado à industrialização subseqüente",ENTRADA,true,true,false
+1661,"Devolução de venda de combustível ou lubrificante destinado à comercialização",ENTRADA,true,true,false
+1662,"Devolução de venda de combustível ou lubrificante destinado a consumidor ou usuário final",ENTRADA,true,true,false
+1663,"Entrada de combustível ou lubrificante para armazenagem",ENTRADA,true,true,false
+1664,"Retorno de combustível ou lubrificante remetido para armazenagem",ENTRADA,false,false,false
+1901,"Entrada para industrialização por encomenda",ENTRADA,true,true,false
+1902,"Retorno de mercadoria remetida para industrialização por encomenda",ENTRADA,false,false,false
+1903,"Entrada de mercadoria remetida para industrialização e não aplicada no referido processo",ENTRADA,true,true,false
+1904,"Retorno de remessa para venda fora do estabelecimento",ENTRADA,false,false,false
+1905,"Entrada de mercadoria recebida para depósito em depósito fechado ou armazém geral",ENTRADA,true,true,false
+1906,"Retorno de mercadoria remetida para depósito fechado ou armazém geral",ENTRADA,false,false,false
+1907,"Retorno simbólico de mercadoria remetida para depósito fechado ou armazém geral",ENTRADA,false,false,false
+1908,"Entrada de bem por conta de contrato de comodato ou locação",ENTRADA,false,false,false
+1909,"Retorno de bem remetido por conta de contrato de comodato ou locação",ENTRADA,false,false,false
+1910,"Entrada de bonificação, doação ou brinde",ENTRADA,false,false,false
+1911,"Entrada de amostra grátis",ENTRADA,false,false,false
+1912,"Entrada de mercadoria ou bem recebido para demonstração",ENTRADA,false,false,false
+1913,"Retorno de mercadoria ou bem remetido para demonstração",ENTRADA,false,false,false
+1914,"Retorno de mercadoria ou bem remetido para exposição ou feira",ENTRADA,false,false,false
+1915,"Entrada de mercadoria ou bem recebido para conserto ou reparo",ENTRADA,true,true,false
+1916,"Retorno de mercadoria ou bem remetido para conserto ou reparo",ENTRADA,false,false,false
+1917,"Entrada de mercadoria recebida em consignação mercantil ou industrial",ENTRADA,true,true,false
+1918,"Devolução de mercadoria remetida em consignação mercantil ou industrial",ENTRADA,true,true,false
+1919,"Devolução simbólica de mercadoria vendida ou utilizada em processo industrial, remetida anteriormente em consignação mercantil ou industrial",ENTRADA,true,true,false
+1920,"Entrada de vasilhame ou sacaria",ENTRADA,true,true,false
+1921,"Retorno de vasilhame ou sacaria",ENTRADA,false,false,false
+1922,"Lançamento efetuado a título de simples faturamento decorrente de compra para recebimento futuro",ENTRADA,true,true,false
+1923,"Entrada de mercadoria recebida do vendedor remetente, em venda à ordem",ENTRADA,true,true,false
+1924,"Entrada para industrialização por conta e ordem do adquirente da mercadoria, quando esta não transitar pelo estabelecimento do adquirente",ENTRADA,true,true,false
+1925,"Retorno de mercadoria remetida para industrialização por conta e ordem do adquirente da mercadoria, quando esta não transitar pelo estabelecimento do adquirente",ENTRADA,false,false,false
+1926,"Lançamento efetuado a título de reclassificação de mercadoria decorrente de formação de kit ou de sua desagregação",ENTRADA,true,true,false
+1931,"Lançamento efetuado pelo tomador do serviço de transporte quando a responsabilidade de retenção do imposto for atribuída ao remetente ou alienante da mercadoria, pelo serviço de transporte realizado por transportador autônomo ou por transportador não inscrito na unidade da Federação onde iniciado o serviço.",ENTRADA,true,true,false
+1932,"Aquisição de serviço de transporte iniciado em unidade da Federação diversa daquela onde inscrito o prestador.",ENTRADA,true,true,false
+1933,"Aquisição de serviço tributado pelo ISSQN",ENTRADA,true,true,false
+1934,"Entrada simbólica de mercadoria recebida para depósito fechado ou armazém geral",ENTRADA,true,true,false
+1949,"Outra entrada de mercadoria ou prestação de serviço não especificada",ENTRADA,true,true,false
+2101,"Compra para industrialização ou produção rural",ENTRADA,true,true,false
+2102,"Compra para comercialização",ENTRADA,true,true,false
+2111,"Compra para industrialização de mercadoria recebida anteriormente em consignação industrial",ENTRADA,true,true,false
+2113,"Compra para comercialização, de mercadoria recebida anteriormente em consignação mercantil",ENTRADA,true,true,false
+2116,"Compra para industrialização ou produção rural originada de encomenda para recebimento futuro",ENTRADA,true,true,false
+2117,"Compra para comercialização originada de encomenda para recebimento",ENTRADA,true,true,false
+2118,"Compra de mercadoria para comercialização pelo adquirente originário, entregue pelo vendedor remetente ao destinatário, em venda à ordem",ENTRADA,true,true,false
+2120,"Compra para industrialização, em venda à ordem, já recebida do vendedor remetente",ENTRADA,true,true,false
+2121,"Compra para comercialização, em venda à ordem, já recebida do vendedor remetente",ENTRADA,true,true,false
+2122,"Compra para industrialização em que a mercadoria foi remetida pelo fornecedor ao industrializador sem transitar pelo estabelecimento adquirente",ENTRADA,true,true,false
+2125,"Industrialização efetuada por outra empresa quando a mercadoria remetida para utilização no processo de industrialização não transitou pelo estabelecimento adquirente da mercadoria",ENTRADA,true,true,false
+2126,"Compra para utilização na prestação de serviço sujeita ao ICMS",ENTRADA,true,true,false
+2128,"Compra para utilização na prestação de serviço sujeita ao ISSQN",ENTRADA,true,true,false
+2131,"Entrada de mercadoria com previsão de posterior ajuste ou fixação de preço, decorrente de operação de ato cooperativo.",ENTRADA,true,true,false
+2132,"Fixação de preço de produção do estabelecimento produtor, inclusive quando remetidas anteriormente com previsão de posterior ajuste ou fixação de preço, em ato cooperativo, para comercialização.",ENTRADA,true,true,false
+2135,"Fixação de preço de produção do estabelecimento produtor, inclusive quando remetidas anteriormente com previsão de posterior ajuste ou fixação de preço, em ato cooperativo, para industrialização.",ENTRADA,true,true,false
+2150,"TRANSFERÊNCIAS PARA INDUSTRIALIZAÇÃO, PRODUÇÃO RURAL, COMERCIALIZAÇÃO OU PRESTAÇÃO DE SERVIÇOS",ENTRADA,true,true,false
+2151,"Transferência para industrialização ou produção rural",ENTRADA,true,true,false
+2153,"Transferência de energia elétrica para distribuição",ENTRADA,true,true,false
+2154,"Transferência para utilização na prestação de serviço",ENTRADA,true,true,false
+2159,"Entrada decorrente do fornecimento de produto ou mercadoria de ato cooperativo",ENTRADA,true,true,false
+2201,"Devolução de venda de produção do estabelecimento",ENTRADA,true,true,false
+2202,"Devolução de venda de mercadoria adquirida ou recebida de terceiros",ENTRADA,true,true,false
+2203,"Devolução de venda de produção do estabelecimento, destinada à Zona Franca de Manaus ou Áreas de Livre Comércio",ENTRADA,true,true,false
+2204,"Devolução de venda de mercadoria adquirida ou recebida de terceiros, destinada à Zona Franca de Manaus ou Áreas de Livre Comércio",ENTRADA,true,true,false
+2205,"Anulação de valor relativo à prestação de serviço de comunicação",ENTRADA,true,true,false
+2206,"Anulação de valor relativo à prestação de serviço de transporte",ENTRADA,true,true,false
+2207,"Anulação de valor relativo à venda de energia elétrica",ENTRADA,true,true,false
+2208,"Devolução de produção do estabelecimento, remetida em transferência",ENTRADA,true,true,false
+2209,"Devolução de mercadoria adquirida ou recebida de terceiros, remetida em transferência",ENTRADA,true,true,false
+2212,"Devolução de venda no mercado interno de mercadoria industrializada e insumo importado sob o Regime Aduaneiro Especial de Entreposto Industrial sob Controle Informatizado do Sistema Público de Escrituração Digital (Recof-Sped).",ENTRADA,true,true,false
+2213,"Devolução de remessa de produção do estabelecimento com previsão de posterior ajuste ou fixação de preço, em ato cooperativo.",ENTRADA,false,false,false
+2214,"Devolução de fixação de preço de produção do estabelecimento produtor, de ato cooperativo.",ENTRADA,true,true,false
+2215,"Devolução de fornecimento de produção do estabelecimento de ato cooperativo",ENTRADA,true,true,false
+2216,"Devolução de fornecimento de mercadoria adquirida ou recebida de terceiros de ato cooperativo",ENTRADA,true,true,false
+2250,"COMPRAS DE ENERGIA ELÉTRICA",ENTRADA,true,true,false
+2251,"Compra de energia elétrica para distribuição ou comercialização",ENTRADA,true,true,false
+2252,"Compra de energia elétrica por estabelecimento industrial",ENTRADA,true,true,false
+2253,"Compra de energia elétrica por estabelecimento comercial",ENTRADA,true,true,false
+2254,"Compra de energia elétrica por estabelecimento prestador de serviço de transporte",ENTRADA,true,true,false
+2255,"Compra de energia elétrica por estabelecimento prestador de serviço de comunicação",ENTRADA,true,true,false
+2256,"Compra de energia elétrica por estabelecimento de produtor rural",ENTRADA,true,true,false
+2257,"Compra de energia elétrica para consumo por demanda contratada",ENTRADA,true,true,false
+2301,"Aquisição de serviço de comunicação para execução de serviço da mesma natureza",ENTRADA,true,true,false
+2302,"Aquisição de serviço de comunicação por estabelecimento industrial",ENTRADA,true,true,false
+2303,"Aquisição de serviço de comunicação por estabelecimento comercial",ENTRADA,true,true,false
+2304,"Aquisição de serviço de comunicação por estabelecimento de prestador de serviço de transporte",ENTRADA,true,true,false
+2305,"Aquisição de serviço de comunicação por estabelecimento de geradora ou de distribuidora de energia elétrica",ENTRADA,true,true,false
+2306,"Aquisição de serviço de comunicação por estabelecimento de produtor rural",ENTRADA,true,true,false
+2350,"AQUISIÇÕES DE SERVIÇOS DE TRANSPORTE",ENTRADA,true,true,false
+2351,"Aquisição de serviço de transporte para execução de serviço da mesma natureza",ENTRADA,true,true,false
+2352,"Aquisição de serviço de transporte por estabelecimento industrial",ENTRADA,true,true,false
+2353,"Aquisição de serviço de transporte por estabelecimento comercial",ENTRADA,true,true,false
+2354,"Aquisição de serviço de transporte por estabelecimento de prestador de serviço de comunicação",ENTRADA,true,true,false
+2355,"Aquisição de serviço de transporte por estabelecimento de geradora ou de distribuidora de energia elétrica",ENTRADA,true,true,false
+2356,"Aquisição de serviço de transporte por estabelecimento de produtor rural",ENTRADA,true,true,false
+2401,"Compra para industrialização ou produção rural em operação com mercadoria sujeita ao regime de substituição tributária",ENTRADA,true,true,false
+2403,"Compra para comercialização em operação com mercadoria sujeita ao regime de substituição tributária",ENTRADA,true,true,false
+2406,"Compra de bem para o ativo imobilizado cuja mercadoria está sujeita ao regime de substituição tributária",ENTRADA,true,true,false
+2407,"Compra de mercadoria para uso ou consumo cuja mercadoria está sujeita ao regime de substituição tributária",ENTRADA,true,true,false
+2408,"Transferência para industrialização ou produção rural em operação com mercadoria sujeita ao regime de substituição tributária",ENTRADA,true,true,false
+2409,"Transferência para comercialização em operação com mercadoria sujeita ao regime de substituição tributária",ENTRADA,true,true,false
+2410,"Devolução de venda de produção do estabelecimento em operação com produto sujeito ao regime de substituição tributária",ENTRADA,true,true,false
+2411,"Devolução de venda de mercadoria adquirida ou recebida de terceiros em operação com mercadoria sujeita ao regime de substituição tributária",ENTRADA,true,true,false
+2414,"Retorno de produção do estabelecimento, remetida para venda fora do estabelecimento em operação com produto sujeito ao regime de substituição tributária",ENTRADA,false,false,false
+2415,"Retorno de mercadoria adquirida ou recebida de terceiros, remetida para venda fora do estabelecimento em operação com mercadoria sujeita ao regime de substituição tributária",ENTRADA,false,false,false
+2450,"SISTEMAS DE INTEGRAÇÃO E PARCERIA RURAL",ENTRADA,true,true,false
+2451,"Entrada de animal - Sistema de Integração e Parceria Rural",ENTRADA,true,true,false
+2452,"Entrada de insumo - Sistema de Integração e Parceria Rural",ENTRADA,true,true,false
+2453,"Retorno do animal ou da produção - Sistema de Integração e Parceria Rural.",ENTRADA,false,false,false
+2454,"Retorno simbólico do animal ou da produção - Sistema de Integração e Parceria Rural.",ENTRADA,false,false,false
+2455,"Retorno de insumo não utilizado na produção - Sistema de Integração e Parceria Rural",ENTRADA,false,false,false
+2456,"Entrada referente a remuneração do produtor no Sistema de Integração e Parceria Rural",ENTRADA,true,true,false
+2501,"Entrada de mercadoria recebida com fim específico de exportação",ENTRADA,true,true,false
+2503,"Entrada decorrente de devolução de produto remetido com fim específico de exportação, de produção do estabelecimento",ENTRADA,true,true,false
+2504,"Entrada decorrente de devolução de mercadoria remetida com fim específico de exportação, adquirida ou recebida de terceiros",ENTRADA,true,true,false
+2505,"Entrada decorrente de devolução de mercadorias remetidas para formação de lote de exportação, de produtos industrializados ou produzidos pelo próprio estabelecimento",ENTRADA,true,true,false
+2506,"Entrada decorrente de devolução de mercadorias, adquiridas ou recebidas de terceiros, remetidas para formação de lote de exportação",ENTRADA,true,true,false
+2550,"OPERAÇÕES COM BENS DE ATIVO IMOBILIZADO E MATERIAIS PARA USO OU CONSUMO",ENTRADA,true,true,false
+2551,"Compra de bem para o ativo imobilizado",ENTRADA,true,true,false
+2552,"Transferência de bem do ativo imobilizado",ENTRADA,true,true,false
+2553,"Devolução de venda de bem do ativo imobilizado",ENTRADA,true,true,false
+2554,"Retorno de bem do ativo imobilizado remetido para uso fora do estabelecimento",ENTRADA,false,false,false
+2555,"Entrada de bem do ativo imobilizado de terceiro, remetido para uso no estabelecimento",ENTRADA,true,true,false
+2556,"Compra de material para uso ou consumo",ENTRADA,true,true,false
+2557,"Transferência de material para uso ou consumo",ENTRADA,true,true,false
+2603,"Ressarcimento de ICMS retido por substituição tributária",ENTRADA,true,true,false
+2650,"ENTRADAS DE COMBUSTÍVEIS, DERIVADOS OU NÃO DE PETRÓLEO E LUBRIFICANTES",ENTRADA,true,true,false
+2651,"Compra de combustível ou lubrificante para industrialização subseqüente",ENTRADA,true,true,false
+2652,"Compra de combustível ou lubrificante para comercialização",ENTRADA,true,true,false
+2653,"Compra de combustível ou lubrificante por consumidor ou usuário final",ENTRADA,true,true,false
+2657,"Retorno de remessa de combustível ou lubrificante para venda fora do estabelecimento.",ENTRADA,false,false,false
+2658,"Transferência de combustível e lubrificante para industrialização",ENTRADA,true,true,false
+2660,"Devolução de venda de combustível ou lubrificante destinado à industrialização subseqüente",ENTRADA,true,true,false
+2661,"Devolução de venda de combustível ou lubrificante destinado à comercialização",ENTRADA,true,true,false
+2662,"Devolução de venda de combustível ou lubrificante destinado a consumidor ou usuário final",ENTRADA,true,true,false
+2663,"Entrada de combustível ou lubrificante para armazenagem",ENTRADA,true,true,false
+2664,"Retorno de combustível ou lubrificante remetido para armazenagem",ENTRADA,false,false,false
+2901,"Entrada para industrialização por encomenda",ENTRADA,true,true,false
+2902,"Retorno de mercadoria remetida para industrialização por encomenda",ENTRADA,false,false,false
+2903,"Entrada de mercadoria remetida para industrialização e não aplicada no referido processo",ENTRADA,true,true,false
+2904,"Retorno de remessa para venda fora do estabelecimento",ENTRADA,false,false,false
+2905,"Entrada de mercadoria recebida para depósito em depósito fechado ou armazém geral",ENTRADA,true,true,false
+2906,"Retorno de mercadoria remetida para depósito fechado ou armazém geral",ENTRADA,false,false,false
+2907,"Retorno simbólico de mercadoria remetida para depósito fechado ou armazém geral",ENTRADA,false,false,false
+2908,"Entrada de bem por conta de contrato de comodato ou locação",ENTRADA,false,false,false
+2909,"Retorno de bem remetido por conta de contrato de comodato ou locação",ENTRADA,false,false,false
+2910,"Entrada de bonificação, doação ou brinde",ENTRADA,false,false,false
+2911,"Entrada de amostra grátis",ENTRADA,false,false,false
+2912,"Entrada de mercadoria ou bem recebido para demonstração",ENTRADA,false,false,false
+2913,"Retorno de mercadoria ou bem remetido para demonstração",ENTRADA,false,false,false
+2914,"Retorno de mercadoria ou bem remetido para exposição ou feira",ENTRADA,false,false,false
+2915,"Entrada de mercadoria ou bem recebido para conserto ou reparo",ENTRADA,true,true,false
+2916,"Retorno de mercadoria ou bem remetido para conserto ou reparo",ENTRADA,false,false,false
+2917,"Entrada de mercadoria recebida em consignação mercantil ou industrial",ENTRADA,true,true,false
+2918,"Devolução de mercadoria remetida em consignação mercantil ou industrial",ENTRADA,true,true,false
+2919,"Devolução simbólica de mercadoria vendida ou utilizada em processo industrial, remetida anteriormente em consignação mercantil ou industrial",ENTRADA,true,true,false
+2920,"Entrada de vasilhame ou sacaria",ENTRADA,true,true,false
+2921,"Retorno de vasilhame ou sacaria",ENTRADA,false,false,false
+2922,"Lançamento efetuado a título de simples faturamento decorrente de compra para recebimento futuro",ENTRADA,true,true,false
+2923,"Entrada de mercadoria recebida do vendedor remetente, em venda à ordem",ENTRADA,true,true,false
+2924,"Entrada para industrialização por conta e ordem do adquirente da mercadoria, quando esta não transitar pelo estabelecimento do adquirente",ENTRADA,true,true,false
+2925,"Retorno de mercadoria remetida para industrialização por conta e ordem do adquirente da mercadoria, quando esta não transitar pelo estabelecimento do adquirente",ENTRADA,false,false,false
+2931,"Lançamento efetuado pelo tomador do serviço de transporte quando a responsabilidade de retenção do imposto for atribuída ao remetente ou alienante da mercadoria, pelo serviço de transporte realizado por transportador autônomo ou por transportador não inscrito na unidade da Federação onde iniciado o serviço.",ENTRADA,true,true,false
+2932,"Aquisição de serviço de transporte iniciado em unidade da Federação diversa daquela onde inscrito o prestador.",ENTRADA,true,true,false
+2933,"Aquisição de serviço tributado pelo ISSQN",ENTRADA,true,true,false
+2934,"Entrada simbólica de mercadoria recebida para depósito fechado ou armazém geral",ENTRADA,true,true,false
+2949,"Outra entrada de mercadoria ou prestação de serviço não especificado",ENTRADA,true,true,false
+3101,"Compra para industrialização ou produção rural",ENTRADA,true,true,true
+3102,"Compra para comercialização",ENTRADA,true,true,true
+3126,"Compra para utilização na prestação de serviço sujeita ao ICMS",ENTRADA,true,true,true
+3127,"Compra para industrialização sob o regime de “drawback”",ENTRADA,true,true,true
+3128,"Compra para utilização na prestação de serviço sujeita ao ISSQN",ENTRADA,true,true,true
+3129,"Compra para industrialização sob o Regime Aduaneiro Especial de Entreposto Industrial sob Controle Informatizado do Sistema Público de Escrituração Digital (Recof-Sped).",ENTRADA,true,true,true
+3201,"Devolução de venda de produção do estabelecimento",ENTRADA,true,true,true
+3202,"Devolução de venda de mercadoria adquirida ou recebida de terceiros",ENTRADA,true,true,true
+3205,"Anulação de valor relativo à prestação de serviço de comunicação",ENTRADA,true,true,true
+3206,"Anulação de valor relativo à prestação de serviço de transporte",ENTRADA,true,true,true
+3207,"Anulação de valor relativo à venda de energia elétrica",ENTRADA,true,true,true
+3211,"Devolução de venda de produção do estabelecimento sob o regime de “drawback”",ENTRADA,true,true,true
+3212,"Devolução de venda no mercado externo de mercadoria industrializada sob o Regime Aduaneiro Especial de Entreposto Industrial sob Controle Informatizado do Sistema Público de Escrituração Digital (Recof-Sped).",ENTRADA,true,true,true
+3250,"COMPRAS DE ENERGIA ELÉTRICA",ENTRADA,true,true,true
+3251,"Compra de energia elétrica para distribuição ou comercialização",ENTRADA,true,true,true
+3301,"Aquisição de serviço de comunicação para execução de serviço da mesma natureza",ENTRADA,true,true,true
+3350,"AQUISIÇÕES DE SERVIÇOS DE TRANSPORTE",ENTRADA,true,true,true
+3351,"Aquisição de serviço de transporte para execução de serviço da mesma natureza",ENTRADA,true,true,true
+3352,"Aquisição de serviço de transporte por estabelecimento industrial",ENTRADA,true,true,true
+3353,"Aquisição de serviço de transporte por estabelecimento comercial",ENTRADA,true,true,true
+3354,"Aquisição de serviço de transporte por estabelecimento de prestador de serviço de comunicação",ENTRADA,true,true,true
+3355,"Aquisição de serviço de transporte por estabelecimento de geradora ou de distribuidora de energia elétrica",ENTRADA,true,true,true
+3356,"Aquisição de serviço de transporte por estabelecimento de produtor rural",ENTRADA,true,true,true
+3503,"Devolução de mercadoria exportada que tenha sido recebida com fim específico de exportação",ENTRADA,true,true,true
+3550,"OPERAÇÕES COM BENS DE ATIVO IMOBILIZADO E MATERIAIS PARA USO OU CONSUMO",ENTRADA,true,true,true
+3551,"Compra de bem para o ativo imobilizado",ENTRADA,true,true,true
+3552,"Entrada de produtos destinados ao uso ou consumo de bordo, em embarcações ou aeronaves exclusivamente em tráfego internacional com destino ao exterior",ENTRADA,true,true,true
+3553,"Devolução de venda de bem do ativo imobilizado",ENTRADA,true,true,true
+3556,"Compra de material para uso ou consumo",ENTRADA,true,true,true
+3650,"ENTRADAS DE COMBUSTÍVEIS, DERIVADOS OU NÃO DE PETRÓLEO E LUBRIFICANTES",ENTRADA,true,true,true
+3651,"Compra de combustível ou lubrificante para industrialização subseqüente",ENTRADA,true,true,true
+3652,"Compra de combustível ou lubrificante para comercialização",ENTRADA,true,true,true
+3653,"Compra de combustível ou lubrificante por consumidor ou usuário final",ENTRADA,true,true,true
+3667,"Entrada de combustível ou lubrificante para consumo final, em embarcações ou aeronaves exclusivamente em tráfego internacional com destino ao exterior",ENTRADA,true,true,true
+3930,"Lançamento efetuado a título de entrada de bem sob amparo de regime especial aduaneiro de admissão temporária",ENTRADA,true,true,true
+3949,"Outra entrada de mercadoria ou prestação de serviço não especificado",ENTRADA,true,true,true
+5101,"Venda de produção do estabelecimento",SAIDA,true,true,true
+5102,"Venda de mercadoria adquirida ou recebida de terceiros",SAIDA,true,true,false
+5103,"Venda de produção do estabelecimento, efetuada fora do estabelecimento",SAIDA,true,true,false
+5104,"Venda de mercadoria adquirida ou recebida de terceiros, efetuada fora do estabelecimento",SAIDA,true,true,false
+5105,"Venda de produção do estabelecimento que não deva por ele transitar",SAIDA,true,true,false
+5106,"Venda de mercadoria adquirida ou recebida de terceiros, que não deva por ele transitar",SAIDA,true,true,false
+5109,"Venda de produção do estabelecimento, destinada à Zona Franca de Manaus ou Áreas de Livre Comércio",SAIDA,true,true,false
+5110,"Venda de mercadoria adquirida ou recebida de terceiros, destinada à Zona Franca de Manaus ou Áreas de Livre Comércio",SAIDA,true,true,false
+5111,"Venda de produção do estabelecimento remetida anteriormente em consignação industrial",SAIDA,true,true,false
+5112,"Venda de mercadoria adquirida ou recebida de terceiros remetida anteriormente em consignação industrial",SAIDA,true,true,false
+5113,"Venda de produção do estabelecimento remetida anteriormente em consignação mercantil",SAIDA,true,true,false
+5114,"Venda de mercadoria adquirida ou recebida de terceiros remetida anteriormente em consignação mercantil",SAIDA,true,true,false
+5115,"Venda de mercadoria adquirida ou recebida de terceiros, recebida anteriormente em consignação mercantil",SAIDA,true,true,false
+5116,"Venda de produção do estabelecimento originada de encomenda para entrega futura",SAIDA,true,true,false
+5117,"Venda de mercadoria adquirida ou recebida de terceiros, originada de encomenda para entrega futura",SAIDA,true,true,false
+5118,"Venda de produção do estabelecimento entregue ao destinatário por conta e ordem do adquirente originário, em venda à ordem",SAIDA,true,true,false
+5119,"Venda de mercadoria adquirida ou recebida de terceiros entregue ao destinatário por conta e ordem do adquirente originário, em venda à ordem",SAIDA,true,true,false
+5120,"Venda de mercadoria adquirida ou recebida de terceiros entregue ao destinatário pelo vendedor remetente, em venda à ordem",SAIDA,true,true,false
+5122,"Venda de produção do estabelecimento remetida para industrialização, por conta e ordem do adquirente, sem transitar pelo estabelecimento do adquirente",SAIDA,true,true,false
+5123,"Venda de mercadoria adquirida ou recebida de terceiros remetida para industrialização, por conta e ordem do adquirente, sem transitar pelo estabelecimento do adquirente",SAIDA,true,true,false
+5125,"Industrialização efetuada para outra empresa quando a mercadoria recebida para utilização no processo de industrialização não transitar pelo estabelecimento adquirente da mercadoria",SAIDA,true,true,false
+5131,"Remessa de produção do estabelecimento, com previsão de posterior ajuste ou fixação de preço, de ato cooperativo.",SAIDA,false,false,false
+5132,"Fixação de preço de produção do estabelecimento, inclusive quando remetidas anteriormente com previsão de posterior ajuste ou fixação de preço de ato cooperativo.",SAIDA,true,true,false
+5150,"TRANSFERÊNCIAS DE PRODUÇÃO PRÓPRIA OU DE TERCEIROS",SAIDA,true,true,false
+5151,"Transferência de produção do estabelecimento",SAIDA,true,true,false
+5152,"Transferência de mercadoria adquirida ou recebida de terceiros",SAIDA,true,true,false
+5155,"Transferência de produção do estabelecimento, que não deva por ele",SAIDA,true,true,false
+5156,"Transferência de mercadoria adquirida ou recebida de terceiros, que não deva por ele transitar",SAIDA,true,true,false
+5159,"Fornecimento de produção do estabelecimento de ato cooperativo",SAIDA,true,true,false
+5160,"Fornecimento de mercadoria adquirida ou recebida de terceiros de ato cooperativo",SAIDA,true,true,false
+5201,"Devolução de compra para industrialização ou produção rural",SAIDA,true,true,false
+5202,"Devolução de compra para comercialização",SAIDA,true,true,false
+5205,"Anulação de valor relativo a aquisição de serviço de comunicação",SAIDA,true,true,false
+5206,"Anulação de valor relativo a aquisição de serviço de transporte",SAIDA,true,true,false
+5207,"Anulação de valor relativo à compra de energia elétrica",SAIDA,true,true,false
+5208,"Devolução de mercadoria recebida em transferência para industrialização ou produção rural",SAIDA,true,true,false
+5209,"Devolução de mercadoria recebida em transferência para comercialização",SAIDA,true,true,false
+5210,"Devolução de compra para utilização na prestação de serviço",SAIDA,true,true,false
+5213,"Devolução de entrada de mercadoria com previsão de posterior ajuste ou fixação de preço, em ato cooperativo.",SAIDA,true,true,false
+5214,"Devolução de fixação de preço de produção do estabelecimento produtor, inclusive quando remetidas anteriormente com previsão de posterior ajuste ou fixação de preço, de ato cooperativo, para comercialização.",SAIDA,true,true,false
+5215,"Devolução de fixação de preço de produção do estabelecimento produtor, inclusive quando remetidas anteriormente com previsão de posterior ajuste ou fixação de preço, de ato cooperativo, para industrialização.",SAIDA,true,true,false
+5216,"Devolução de entrada decorrente do fornecimento de produto ou mercadoria de ato cooperativo",SAIDA,true,true,false
+5250,"VENDAS DE ENERGIA ELÉTRICA",SAIDA,true,true,false
+5251,"Venda de energia elétrica para distribuição ou comercialização",SAIDA,true,true,false
+5252,"Venda de energia elétrica para estabelecimento industrial",SAIDA,true,true,false
+5253,"Venda de energia elétrica para estabelecimento comercial",SAIDA,true,true,false
+5254,"Venda de energia elétrica para estabelecimento prestador de serviço de transporte",SAIDA,true,true,false
+5255,"Venda de energia elétrica para estabelecimento prestador de serviço de comunicação",SAIDA,true,true,false
+5256,"Venda de energia elétrica para estabelecimento de produtor rural",SAIDA,true,true,false
+5257,"Venda de energia elétrica para consumo por demanda contratada",SAIDA,true,true,false
+5258,"Venda de energia elétrica a não contribuinte",SAIDA,true,true,false
+5301,"Prestação de serviço de comunicação para execução de serviço da mesma natureza",SAIDA,true,true,false
+5302,"Prestação de serviço de comunicação a estabelecimento industrial",SAIDA,true,true,false
+5303,"Prestação de serviço de comunicação a estabelecimento comercial",SAIDA,true,true,false
+5304,"Prestação de serviço de comunicação a estabelecimento de prestador de serviço de transporte",SAIDA,true,true,false
+5305,"Prestação de serviço de comunicação a estabelecimento de geradora ou de distribuidora de energia elétrica",SAIDA,true,true,false
+5306,"Prestação de serviço de comunicação a estabelecimento de produtor rural",SAIDA,true,true,false
+5307,"Prestação de serviço de comunicação a não contribuinte",SAIDA,true,true,false
+5350,"PRESTAÇÕES DE SERVIÇOS DE TRANSPORTE",SAIDA,true,true,false
+5351,"Prestação de serviço de transporte para execução de serviço da mesma natureza",SAIDA,true,true,false
+5352,"Prestação de serviço de transporte a estabelecimento industrial",SAIDA,true,true,false
+5353,"Prestação de serviço de transporte a estabelecimento comercial",SAIDA,true,true,false
+5354,"Prestação de serviço de transporte a estabelecimento de prestador de serviço de comunicação",SAIDA,true,true,false
+5355,"Prestação de serviço de transporte a estabelecimento de geradora ou de distribuidora de energia elétrica",SAIDA,true,true,false
+5356,"Prestação de serviço de transporte a estabelecimento de produtor rural",SAIDA,true,true,false
+5357,"Prestação de serviço de transporte a não contribuinte",SAIDA,true,true,false
+5359,"Prestação de serviço de transporte a contribuinte ou a não contribuinte quando a mercadoria transportada está dispensada de emissão de nota fiscal.",SAIDA,true,true,false
+5360,"Prestação de serviço de transporte a contribuinte substituto em relação ao serviço de transporte",SAIDA,true,true,false
+5401,"Venda de produção do estabelecimento em operação com produto sujeito ao regime de substituição tributária, na condição de contribuinte substituto",SAIDA,true,true,true
+5402,"Venda de produção do estabelecimento de produto sujeito ao regime de substituição tributária, em operação entre contribuintes substitutos do mesmo produto",SAIDA,true,true,false
+5403,"Venda de mercadoria adquirida ou recebida de terceiros em operação com mercadoria sujeita ao regime de substituição tributária, na condição de contribuinte substituto",SAIDA,true,true,false
+5405,"Venda de mercadoria adquirida ou recebida de terceiros em operação com mercadoria sujeita ao regime de substituição tributária, na condição de contribuinte substituído",SAIDA,true,true,false
+5408,"Transferência de produção do estabelecimento em operação com produto sujeito ao regime de substituição tributária",SAIDA,true,true,false
+5409,"Transferência de mercadoria adquirida ou recebida de terceiros em operação com mercadoria sujeita ao regime de substituição tributária",SAIDA,true,true,false
+5410,"Devolução de compra para industrialização ou produção rural em operação com mercadoria sujeita ao regime de substituição tributária",SAIDA,true,true,false
+5411,"Devolução de compra para comercialização em operação com mercadoria sujeita ao regime de substituição tributária",SAIDA,true,true,false
+5412,"Devolução de bem do ativo imobilizado, em operação com mercadoria sujeita ao regime de substituição tributária",SAIDA,true,true,false
+5413,"Devolução de mercadoria destinada ao uso ou consumo, em operação com mercadoria sujeita ao regime de substituição tributária",SAIDA,true,true,false
+5414,"Remessa de produção do estabelecimento para venda fora do estabelecimento em operação com produto sujeito ao regime de substituição tributária",SAIDA,false,false,false
+5415,"Remessa de mercadoria adquirida ou recebida de terceiros para venda fora do estabelecimento, em operação com mercadoria sujeita ao regime de substituição tributária",SAIDA,false,false,false
+5453,"Retorno de animal ou da produção - Sistema de Integração e Parceria Rural",SAIDA,false,false,false
+5454,"Retorno simbólico de animal ou da produção - Sistema de Integração e Parceria Rural",SAIDA,false,false,false
+5455,"Retorno de insumos não utilizados na produção - Sistema de Integração e Parceria Rural",SAIDA,false,false,false
+5456,"Saída referente a remuneração do produtor - Sistema de Integração e Parceria Rural",SAIDA,true,true,false
+5501,"Remessa de produção do estabelecimento, com fim específico de exportação",SAIDA,false,false,false
+5502,"Remessa de mercadoria adquirida ou recebida de terceiros, com fim específico de exportação",SAIDA,false,false,false
+5503,"Devolução de mercadoria recebida com fim específico de exportação",SAIDA,true,true,false
+5550,"OPERAÇÕES COM BENS DE ATIVO IMOBILIZADO E MATERIAIS PARA USO OU CONSUMO",SAIDA,true,true,false
+5551,"Venda de bem do ativo imobilizado",SAIDA,true,true,false
+5552,"Transferência de bem do ativo imobilizado",SAIDA,true,true,false
+5553,"Devolução de compra de bem para o ativo imobilizado",SAIDA,true,true,false
+5554,"Remessa de bem do ativo imobilizado para uso fora do estabelecimento",SAIDA,false,false,false
+5555,"Devolução de bem do ativo imobilizado de terceiro, recebido para uso no estabelecimento",SAIDA,true,true,false
+5556,"Devolução de compra de material de uso ou consumo",SAIDA,true,true,false
+5557,"Transferência de material de uso ou consumo",SAIDA,true,true,false
+5601,"Transferência de crédito de ICMS acumulado",SAIDA,true,true,false
+5602,"Transferência de saldo credor de ICMS para outro estabelecimento da mesma empresa, destinado à compensação de saldo devedor de ICMS",SAIDA,true,true,false
+5603,"Ressarcimento de ICMS retido por substituição tributária",SAIDA,true,true,false
+5605,"Transferência de saldo devedor de ICMS de outro estabelecimento da mesma empresa.",SAIDA,true,true,false
+5606,"Utilização de saldo credor de ICMS para extinção por compensação de débitos fiscais.",SAIDA,true,true,false
+5650,"SAÍDAS DE COMBUSTÍVEIS, DERIVADOS OU NÃO DE PETRÓLEO E LUBRIFICANTES",SAIDA,true,true,false
+5651,"Venda de combustível ou lubrificante de produção do estabelecimento destinado à industrialização subseqüente",SAIDA,true,true,false
+5652,"Venda de combustível ou lubrificante de produção do estabelecimento destinado à comercialização",SAIDA,true,true,false
+5653,"Venda de combustível ou lubrificante de produção do estabelecimento destinado a consumidor ou usuário final",SAIDA,true,true,false
+5654,"Venda de combustível ou lubrificante adquirido ou recebido de terceiros destinado à industrialização subseqüente",SAIDA,true,true,false
+5655,"Venda de combustível ou lubrificante adquirido ou recebido de terceiros destinado à comercialização",SAIDA,true,true,false
+5656,"Venda de combustível ou lubrificante adquirido ou recebido de terceiros destinado a consumidor ou usuário final",SAIDA,true,true,false
+5657,"Remessa de combustível ou lubrificante adquirido ou recebido de terceiros para venda fora do estabelecimento",SAIDA,false,false,false
+5658,"Transferência de combustível ou lubrificante de produção do estabelecimento",SAIDA,true,true,false
+5659,"Transferência de combustível ou lubrificante adquirido ou recebido de terceiro",SAIDA,true,true,false
+5660,"Devolução de compra de combustível ou lubrificante adquirido para industrialização subseqüente",SAIDA,true,true,false
+5661,"Devolução de compra de combustível ou lubrificante adquirido para comercialização",SAIDA,true,true,false
+5663,"Remessa para armazenagem de combustível ou lubrificante",SAIDA,false,false,false
+5664,"Retorno de combustível ou lubrificante recebido para armazenagem",SAIDA,false,false,false
+5665,"Retorno simbólico de combustível ou lubrificante recebido para armazenagem",SAIDA,false,false,false
+5666,"Remessa por conta e ordem de terceiros de combustível ou lubrificante recebido para armazenagem",SAIDA,false,false,false
+5667,"Venda de combustível ou lubrificante a consumidor ou usuário final estabelecido em outra unidade da Federação",SAIDA,true,true,false
+5901,"Remessa para industrialização por encomenda",SAIDA,false,false,false
+5902,"Retorno de mercadoria utilizada na industrialização por encomenda",SAIDA,false,false,false
+5903,"Retorno de mercadoria recebida para industrialização e não aplicada no referido processo",SAIDA,false,false,false
+5904,"Remessa para venda fora do estabelecimento",SAIDA,false,false,false
+5905,"Remessa para depósito fechado ou armazém geral",SAIDA,false,false,false
+5906,"Retorno de mercadoria depositada em depósito fechado ou armazém geral",SAIDA,false,false,false
+5907,"Retorno simbólico de mercadoria depositada em depósito fechado ou armazém geral",SAIDA,false,false,false
+5908,"Remessa de bem por conta de contrato de comodato ou locação",SAIDA,false,false,false
+5909,"Retorno de bem recebido por conta de contrato de comodato ou locação",SAIDA,false,false,false
+5910,"Remessa em bonificação, doação ou brinde",SAIDA,false,false,false
+5911,"Remessa de amostra grátis",SAIDA,false,false,false
+5912,"Remessa de mercadoria ou bem para demonstração",SAIDA,false,false,false
+5913,"Retorno de mercadoria ou bem recebido para demonstração",SAIDA,false,false,false
+5914,"Remessa de mercadoria ou bem para exposição ou feira",SAIDA,false,false,false
+5915,"Remessa de mercadoria ou bem para conserto ou reparo",SAIDA,false,false,false
+5916,"Retorno de mercadoria ou bem recebido para conserto ou reparo",SAIDA,false,false,false
+5917,"Remessa de mercadoria em consignação mercantil ou industrial",SAIDA,false,false,false
+5918,"Devolução de mercadoria recebida em consignação mercantil ou industrial",SAIDA,true,true,false
+5919,"Devolução simbólica de mercadoria vendida ou utilizada em processo industrial, recebida anteriormente em consignação mercantil ou industrial",SAIDA,true,true,false
+5920,"Remessa de vasilhame ou sacaria",SAIDA,false,false,false
+5921,"Devolução de vasilhame ou sacaria",SAIDA,true,true,false
+5922,"Lançamento efetuado a título de simples faturamento decorrente de venda para entrega futura",SAIDA,true,true,false
+5923,"Remessa de mercadoria por conta e ordem de terceiros, em venda à ordem ou em operações com armazém geral ou depósito fechado.",SAIDA,false,false,false
+5924,"Remessa para industrialização por conta e ordem do adquirente da mercadoria, quando esta não transitar pelo estabelecimento do adquirente",SAIDA,false,false,false
+5925,"Retorno de mercadoria recebida para industrialização por conta e ordem do adquirente da mercadoria, quando aquela não transitar pelo estabelecimento do adquirente",SAIDA,false,false,false
+5926,"Lançamento efetuado a título de reclassificação de mercadoria decorrente de formação de kit ou de sua desagregação",SAIDA,true,true,false
+5927,"Lançamento efetuado a título de baixa de estoque decorrente de perda, roubo ou deterioração",SAIDA,true,true,false
+5928,"Lançamento efetuado a título de baixa de estoque decorrente do encerramento da atividade da empresa",SAIDA,true,true,false
+5929,"Lançamento efetuado em decorrência de emissão de documento fiscal relativo a operação ou prestação também registrada em equipamento Emissor de Cupom Fiscal - ECF",SAIDA,true,true,false
+5931,"Lançamento efetuado em decorrência da responsabilidade de retenção do imposto por substituição tributária, atribuída ao remetente ou alienante da mercadoria, pelo serviço de transporte realizado por transportador autônomo ou por transportador não inscrito na unidade da Federação onde iniciado o serviço",SAIDA,true,true,false
+5932,"Prestação de serviço de transporte iniciada em unidade da Federação diversa daquela onde inscrito o prestador",SAIDA,true,true,false
+5933,"Prestação de serviço tributado pelo ISSQN",SAIDA,true,true,false
+5934,"Remessa simbólica de mercadoria depositada em armazém geral ou depósito fechado",SAIDA,false,false,false
+5949,"Outra saída de mercadoria ou prestação de serviço não especificado",SAIDA,true,true,false
+6101,"Venda de produção do estabelecimento",SAIDA,true,true,true
+6102,"Venda de mercadoria adquirida ou recebida de terceiros",SAIDA,true,true,false
+6103,"Venda de produção do estabelecimento, efetuada fora do estabelecimento",SAIDA,true,true,false
+6104,"Venda de mercadoria adquirida ou recebida de terceiros, efetuada fora do estabelecimento",SAIDA,true,true,false
+6105,"Venda de produção do estabelecimento que não deva por ele transitar",SAIDA,true,true,false
+6106,"Venda de mercadoria adquirida ou recebida de terceiros, que não deva por ele transitar",SAIDA,true,true,false
+6107,"Venda de produção do estabelecimento, destinada a não contribuinte",SAIDA,true,true,false
+6108,"Venda de mercadoria adquirida ou recebida de terceiros, destinada a não contribuinte",SAIDA,true,true,false
+6109,"Venda de produção do estabelecimento, destinada à Zona Franca de Manaus ou Áreas de Livre Comércio",SAIDA,true,true,false
+6110,"Venda de mercadoria adquirida ou recebida de terceiros, destinada à Zona Franca de Manaus ou Áreas de Livre Comércio",SAIDA,true,true,false
+6111,"Venda de produção do estabelecimento remetida anteriormente em consignação industrial",SAIDA,true,true,false
+6112,"Venda de mercadoria adquirida ou recebida de Terceiros remetida anteriormente em consignação industrial",SAIDA,true,true,false
+6113,"Venda de produção do estabelecimento remetida anteriormente em consignação mercantil",SAIDA,true,true,false
+6114,"Venda de mercadoria adquirida ou recebida de terceiros remetida anteriormente em consignação mercantil",SAIDA,true,true,false
+6115,"Venda de mercadoria adquirida ou recebida de terceiros, recebida anteriormente em consignação mercantil",SAIDA,true,true,false
+6116,"Venda de produção do estabelecimento originada de encomenda para entrega futura",SAIDA,true,true,false
+6117,"Venda de mercadoria adquirida ou recebida de terceiros, originada de encomenda para entrega futura",SAIDA,true,true,false
+6118,"Venda de produção do estabelecimento entregue ao destinatário por conta e ordem do adquirente originário, em venda à ordem",SAIDA,true,true,false
+6119,"Venda de mercadoria adquirida ou recebida de terceiros entregue ao destinatário por conta e ordem do adquirente originário, em venda à ordem",SAIDA,true,true,false
+6120,"Venda de mercadoria adquirida ou recebida de terceiros entregue ao destinatário pelo vendedor remetente, em venda à ordem",SAIDA,true,true,false
+6122,"Venda de produção do estabelecimento remetida para industrialização, por conta e ordem do adquirente, sem transitar pelo estabelecimento do adquirente",SAIDA,true,true,false
+6123,"Venda de mercadoria adquirida ou recebida de terceiros remetida para industrialização, por conta e ordem do adquirente, sem transitar pelo estabelecimento do adquirente",SAIDA,true,true,false
+6125,"Industrialização efetuada para outra empresa quando a mercadoria recebida para utilização no processo de industrialização não transitar pelo estabelecimento adquirente da mercadoria",SAIDA,true,true,false
+6129,"Venda de insumo importado e de mercadoria industrializada sob o amparo do Regime Aduaneiro Especial de Entreposto Industrial sob Controle Informatizado do Sistema Público de Escrituração Digital (Recof-Sped).",SAIDA,true,true,false
+6131,"Remessa de produção de estabelecimento, com previsão de posterior ajuste ou fixação de preço de ato cooperativo.",SAIDA,false,false,false
+6132,"Fixação de preço de produção do estabelecimento, inclusive quando remetidas anteriormente com previsão de posterior ajuste ou fixação de preço ou fixação de preço de ato cooperativo.",SAIDA,true,true,false
+6150,"TRANSFERÊNCIAS DE PRODUÇÃO PRÓPRIA OU DE TERCEIROS",SAIDA,true,true,false
+6151,"Transferência de produção do estabelecimento",SAIDA,true,true,false
+6152,"Transferência de mercadoria adquirida ou recebida de terceiros",SAIDA,true,true,false
+6153,"Transferência de energia elétrica",SAIDA,true,true,false
+6155,"Transferência de produção do estabelecimento, que não deva por ele",SAIDA,true,true,false
+6156,"Transferência de mercadoria adquirida ou recebida de terceiros, que não deva por ele transitar",SAIDA,true,true,false
+6159,"Fornecimento de produção do estabelecimento de ato cooperativo",SAIDA,true,true,false
+6160,"Fornecimento de mercadoria adquirida ou recebida de terceiros de ato cooperativo",SAIDA,true,true,false
+6201,"Devolução de compra para industrialização ou produção rural",SAIDA,true,true,false
+6205,"Anulação de valor relativo a aquisição de serviço de comunicação",SAIDA,true,true,false
+6206,"Anulação de valor relativo a aquisição de serviço de transporte",SAIDA,true,true,false
+6207,"Anulação de valor relativo à compra de energia elétrica",SAIDA,true,true,false
+6208,"Devolução de mercadoria recebida em transferência para industrialização ou produção rural",SAIDA,true,true,false
+6209,"Devolução de mercadoria recebida em transferência para comercialização",SAIDA,true,true,false
+6210,"Devolução de compra para utilização na prestação de serviço",SAIDA,true,true,false
+6213,"Devolução de entrada de mercadoria com previsão de posterior ajuste ou fixação de preço, em ato cooperativo.",SAIDA,true,true,false
+6214,"Devolução de fixação de preço de produção do estabelecimento produtor, inclusive quando remetidas anteriormente com previsão de posterior ajuste ou fixação de preço, de ato cooperativo, para comercialização.",SAIDA,true,true,false
+6215,"Devolução de fixação de preço de produção do estabelecimento produtor, inclusive quando remetidas anteriormente com previsão de posterior ajuste ou fixação de preço, de ato cooperativo para industrialização.",SAIDA,true,true,false
+6216,"Devolução de entrada decorrente do fornecimento de produto ou mercadoria de ato cooperativo",SAIDA,true,true,false
+6251,"Venda de energia elétrica para distribuição ou comercialização",SAIDA,true,true,false
+6252,"Venda de energia elétrica para estabelecimento industrial",SAIDA,true,true,false
+6253,"Venda de energia elétrica para estabelecimento comercial",SAIDA,true,true,false
+6254,"Venda de energia elétrica para estabelecimento prestador de serviço de transporte",SAIDA,true,true,false
+6255,"Venda de energia elétrica para estabelecimento prestador de serviço de comunicação",SAIDA,true,true,false
+6256,"Venda de energia elétrica para estabelecimento de produtor rural",SAIDA,true,true,false
+6257,"Venda de energia elétrica para consumo por demanda contratada",SAIDA,true,true,false
+6258,"Venda de energia elétrica a não contribuinte",SAIDA,true,true,false
+6301,"Prestação de serviço de comunicação para execução de serviço da mesma natureza",SAIDA,true,true,false
+6302,"Prestação de serviço de comunicação a estabelecimento industrial",SAIDA,true,true,false
+6303,"Prestação de serviço de comunicação a estabelecimento comercial",SAIDA,true,true,false
+6304,"Prestação de serviço de comunicação a estabelecimento de prestador de serviço de transporte",SAIDA,true,true,false
+6305,"Prestação de serviço de comunicação a estabelecimento de geradora ou de distribuidora de energia elétrica",SAIDA,true,true,false
+6306,"Prestação de serviço de comunicação a estabelecimento de produtor rural",SAIDA,true,true,false
+6307,"Prestação de serviço de comunicação a não contribuinte",SAIDA,true,true,false
+6350,"PRESTAÇÕES DE SERVIÇOS DE TRANSPORTE",SAIDA,true,true,false
+6351,"Prestação de serviço de transporte para execução de serviço da mesma natureza",SAIDA,true,true,false
+6352,"Prestação de serviço de transporte a estabelecimento industrial",SAIDA,true,true,false
+6353,"Prestação de serviço de transporte a estabelecimento comercial",SAIDA,true,true,false
+6354,"Prestação de serviço de transporte a estabelecimento de prestador de serviço de comunicação",SAIDA,true,true,false
+6355,"Prestação de serviço de transporte a estabelecimento de geradora ou de distribuidora de energia elétrica",SAIDA,true,true,false
+6356,"Prestação de serviço de transporte a estabelecimento de produtor rural",SAIDA,true,true,false
+6357,"Prestação de serviço de transporte a não contribuinte",SAIDA,true,true,false
+6359,"Prestação de serviço de transporte a contribuinte ou a não contribuinte quando a mercadoria transportada está dispensada de emissão de nota fiscal.",SAIDA,true,true,false
+6360,"Prestação de serviço de transporte a contribuinte substituto em relação ao serviço de transporte.",SAIDA,true,true,false
+6401,"Venda de produção do estabelecimento em operação com produto sujeito ao regime de substituição tributária, na condição de contribuinte substituto",SAIDA,true,true,true
+6402,"Venda de produção do estabelecimento de produto sujeito ao regime de substituição tributária, em operação entre contribuintes substitutos do mesmo produto",SAIDA,true,true,false
+6403,"Venda de mercadoria adquirida ou recebida de terceiros em operação com mercadoria sujeita ao regime de substituição tributária, na condição de contribuinte substituto",SAIDA,true,true,false
+6404,"Venda de mercadoria sujeita ao regime de substituição tributária, cujo imposto já tenha sido retido anteriormente",SAIDA,true,true,false
+6408,"Transferência de produção do estabelecimento em operação com produto sujeito ao regime de substituição tributária",SAIDA,true,true,false
+6409,"Transferência de mercadoria adquirida ou recebida de terceiros em operação com mercadoria sujeita ao regime de substituição tributária",SAIDA,true,true,false
+6410,"Devolução de compra para industrialização ou produção rural em operação com mercadoria sujeita ao regime de substituição tributária",SAIDA,true,true,false
+6411,"Devolução de compra para comercialização em operação com mercadoria sujeita ao regime de substituição tributária",SAIDA,true,true,false
+6412,"Devolução de bem do ativo imobilizado, em operação com mercadoria sujeita ao regime de substituição tributária",SAIDA,true,true,false
+6413,"Devolução de mercadoria destinada ao uso ou consumo, em operação com mercadoria sujeita ao regime de substituição tributária",SAIDA,true,true,false
+6414,"Remessa de produção do estabelecimento para venda fora do estabelecimento em operação com produto sujeito ao regime de substituição tributária",SAIDA,false,false,false
+6415,"Remessa de mercadoria adquirida ou recebida de terceiros para venda fora do estabelecimento, em operação com mercadoria sujeita ao regime de substituição tributária",SAIDA,false,false,false
+6451,"Remessa de animal - Sistema de Integração e Parceria Rural",SAIDA,false,false,false
+6452,"Remessa de insumo - Sistema de Integração e Parceria Rural",SAIDA,false,false,false
+6453,"Retorno de animal ou da produção - Sistema de Integração e Parceria Rural",SAIDA,false,false,false
+6454,"Retorno simbólico de animal ou da produção - Sistema de Integração e Parceria Rural",SAIDA,false,false,false
+6455,"Retorno de insumos não utilizados na produção - Sistema de Integração e Parceria Rural",SAIDA,false,false,false
+6456,"Saída referente a remuneração do produtor - Sistema de Integração e Parceria Rural",SAIDA,true,true,false
+6501,"Remessa de produção do estabelecimento, com fim específico de exportação",SAIDA,false,false,false
+6502,"Remessa de mercadoria adquirida ou recebida de terceiros, com fim específico de exportação",SAIDA,false,false,false
+6503,"Devolução de mercadoria recebida com fim específico de exportação",SAIDA,true,true,false
+6551,"Venda de bem do ativo imobilizado",SAIDA,true,true,false
+6552,"Transferência de bem do ativo imobilizado",SAIDA,true,true,false
+6553,"Devolução de compra de bem para o ativo imobilizado",SAIDA,true,true,false
+6554,"Remessa de bem do ativo imobilizado para uso fora do estabelecimento",SAIDA,false,false,false
+6555,"Devolução de bem do ativo imobilizado de terceiro, recebido para uso no estabelecimento",SAIDA,true,true,false
+6556,"Devolução de compra de material de uso ou consumo",SAIDA,true,true,false
+6557,"Transferência de material de uso ou consumo",SAIDA,true,true,false
+6603,"Ressarcimento de ICMS retido por substituição tributária",SAIDA,true,true,false
+6650,"SAÍDAS DE COMBUSTÍVEIS, DERIVADOS OU NÃO DE PETRÓLEO E LUBRIFICANTES",SAIDA,true,true,false
+6651,"Venda de combustível ou lubrificante de produção do estabelecimento destinado à industrialização subseqüente",SAIDA,true,true,false
+6652,"Venda de combustível ou lubrificante de produção do estabelecimento destinado à comercialização",SAIDA,true,true,false
+6653,"Venda de combustível ou lubrificante de produção do estabelecimento destinado a consumidor ou usuário final",SAIDA,true,true,false
+6654,"Venda de combustível ou lubrificante adquirido ou recebido de terceiros destinado à industrialização subseqüente",SAIDA,true,true,false
+6655,"Venda de combustível ou lubrificante adquirido ou recebido de terceiros destinado à comercialização",SAIDA,true,true,false
+6656,"Venda de combustível ou lubrificante adquirido ou recebido de terceiros destinado a consumidor ou usuário final",SAIDA,true,true,false
+6657,"Remessa de combustível ou lubrificante adquirido ou recebido de terceiros para venda fora do estabelecimento",SAIDA,false,false,false
+6658,"Transferência de combustível ou lubrificante de produção do estabelecimento",SAIDA,true,true,false
+6659,"Transferência de combustível ou lubrificante adquirido ou recebido de terceiro",SAIDA,true,true,false
+6660,"Devolução de compra de combustível ou lubrificante adquirido para industrialização subseqüente",SAIDA,true,true,false
+6661,"Devolução de compra de combustível ou lubrificante adquirido para comercialização",SAIDA,true,true,false
+6662,"Devolução de compra de combustível ou lubrificante adquirido por consumidor ou usuário final",SAIDA,true,true,false
+6663,"Remessa para armazenagem de combustível ou lubrificante",SAIDA,false,false,false
+6664,"Retorno de combustível ou lubrificante recebido para armazenagem",SAIDA,false,false,false
+6665,"Retorno simbólico de combustível ou lubrificante recebido para armazenagem",SAIDA,false,false,false
+6666,"Remessa por conta e ordem de terceiros de combustível ou lubrificante recebido para armazenagem",SAIDA,false,false,false
+6667,"Venda de combustível ou lubrificante a consumidor ou usuário final estabelecido em outra unidade da Federação diferente da que ocorrer o consumo",SAIDA,true,true,false
+6901,"Remessa para industrialização por encomenda",SAIDA,false,false,false
+6902,"Retorno de mercadoria utilizada na industrialização por encomenda",SAIDA,false,false,false
+6903,"Retorno de mercadoria recebida para industrialização e não aplicada no referido processo",SAIDA,false,false,false
+6904,"Remessa para venda fora do estabelecimento",SAIDA,false,false,false
+6905,"Remessa para depósito fechado ou armazém geral",SAIDA,false,false,false
+6906,"Retorno de mercadoria depositada em depósito fechado ou armazém geral",SAIDA,false,false,false
+6907,"Retorno simbólico de mercadoria depositada em depósito fechado ou armazém geral",SAIDA,false,false,false
+6908,"Remessa de bem por conta de contrato de comodato ou locação",SAIDA,false,false,false
+6909,"Retorno de bem recebido por conta de contrato de comodato ou locação",SAIDA,false,false,false
+6910,"Remessa em bonificação, doação ou brinde",SAIDA,false,false,false
+6911,"Remessa de amostra grátis",SAIDA,false,false,false
+6912,"Remessa de mercadoria ou bem para demonstração",SAIDA,false,false,false
+6913,"Retorno de mercadoria ou bem recebido para demonstração",SAIDA,false,false,false
+6914,"Remessa de mercadoria ou bem para exposição ou feira",SAIDA,false,false,false
+6915,"Remessa de mercadoria ou bem para conserto ou reparo",SAIDA,false,false,false
+6916,"Retorno de mercadoria ou bem recebido para conserto ou reparo",SAIDA,false,false,false
+6917,"Remessa de mercadoria em consignação mercantil ou industrial",SAIDA,false,false,false
+6918,"Devolução de mercadoria recebida em consignação mercantil ou industrial",SAIDA,true,true,false
+6919,"Devolução simbólica de mercadoria vendida ou utilizada em processo industrial, recebida anteriormente em consignação mercantil ou industrial",SAIDA,true,true,false
+6920,"Remessa de vasilhame ou sacaria",SAIDA,false,false,false
+6921,"Devolução de vasilhame ou sacaria",SAIDA,true,true,false
+6922,"Lançamento efetuado a título de simples faturamento decorrente de venda para entrega futura",SAIDA,true,true,false
+6923,"Remessa de mercadoria por conta e ordem de terceiros, em venda à ordem ou em operações com armazém geral ou depósito fechado",SAIDA,false,false,false
+6924,"Remessa para industrialização por conta e ordem do adquirente da mercadoria, quando esta não transitar pelo estabelecimento do adquirente",SAIDA,false,false,false
+6925,"Retorno de mercadoria recebida para industrialização por conta e ordem do adquirente da mercadoria, quando aquela não transitar pelo estabelecimento do adquirente",SAIDA,false,false,false
+6929,"Lançamento efetuado em decorrência de emissão de documento fiscal relativo a operação ou prestação também registrada em equipamento Emissor de Cupom Fiscal - ECF",SAIDA,true,true,false
+6931,"Lançamento efetuado em decorrência da responsabilidade de retenção do imposto por substituição tributária, atribuída ao remetente ou alienante da mercadoria, pelo serviço de transporte realizado por transportador autônomo ou por transportador não inscrito na unidade da Federação onde iniciado o serviço",SAIDA,true,true,false
+6932,"Prestação de serviço de transporte iniciada em unidade da Federação diversa daquela onde inscrito o prestador",SAIDA,true,true,false
+6933,"Prestação de serviço tributado pelo ISSQN",SAIDA,true,true,false
+6934,"Remessa simbólica de mercadoria depositada em armazém geral ou depósito fechado",SAIDA,false,false,false
+6949,"Outra saída de mercadoria ou prestação de serviço não especificado",SAIDA,true,true,false
+7101,"Venda de produção do estabelecimento",SAIDA,true,true,true
+7102,"Venda de mercadoria adquirida ou recebida de terceiros",SAIDA,true,true,false
+7105,"Venda de produção do estabelecimento, que não deva por ele transitar",SAIDA,true,true,false
+7106,"Venda de mercadoria adquirida ou recebida de terceiros, que não deva por ele transitar",SAIDA,true,true,false
+7127,"Venda de produção do estabelecimento sob o regime de “drawback”",SAIDA,true,true,false
+7129,"Venda de produção do estabelecimento ao mercado externo de mercadoria industrializada sob o amparo do Regime Aduaneiro Especial de Entreposto Industrial sob Controle Informatizado do Sistema Público de Escrituração Digital (Recof-Sped).",SAIDA,true,true,false
+7201,"Devolução de compra para industrialização ou produção rural",SAIDA,true,true,false
+7202,"Devolução de compra para comercialização",SAIDA,true,true,false
+7205,"Anulação de valor relativo à aquisição de serviço de comunicação",SAIDA,true,true,false
+7206,"Anulação de valor relativo a aquisição de serviço de transporte",SAIDA,true,true,false
+7207,"Anulação de valor relativo à compra de energia elétrica",SAIDA,true,true,false
+7210,"Devolução de compra para utilização na prestação de serviço",SAIDA,true,true,false
+7211,"Devolução de compras para industrialização sob o regime de drawback",SAIDA,true,true,false
+7212,"Devolução de compras para industrialização sob o regime de Regime Aduaneiro Especial de Entreposto Industrial sob Controle Informatizado do Sistema Público de Escrituração Digital (Recof-Sped).",SAIDA,true,true,false
+7250,"VENDAS DE ENERGIA ELÉTRICA",SAIDA,true,true,false
+7251,"Venda de energia elétrica para o exterior",SAIDA,true,true,false
+7301,"Prestação de serviço de comunicação para execução de serviço da mesma natureza",SAIDA,true,true,false
+7350,"PRESTAÇÕES DE SERVIÇO DE TRANSPORTE",SAIDA,true,true,false
+7358,"Prestação de serviço de transporte",SAIDA,true,true,false
+7501,"Exportação de mercadorias recebidas com fim específico de exportação",SAIDA,true,true,false
+7504,"Exportação de mercadoria que foi objeto de formação de lote de exportação",SAIDA,true,true,false
+7550,"OPERAÇÕES COM BENS DE ATIVO IMOBILIZADO E MATERIAIS PARA USO OU CONSUMO",SAIDA,true,true,false
+7551,"Venda de bem do ativo imobilizado",SAIDA,true,true,false
+7552,"Saída de produtos destinados ao uso ou consumo de bordo, em embarcações ou aeronaves exclusivamente em tráfego internacional com destino ao exterior",SAIDA,true,true,false
+7553,"Devolução de compra de bem para o ativo imobilizado",SAIDA,true,true,false
+7556,"Devolução de compra de material de uso ou consumo",SAIDA,true,true,false
+7650,"SAÍDAS DE COMBUSTÍVEIS, DERIVADOS OU NÃO DE PETRÓLEO E LUBRIFICANTES",SAIDA,true,true,false
+7651,"Venda de combustível ou lubrificante de produção do estabelecimento",SAIDA,true,true,false
+7654,"Venda de combustível ou lubrificante adquirido ou recebido de terceiros",SAIDA,true,true,false
+7667,"Venda de combustível ou lubrificante a consumidor ou usuário final",SAIDA,true,true,false
+7930,"Lançamento efetuado a título de devolução de bem cuja entrada tenha ocorrido sob amparo de regime especial aduaneiro de admissão temporária",SAIDA,true,true,false
+7949,"Outra saída de mercadoria ou prestação de serviço não especificado",SAIDA,true,true,false

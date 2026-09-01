@@ -4,7 +4,7 @@
 **Versão:** 12.0 — revisão fiscal/AP-AR (crédito Simples, IS na base, redução de alíquota, split; retenções, estorno, alçada, dunning, PIX, estabelecimento)
 **Stack:** Spring Boot (Java) · PostgreSQL · Angular
 **Schema financeiro:** `financeiro` · `fiscal` · `contabil`
-**Última atualização:** 20 de julho de 2026
+**Última atualização:** 27 de agosto de 2026
 
 ---
 
@@ -886,7 +886,7 @@ ENTRADA
 
 PASSO 1 — Validar CFOP
   ├── CFOP não encontrado → lançar FiscalException("CFOP_NAO_ENCONTRADO")
-  └── CFOP.tipo_operacao ≠ 'SAIDA' → lançar FiscalException("CFOP_INVALIDO_SAIDA")
+  └── CFOP.tipo_operacao = 'ENTRADA' → desvia para o fluxo de crédito (§1.4.3), não é erro
 
 PASSO 2 — Verificar tributação do produto
   ├── NCM não encontrado → warning, usar alíquota padrão sem regime diferenciado
@@ -902,7 +902,9 @@ PASSO 3 — Buscar alíquotas vigentes pela data_competencia
   ├── aliq_ibs = AliquotaIbsProvider.get(ibge_destino, ano_competencia)
   │     ├── Cache hit → retornar cached
   │     └── Cache miss → buscar fiscal.aliq_ibs_municipio, armazenar cache TTL 7 dias
-  │           └── Não encontrado → lançar FiscalException("MUNICIPIO_SEM_ALIQUOTA_IBS")
+  │           ├── Município sem linha própria → linha de REFERÊNCIA nacional ('0000000') + aviso
+  │           └── Nem própria nem referência (ano fora de 2026–2033)
+  │                 → lançar FiscalException("VIGENCIA_SEM_COBERTURA")
   └── aliq_cbs = AliquotaCbsProvider.get(regime_empresa, ano_competencia)
         └── Cache miss → buscar fiscal.aliq_cbs_regime, armazenar cache TTL 7 dias
               └── Não encontrado → lançar FiscalException("REGIME_SEM_ALIQUOTA_CBS")
@@ -968,29 +970,34 @@ SAÍDA
 
 ---
 
-### 1.4.3 Fluxo Completo de Cálculo — Entrada (NF-e de Compra / CT-e)
+### 1.4.3 Fluxo Completo de Cálculo — Entrada (NF-e de Compra / CT-e) ✅ FEITO (27 de agosto de 2026)
+
+> Implementado com escopo mais estreito do que o pseudocódigo original desta seção previa —
+> ver decisão de 29 de julho de 2026 em `spec/motor-fiscal-proximos-passos.md` §4. Não existe
+> lógica por `regime_fornecedor` (MEI/SIMPLES_NACIONAL/`ibs_cbs_por_fora`): o crédito é
+> determinado só pelo próprio CFOP (`gera_credito_ibs`/`gera_credito_cbs`) e pelas vedações
+> declaradas no request. E não há passo de escrita: `fiscal-service` não persiste — quem
+> acumula em apuração mensal é o `operacoes-service` (AP), a partir do valor que este fluxo
+> devolve.
 
 ```
-PASSO 1 a 8 → idêntico ao fluxo de saída
+PASSO 1 — CFOP.tipo_operacao = 'ENTRADA' → desvia deste fluxo (em vez do de saída)
+PASSO 2 a 8 → resolução de alíquota IBS/CBS idêntica ao fluxo de saída (mesmo NCM/UF/vigência)
 
-PASSO 9 — Verificar direito a crédito (regime do FORNECEDOR determina o crédito)
+PASSO 9 — Verificar direito a crédito (MotorFiscalService.calcularCredito)
   ├── cfop.gera_credito_ibs = FALSE → credito_ibs = 0
   ├── cfop.gera_credito_cbs = FALSE → credito_cbs = 0
-  ├── regime_fornecedor = 'MEI' → credito_ibs = 0, credito_cbs = 0
-  ├── regime_fornecedor = 'SIMPLES_NACIONAL' (recolhe IBS/CBS dentro do DAS):
-  │     credito_ibs / credito_cbs = montante EQUIVALENTE ao efetivamente
-  │     cobrado dentro do Simples (crédito reduzido — LC 214/2025;
-  │     lógica herdada do art. 23 da LC 123)
-  ├── regime_fornecedor = 'SIMPLES_NACIONAL' com pessoa.ibs_cbs_por_fora = TRUE
-  │     (optante que recolhe IBS/CBS pelo regime regular, fora do DAS):
-  │     credito_ibs = valor_ibs, credito_cbs = valor_cbs (crédito integral)
-  └── Demais regimes (Lucro Real, Lucro Presumido):
-        credito_ibs = valor_ibs (crédito integral do destacado)
-        credito_cbs = valor_cbs
+  ├── request.usoConsumoPessoal = TRUE → credito_ibs = 0, credito_cbs = 0
+  │     (vedação declarada pelo chamador tem prioridade sobre o que o CFOP permite)
+  ├── request.percentualSaidaDesonerada > 0 → credito_ibs/credito_cbs = valor_ibs/cbs ×
+  │     fatorReducao(percentualSaidaDesonerada) (crédito proporcional ao complemento —
+  │     mesma função usada na redução de alíquota de saída)
+  └── Caso contrário → credito_ibs = valor_ibs, credito_cbs = valor_cbs (crédito integral)
 
-PASSO 10 — Acumular na apuração mensal
-  → apuracao_mensal.creditos_ibs += credito_ibs
-  → apuracao_mensal.creditos_cbs += credito_cbs
+IS nunca gera crédito (monofásico, cumulativo por desenho) — não entra no PASSO 9.
+
+Devolve credito_ibs/credito_cbs em OperacaoFiscalDTO, com memória de cálculo. Não escreve —
+quem acumula em apuração mensal e controla saldo/aproveitamento é o operacoes-service (AP).
 ```
 
 ---
@@ -1001,6 +1008,22 @@ PASSO 10 — Acumular na apuração mensal
 > em **§1.8.5** (`ANEXO_I_ZERO` … `ANEXO_XI_60`, `MONOFASICO`, `ISENTO`, `IMUNE`, `ZFM`).
 > A resolução NCM → regime usa match por prefixo mais longo (§1.8-A).
 > A redução é sempre de **alíquota** (§1.4.2 Passo 5).
+
+##### Modelagem: enum, seed ou CRUD? (ADR)
+
+Três coisas distintas se escondem em "regime diferenciado" — cada uma tem um dono e um mecanismo de mudança diferente:
+
+| O quê | Modelo | Muda como | É CRUD? |
+|---|---|---|---|
+| **Catálogo de regimes** (quais tratamentos existem: `ANEXO_*`, `MONOFASICO`, `ISENTO`, `IMUNE`, `ZFM`) | `enum RegimeDiferenciado` (taxonomia legal fechada da LC 214/2025) | Migração de código quando a lei cria/altera anexo | **Não** |
+| **Percentual de redução** de cada linha (0 / 30 / 60 / 100) | Coluna `fiscal.regime_dif_ncm.percentual_reducao` | Seed/import de fonte oficial | Não (import) |
+| **De-para código → regime** (NCM/NBS → anexo) | Linhas de `fiscal.regime_dif_ncm` | Seed/import de fonte oficial (CGIBS/RFB) | Não (import) |
+
+**Decisão:** o enum **não** é editável por usuário/admin — dar a alguém o poder de inventar regime fiscal é buraco de compliance, não feature. Novo anexo entra por migração. O **conteúdo** (de-para e percentuais) é **dado nacional publicado**, então é um **pipeline de seed/import de tabela oficial**, não um CRUD de mão. Um CRUD só faria sentido para **override por exceção por tenant** (regime especial deferido individualmente) — fora de escopo da v1 (YAGNI até o requisito real).
+
+**Single source of truth do percentual:** a coluna `percentual_reducao` é a fonte autoritativa. Na fatia atual (motor in-memory) o percentual está embutido no enum (`REDUCAO_60 → 60`) por simplicidade — é um espelho transitório. Ao trocar `TabelaFiscalInMemory` por `TabelaFiscalJpa`, o percentual passa a vir **da linha**, e o enum fica só como rótulo de categoria + comportamento (zera tudo vs. reduz alíquota). O enum simplificado de hoje (`CESTA_BASICA`/`REDUCAO_60`/`REDUCAO_30`/`MONOFASICO`/`PADRAO`) é a projeção de comportamento dos anexos; o loader JPA mapeia `ANEXO_I_ZERO → alíquota zero`, `ANEXO_*_60 → redução 60%`, etc.
+
+> Tabela e seed inicial (Anexo I — alíquota zero): changelog `fiscal/fiscal-schema-001.yaml`. Colunas e seed detalhados em **§1.8.5/§1.8.6**.
 
 ---
 
@@ -1102,34 +1125,47 @@ Produtos industrializados na ZFM têm benefício fiscal preservado pela LC 214/2
 
 ### 1.4.8 Exemplos Numéricos
 
+> Os nomes de regime abaixo (`CESTA_BASICA`, `REDUCAO_60`) são descritivos. O `regimeAplicado` que
+> o motor devolve é o nome como está no banco (`ANEXO_I_ZERO`, `ANEXO_III_60`, …), porque o catálogo
+> da LC 214 cresce por migração e o percentual da linha é a fonte autoritativa. Valores conferidos
+> em `spec/casos-teste-motor-fiscal.md`.
+
 #### Exemplo 1 — Venda de mercadoria padrão (Lucro Real, SP → SP)
+
+> ⚠️ **Ano dos exemplos = 2033 (regime permanente), não 2027.** As alíquotas **reais** da transição,
+> obtidas na API de dados abertos do piloto CBS em 30/07/2026, são simbólicas: **2026** CBS 0,9% +
+> IBS 0,1% (0,1% estadual, 0% municipal); **2027 e 2028** CBS 8,4% + IBS 0,1% (0,05% + 0,05%).
+> Com elas o IBS de uma venda de R$ 10.000 é **R$ 10,00** — não exercita arredondamento, redução
+> nem repartição estado/município. Os 16,00% + 2,50% / 8,50% abaixo são a alíquota de **referência
+> real de 2033** (mesma fonte, mesma consulta), e é por isso que os exemplos usam 2033. A carga ano
+> a ano está em `fiscal-022-aliquotas-reais-portal-cbs`; fontes em `spec/fontes-dados-fiscais.md`.
 
 ```
 Produto:      Notebook, NCM 84713012, regime PADRAO
 Destinatário: Empresa em São Paulo (ibge: 3550308)
 Valor:        R$ 10.000,00
-Ano:          2027 (CBS em vigor, ICMS transição)
+Ano:          2033 (REGIME PERMANENTE — IBS/CBS cheios, transição encerrada)
 
-Alíquota IBS São Paulo 2027:
-  Estadual:   13,12% (estimado — validar com CGIBS)
-  Municipal:   4,50% (estimado)
-  Total:      17,62%
+Alíquota IBS São Paulo 2033 (referência, portal do piloto CBS):
+  Estadual:   16,00%
+  Municipal:   2,50%
+  Total:      18,50%
 
-Alíquota CBS Lucro Real 2027: 8,80%
+Alíquota CBS Lucro Real 2033: 8,50%
 
 Cálculo:
   base_ibs = 10.000,00
-  valor_ibs = 10.000 × 17,62% = R$ 1.762,00
-    → ibs_estadual = 10.000 × 13,12% = R$ 1.312,00
-    → ibs_municipal = 10.000 × 4,50% = R$   450,00
+  valor_ibs = 10.000 × 18,50% = R$ 1.850,00
+    → ibs_estadual = 10.000 × 16,00% = R$ 1.600,00
+    → ibs_municipal = 10.000 × 2,50% = R$   250,00
 
   base_cbs = 10.000,00
-  valor_cbs = 10.000 × 8,80% = R$ 880,00
+  valor_cbs = 10.000 × 8,50% = R$ 850,00
 
   IS = 0 (notebook não sujeito ao IS)
 
-  Total tributos novos = R$ 2.642,00
-  Crédito para o comprador = R$ 2.642,00 (se Lucro Real ou Presumido)
+  Total tributos novos = R$ 2.700,00
+  Crédito para o comprador = R$ 2.700,00 (se Lucro Real ou Presumido)
 ```
 
 #### Exemplo 2 — Venda de produto da cesta básica
@@ -1154,8 +1190,8 @@ Valor:        R$ 100,00
 
   IS  = 100 × 150%   = R$ 150,00 (recolhido pelo fabricante)
   base IBS/CBS = 100 + 150 = R$ 250,00 (IS integra a base — LC 214/2025)
-  IBS = 250 × 17,62% = R$ 44,05 (monofásico: = 0 no restante da cadeia)
-  CBS = 250 × 8,80%  = R$ 22,00 (monofásico: = 0)
+  IBS = 250 × 18,50% = R$ 46,25 (monofásico: = 0 no restante da cadeia)
+  CBS = 250 × 8,50%  = R$ 21,25 (monofásico: = 0)
 
   No distribuidor e varejista: IBS = 0, CBS = 0 (monofásico)
 ```
@@ -1168,13 +1204,13 @@ Valor:        R$ 300,00
 Regime:       REDUCAO_60
 
   base = R$ 300,00 (base cheia — a redução é de alíquota)
-  aliq_ibs_efetiva = 17,62% × (1 - 60%) = 7,048%
-  aliq_cbs_efetiva =  8,80% × (1 - 60%) = 3,52%
-  valor_ibs = 300 × 7,048% = R$ 21,14
-  valor_cbs = 300 × 3,52%  = R$ 10,56
+  aliq_ibs_efetiva = 18,50% × (1 - 60%) = 7,40%
+  aliq_cbs_efetiva =  8,50% × (1 - 60%) = 3,40%
+  valor_ibs = 300 × 7,40% = R$ 22,20
+  valor_cbs = 300 × 3,40% = R$ 10,20
   IS = 0   (p_red_ibs = p_red_cbs = 60 na NF-e)
 
-  Total = R$ 31,70 (vs R$ 79,14 sem redução)
+  Total = R$ 32,40 (vs R$ 81,00 sem redução)
 ```
 
 ---
@@ -1184,15 +1220,31 @@ Regime:       REDUCAO_60
 | Código de Erro | Causa | Ação |
 |---|---|---|
 | `CFOP_NAO_ENCONTRADO` | CFOP não existe na tabela | Bloquear emissão — CFOP inválido |
-| `MUNICIPIO_SEM_ALIQUOTA_IBS` | ibge_destino sem alíquota cadastrada | Fallback PARAMETRIZADO (§1.9): usa alíquota estadual da UF e **zera a parcela municipal** (mesmo comportamento do Oracle EBS hoje) + alerta. Valores do fallback em `fiscal.parametro_fiscal` — atualizável sem deploy |
 | `REGIME_SEM_ALIQUOTA_CBS` | Regime tributário sem alíquota para o ano | Fallback parametrizado (§1.9, default: alíquota do Lucro Real) + alerta |
 | `NCM_NAO_ENCONTRADO` | NCM não cadastrado | Warning — calcular com regime PADRAO + alerta |
-| `VIGENCIA_SEM_COBERTURA` | Data fora do cronograma de transição | Erro crítico — cronograma deve cobrir 2026–2033 |
-| `SPLIT_SEM_FORMA_PAGAMENTO` | Split payment sem forma de pagamento eletrônico | Ignorar split — dinheiro e cheque não suportam (boleto SUPORTA) |
+| `VIGENCIA_SEM_COBERTURA` | Data de competência sem alíquota IBS publicada — na prática, ano fora de 2026–2033 | 400. Desde o `fiscal-023` a linha de REFERÊNCIA nacional (`'0000000'`) cobre todos os municípios em 2026–2033, então município sem alíquota própria calcula normalmente com aviso na memória de cálculo; o que resta descoberto é o **ano**. Absorveu o antigo `MUNICIPIO_SEM_ALIQUOTA_IBS` |
+| `SPLIT_SEM_FORMA_PAGAMENTO` | Split payment sem forma de pagamento eletrônico | Com a flag `fiscal.split-payment` ligada, `splitPaymentAplicavel` é obrigatório em **saída**: ausente ⇒ 400 (não dá pra distinguir "não splitável" de "chamador esqueceu"); entrada nunca exige (item 4, 27 de agosto de 2026) |
+| `NCM_OU_SERVICO_OBRIGATORIO` | Nem `ncm` nem `codigoServico` informados | 400 — não há o que classificar |
+| `NCM_E_SERVICO_CONFLITANTES` | `ncm` **e** `codigoServico` juntos | 400 — produto e serviço são mutuamente exclusivos |
+| `CCLASSTRIB_OBRIGATORIO` | Serviço sem `cClassTrib` | 400 — sem ele o serviço cairia em PADRAO e seria tributado cheio, calado (erro contra o contribuinte) |
+| `CCLASSTRIB_INVALIDO_PARA_SERVICO` | `cClassTrib` não admitido para o item LC 116 informado | 400 — o par item × cClassTrib é fixado pelo Anexo VIII (`fiscal.servico_cclasstrib`) |
+
+Os códigos reais em `Constants` são prefixados: `FISCAL_CFOP_NAO_ENCONTRADO`,
+`FISCAL_CCLASSTRIB_OBRIGATORIO`, etc. Implementados hoje: todos acima, exceto
+`NCM_NAO_ENCONTRADO` — NCM desconhecido cai em PADRAO sem alerta (MF-10). O antigo
+`MUNICIPIO_SEM_ALIQUOTA_IBS` foi fundido em `VIGENCIA_SEM_COBERTURA` em 30 de julho de 2026:
+com a linha de referência nacional do `fiscal-023` não existe mais município descoberto
+dentro da curva 2026–2033. O fallback parametrizado de CBS (§1.9) não existe ainda: hoje o
+motor lança 400 em vez de aplicar fallback.
 
 ---
 
 ### 1.4.10 Interface do MotorFiscalService
+
+> Estado atual: só o `calcular` existe (`fiscal-service`, exposto em `POST /fiscal/calcular`), agora
+> cobrindo saída e entrada (crédito). `calcularEPersistir` e `recalcularPeriodo` **não existem e não
+> vão existir**: decisão fechada em 29 de julho de 2026 — o `fiscal-service` é só cálculo, para
+> sempre; quem persiste é o `operacoes-service` (AP/AR) (`spec/motor-fiscal-proximos-passos.md` §4).
 
 ```java
 @Service
@@ -1203,7 +1255,8 @@ public class MotorFiscalService {
      * Determinístico — mesmos inputs sempre produzem mesmo output.
      * Sem side effects — não persiste nada, apenas calcula.
      */
-    public OperacaoFiscalDTO calcular(MotorFiscalRequest request) { ... }
+    public OperacaoFiscalDTO calcular(MotorFiscalRequest request, String tenantId) { ... }
+    // tenantId vem do header X-Tenant-Id e SÓ decide o split payment por tenant — não entra no cálculo
 
     /**
      * Calcula e persiste — usado na aprovação de NF-e entrada/saída.
@@ -1233,9 +1286,18 @@ public class MotorFiscalRequest {
     private String cfop;
     private String ncm;                    // null para serviços
     private String codigoServico;          // código LC 116 — null para produtos
+    private String cClassTrib;             // classificação tributária do serviço (Anexo VIII)
+                                           // OBRIGATÓRIO quando codigoServico vem preenchido:
+                                           // é ele, não o código LC 116, que determina o regime
+                                           // (redução/isenção) do serviço. No JSON o nome é
+                                           // exatamente "cClassTrib" (igual à tag do XML da NFS-e).
     private String ibgeDestino;            // município do destinatário
-    private String ibgeLocalPrestacao;     // apenas para serviços
+    private String ibgeLocalPrestacao;     // apenas para serviços (NFS-e) — IBS pelo local da prestação
     private BigDecimal valorOperacao;
+    private BigDecimal valorDesconto;      // componentes da base (LC 214 art. 12, §2º) — OPCIONAIS.
+    private BigDecimal valorFrete;         // frete, seguro e acessórias ENTRAM na base; desconto
+    private BigDecimal valorSeguro;        // INCONDICIONAL sai. Sem nenhum deles, valorOperacao já
+    private BigDecimal valorOutrasDespesas;// é a base. Desconto >= total ⇒ 400.
     private LocalDate dataCompetencia;
     private String regimeEmpresa;          // regime do emitente
     private String origemProduto;          // 'NACIONAL' | 'ESTRANGEIRO' | 'ZFM'
@@ -1778,7 +1840,7 @@ Seeds iniciais:
 
 | Chave | Valor default | Uso |
 |---|---|---|
-| `fallback.ibs.municipal.zerar` | `true` | MUNICIPIO_SEM_ALIQUOTA_IBS → zera parcela municipal |
+| `fallback.ibs.municipal.zerar` | `true` | Superado pelo `fiscal-023` (linha de referência nacional) — não implementado e provavelmente desnecessário |
 | `fallback.ibs.usar_estadual_uf` | `true` | Usa alíquota estadual da UF no fallback |
 | `fallback.cbs.regime` | `LUCRO_REAL` | REGIME_SEM_ALIQUOTA_CBS → regime de fallback |
 | `guia.ibs.dia_vencimento` | `20` | Vencimento da guia IBS (dia do mês seguinte) |
@@ -2213,6 +2275,41 @@ CREATE INDEX idx_nfse_ingestao_pendente ON fiscal.nfse_ingestao(tenant_id, statu
 |---|---|---|
 | `fiscal/v1/029-nfse-template-registry.yaml` | `createTable` | `fiscal.nfse_template` + `fiscal.nfse_template_campo` + `fiscal.nfse_template_assinatura` (§1.11.2, §1.11.3) |
 | `fiscal/v1/030-nfse-ingestao.yaml` | `createTable` | `fiscal.nfse_ingestao` — fila/staging de XMLs recebidos, incluindo os não reconhecidos (§1.11.5) |
+
+---
+
+### 1.12 Manutenção Anual do Conteúdo Fiscal
+
+> Levantado em 30 de julho de 2026, sobre as 10 tabelas do schema `fiscal` que existem **de fato**
+> no `liquibase-service` (changesets `fiscal-001` a `fiscal-025`). Nenhum ano está hardcoded em
+> código Java — o motor deriva o ano de `dataCompetencia`, então **toda** a manutenção abaixo é
+> carga de dados, isto é, changeset novo. Editar changeset já aplicado quebra o checksum do
+> Liquibase: correção sempre entra como `fiscal-0NN` seguinte (e carga de CSV, com arquivo novo).
+
+| Tabela / arquivo | O que muda | Quando | Fonte | Cobertura hoje | Se atrasar |
+|---|---|---|---|---|---|
+| `aliq_ibs_municipio`, linha `'0000000'` | alíquota de REFERÊNCIA (Senado) do ano seguinte | todo ano; **obrigatório a partir de 2034** | API de dados abertos do piloto CBS | 2026–2033 (`fiscal-023`) | ano sem linha ⇒ **400** `FISCAL_VIGENCIA_SEM_COBERTURA` |
+| `aliq_cbs_regime` | idem, lado união | todo ano; **obrigatório a partir de 2034** | mesma API | 2026–2033 × 3 regimes | **400** `FISCAL_REGIME_SEM_ALIQUOTA_CBS` |
+| `aliq_ibs_municipio`, linhas de município | município que legisla alíquota **própria** (≠ referência) | lei municipal, ~dez/ano | diário oficial do município | **nenhuma** — 0 municípios | calcula com a referência e emite `FISCAL_AVISO_ALIQUOTA_REFERENCIA`: imposto errado, **não** bloqueia |
+| `ncm` | Camex altera/renumera NCM | 2–4×/ano (+ revisão do SH em 2028) | Tabela NCM vigente (CSV) | 15.156 linhas, snapshot de 02/07/2026 | NCM novo inexistente ⇒ **400** `FISCAL_NCM_NAO_ENCONTRADO` |
+| `regime_dif_ncm` | NCM renumerado quebra a chave do regime | junto com a `ncm` | LC 214 + anexos | carga v2 (`fiscal-016`) | item desonerado sai **tributado cheio** com aviso `PADRAO` |
+| `aliq_is_ncm` | alíquota do IS (lei ordinária) e os NCM do Anexo XVII ainda sem alíquota | anual / quando regulamentar | lei do IS | parcial — linhas com `aliquota_pct` NULL são ignoradas de propósito | IS não destacado |
+| `transicao_ano` | só se a LC mudar os degraus; **2034+ não tem linha** | uma vez, ao virar 2034 | LC 214 | 2026–2033 (`fiscal-025`) | quando o motor consumir a curva: competência 2034 ⇒ **400** |
+
+**Não é anual — muda por lei/NT, não por calendário:** `cfop` (Ajuste SINIEF), `servico_nbs` e
+`servico_cclasstrib` (Anexo VIII), `regime_cclasstrib`.
+
+**Três observações que valem mais que a tabela:**
+
+1. **O buraco real não é 2034, é município.** Nenhuma alíquota municipal própria está carregada:
+   hoje todo IBS municipal sai da referência do Senado. Enquanto nenhum ente publicar valor
+   diferente da referência isso está *correto*; a partir de 2029, quando os valores ficam
+   materiais (ver curva em §1.2), vira erro silencioso-com-aviso.
+2. **`transicao_ano` parar em 2033 é decisão, não esquecimento** — a partir de 2034 ICMS e ISS não
+   existem mais. Quando o motor passar a consumir a curva, cabe tratar `ano > 2033` como 0% no
+   próprio motor em vez de exigir linha na tabela.
+3. **Quem opera isso é o Painel de Administração Interna**, não o tenant (§16.1): são tabelas de
+   referência nacionais, sem `tenant_id`.
 
 ---
 

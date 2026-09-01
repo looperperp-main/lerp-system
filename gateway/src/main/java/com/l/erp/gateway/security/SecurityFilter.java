@@ -30,6 +30,9 @@ public class SecurityFilter extends OncePerRequestFilter {
     @Value("${api.security.jwt.secret}")
     private String secret;
 
+    @Value("${internal.gateway.secret}")
+    private String internalSecret;
+
     private final Logger log = LoggerFactory.getLogger(SecurityFilter.class);
 
     private static final Set<String> PUBLIC_PATHS = Set.of(
@@ -75,13 +78,13 @@ public class SecurityFilter extends OncePerRequestFilter {
         }
 
         if (PUBLIC_PATHS.contains(path) || PUBLIC_PREFIXES.stream().anyMatch(path::startsWith)) {
-            filterChain.doFilter(getWrappedRequest(request, Map.of()), response);
+            filterChain.doFilter(getWrappedRequest(request, Map.of(HEADER_INTERNAL_SECRET, internalSecret)), response);
             return;
         }
 
         Set<String> publicPathsForMethod = PUBLIC_METHOD_PATHS.get(request.getMethod().toUpperCase());
         if (publicPathsForMethod != null && publicPathsForMethod.contains(path)) {
-            filterChain.doFilter(getWrappedRequest(request, Map.of()), response);
+            filterChain.doFilter(getWrappedRequest(request, Map.of(HEADER_INTERNAL_SECRET, internalSecret)), response);
             return;
         }
 
@@ -132,6 +135,7 @@ public class SecurityFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().setAuthentication(authentication);
 
                 Map<String, String> extraHeaders = getExtraHeaders(decodedJWT, loginType, tenantId, isOwner, grantedAuthorities);
+                extraHeaders.put(HEADER_INTERNAL_SECRET, internalSecret);
 
                 HttpServletRequest wrappedRequest = getWrappedRequest(request, extraHeaders);
 
@@ -185,10 +189,14 @@ public class SecurityFilter extends OncePerRequestFilter {
     private static final String HEADER_IS_OWNER = "X-Is-Owner";
     private static final String HEADER_PARTNER_ID = "X-Partner-Id";
     private static final String HEADER_AUTHORITIES = "X-Authorities";
+    // Prova pro serviço interno de que a request passou pelo gateway (issue #62); mesmo nome de
+    // com.l.erp.common.util.Constants.HEADER_INTERNAL_SECRET (gateway não depende de common).
+    private static final String HEADER_INTERNAL_SECRET = "X-Internal-Secret";
 
     private static final Set<String> PROTECTED_HEADERS = Set.of(
             HEADER_USER_ID.toLowerCase(), HEADER_USER_EMAIL.toLowerCase(), HEADER_TENANT_ID.toLowerCase(),
-            HEADER_IS_OWNER.toLowerCase(), HEADER_PARTNER_ID.toLowerCase(), HEADER_AUTHORITIES.toLowerCase()
+            HEADER_IS_OWNER.toLowerCase(), HEADER_PARTNER_ID.toLowerCase(), HEADER_AUTHORITIES.toLowerCase(),
+            HEADER_INTERNAL_SECRET.toLowerCase()
     );
 
     private static boolean isProtected(String name) {

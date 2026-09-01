@@ -93,6 +93,7 @@ public class AttributionsService {
         // 3. REMOVER: O que tem no banco, mas NÃO veio no request, nós deletamos
         for (UserRole existingUr : existingUserRoles) {
             if (!targetRoleIds.contains(existingUr.getRole().getId())) {
+                assertRemocaoDeProprietarioPermitida(userId, existingUr.getRole());
                 userRoleRepository.delete(existingUr);
 
                 // Opcional: logar a deleção
@@ -114,6 +115,7 @@ public class AttributionsService {
                 if (!user.getTenant().getId().equals(role.getTenant().getId())) {
                     throw new BusinessException("A Role (" + role.getName() + ") pertence a outro Tenant e não pode ser atribuída a este usuário", HttpStatus.BAD_REQUEST);
                 }
+                assertAtribuicaoDeProprietarioPermitida(role);
 
                 UserRole ur = new UserRole();
                 ur.setId(new UserRoleId(user.getTenant().getId(), userId, newRoleId));
@@ -141,6 +143,10 @@ public class AttributionsService {
         if (!userRoleRepository.existsByUserAndRole(userId, roleId)) {
             throw new BusinessException("O vínculo entre este Usuário e Role não existe", HttpStatus.BAD_REQUEST);
         }
+
+        Role role = roleRepository.findById(roleId)
+                .orElseThrow(() -> new BusinessException("Role ID " + roleId + " não encontrada", HttpStatus.NOT_FOUND));
+        assertRemocaoDeProprietarioPermitida(userId, role);
 
         userRoleRepository.deleteByUserAndRole(userId, roleId);
 
@@ -175,5 +181,34 @@ public class AttributionsService {
     private void assertUserInTenant(UUID userId, Long tenantId) {
         userAccountRepository.findByIdAndTenantId(userId, tenantId)
                 .orElseThrow(() -> new BusinessException(Constants.USER_NOT_FOUND, HttpStatus.NOT_FOUND));
+    }
+
+    // Self-demotion / tenant órfão: a role de proprietário não pode ser removida do próprio
+    // usuário logado, nem do último proprietário restante do tenant. Chamado tanto por
+    // removeRoleFromUser quanto pelo laço de sync de assignRolesToUser (mesma origem de remoção).
+    private void assertRemocaoDeProprietarioPermitida(UUID userId, Role role) {
+        if (!Constants.OWNER_ROLE_NAME.equals(role.getName())) {
+            return;
+        }
+        if (userId.equals(SecurityUtils.getCurrentUserId().orElse(null))) {
+            throw new BusinessException(Constants.OWNER_ROLE_AUTO_REMOCAO, HttpStatus.BAD_REQUEST);
+        }
+        long proprietarios = userRoleRepository.countDistinctUsersByTenantIdAndRoleName(
+                role.getTenant().getId(), Constants.OWNER_ROLE_NAME);
+        if (proprietarios <= 1) {
+            throw new BusinessException(Constants.OWNER_ROLE_ULTIMO_PROPRIETARIO, HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    // Self-promotion: só quem já é proprietário do tenant pode conceder a role de proprietário
+    // a alguém (a si mesmo ou a outro usuário). Espelha assertRemocaoDeProprietarioPermitida.
+    private void assertAtribuicaoDeProprietarioPermitida(Role role) {
+        if (!Constants.OWNER_ROLE_NAME.equals(role.getName())) {
+            return;
+        }
+        UUID callerId = SecurityUtils.getCurrentUserId().orElse(null);
+        if (callerId == null || !userRoleRepository.existsByUserAndRole(callerId, role.getId())) {
+            throw new BusinessException(Constants.OWNER_ROLE_CONCESSAO_NAO_AUTORIZADA, HttpStatus.FORBIDDEN);
+        }
     }
 }

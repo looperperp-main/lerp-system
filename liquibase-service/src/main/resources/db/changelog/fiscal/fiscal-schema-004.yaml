@@ -1,0 +1,93 @@
+databaseChangeLog:
+
+  # A descrição oficial do convênio encosta em 300 caracteres (ex.: 5.405 e as notas de ST).
+  # Alarga antes da carga — varchar->text no Postgres não reescreve a tabela.
+  - changeSet:
+      id: fiscal-013-cfop-descricao-text
+      author: vitor-fernandes
+      changes:
+        - modifyDataType:
+            schemaName: fiscal
+            tableName: cfop
+            columnName: descricao
+            newDataType: text
+      rollback:
+        - modifyDataType:
+            schemaName: fiscal
+            tableName: cfop
+            columnName: descricao
+            newDataType: varchar(300)
+
+  # Carga da tabela CFOP completa (Fatia A1).
+  #
+  # Fonte: spec/cfop_cvsn_70_vigente.md — Convênio SINIEF s/nº de 15/12/1970, Anexo II, com as
+  # alterações até o Ajuste SINIEF 03/22. O arquivo é o texto corrido do convênio: traz também as
+  # redações revogadas ("Redação anterior dada ao CFOP ..."), então a extração fica com a PRIMEIRA
+  # ocorrência de cada código, que é a vigente. Cabeçalhos de grupo (x.000/x.y00, escritos em
+  # caixa alta) ficam de fora: não são CFOP utilizável em documento fiscal.
+  #
+  # O delete abaixo limpa o seed parcial de 6 linhas do changeset fiscal-006, que vira subconjunto
+  # desta carga (fiscal.cfop tem unique em codigo — sem o delete a carga colide).
+  #
+  # ─── Colunas DERIVADAS, não oficiais ────────────────────────────────────────────────────────
+  # A tabela do convênio publica só código + descrição. As três flags são classificação nossa:
+  #
+  #   tipo_operacao         — do 1º dígito (1/2/3 entrada, 5/6/7 saída). Esta é regra do convênio.
+  #   primeira_etapa_cadeia — venda de produção do estabelecimento (5.101/6.101/7.101), venda de
+  #                           produção com ST (5.401/6.401) e importação (3.xxx). É o que decide se
+  #                           o monofásico recolhe aqui ou já veio recolhido (§1.4.2 Passo 2).
+  #   gera_credito_*        — heurística por palavra na descrição: false em remessa, retorno,
+  #                           comodato, demonstração, bonificação, brinde, amostra, doação e
+  #                           mostruário (120 dos 629); true no resto.
+  #
+  # ponytail: heurística deliberada, não conferida por contador. Serve porque o motor hoje só lê
+  # primeira_etapa_cadeia; as flags de crédito só passam a valer quando a fatia de entrada/crédito
+  # existir — e o alvo de verdade nem é CFOP, é o cClassTrib da NF-e da reforma. Revisar antes de
+  # calcular crédito com isso.
+  # ────────────────────────────────────────────────────────────────────────────────────────────
+  - changeSet:
+      id: fiscal-014-load-cfop
+      author: vitor-fernandes
+      comment: Tabela CFOP completa (629 códigos, Convênio SINIEF s/nº 1970 até Ajuste 03/22)
+      changes:
+        - delete:
+            schemaName: fiscal
+            tableName: cfop
+        - loadData:
+            schemaName: fiscal
+            tableName: cfop
+            file: data/cfop.csv
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            separator: ","
+            quotchar: '"'
+            usePreparedStatements: true
+            columns:
+              - column:
+                  header: codigo
+                  name: codigo
+                  type: STRING
+              - column:
+                  header: descricao
+                  name: descricao
+                  type: STRING
+              - column:
+                  header: tipo_operacao
+                  name: tipo_operacao
+                  type: STRING
+              - column:
+                  header: gera_credito_ibs
+                  name: gera_credito_ibs
+                  type: BOOLEAN
+              - column:
+                  header: gera_credito_cbs
+                  name: gera_credito_cbs
+                  type: BOOLEAN
+              - column:
+                  header: primeira_etapa_cadeia
+                  name: primeira_etapa_cadeia
+                  type: BOOLEAN
+      rollback:
+        - delete:
+            schemaName: fiscal
+            tableName: cfop

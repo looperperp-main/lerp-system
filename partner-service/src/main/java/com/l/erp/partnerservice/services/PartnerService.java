@@ -9,6 +9,7 @@ import com.l.erp.partnerservice.api.dto.ComissaoItemDTO;
 import com.l.erp.partnerservice.api.dto.ConviteRequestDTO;
 import com.l.erp.partnerservice.api.dto.ConviteResponseDTO;
 import com.l.erp.partnerservice.api.dto.DashboardResponseDTO;
+import com.l.erp.partnerservice.api.dto.EngajamentoTenantDTO;
 import com.l.erp.partnerservice.api.dto.ExtratoComissoesDTO;
 import com.l.erp.partnerservice.api.dto.FeatureStatDTO;
 import com.l.erp.partnerservice.api.dto.FollowupRequestDTO;
@@ -281,6 +282,37 @@ public class PartnerService {
                             c.getName(), c.getCrc(), c.getReferralCode(), c.getCommissionRate(),
                             r.getStatus(), r.getInvitedAt(), r.getActivatedAt(), r.getConvertedAt());
                 });
+    }
+
+    /**
+     * Engajamento de um tenant (Visão 360, admin): mesma métrica do painel do parceiro
+     * (logins, features acessadas, gaps de adoção), mas por tenantId direto — funciona
+     * para qualquer tenant, mesmo sem indicação de parceiro (cadastro direto).
+     */
+    @Transactional(readOnly = true)
+    public EngajamentoTenantDTO getEngajamentoPorTenant(Long tenantId) {
+        int loginCount = 0;
+        OffsetDateTime lastLoginAt = null;
+
+        var loginStats = engagementService.getLoginStats(tenantId);
+        if (loginStats.isPresent()) {
+            loginCount = loginStats.get().getAccessCount();
+            lastLoginAt = loginStats.get().getLastAccessedAt();
+        }
+
+        // daysActive só existe se o tenant veio de indicação (trialStartedAt do referral);
+        // cadastro direto não tem essa data em partner-service.
+        int daysActive = referralRepository.findByTenantIdWithPartner(tenantId).stream()
+                .findFirst()
+                .map(PartnerReferral::getTrialStartedAt)
+                .filter(java.util.Objects::nonNull)
+                .map(inicio -> (int) java.time.temporal.ChronoUnit.DAYS.between(inicio, OffsetDateTime.now()))
+                .orElse(0);
+
+        return new EngajamentoTenantDTO(
+                loginCount, lastLoginAt, daysActive,
+                engagementService.getEngagement(tenantId),
+                engagementService.getAdoptionGaps(tenantId));
     }
 
     @Transactional

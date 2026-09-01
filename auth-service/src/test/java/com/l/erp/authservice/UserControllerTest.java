@@ -296,4 +296,57 @@ class UserControllerTest {
                     .andExpect(jsonPath("$.message").value(Constants.USER_HAS_OWNER_MARKER));
         }
     }
+
+    @Test
+    @WithMockUser(authorities = {"USER_STATUS", "ROLE_APP_OWNER"})
+    void shouldUnlockUserById() throws Exception {
+        UUID id = UUID.randomUUID();
+        var tokenAttrName = "_csrf";
+        var httpSessionCsrfTokenRepository = new HttpSessionCsrfTokenRepository();
+        var csrfToken = httpSessionCsrfTokenRepository.generateToken(new MockHttpServletRequest());
+
+        UserAccount user = new UserAccount();
+        user.setId(id);
+        user.setDisplayName("NAME");
+        user.setLockedUntil(Instant.now().plusSeconds(600));
+
+        when(userAccountRepository.findById(id)).thenReturn(Optional.of(user));
+
+        try (MockedStatic<SecurityUtils> securityUtils = Mockito.mockStatic(SecurityUtils.class)) {
+            securityUtils.when(SecurityUtils::getCurrentUserInfo).thenReturn(new CurrentUser(UUID.randomUUID(), "usuario@teste.com"));
+
+            mockMvc.perform(patch("/auth/users/{userId}/unlock", id)
+                            .sessionAttr(tokenAttrName, csrfToken)
+                            .param(csrfToken.getParameterName(), csrfToken.getToken()))
+                    .andDo(print())
+                    .andExpect(status().isNoContent());
+        }
+    }
+
+    @Test
+    @WithMockUser(authorities = {"USER_STATUS", "ROLE_APP_OWNER"})
+    void shouldntUnlockUserByIdWhenNotLocked() throws Exception {
+        UUID id = UUID.randomUUID();
+        var tokenAttrName = "_csrf";
+        var httpSessionCsrfTokenRepository = new HttpSessionCsrfTokenRepository();
+        var csrfToken = httpSessionCsrfTokenRepository.generateToken(new MockHttpServletRequest());
+
+        UserAccount user = new UserAccount();
+        user.setId(id);
+        user.setDisplayName("NAME");
+        user.setLockedUntil(null);
+
+        when(userAccountRepository.findById(id)).thenReturn(Optional.of(user));
+
+        try (MockedStatic<SecurityUtils> securityUtils = Mockito.mockStatic(SecurityUtils.class)) {
+            securityUtils.when(SecurityUtils::getCurrentUserInfo).thenReturn(new CurrentUser(UUID.randomUUID(), "usuario@teste.com"));
+
+            mockMvc.perform(patch("/auth/users/{userId}/unlock", id)
+                            .sessionAttr(tokenAttrName, csrfToken)
+                            .param(csrfToken.getParameterName(), csrfToken.getToken()))
+                    .andDo(print())
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.message").value(Constants.USER_NOT_LOCKED));
+        }
+    }
 }

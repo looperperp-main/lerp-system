@@ -1,0 +1,93 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # RETENÇÃO NA FONTE — fatia 3e de spec/motor-fiscal-proximos-passos.md §3, decisão de
+  # 30/07/2026: cálculo do VALOR retido mora no motor (/fiscal/calcular), junto com IBS/CBS/IS
+  # e o legado (ICMS/ISS, fatia 3c) — persistir título de retenção e emitir guia de recolhimento
+  # é responsabilidade de um módulo de AR futuro, não desta tabela nem deste serviço.
+  #
+  # Cobre IRRF, CSRF (PIS+COFINS+CSLL combinados, retenção única desde a IN RFB 1234/2012) e
+  # INSS (Constants.TRIBUTO_*); ISS retido usa o valor do ISS já calculado pela
+  # fiscal.aliq_iss_municipio (fatia 3d), não duplicado aqui. Busca em 2 níveis igual à
+  # aliq_iss_municipio: override do tenant (tenant_id preenchido) vence a linha nacional
+  # (tenant_id IS NULL) — sem vigência histórica (vigente_de/ate) porque estas são alíquotas
+  # legais estáveis, não convênio de UF que muda de mês a mês; se um dia mudar, o padrão de
+  # fiscal.matriz_tributaria (fatia 3b) resolve — não vale a pena adiantar aqui.
+  #
+  # IRRF: piso de dispensa da Lei 13.137/2015 art. 67 é sobre o RETIDO ACUMULADO NO MÊS por
+  # prestador, não a operação isolada — o motor soma valor_acumulado_mes_irrf (informado pelo
+  # chamador) ao retido desta operação antes de comparar ao piso (MotorFiscalService).
+  # CSRF/INSS: piso comparado ao valor bruto da própria operação (sem acumulação — simplificação
+  # documentada como ponytail no motor).
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: fiscal-032-cria-retencao-config
+      author: vitor-fernandes
+      comment: Alíquota e piso de dispensa de tributos retidos na fonte (IRRF/CSRF/INSS), com override opcional por tenant
+      changes:
+        - createTable:
+            schemaName: fiscal
+            tableName: retencao_config
+            remarks: Percentual e piso de dispensa por tributo retido na fonte (fatia 3e)
+            columns:
+              - column: { name: id, type: bigint, autoIncrement: true, constraints: { primaryKey: true } }
+              - column:
+                  name: tenant_id
+                  type: uuid
+                  remarks: NULL = linha base nacional; preenchido = override só daquele tenant
+              - column:
+                  name: tributo
+                  type: varchar(10)
+                  constraints: { nullable: false }
+              - column:
+                  name: aliquota_pct
+                  type: numeric(5,2)
+                  constraints: { nullable: false }
+              - column:
+                  name: valor_minimo_base
+                  type: numeric(12,2)
+                  defaultValueNumeric: 0
+                  constraints: { nullable: false }
+              - column:
+                  name: ativo
+                  type: boolean
+                  defaultValueBoolean: true
+                  constraints: { nullable: false }
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              ALTER TABLE fiscal.retencao_config ADD CONSTRAINT chk_retencao_config_tributo
+              CHECK (tributo IN ('IRRF', 'CSRF', 'INSS'));
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              ALTER TABLE fiscal.retencao_config ADD CONSTRAINT chk_retencao_config_aliquota_pct
+              CHECK (aliquota_pct >= 0 AND aliquota_pct <= 100);
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              ALTER TABLE fiscal.retencao_config ADD CONSTRAINT uk_retencao_config
+              UNIQUE NULLS NOT DISTINCT (tenant_id, tributo);
+
+  - changeSet:
+      id: fiscal-033-seed-retencao-nacional
+      author: vitor-fernandes
+      comment: Semeia alíquota e piso nacionais de IRRF/CSRF/INSS (sem override de tenant)
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.retencao_config (tenant_id, tributo, aliquota_pct, valor_minimo_base, ativo) VALUES
+                (NULL, 'IRRF', 1.50, 10.00, true),
+                (NULL, 'CSRF', 4.65, 5000.00, true),
+                (NULL, 'INSS', 11.00, 0.00, true);
+      rollback:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              DELETE FROM fiscal.retencao_config WHERE tenant_id IS NULL;

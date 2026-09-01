@@ -63,6 +63,10 @@ cep:
   service:
     url: ${CEP_SERVICE_URL:https://viacep.com.br/ws/}
 
+internal:
+  gateway:
+    secret: ${INTERNAL_GATEWAY_SECRET}
+
 ---
 # Profile de produção: desabilita a documentação OpenAPI/Swagger
 spring:

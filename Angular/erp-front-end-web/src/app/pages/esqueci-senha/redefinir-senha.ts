@@ -57,6 +57,7 @@ export class RedefinirSenha implements OnInit {
           'Tudo certo!',
           { timeOut: 6000 },
         );
+        this.router.navigate(['/login']);
       },
       error: (err: HttpErrorResponse) => {
         const msg =

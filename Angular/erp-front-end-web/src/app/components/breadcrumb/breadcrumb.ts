@@ -17,9 +17,11 @@ export interface BreadcrumbSegment {
       @for (seg of segments(); track seg.label; let last = $last) {
         @if (seg.link && !last) {
           <a [routerLink]="seg.link" class="crumb-link">{{ seg.label }}</a>
-          <span class="crumb-sep">/</span>
         } @else {
           <span>{{ seg.label }}</span>
+        }
+        @if (!last) {
+          <span class="crumb-sep">/</span>
         }
       }
     </span>

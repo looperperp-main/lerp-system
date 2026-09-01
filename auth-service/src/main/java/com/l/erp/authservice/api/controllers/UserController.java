@@ -81,4 +81,16 @@ public class UserController {
         userService.updateUserStatusById(userId);
         return ResponseEntity.noContent().build();
     }
+
+    // ponytail: reaproveita a authority USER_STATUS (mesma família "controle de estado de conta")
+    // em vez de seedar uma permissão USER_UNLOCK nova; separar fica fácil (1 changeset Liquibase)
+    // se algum dia role puder ativar/inativar sem poder desbloquear.
+    @PatchMapping("/{userId}/unlock")
+    @PreAuthorize("hasRole('APP_OWNER') and hasAuthority('USER_STATUS')")
+    public ResponseEntity<Void> unlockUserById(@PathVariable UUID userId){
+        log.debug("REST request to unlock the given user");
+
+        userService.unlockUserById(userId);
+        return ResponseEntity.noContent().build();
+    }
 }
