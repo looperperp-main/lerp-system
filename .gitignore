@@ -93,3 +93,5 @@ package-lock.json
 /spec/1978022635.md
 /.tokensave/dirty
 /docs/security-audit/.venv/
+**/__pycache__/
+*.pyc
