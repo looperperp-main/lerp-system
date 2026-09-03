@@ -1,6 +1,6 @@
 # Módulo P2P — Compras (Procure-to-Pay) — Plano de implementação
 
-**Status:** EM IMPLEMENTAÇÃO — Fase 0 (infra) feita, não testada · **Data:** 2026-07-10 · **Rev.:** 2026-07-11 (decisões do usuário aplicadas) · **Rev. 2:** 2026-07-11 (arquitetura consolidada) · **Rev. 3:** 2026-09-01 (Fase 0 implementada — módulo `operacoes-service` criado, não testada) · **Rev. 4:** 3 de setembro de 2026 (O2C — `Pedido` de venda — já existe no mesmo `operacoes-service`; `fiscal-service` já existe para cálculo IBS/CBS/IS de **saída**, entrada segue backlog; JaCoCo do módulo em 60%, não 40%) · **Serviços:** `operacoes-service` (**novo**, foco — também dono de O2C, ver `o2c-vendas.md`) · `cadastro-service` (validação de referências via API) · `fiscal-service` (**já existe** — motor fiscal de saída; entrada/emissão NF-e ainda não) · `liquibase-service` (migrações) · `auth-service` (seed de permissões) · `Angular/erp-front-end-web` (última fase) · integração futura com `financeiro-service` (Fin.md — ainda não implementado)
+**Status:** EM IMPLEMENTAÇÃO — Fase 0 (infra) feita, não testada · **Data:** 2026-07-10 · **Rev.:** 2026-07-11 (decisões do usuário aplicadas) · **Rev. 2:** 2026-07-11 (arquitetura consolidada) · **Rev. 3:** 2026-09-01 (Fase 0 implementada — módulo `operacoes-service` criado, não testada) · **Rev. 4:** 3 de setembro de 2026 (O2C — `Pedido` de venda — já existe no mesmo `operacoes-service`; `fiscal-service` já existe para cálculo IBS/CBS/IS de **saída**, entrada segue backlog; JaCoCo do módulo em 60%, não 40%) · **Rev. 5:** 3 de setembro de 2026 (compra de SERVIÇOS: depósito opcional no `requisicao_compra`/`recebimento_mercadoria`, recebimento funciona como aceite do serviço sem gerar movimento de estoque, documento fiscal do fornecedor pode ser NFS-e com código de verificação no lugar da chave de 44 caracteres) · **Serviços:** `operacoes-service` (**novo**, foco — também dono de O2C, ver `o2c-vendas.md`) · `cadastro-service` (validação de referências via API) · `fiscal-service` (**já existe** — motor fiscal de saída; entrada/emissão NF-e ainda não) · `liquibase-service` (migrações) · `auth-service` (seed de permissões) · `Angular/erp-front-end-web` (última fase) · integração futura com `financeiro-service` (Fin.md — ainda não implementado)
 
 **Decisões fechadas (rev. 2026-07-11):**
 - **[Rev. 2] P2P nasce dentro do `operacoes-service`, o mesmo serviço do O2C** — decisão revista do usuário: em vez de `compra-service` e `estoque-service` como serviços à parte, os três domínios (vendas, compras, estoque) vivem juntos num único serviço novo, com **schema Postgres próprio `compras`** no mesmo banco `loop-erp` compartilhado (padrão do projeto: um Postgres, um schema por domínio, DDL via `liquibase-service`). As tabelas de estoque (`movimento_estoque`/`estoque_saldo`, schema **`estoque`**) continuam num schema à parte — porque vendas (expedição) e compras (recebimento) escrevem nelas — mas agora dentro do **mesmo serviço**, não mais um `estoque-service` externo. Justificativa e consequências em "Contexto → Onde o módulo mora".
@@ -20,6 +20,7 @@
 - Aprovação no MVP = **permissão simples** (`COMPRAS:APROVAR_PEDIDO` no padrão `DOMINIO_ACAO` do RBAC existente). Alçada por faixa de valor fica como upgrade, alinhada ao padrão `approval_regra` do Fin.md §4.10.
 - Cotação multi-fornecedor **existe no modelo desde o início**, mas é **opcional no fluxo**: pedido pode ser criado direto da requisição (ou avulso). Vencedor de cotação é escolhido **por fornecedor inteiro** (split por item = YAGNI).
 - Numeração sequencial por tenant via tabela `compra_numeracao` com `SELECT ... FOR UPDATE` (sem sequence global — sequence vaza contagem entre tenants).
+- **[Rev. 5] Compra de SERVIÇOS (ex.: consultoria, manutenção, frete contratado à parte) segue o mesmo fluxo requisição→cotação→pedido→recebimento, mas sem depósito nem estoque** — decisão do usuário: `deposito_id` em `requisicao_compra` e `recebimento_mercadoria` passa a ser obrigatório **só quando houver item de mercadoria** no documento; para item de serviço não faz sentido pedir depósito. O recebimento de um item de serviço funciona como **aceite** do serviço prestado (não gera `movimento_estoque`). O documento fiscal do fornecedor pode ser **NF-e** (mercadoria, com chave de 44 caracteres) ou **NFS-e** (serviço, identificada por **código de verificação** em vez da chave) — `recebimento_mercadoria` passa a registrar `tipo_documento_fiscal` e aceitar os dois formatos. Planejado, não iniciado.
 
 ---
 
@@ -105,7 +106,7 @@ Contador sequencial por tenant/tipo de documento (número "humano" — o id cont
 | `id` | UUID PK | |
 | `numero` | BIGINT NOT NULL | UNIQUE (`tenant_id`, `numero`) |
 | `solicitante_id` | UUID NOT NULL | userId do JWT (`SecurityUtils`) — não é FK física (usuário mora no auth-service) |
-| `deposito_id` | UUID NOT NULL FK → `deposito` | destino pretendido |
+| `deposito_id` | UUID FK → `deposito`, nullable **[Rev. 5]** | destino pretendido; obrigatório só se houver item de mercadoria na requisição — requisição só-serviço não exige depósito |
 | `status` | VARCHAR(25) NOT NULL | enum `StatusRequisicaoCompra` (máquina de estados abaixo) |
 | `justificativa` | VARCHAR(500) | |
 | `data_necessidade` | DATE | quando o material precisa estar disponível |
@@ -206,12 +207,14 @@ Um pedido pode ter N recebimentos (entrega parcial). O recebimento carrega os da
 |---|---|---|
 | `id` | UUID PK · `numero` BIGINT NOT NULL (UNIQUE tenant+numero) | |
 | `pedido_id` | UUID NOT NULL FK → `pedido_compra` | |
-| `deposito_id` | UUID NOT NULL FK → `deposito` | default = do pedido, editável |
+| `deposito_id` | UUID FK → `deposito`, nullable **[Rev. 5]** | default = do pedido, editável; obrigatório só se o recebimento tiver item de mercadoria — recebimento só-serviço não exige depósito |
 | `status` | VARCHAR(20) NOT NULL | `'EM_CONFERENCIA'` \| `'CONFIRMADO'` \| `'FATURADO'` \| `'CANCELADO'` |
 | `data_recebimento` | DATE NOT NULL | |
+| `tipo_documento_fiscal` **[Rev. 5]** | VARCHAR(5) NOT NULL | `'NFE'` \| `'NFSE'` — define quais dos campos abaixo (`nfe_*` ou `nfse_codigo_verificacao`) são obrigatórios |
 | `nfe_numero` | VARCHAR(20) NOT NULL | |
-| `nfe_serie` | VARCHAR(5) NOT NULL | |
-| `nfe_chave` | VARCHAR(44), nullable | UNIQUE (`tenant_id`, `nfe_chave`) quando não nula — evita NF duplicada |
+| `nfe_serie` | VARCHAR(5), nullable **[Rev. 5]** | obrigatória só quando `tipo_documento_fiscal = 'NFE'`; NFS-e não tem série |
+| `nfe_chave` | VARCHAR(44), nullable | obrigatória só quando `tipo_documento_fiscal = 'NFE'`; UNIQUE (`tenant_id`, `nfe_chave`) quando não nula — evita NF duplicada |
+| `nfse_codigo_verificacao` **[Rev. 5]** | VARCHAR(50), nullable | obrigatório só quando `tipo_documento_fiscal = 'NFSE'` — NFS-e não tem chave de 44 caracteres, é identificada por código de verificação; UNIQUE (`tenant_id`, `nfse_codigo_verificacao`) quando não nulo, mesma lógica anti-duplicidade da `nfe_chave` |
 | `nfe_data_emissao` | DATE NOT NULL | |
 | `valor_total_nf` | NUMERIC(15,2) NOT NULL | |
 | `condicao_pagamento_id` | UUID NOT NULL FK | default = do pedido, editável (NF pode vir com condição diferente) |
@@ -228,6 +231,8 @@ Um pedido pode ter N recebimentos (entrega parcial). O recebimento carrega os da
 | `pedido_item_id` | UUID NOT NULL FK → `pedido_compra_item` | |
 | `quantidade` | NUMERIC(15,4) NOT NULL CHECK (> 0) | validada contra saldo pendente do item (RN-P2P-05) |
 | `preco_unitario_nf` | NUMERIC(15,4) NOT NULL | preço efetivo da NF (pode divergir do pedido) |
+
+**[Rev. 5]** Item cujo `produto_id` aponta para `Produto.tipo = SERVICO` não gera `movimento_estoque` — o recebimento desse item funciona como aceite do serviço, não como entrada física de mercadoria.
 
 ### `compra_status_historico`
 
@@ -261,6 +266,8 @@ Dono: o módulo de estoque dentro do `operacoes-service`. O módulo de compras c
 | `origem_tipo` | VARCHAR(20) NOT NULL | `'RECEBIMENTO'` (entrada, este spec) **[Rev. 4]** ou `'PEDIDO_VENDA'` (saída, o2c-vendas.md — mesma tabela, os dois módulos escrevem nela) |
 | `origem_id` | UUID NOT NULL | id do `recebimento_mercadoria` ou do `pedido` de venda, conforme `origem_tipo` |
 | `usuario_id` | UUID NOT NULL · `ocorrido_em` TIMESTAMPTZ NOT NULL | |
+
+**[Rev. 5]** Item de recebimento com `Produto.tipo = SERVICO` **não gera linha em `movimento_estoque`** — só itens `MERCADORIA` alimentam esta tabela (ver nota em `recebimento_mercadoria_item` acima).
 
 **`estoque_saldo`** — saldo materializado.
 
@@ -407,11 +414,11 @@ Documentos de compra sob `/api/v1/compras/**` e consultas de estoque sob `/api/v
 
 No `POST /recebimentos/{id}/confirmar`, em **uma única transação** (recebimento + estoque juntos):
 
-1. Valida status do recebimento (`EM_CONFERENCIA`) e do pedido (`ENVIADO`/`RECEBIDO_PARCIAL`).
+1. Valida status do recebimento (`EM_CONFERENCIA`) e do pedido (`ENVIADO`/`RECEBIDO_PARCIAL`). **[Rev. 5]** Valida depósito obrigatório **só se houver item `MERCADORIA`** no recebimento — recebimento só-serviço não exige `deposito_id`.
 2. Por item: valida RN-P2P-05 (quantidade ≤ pendente + 5%), soma em `pedido_compra_item.quantidade_recebida`.
 3. Recalcula status do pedido: todas as quantidades completas → `RECEBIDO_TOTAL`; senão `RECEBIDO_PARCIAL`.
 4. Grava `compra_status_historico` (recebimento e, se mudou, pedido).
-5. **Chama o módulo de estoque, na mesma transação:** por item, insere 1 `movimento_estoque` (`ENTRADA_COMPRA`, `origem_tipo='RECEBIMENTO'`, `origem_id=recebimento_id`) e faz upsert em `estoque_saldo` com lock pessimista (`FOR UPDATE`). Se qualquer passo falhar, tudo é revertido junto — não há janela de inconsistência entre recebimento e estoque.
+5. **Chama o módulo de estoque, na mesma transação, só para itens com `Produto.tipo = MERCADORIA` [Rev. 5]:** por item de mercadoria, insere 1 `movimento_estoque` (`ENTRADA_COMPRA`, `origem_tipo='RECEBIMENTO'`, `origem_id=recebimento_id`) e faz upsert em `estoque_saldo` com lock pessimista (`FOR UPDATE`). Item de serviço não passa por este passo (ver nota em `recebimento_mercadoria_item`). Se qualquer passo falhar, tudo é revertido junto — não há janela de inconsistência entre recebimento e estoque.
 6. **Após o commit** (`@TransactionalEventListener(AFTER_COMMIT)`, mesmo padrão do faturamento), publica **evento externo** `compra.recebimento.confirmado` só para quem está fora do serviço (ex.: futuro consumer de BI) — não é mais o mecanismo que atualiza o estoque, é notificação. Payload rico: `event_id`, `tenant_id`, `recebimento_id`, `deposito_id`, itens `[{produto_id, fornecedor_id, quantidade, preco_unitario_nf}]`.
 
 `ProdutoFornecedor.ultimo_preco_compra` **continua sendo atualizado via evento** (não in-process) porque isso cruza a fronteira real com o `cadastro-service` — ver "Preço de compra".
@@ -434,9 +441,11 @@ No `POST /recebimentos/{id}/faturar`, o `operacoes-service` publica em `nfe.entr
 {
   "event_id": "uuid-v4",
   "tenant_id": 1,
+  "tipo_documento_fiscal": "NFE",
   "nfe_chave": "35250612345678000195550010000001231234567890",
   "nfe_numero": "000001234",
   "nfe_serie": "001",
+  "nfse_codigo_verificacao": null,
   "data_emissao": "2025-06-15",
 
   "fornecedor_id": "<pedido.fornecedor_id>",
@@ -446,12 +455,13 @@ No `POST /recebimentos/{id}/faturar`, o `operacoes-service` publica em `nfe.entr
   "fornecedor_regime": "<pessoa regime tributário>",
 
   "itens": [
-    { "produto_id": "...", "ncm": "<produto.ncm>", "cst": null, "c_class_trib": null,
+    { "produto_id": "...", "tipo_item": "MERCADORIA", "ncm": "<produto.ncm>", "codigo_servico": null,
+      "cst": null, "c_class_trib": null,
       "regime_diferenciado": null, "ibge_destino": "<endereco do deposito/estabelecimento>",
       "valor": 15000.00 }
   ],
 
-  "impostos": { "ibs": 0.00, "cbs": 0.00, "is": 0.00 },
+  "impostos": { "ibs": 0.00, "cbs": 0.00, "is": 0.00, "iss": 0.00 },
 
   "condicao_pagamento_id": "<recebimento.condicao_pagamento_id>",
   "parcelas": [
@@ -462,8 +472,9 @@ No `POST /recebimentos/{id}/faturar`, o `operacoes-service` publica em `nfe.entr
 
 Detalhes de preenchimento:
 - **`parcelas`** — calculadas pelo P2P a partir de `CondicaoPagamentoParcela` (dias/percentual) sobre `valor_total_nf` e `nfe_data_emissao`. Ajuste de centavos na última parcela.
-- **`impostos`** — **zerados no MVP (decisão do usuário)**: `{ "ibs": 0, "cbs": 0, "is": 0 }`, sem digitação manual obrigatória — o foco é `valor_total_nf` e os valores dos produtos; o preenchimento real vem com o motor fiscal do **`fiscal-service`**. Campos fiscais por item (`cst`, `c_class_trib`, `regime_diferenciado`) vão `null` — o consumer do Fin.md armazena o JSONB como veio.
-- **`nfe_chave` nula** (NF sem chave digitada): enviar `null`; o financeiro usa `origem_documento_id` — comportamento a alinhar quando o financeiro-service for implementado.
+- **`impostos`** — **zerados no MVP (decisão do usuário)**: `{ "ibs": 0, "cbs": 0, "is": 0, "iss": 0 }`, sem digitação manual obrigatória — o foco é `valor_total_nf` e os valores dos produtos; o preenchimento real vem com o motor fiscal do **`fiscal-service`**. Campos fiscais por item (`cst`, `c_class_trib`, `regime_diferenciado`) vão `null` — o consumer do Fin.md armazena o JSONB como veio.
+- **[Rev. 5] `tipo_documento_fiscal`** — `'NFE'` ou `'NFSE'`, espelha `recebimento_mercadoria.tipo_documento_fiscal`. Quando `'NFSE'`, os campos `nfe_serie`/`nfe_chave` vão `null` e `nfse_codigo_verificacao` vem preenchido (e vice-versa). **[Rev. 5] `itens[].tipo_item`/`itens[].codigo_servico`** — espelham `Produto.tipo`/`Produto.codigo_servico`; item de serviço manda `codigo_servico` preenchido e `ncm` nulo.
+- **`nfe_chave` nula** (NF sem chave digitada, ou recebimento com `tipo_documento_fiscal = 'NFSE'`): enviar `null`; o financeiro usa `origem_documento_id`, que passa a ser **`nfe_chave` quando `NFE`, ou `nfse_codigo_verificacao` quando `NFSE`** (Fin.md §1.11) — comportamento a alinhar quando o financeiro-service for implementado.
 - **Publicar desde já, sem consumidor (decisão do usuário):** o contrato fica congelado e exercitado. **Retenção do tópico: a definir conforme o prazo do financeiro-service** (sem data hoje) — configurar retenção longa no tópico quando o prazo for conhecido. *Nota de upgrade (sync histórico):* se o financeiro nascer meses depois e eventos tiverem expirado, ele faz **carga histórica via API** do `operacoes-service` (recebimentos `FATURADO` são a fonte de verdade persistida) — perder eventos antigos não perde dados.
 - Publicação **após commit** da transação de faturamento (`@TransactionalEventListener(AFTER_COMMIT)` ou outbox simples), pra nunca publicar título de um faturamento que sofreu rollback. Idempotência no consumidor via `event_id` (padrão Fin.md).
 - Registrar o tópico em `spec/kafka-topics.md` e as constantes (nome do tópico, tipos de movimento, ações de auditoria) em `common/Constants.java` (diretiva do projeto).
@@ -482,10 +493,11 @@ O recebimento guarda `faturado_em` e o pedido vai a `ENCERRADO` quando todos os 
 | RN-P2P-04 | **Preço fora da faixa = ALERTA, não bloqueio (decisão do usuário)**: se existir `ProdutoFornecedor.preco_custo` (lido via API do cadastro-service) pro par produto+fornecedor e `preco_unitario > preco_custo × 1,30`, o envio pra aprovação **prossegue**, mas o item é sinalizado — flag `precoForaDaFaixa` no payload de resposta (por item: preço, referência, desvio %) e destaque visual na tela de aprovação. O aprovador decide. Tolerância **30%** em `Constants` no MVP (configurável por tenant = upgrade). Sem `preco_custo` cadastrado → não sinaliza | service |
 | RN-P2P-05 | **Quantidade recebida ≤ pendente + tolerância de 5% (decisão do usuário)** por item: `quantidade_recebida + nova ≤ quantidade × 1,05` (granel/peso variável). Acima disso → 400. Tolerância **5%** em `Constants` (configurável por tenant = upgrade). `quantidade_recebida` pode então exceder `quantidade` em até 5% — o status `RECEBIDO_TOTAL` considera "completou" quando `quantidade_recebida ≥ quantidade` | service |
 | RN-P2P-06 | **Soma das parcelas = valor da NF** no faturamento (gerado pelo próprio service, mas re-validado antes de publicar — invariante do Fin.md) | service |
-| RN-P2P-07 | **NF duplicada**: `nfe_chave` única por tenant (constraint) e alerta pra mesmo `fornecedor + nfe_numero + nfe_serie` já usado | schema + service |
+| RN-P2P-07 | **NF duplicada**: `nfe_chave` única por tenant (constraint) e alerta pra mesmo `fornecedor + nfe_numero + nfe_serie` já usado. **[Rev. 5]** Mesma lógica vale para NFS-e: `nfse_codigo_verificacao` único por tenant (constraint) e alerta pra mesmo `fornecedor + nfse_codigo_verificacao` já usado | schema + service |
 | RN-P2P-08 | **Tenant scoping**: todo `findById` de documento de compra busca por `id + tenantId` no repository (não confiar só no `@Filter` — mesma classe de IDOR do achado M8, corrigido no cadastro-service em 2026-08-04; o P2P já nasce com o padrão correto, sem repetir a lacuna) | repository |
 | RN-P2P-09 | Transições de estado só pelas setas dos diagramas; transição inválida → 400 PT-BR via `BusinessException`/`GlobalExceptionHandler` (mesmo padrão do o2c-vendas.md) (4xx = WARN sem stack, padrão do projeto) | service |
 | RN-P2P-10 | Datas: `data_necessidade`/`data_previsao_entrega` ≥ hoje na criação; `data_recebimento` não futura | Bean Validation + service |
+| RN-P2P-11 **[Rev. 5]** | **Item de serviço**: recebimento com item `Produto.tipo = SERVICO` não exige `deposito_id` nem gera `movimento_estoque`; item exige `Produto.codigo_servico` preenchido (400 PT-BR se ausente) | schema + service |
 
 Auditoria: além de `compra_status_historico`, publicar os eventos de auditoria Kafka no padrão já usado pelo cadastro-service (ações `DOMINIO_ACAO` em `Constants`).
 
@@ -515,7 +527,7 @@ Auditoria: além de `compra_status_historico`, publicar os eventos de auditoria 
 | **0** | **✅ Feito em 01/09/2026, não testado** (compartilhado com o2c-vendas.md, não duplicado) — módulo Maven `operacoes-service` (porta 8089) no POM raiz, Dockerfile, rotas no gateway (`/api/v1/pedidos/**`, `/api/v1/compras/**`, `/api/v1/estoque/**` antes do catch-all `/api/**`), `SecurityConfig`/`TenantInterceptor`/`TenantContext`/`BaseTenantEntity`/`TenantFilterAspect`/`SecurityUtils` replicados, `RestClientConfig` com `RestClient` `@LoadBalanced` → `lb://cadastro-service`, `Jenkinsfile` com `operacoes-service` nas 4 listas (verify/sonar/docker build/docker cleanup). **Pendente dentro da Fase 0:** endpoint interno de validação de referências em lote no cadastro-service (compartilhado com o2c-vendas.md) ainda não criado | — |
 | **1** | Migração `compras-schema-001` (schema + numeração, requisição, histórico) + entidades/repos/DTOs/mappers + CRUD de requisição com máquina de estados + permissões `COMPRAS_*`/`ESTOQUE_*` seedadas no auth (`DOMINIO_ACAO`) | Fase 0 |
 | **2** | Migração `compras-schema-002` + pedido de compra completo (criação avulsa/da requisição, aprovação RN-P2P-01/02/03, alerta RN-P2P-04, transições, histórico) | Fase 1 |
-| **3** | Migrações `estoque-schema-001` + `compras-schema-003` + recebimento (RN-P2P-05 com tolerância 5%) + chamada in-process ao módulo de estoque (movimento/saldo, mesma transação) + evento externo `compra.recebimento.confirmado`/`cancelado` (notificação) + consumer no `cadastro-service` (`ultimo_preco_compra`, com `cadastro-schema-0XX`) + endpoints de consulta de estoque | Fase 2 |
+| **3** | Migrações `estoque-schema-001` + `compras-schema-003` + recebimento (RN-P2P-05 com tolerância 5%) + chamada in-process ao módulo de estoque (movimento/saldo, mesma transação, só item `MERCADORIA`) + evento externo `compra.recebimento.confirmado`/`cancelado` (notificação) + consumer no `cadastro-service` (`ultimo_preco_compra`, com `cadastro-schema-0XX`) + endpoints de consulta de estoque. **[Rev. 5]** Depende também da migração `Produto.tipo`/`codigo_servico` no `cadastro-service` (compartilhada com `o2c-vendas.md` Fase 4b) — sem ela não dá pra distinguir item de serviço na hora de pular o passo de estoque | Fase 2 |
 | **4** | Faturamento: publicação `nfe.entrada.aprovada` (payload F4.2 com impostos zerados, AFTER_COMMIT, constantes em `common`), RN-P2P-06/07, registro em `kafka-topics.md`. Publicado desde já, sem consumidor (decisão do usuário) | Fase 3 · consumo real depende do financeiro-service (Fin.md) existir |
 | **5** | Migração `compras-schema-004` + cotação multi-fornecedor (convite, resposta, comparativo ordenado pelo critério de desempate, vencedor **escolhido manualmente** → pedido) | Fase 2 (não bloqueia 3/4) |
 | **6** | Frontend `erp-front-end-web` (telas na ordem das fases 1→5) | backend correspondente |
@@ -528,14 +540,14 @@ Testes por fase no padrão do projeto (`@WebMvcTest` + MockMvc; JaCoCo ≥ 60% �
 
 | Item | Por que fora | Upgrade |
 |---|---|---|
-| **Importação de XML NF-e** | módulo fiscal separado (Fin.md §11.1) | o import preencherá `recebimento_mercadoria` + itens em vez da digitação manual; resto do fluxo inalterado |
+| **Importação de XML NF-e/NFS-e** **[Rev. 5]** | módulo fiscal separado (Fin.md §1.11) — vale pros dois tipos de documento agora que `recebimento_mercadoria` aceita `NFE` e `NFSE` | o import preencherá `recebimento_mercadoria` + itens em vez da digitação manual; resto do fluxo inalterado |
 | **Alçada por faixa de valor / multi-nível** | MVP = permissão única | adotar o padrão `approval_regra` do Fin.md §4.10 (faixas por tenant, escalonamento, timeout); a máquina de estados já tem `PENDENTE_APROVACAO` como ponto de encaixe |
 | **Segregação solicitante ≠ aprovador** | junto com alçada | checagem `aprovador_id != created_by` no service |
 | **Vencedor de cotação por item (split)** | complexidade de N pedidos por cotação | `cotacao_compra.vencedor` deixa de ser único; `encerrar` recebe mapa item→fornecedor e gera N pedidos |
 | **Portal do fornecedor** (fornecedor responde cotação online) | fornecedor não tem acesso ao sistema | novo frontend + auth de terceiro; o modelo `cotacao_compra_fornecedor` já suporta |
 | **Sugestão automática de compra** (ponto de reposição → requisição) | precisa de saldo estabilizado primeiro | job que cruza `estoque_saldo × ProdutoEstoqueConfig.ponto_reposicao` e cria requisições RASCUNHO |
 | **Devolução ao fornecedor** | fluxo fiscal próprio (NF de devolução) | novo `tipo` de movimento + documento próprio; até lá, cancelamento de recebimento cobre o caso simples |
-| **Motor fiscal na entrada** (CST, créditos IBS/CBS por item) | dono: **`fiscal-service`** — **[Rev. 4]** já existe e já calcula o lado de **saída** (`POST /fiscal/calcular`, usado pelo O2C); falta estender pro lado de **entrada** (mesmo serviço, sem infra nova) | campos do payload F4.2 já reservados (`cst`, `c_class_trib`, `impostos` — zerados no MVP); o fiscal-service passa a calcular/preencher |
+| **Motor fiscal na entrada** (CST, créditos IBS/CBS por item, ISS de serviço tomado) | dono: **`fiscal-service`** — **[Rev. 4]** já existe e já calcula o lado de **saída** (`POST /fiscal/calcular`, usado pelo O2C); falta estender pro lado de **entrada** (mesmo serviço, sem infra nova). **[Rev. 5]** `MotorFiscalRequest`/`OperacaoFiscalDTO` do `fiscal-service` já aceitam `codigoServico` — o suporte a item de serviço na entrada não exige mudança de contrato do lado fiscal, só a chamada a partir do P2P | campos do payload F4.2 já reservados (`cst`, `c_class_trib`, `impostos` — zerados no MVP); o fiscal-service passa a calcular/preencher |
 | **Atualização automática de `preco_custo`** | decisão do usuário: custo real envolve frete/seguro/ST/IPI, não só o valor da nota — atualizar automático contaminaria margem/DRE | `ultimo_preco_compra` (informativo) já registra o rastro; quando existir custo médio/landed cost, vira cálculo próprio |
 | **Margem confiável (preço venda − custo)** | `preco_custo` é mantido **manualmente** (só `ultimo_preco_compra` atualiza sozinho, e é informativo). Qualquer relatório de margem herda esse custo possivelmente defasado — por isso **não há relatório de margem no MVP** (ver `o2c-vendas.md`, nota "vs. tabela, não vs. custo") | pré-requisito da margem confiável = custo médio ponderado/landed cost (linha abaixo) alimentando o `preco_custo`; até lá, margem é sob responsabilidade de quem mantém o custo na mão |
 | **Seleção automática do vencedor de cotação** | MVP: escolha manual do comprador | aplicar o critério de desempate já documentado (preço líquido → prazo → condição → validade/recência) como seleção automática opcional |

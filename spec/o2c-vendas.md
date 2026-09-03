@@ -1,6 +1,6 @@
 # O2C — Vendas (Order-to-Cash): orçamento → pedido → expedição → faturamento — Plano de implementação
 
-**Status:** EM IMPLEMENTAÇÃO — Fases 0 (infra), 1 (schema, aplicada no banco), 2 (domínio + repositories) e 3 (services + máquina de estados) feitas; Fase 3 **verde** (`mvn verify -pl operacoes-service -am` com gate JaCoCo 60%, 3 de setembro de 2026); Fase 4 (API) **em andamento** — DTOs, `PedidoMapper`, `PedidoAssembler`, `CadastroServiceClient`, `PedidoController` (10 endpoints) e `PedidoControllerTest` (`@WebMvcTest`, compila limpo) escritos, **não rodado via `mvn`** · **Data:** 2026-07-10 · **Rev.:** 2026-07-11 (decisões do usuário aplicadas) · **Rev. 2:** 2026-07-11 (arquitetura consolidada) · **Rev. 3:** 2026-07-23 (ordem de implementação com estoque + pré-requisito de UI do bloqueio de expedição) · **Rev. 4:** 2026-09-01 (Fase 0 implementada — módulo `operacoes-service` criado, não testada) · **Rev. 5:** 2 de setembro de 2026 (Fase 1 implementada e migração rodada com sucesso no banco — schema `vendas` + seed de permissões `PEDIDO_*`; Fase 2 implementada — entidades/repositories JPA, não testada) · **Rev. 6:** 2 de setembro de 2026 (Fase 3 implementada — `PedidoNumeroService` + `PedidoService` com máquina de estados, validações §7 de limite de crédito, cálculo de totais/parcelas §8, stub do resolver de preço §6; testes unitários escritos; não testada) · **Rev. 7:** 3 de setembro de 2026 (revisão de consistência entre `o2c-vendas.md`, `o2c-vendas-funcional.md`, `p2p-compras.md` e o artigo `o2c-research.pdf` — correções: status real das fases 3/4, `fiscal-service` já existe, AR na exposição de crédito vira upgrade, ponto de emissão de NF-e passa pra expedição, lock nas transições registrado como pendência) · **Serviços:** `operacoes-service` (**novo**, foco — também dono de P2P e estoque, ver `p2p-compras.md`) · `cadastro-service` (validação de referências + motor de preço, via API) · `fiscal-service` (**já existe** — motor fiscal IBS/CBS/IS de saída em `POST /fiscal/calcular`; emissão NF-e/NFC-e ainda não) · `liquibase-service` (migração) · `auth-service` (seed de permissões) · `Angular/erp-front-end-web` (última fase)
+**Status:** EM IMPLEMENTAÇÃO — Fases 0 (infra), 1 (schema, aplicada no banco), 2 (domínio + repositories) e 3 (services + máquina de estados) feitas; Fase 3 **verde** (`mvn verify -pl operacoes-service -am` com gate JaCoCo 60%, 3 de setembro de 2026); Fase 4 (API) **em andamento** — DTOs, `PedidoMapper`, `PedidoAssembler`, `CadastroServiceClient`, `PedidoController` (10 endpoints) e `PedidoControllerTest` (`@WebMvcTest`, compila limpo) escritos, **não rodado via `mvn`** · **Data:** 2026-07-10 · **Rev.:** 2026-07-11 (decisões do usuário aplicadas) · **Rev. 2:** 2026-07-11 (arquitetura consolidada) · **Rev. 3:** 2026-07-23 (ordem de implementação com estoque + pré-requisito de UI do bloqueio de expedição) · **Rev. 4:** 2026-09-01 (Fase 0 implementada — módulo `operacoes-service` criado, não testada) · **Rev. 5:** 2 de setembro de 2026 (Fase 1 implementada e migração rodada com sucesso no banco — schema `vendas` + seed de permissões `PEDIDO_*`; Fase 2 implementada — entidades/repositories JPA, não testada) · **Rev. 6:** 2 de setembro de 2026 (Fase 3 implementada — `PedidoNumeroService` + `PedidoService` com máquina de estados, validações §7 de limite de crédito, cálculo de totais/parcelas §8, stub do resolver de preço §6; testes unitários escritos; não testada) · **Rev. 7:** 3 de setembro de 2026 (revisão de consistência entre `o2c-vendas.md`, `o2c-vendas-funcional.md`, `p2p-compras.md` e o artigo `o2c-research.pdf` — correções: status real das fases 3/4, `fiscal-service` já existe, AR na exposição de crédito vira upgrade, ponto de emissão de NF-e passa pra expedição, lock nas transições registrado como pendência) · **Rev. 8:** 3 de setembro de 2026 (suporte a itens de SERVIÇO — `Produto.tipo`/`codigo_servico`, pedido só-serviço sem expedição, gatilho fiscal por tipo de item NF-e/NFS-e, impostos calculados no faturamento via `POST /fiscal/calcular`) · **Serviços:** `operacoes-service` (**novo**, foco — também dono de P2P e estoque, ver `p2p-compras.md`) · `cadastro-service` (validação de referências + motor de preço, via API) · `fiscal-service` (**já existe** — motor fiscal IBS/CBS/IS de saída em `POST /fiscal/calcular`; emissão NF-e/NFC-e ainda não) · `liquibase-service` (migração) · `auth-service` (seed de permissões) · `Angular/erp-front-end-web` (última fase)
 
 **Decisões fechadas (rev. 2026-07-11):**
 - **[Rev. 2] O módulo nasce dentro de um único microsserviço novo, `operacoes-service`** — decisão revista do usuário: em vez de 3 serviços separados (venda/compra/estoque), **vendas, compras e estoque vivem juntos num só serviço** (`operacoes-service`, schemas `vendas`/`compras`/`estoque` no mesmo Postgres `loop-erp`), porque os três domínios compartilhariam banco mesmo sendo serviços distintos — juntar evita pagar o custo de 3 infra novas (Maven/Docker/Eureka/gateway/Jenkins × 3) sem ganhar isolamento real. Só o **`fiscal-service`** continua separado (ciclo de vida próprio — NF-e/SEFAZ). Consequências na seção "Onde o módulo vive".
@@ -8,9 +8,13 @@
 - Precificação de item via **`GET /api/v1/precos/resolver` por HTTP** no `cadastro-service` (o `PrecoResolverService` mora lá, junto com `Produto`/`Cliente`/`TabelaPreco` — chamada HTTP entre serviços, não in-process, porque o motor de preço não faz parte do `operacoes-service`), com **snapshot congelado no item** (preço, tabela, origem). Resolver 404 → permite preço manual com flag `preco_manual = true`.
 - Máquina de estados: `ORCAMENTO → CONFIRMADO → EXPEDIDO → FATURADO`, com `CANCELADO` alcançável de qualquer estado pré-faturamento e **novo estado `BLOQUEADO_CREDITO`** (bloqueio SOFT de limite — decisão do usuário, §4/§7). Sem estado de separação/picking no MVP.
 - Integração com o financeiro: **evento Kafka `venda.pedido.faturado`** no faturamento; o futuro `financeiro-service` consome e cria N títulos a receber com `origem = 'NF_SAIDA'` (consistente com Fin.md §11.2 e F4.3). Enquanto o financeiro não existir, o evento fica publicado e ignorado (sem consumer) — zero acoplamento. Publicação sempre **após commit** da transação de faturamento (§8) — nunca publicar título de um faturamento que sofreu rollback.
-- NF-e/NFC-e e o motor fiscal IBS/CBS são responsabilidade do **`fiscal-service`** (único serviço que permanece separado, spec próprio futuro). Os pontos de integração reservados neste spec apontam para ele (§8).
+- NF-e/NFC-e e o motor fiscal IBS/CBS são responsabilidade do **`fiscal-service`** (único serviço que permanece separado, spec próprio futuro). Os pontos de integração reservados neste spec apontam para ele (§8). **[Rev. 8]** O gatilho fiscal não é único: é **por tipo de item** — NF-e na expedição (mercadoria) e NFS-e no faturamento (serviço), ver D3 abaixo.
+- **[Rev. 8] D1 — Cadastro ganha `Produto.tipo`/`codigo_servico`:** `Produto` passa a ter `tipo VARCHAR(12) NOT NULL DEFAULT 'MERCADORIA'` (enum `TipoProduto`: `MERCADORIA` \| `SERVICO`) e `codigo_servico VARCHAR(10)` (item da LC 116, obrigatório quando `tipo = SERVICO`); `ncm` passa a ser obrigatório só para `MERCADORIA`. Migração em `cadastro/cadastro-schema-0XX.yaml` (próximo número livre — `008` reservado pelo motor de preço). `PrecoResolverService` não muda. Só LC 116 por ora, sem código NBS — NBS entra junto com a emissão de NFS-e (upgrade futuro, fora deste spec).
+- **[Rev. 8] D2 — Pedido só-serviço não tem expedição:** item de serviço nunca gera movimento de estoque, não exige depósito nem transportadora. `PedidoItem` ganha snapshot `tipo_item` (copiado de `Produto.tipo` na criação, imutável). Pedido com **só** itens `SERVICO`: transição `CONFIRMADO → FATURADO` direta; `expedir()` nesse pedido é transição inválida (400). Pedido **misto** (mercadoria + serviço): `expedir()` baixa estoque só dos itens `MERCADORIA`; o serviço segue junto no faturamento. Não existe estado novo tipo "PRESTADO" — a etapa de prestação do serviço não é rastreada no MVP.
+- **[Rev. 8] D3 — Gatilho fiscal por tipo de item, não único:** NF-e emitida na **expedição** (mercadoria — DANFE acompanha o transporte, mantendo a Rev. 7) e NFS-e emitida no **faturamento** (serviço, por competência). Pedido misto emite **dois documentos fiscais** e o título a receber referencia os dois (`origem_documento_id` por documento; o evento `venda.pedido.faturado` ganha lista `documentos_fiscais[]`).
+- **[Rev. 8] D4 — Impostos calculados no faturamento:** no `faturar()`, o `operacoes-service` chama `POST /fiscal/calcular` **por item** (montando `MotorFiscalRequest` com `ncm` ou `codigoServico` conforme `tipo_item`, `ibgeDestino`/`ibgeLocalPrestacao` do endereço do cliente, `dataCompetencia = data_faturamento`) e grava em `pedido` os totais `valor_ibs`, `valor_cbs`, `valor_is`, `valor_iss`, `valor_retencoes` e `valor_total_nf` (= `valor_total` + IBS + CBS + IS, tributo por fora). Parcelas passam a ser calculadas sobre `valor_total_nf` menos `valor_retencoes`. Migração futura não destrutiva `vendas-schema-002.yaml`. O cálculo só acontece no faturamento; no orçamento cabe estimativa exibida ao usuário, mas sem persistir.
 - **Faturar sem NF-e no MVP: aceito, com ressalva operacional** — mercadoria não sai da doca sem XML/DANFE; a operação emite a NF-e num emissor externo por fora e anexa ao transporte enquanto o `fiscal-service` não existir (documentado em §7-expedição e §8).
-- **Estoque não bloqueante: confirmado** — vender/expedir sem validar saldo; estoque negativo sistêmico aceitável no MVP. **[Rev. 2]** Como estoque agora é módulo do mesmo `operacoes-service` (não mais serviço externo), a expedição atualiza `movimento_estoque`/`estoque_saldo` **in-process**, na mesma transação (chamada Java direta ao módulo de estoque, sem Kafka) — mais simples e sem ganho nenhum em manter assíncrono dentro do mesmo processo. **Essa ausência de validação é uma flag temporária**: quando o controle real de disponibilidade for implementado (mesma base, mesmo serviço), a expedição passa a checar saldo antes da transição e a flag é desativada — não é preciso mudar de serviço nem de schema para isso, só ligar a validação que hoje está desligada.
+- **Estoque não bloqueante: confirmado** — vender/expedir sem validar saldo; estoque negativo sistêmico aceitável no MVP. **[Rev. 8]** A baixa de estoque na expedição alcança só os itens `MERCADORIA` do pedido — itens `SERVICO` nunca movimentam estoque (ver D2). **[Rev. 2]** Como estoque agora é módulo do mesmo `operacoes-service` (não mais serviço externo), a expedição atualiza `movimento_estoque`/`estoque_saldo` **in-process**, na mesma transação (chamada Java direta ao módulo de estoque, sem Kafka) — mais simples e sem ganho nenhum em manter assíncrono dentro do mesmo processo. **Essa ausência de validação é uma flag temporária**: quando o controle real de disponibilidade for implementado (mesma base, mesmo serviço), a expedição passa a checar saldo antes da transição e a flag é desativada — não é preciso mudar de serviço nem de schema para isso, só ligar a validação que hoje está desligada.
 - **Desconto do vendedor: confirmado livre e apenas auditado** (snapshot de preço de tabela). Decisão fechada — sem teto no MVP.
 - Parcelas do título calculadas a partir de **`CondicaoPagamentoParcela`** (obtidas do `cadastro-service` via API no faturamento); resto de arredondamento vai na última parcela.
 - Numeração do pedido: sequencial por tenant via tabela `vendas.pedido_sequencia` com `SELECT ... FOR UPDATE`.
@@ -56,6 +60,8 @@ Leitura: **P2P e O2C alimentam o estoque** (geram `movimento_estoque` ao receber
   - `Deposito`, `Transportadora`, `Vendedor` — CRUDs completos com controller.
   - `TabelaPreco`/`ProdutoPreco`/`GrupoCliente` — base do motor de preço (spec `motor-resolucao-preco.md`, planejado).
 - **O que NÃO existe:** saldo de estoque (nenhuma tabela de movimentação/saldo — `ProdutoEstoqueConfig` é só parametrização min/max), `financeiro-service` (Fin.md é spec), NF-e, campo `bloqueado_para_vendas` no cliente (Fin.md §dunning D+15 prevê marcar o cliente e emitir evento "consumível pelo futuro módulo de pedidos" — hook documentado na seção de validações).
+- **[Rev. 8] `Produto` ainda não distingue mercadoria de serviço.** `cadastro-service/domain/Produto.java` tem `sku`, `nome`, `unidade` (obrigatória), `unidade_secundaria`, `fator_conversao`, `ncm` (opcional), `ean`, `cest`, `origem`, peso/dimensões, `ativo` — **não existe** campo de tipo nem código de serviço (LC 116/NBS); `ProdutoCategoria` é só nome/descrição livre. Isso é o que D1 fecha.
+- **[Rev. 8] O `fiscal-service` já aceita serviço, o O2C só ainda não chama.** `api/dto/MotorFiscalRequest.java` já tem `codigoServico` (LC 116, null para produto), `ncm` (null para serviço), `cClassTrib`, `ibgeLocalPrestacao`, `tipoDocumento` (`'NFe'`\|`'NFCe'`\|`'NFSe'`\|`'CTe'`), `issRetidoNaFonte`, `reterIrrf`, `reterCsrf`, `reterInss`; `OperacaoFiscalDTO` devolve `valorIbs`, `valorCbs`, `valorIs`, `valorIss`, `valorIssRetido`, `valorIrrf`, `valorCsrf`. Endpoint `POST /fiscal/calcular`. O motor existe; falta o `operacoes-service` chamá-lo no faturamento (D4).
 
 ### Por que agora
 
@@ -115,6 +121,12 @@ Padrões replicados do cadastro-service no `operacoes-service`: `id UUID` gerado
 | `data_cancelamento` | TIMESTAMP | null | |
 | `motivo_cancelamento` | VARCHAR(500) | null | obrigatório ao cancelar |
 | `observacao` | VARCHAR(1000) | null | |
+| `valor_ibs` | NUMERIC(15,2) | null | **[Rev. 8] `vendas-schema-002`, futura.** Preenchido no `faturar()` a partir de `OperacaoFiscalDTO` somado por item |
+| `valor_cbs` | NUMERIC(15,2) | null | **[Rev. 8] `vendas-schema-002`, futura.** Idem `valor_ibs` |
+| `valor_is` | NUMERIC(15,2) | null | **[Rev. 8] `vendas-schema-002`, futura.** Idem `valor_ibs` |
+| `valor_iss` | NUMERIC(15,2) | null | **[Rev. 8] `vendas-schema-002`, futura.** Só itens `SERVICO` contribuem |
+| `valor_retencoes` | NUMERIC(15,2) | null | **[Rev. 8] `vendas-schema-002`, futura.** Soma de IRRF/CSRF/INSS retidos (`OperacaoFiscalDTO`) |
+| `valor_total_nf` | NUMERIC(15,2) | null | **[Rev. 8] `vendas-schema-002`, futura.** `valor_total + valor_ibs + valor_cbs + valor_is` (tributo por fora); parcelas calculadas sobre `valor_total_nf − valor_retencoes` |
 | `created_at` / `created_by` / `updated_at` / `last_updated_by` | | | padrão do serviço |
 
 ### 3.2 `vendas.pedido_item`
@@ -133,6 +145,7 @@ Padrões replicados do cadastro-service no `operacoes-service`: `id UUID` gerado
 | `preco_tabela` | NUMERIC(15,2) | null | snapshot do preço resolvido (null se manual sem resolução) |
 | `tabela_preco_id` | UUID (ref. cadastro, sem FK) | null | snapshot: tabela que resolveu |
 | `origem_preco` | VARCHAR(10) | null | snapshot: `CLIENTE` \| `GRUPO` \| `PADRAO` (do `PrecoResolvidoDTO`) |
+| `tipo_item` | VARCHAR(12) | not null | **[Rev. 8]** snapshot de `Produto.tipo` (`MERCADORIA` \| `SERVICO`) copiado na criação do item, imutável — define se o item entra na baixa de estoque (D2) e qual campo (`ncm`/`codigoServico`) vai no `MotorFiscalRequest` (D4) |
 | auditoria | | | padrão do serviço |
 
 > Os campos `preco_tabela`/`tabela_preco_id`/`origem_preco` são **snapshot congelado** — o pedido não muda se a tabela de preço mudar depois. É a trilha de auditoria de "de onde veio esse preço" e a base do relatório futuro de desconto vs. tabela.
@@ -171,6 +184,7 @@ Insert em **toda** transição (inclusive criação). Sem update/delete — appe
 Nova pasta `liquibase-service/src/main/resources/db/changelog/vendas/` (padrão por schema, como `auth/`, `cadastro/`, `billing/`) — o `liquibase-service` continua sendo o dono único do DDL mesmo com o schema pertencendo ao novo `operacoes-service` (mesmo banco `loop-erp`):
 - `vendas-schema-001.yaml` — `CREATE SCHEMA vendas` + as 4 tabelas + **FKs internas do schema apenas** (`pedido_item→pedido`, `pedido_status_historico→pedido`; colunas de referência a cadastros são UUID sem FK) + uniques + índices (`pedido(tenant_id, status)`, `pedido(tenant_id, cliente_id)`, `pedido_item(pedido_id)`, `pedido_status_historico(pedido_id)`), incluída no `db.changelog-master.yaml`.
 - **Não colide** com `cadastro/cadastro-schema-008.yaml`, já reservado pelo spec do motor de preço.
+- **[Rev. 8]** `vendas-schema-002.yaml` — migração futura não destrutiva, adiciona a `vendas.pedido` as colunas de D4 (`valor_ibs`, `valor_cbs`, `valor_is`, `valor_iss`, `valor_retencoes`, `valor_total_nf`) e a `vendas.pedido_item` a coluna `tipo_item`. `cadastro/cadastro-schema-0XX.yaml` (próximo número livre após o 008 reservado) adiciona `Produto.tipo`/`codigo_servico` (D1) — migração compartilhada com `p2p-compras.md`, não duplicar. Nenhuma das duas foi criada ainda — planejado, não iniciado.
 
 ---
 
@@ -188,10 +202,11 @@ stateDiagram-v2
     BLOQUEADO_CREDITO --> ORCAMENTO : reabrir()\n(voltar a editar itens/valor)
     BLOQUEADO_CREDITO --> CANCELADO : cancelar(motivo)
 
-    CONFIRMADO --> EXPEDIDO : expedir()\n• depósito obrigatório\n• transportadora se frete ≠ SEM_FRETE
+    CONFIRMADO --> EXPEDIDO : expedir()\n• depósito obrigatório\n• transportadora se frete ≠ SEM_FRETE\n• [Rev. 8] só pedidos com item MERCADORIA
+    CONFIRMADO --> FATURADO : faturar() (pedido só de serviço)\n[Rev. 8] sem itens MERCADORIA →\npula EXPEDIDO direto
     CONFIRMADO --> CANCELADO : cancelar(motivo)
 
-    EXPEDIDO --> FATURADO : faturar()\n• gera parcelas (condição pgto)\n• publica venda.pedido.faturado
+    EXPEDIDO --> FATURADO : faturar()\n• chama POST /fiscal/calcular por item\n• gera parcelas sobre valor_total_nf\n• emite NFS-e dos itens SERVICO\n• publica venda.pedido.faturado
     EXPEDIDO --> CANCELADO : cancelar(motivo)\n(estorna estoque in-process:\nESTORNO_SAIDA_VENDA, mesma transação)
 
     FATURADO --> [*]
@@ -210,6 +225,7 @@ Regras transversais:
 - `BLOQUEADO_CREDITO` **não é erro**: o `confirmar()` com estouro retorna 200 com o pedido no novo status (o front mostra o motivo — limite e exposição — vindos no response). Erro 400 fica só para transição inválida/validação estrutural.
 - Transição inválida (ex.: faturar um `ORCAMENTO`) → `BusinessException` 400, mensagem PT-BR (`GlobalExceptionHandler` do `common`).
 - Toda transição grava `pedido_status_historico` e publica evento de auditoria Kafka (padrão `AuditEventDTO` já usado no serviço), com actions em `common/Constants.java` (diretiva de constantes do projeto).
+- **[Rev. 8]** Item de serviço nunca gera movimento de estoque, não exige depósito nem transportadora. Pedido só com itens `SERVICO` pula `EXPEDIDO`: `confirmar()` habilita `faturar()` diretamente (transição `CONFIRMADO → FATURADO`); chamar `expedir()` nesse pedido é transição inválida (400). Pedido misto (mercadoria + serviço) segue `EXPEDIDO` normalmente, mas `expedir()` baixa estoque só dos itens `MERCADORIA` — o(s) item(ns) de serviço vai(ão) junto no faturamento, sem baixa própria. Não há estado "PRESTADO" — a prestação do serviço não é rastreada no MVP (D2).
 - Concorrência: **[Rev. 7] implementado sem lock no pedido** (Fase 3) — só a numeração (`pedido_sequencia`) usa `SELECT ... FOR UPDATE`. Duas transições simultâneas no mesmo pedido passam ambas pelo `validarTransicao` e a última escrita vence. Pendência: `@Lock(PESSIMISTIC_WRITE)` no `findByIdAndTenantId` usado pelas transições (uma anotação; volume baixo, mas era o que o spec pedia).
 
 ---
@@ -225,8 +241,8 @@ Rota nova no gateway: `Path=/api/v1/pedidos/**` → `lb://operacoes-service`, de
 | 3 | `/api/v1/pedidos/{id}` | GET | front web | Detalhe com itens + histórico de status. |
 | 4 | `/api/v1/pedidos` | GET | front web | Lista paginada (HATEOAS, padrão dos demais CRUDs). Filtros: `status`, `clienteId`, `vendedorId`, `numero`, `dataEmissaoDe/Ate`. |
 | 5 | `/api/v1/pedidos/{id}/confirmar` | POST | front web | De `ORCAMENTO` ou `BLOQUEADO_CREDITO`. Validações §7. Sem body. Com estouro de limite: usuário **com** `PEDIDO_CONFIRMACAO_SEM_LIMITE` → `CONFIRMADO`; **sem** → `BLOQUEADO_CREDITO` (200, não 400). |
-| 6 | `/api/v1/pedidos/{id}/expedir` | POST | front web | Transição → `EXPEDIDO`. Body: `{ depositoId, transportadoraId?, valorFrete?, modalidadeFrete? }`. Aciona in-process o módulo de estoque (registra `SAIDA_VENDA`, baixa saldo — mesma transação, §7); não publica evento Kafka. |
-| 7 | `/api/v1/pedidos/{id}/faturar` | POST | front web | Transição → `FATURADO`. Sem body. Calcula parcelas e publica `venda.pedido.faturado` (§8). |
+| 6 | `/api/v1/pedidos/{id}/expedir` | POST | front web | Transição → `EXPEDIDO`. Body: `{ depositoId, transportadoraId?, valorFrete?, modalidadeFrete? }`. Aciona in-process o módulo de estoque (registra `SAIDA_VENDA`, baixa saldo só dos itens `MERCADORIA` — mesma transação, §7); não publica evento Kafka. **[Rev. 8]** 400 se o pedido não tiver nenhum item `MERCADORIA` (pedido só de serviço vai direto de `CONFIRMADO` para `faturar()`, endpoint 7). |
+| 7 | `/api/v1/pedidos/{id}/faturar` | POST | front web | Transição → `FATURADO`, a partir de `EXPEDIDO` (pedido com item `MERCADORIA`) ou direto de `CONFIRMADO` (pedido só de itens `SERVICO`, **[Rev. 8]** D2). Sem body. **[Rev. 8]** Chama `POST /fiscal/calcular` por item (D4), grava os totais fiscais em `pedido`, calcula parcelas sobre `valor_total_nf − valor_retencoes` e publica `venda.pedido.faturado` (§8). |
 | 8 | `/api/v1/pedidos/{id}/cancelar` | POST | front web | Body: `{ motivo }` (obrigatório). Qualquer estado exceto `FATURADO`/`CANCELADO`. |
 | 9 | `/api/v1/pedidos/{id}/recalcular-precos` | POST | front web (botão "Recalcular preços") | Só em `ORCAMENTO`: re-executa o resolver para todos os itens **não-manuais** usando a `dataEmissao` **do próprio pedido** (imutável, não a data de hoje) e atualiza snapshots. Uso: tabela de preço mudou depois da criação do orçamento; se a vigência já expirou para essa `dataEmissao`, o resolver retorna 404 no item (mesmo tratamento do §6). |
 | 10 | `/api/v1/pedidos/{id}/reabrir` | POST | front web | `BLOQUEADO_CREDITO → ORCAMENTO` (volta a editar itens/valor). Permissão `PEDIDO_ESCRITA`. |
@@ -257,6 +273,7 @@ DTOs novos: `PedidoRequestDTO`, `PedidoItemRequestDTO`, `PedidoResponseDTO`, `Pe
 - Referências a cadastros validadas **em uma chamada de lote** ao cadastro-service (`POST /api/v1/interno/referencias/validar`, §2): `cliente` existe no tenant e `ativo = true`; produtos existem/ativos; referências opcionais (`vendedor`, `condicaoPagamento`, `transportadora`, `deposito`), quando informadas, existem e ativas. Id inexistente/inativo → 400 apontando qual referência falhou.
 - ≥ 1 item; `quantidade > 0`; `desconto ≥ 0` e `< quantidade × preco_unitario`; produto sem duplicidade no pedido.
 - `dataValidade ≥ dataEmissao` quando informada.
+- **[Rev. 8]** Item cujo `Produto.tipo = SERVICO` exige `Produto.codigo_servico` preenchido (validado via a mesma chamada de lote ao cadastro-service acima) — sem isso, 400 apontando o produto.
 
 ### Na confirmação
 - `condicaoPagamentoId` preenchida e ativa (Fin.md exige condição para gerar parcelas) — revalidada via API do cadastro-service.
@@ -269,6 +286,7 @@ DTOs novos: `PedidoRequestDTO`, `PedidoItemRequestDTO`, `PedidoResponseDTO`, `Pe
   - `classificacaoRisco` **não** entra em regra automática no MVP (é informativo na tela).
 
 ### Na expedição
+- **[Rev. 8]** 400 se o pedido não tem nenhum item `MERCADORIA` (pedido só de itens `SERVICO`) — esse pedido vai de `CONFIRMADO` direto para `faturar()`, `expedir()` é transição inválida.
 - `depositoId` obrigatório, existente/ativo no tenant (via API do cadastro-service).
 - `transportadoraId` obrigatória se `modalidade_frete != SEM_FRETE`.
 - **Sem validação de saldo de estoque (decisão confirmada pelo usuário)** — expedir sem validar saldo; estoque negativo sistêmico é aceitável no MVP. Na mesma transação da expedição, o `operacoes-service` chama **in-process** o módulo de estoque (mesmo serviço, Rev. 2 — não é mais evento Kafka): registra `SAIDA_VENDA` em `movimento_estoque` e atualiza `estoque_saldo` (podendo ficar negativo). O histórico de movimento é a fonte para reconstituir/auditar. **Flag temporária:** validação de disponibilidade antes da transição é o upgrade — mesmo módulo, mesma transação, só liga a checagem quando o negócio pedir bloqueio.
@@ -282,8 +300,9 @@ DTOs novos: `PedidoRequestDTO`, `PedidoItemRequestDTO`, `PedidoResponseDTO`, `Pe
 > Ambos são **escolhas documentadas**, não descuido: dependem de serviços/módulos ainda inexistentes (`fiscal-service`, controle de saldo). A resposta ao revisor é "sabido e aceito, aqui o gatilho de saída do risco", não "não impede porque esquecemos".
 
 ### No faturamento
-- Pedido em `EXPEDIDO`.
+- Pedido em `EXPEDIDO`, ou em `CONFIRMADO` **[Rev. 8]** quando o pedido só tem itens `SERVICO` (D2).
 - Soma dos `percentual` das parcelas da condição = 100 (validar na leitura; condição malformada → 400 apontando o cadastro).
+- **[Rev. 8]** Chama `POST /fiscal/calcular` por item (D4) — **indisponibilidade do `fiscal-service` (timeout/5xx) = 503 PT-BR** ("Serviço fiscal indisponível, tente novamente"); o faturamento **não segue sem o cálculo de imposto** (nunca fatura com `valor_total_nf` incompleto/estimado).
 
 ### No cancelamento
 - `motivo` obrigatório (≤ 500).
@@ -316,17 +335,27 @@ Assíncrono, no padrão que o Fin.md já especifica para criação de títulos a
   "cliente_pessoa_id": "uuid",
   "data_faturamento": "2026-07-10",
   "valor_total": 1500.00,
+  "valor_total_nf": 1650.00,
+  "impostos": { "ibs": 90.00, "cbs": 60.00, "is": 0.00, "iss": 0.00, "retencoes": 0.00 },
+  "documentos_fiscais": [
+    { "tipo": "NFE", "referencia": "<pendente — chave NF-e, quando emissão existir>" },
+    { "tipo": "NFSE", "referencia": "<pendente — código de verificação NFS-e, quando emissão existir>" }
+  ],
   "condicao_pagamento_id": "uuid",
   "parcelas": [
-    { "numero": 1, "data_vencimento": "2026-08-09", "valor": 750.00, "forma_pagamento": "BOLETO" },
-    { "numero": 2, "data_vencimento": "2026-09-08", "valor": 750.00, "forma_pagamento": "BOLETO" }
+    { "numero": 1, "data_vencimento": "2026-08-09", "valor": 825.00, "forma_pagamento": "BOLETO" },
+    { "numero": 2, "data_vencimento": "2026-09-08", "valor": 825.00, "forma_pagamento": "BOLETO" }
   ],
-  "itens": [ { "produto_id": "uuid", "quantidade": 10.0, "valor_total": 1500.00 } ]
+  "itens": [
+    { "produto_id": "uuid", "tipo_item": "MERCADORIA", "ncm": "12345678", "quantidade": 10.0, "valor_total": 1500.00 },
+    { "produto_id": "uuid", "tipo_item": "SERVICO", "codigo_servico": "1.05", "quantidade": 1.0, "valor_total": 150.00 }
+  ]
 }
 ```
 
 - `cliente_pessoa_id` incluído porque o Fin.md exige `titulo.pessoa_id` desnormalizado em todo fluxo de criação ("eventos NF-e trazem `cliente_pessoa_id` no payload" — decisão registrada no Fin.md, F4.2). `Cliente.pessoa` já é FK obrigatória.
-- **Parcelas calculadas pelo O2C** a partir de `CondicaoPagamentoParcela` (definição da condição buscada via API do cadastro-service no momento do faturamento): `data_vencimento = data_faturamento + dias`; `valor = valor_total × percentual/100` arredondado a 2 casas, **resto na última parcela** (soma exata garantida).
+- **[Rev. 8]** `valor_total_nf`, `impostos` e `documentos_fiscais[]` são novos (D3/D4) — `impostos` soma `OperacaoFiscalDTO` de todos os itens; `documentos_fiscais[]` lista os documentos emitidos para esse pedido (um para mercadoria, um para serviço, dois no pedido misto) — o campo `referencia` fica reservado até a emissão de NF-e/NFS-e existir dentro do ERP (D3/D6 e o backlog de "Fora de escopo"); até lá, o array descreve só o `tipo` esperado. `itens[].tipo_item` e `itens[].codigo_servico`/`ncm` (um dos dois, conforme o tipo) também são novos.
+- **Parcelas calculadas pelo O2C** a partir de `CondicaoPagamentoParcela` (definição da condição buscada via API do cadastro-service no momento do faturamento), agora **[Rev. 8] sobre `valor_total_nf − valor_retencoes`** (D4), não mais sobre `valor_total`: `data_vencimento = data_faturamento + dias`; `valor = (valor_total_nf − valor_retencoes) × percentual/100` arredondado a 2 casas, **resto na última parcela** (soma exata garantida).
 - Contrato do consumer (a implementar no financeiro-service junto com o Fin.md, análogo ao F4.3): criar N títulos a receber, um por parcela, com `origem = 'NF_SAIDA'`, `origem_documento_id = pedido_id` (passa a ser a chave da NF-e quando NF-e existir), `pessoa_id = cliente_pessoa_id`, `status = 'EM_ABERTO'`. Idempotência por `event_id`.
 - **Enquanto o financeiro não existir:** o evento é publicado e não consumido. Nenhum fallback síncrono.
 
@@ -334,9 +363,16 @@ Assíncrono, no padrão que o Fin.md já especifica para criação de títulos a
 
 **Ressalva operacional interina (decisão do usuário):** o MVP fatura sem NF-e no sistema — o título nasce do `FATURADO` mesmo sem documento fiscal — mas **mercadoria não sai da doca sem XML/DANFE**: a NF-e é emitida num emissor externo, por fora, e anexada ao transporte até o `fiscal-service` existir.
 
-**[Rev. 7]** O `fiscal-service` **já existe** (motor IBS/CBS/IS de saída, `POST /fiscal/calcular`), mas ainda **não emite NF-e/NFC-e**. Quando a emissão existir, o gatilho fiscal **não pode ficar no `faturar()`**: pela ordem atual (`EXPEDIDO → FATURADO`) a nota seria emitida depois de a mercadoria sair, e a regra é o contrário — **o DANFE acompanha o transporte** (mesma ressalva operacional acima). Fluxo alvo: `expedir()` → `operacoes-service` aciona o `fiscal-service` (evento ou API, decisão do spec dele) → SEFAZ autoriza → **`nfe.saida.autorizada`** (evento já definido no Fin.md F4.3, publicado pelo fiscal-service) → pedido vai a `EXPEDIDO` e o financeiro cria os títulos; `faturar()` vira fecho/conciliação ou é absorvido pela autorização (decidir no spec de emissão). Nesse momento:
-- `venda.pedido.faturado` **deixa de gerar título** (o consumer do financeiro migra para `nfe.saida.autorizada` — F4.3 já especificado) e permanece como evento de domínio (estoque, BI). **Nunca os dois gatilhos ao mesmo tempo** — um título por faturamento.
-- O pedido ganha campos `nfe_chave`/`nfe_status` (migration futura não destrutiva, fora deste spec).
+**[Rev. 7]** O `fiscal-service` **já existe** (motor IBS/CBS/IS de saída, `POST /fiscal/calcular`), mas ainda **não emite NF-e/NFC-e/NFS-e**.
+
+**[Rev. 8] Substitui a leitura anterior de "gatilho único que passa pra expedição" — o gatilho é por tipo de item (D3):**
+- **Item `MERCADORIA`:** documento é NF-e, gatilho é a **expedição** — o DANFE acompanha o transporte, mantendo a ressalva operacional acima (não sai da doca sem nota). Fluxo alvo quando a emissão existir: `expedir()` → `operacoes-service` aciona o `fiscal-service` → SEFAZ autoriza → **`nfe.saida.autorizada`** (evento já definido no Fin.md F4.3) → pedido vai a `EXPEDIDO`.
+- **Item `SERVICO`:** documento é NFS-e, gatilho é o **faturamento**, por competência (`dataCompetencia = data_faturamento`) — não há transporte a amarrar, e NFS-e não tem chave de 44 posições nem série obrigatória (Fin.md §1.8-B/§1.11).
+- **Pedido misto:** emite **dois documentos fiscais**, um por gatilho — NF-e na expedição para os itens `MERCADORIA`, NFS-e no faturamento para os itens `SERVICO`. O título a receber referencia os dois (`origem_documento_id` por documento, `documentos_fiscais[]` no evento — ver payload acima). **Nunca um título nasce sem ambos os documentos do pedido misto emitidos.**
+
+Enquanto a emissão não existe dentro do ERP (situação atual), os dois gatilhos ficam **reservados, não implementados**: o fluxo interno (confirmar/expedir/faturar) avança normalmente e a nota — NF-e ou NFS-e — continua sendo emitida por fora, por procedimento operacional. Quando a emissão existir:
+- `venda.pedido.faturado` **deixa de ser o único gatilho de título** para pedidos com item `MERCADORIA` — o consumer do financeiro migra a parte de mercadoria para `nfe.saida.autorizada` (F4.3 já especificado); a parte de serviço continua nascendo do faturamento (NFS-e é documento de competência, não de saída física). **Nunca dois títulos para a mesma parcela** — pedido misto gera um título consolidado, referenciando os dois documentos.
+- O pedido ganha campos `nfe_chave`/`nfe_status` e `nfse_codigo_verificacao`/`nfse_status` (migration futura não destrutiva, fora deste spec).
 - A expedição pode ganhar estado intermediário (`AGUARDANDO_AUTORIZACAO`/rejeição SEFAZ) — decisão do spec de emissão do fiscal-service.
 
 ### Demais eventos de domínio
@@ -412,6 +448,7 @@ Mesma checagem do spec do motor de preço: 3 workspaces Angular.
    confirmado via `get_file_problems` após adicionar `spring-boot-starter-security-test` ao
    `pom.xml`). Faltando: documentação OpenAPI (`@Operation`/`@ApiResponse`) nos endpoints;
    nada disso foi rodado via `mvn` — só inspeção estática, o usuário roda o build real.
+4b. **Serviços** **[Rev. 8] — planejado, não iniciado.** Suporte a itens `SERVICO` (D1-D4): migração `cadastro-schema-0XX` (`Produto.tipo`/`codigo_servico`, D1); `PedidoItem.tipo_item` snapshot na criação (D2); migração `vendas-schema-002` (colunas fiscais de `pedido`, D4); chamada a `POST /fiscal/calcular` por item no `faturar()` (D4); transição `CONFIRMADO → FATURADO` para pedido só-serviço e bloqueio 400 de `expedir()` nesse caso (D2). Testes a escrever: pedido só-serviço fatura direto (sem passar por `EXPEDIDO`); pedido misto baixa estoque só dos itens `MERCADORIA`; `expedir()` em pedido só-serviço retorna 400; parcelas calculadas sobre `valor_total_nf` (não `valor_total`).
 5. **Eventos** — 3 producers Kafka (`confirmado`/`faturado`/`cancelado`; `expedido` é in-process, não Kafka) + payloads, constantes em `common/Constants.java`, registro em `spec/kafka-topics.md`, eventos de auditoria (`AuditEventDTO`) nas transições.
 6. **Frontend web** — 3 telas + rotas + guards de permissão.
 
@@ -434,13 +471,14 @@ flowchart LR
 
 | Item | Upgrade path |
 |---|---|
-| **NF-e / NFC-e** | Dono: **`fiscal-service`** — **já existe** (motor IBS/CBS/IS de saída, `POST /fiscal/calcular`), mas emissão de NF-e/NFC-e é spec próprio futuro (alinhado a Fin.md §8 fase 2). Ponto de integração reservado no §8 **[Rev. 7]**: gatilho migra pro `expedir()` (DANFE acompanha o transporte), evento `nfe.saida.autorizada` substitui o gatilho de título de `venda.pedido.faturado`; pedido ganha `nfe_chave`. Interina: emissor externo + DANFE anexado (ressalva operacional §7/§8). |
-| **Validação de saldo / reserva de estoque** | O módulo de estoque (mesmo `operacoes-service`) já registra movimento in-process nas transições `expedido` (baixa) e `cancelado` pós-expedição (estorno); `confirmado` ainda não mexe em estoque — reserva na confirmação é upgrade futuro. Upgrade: checagem de disponibilidade antes da transição de expedição, quando o negócio pedir bloqueio — é a flag "estoque não bloqueante" (decisão 3) sendo desativada; mesma base, mesmo serviço, só liga a validação. |
-| **Expedição / faturamento parcial** | Exige `quantidade_expedida` por item + N eventos parciais. Modelo atual (transição única) não bloqueia: adicionar colunas de quantidade atendida e permitir múltiplas expedições por pedido. |
+| **NF-e / NFC-e / NFS-e (emissão real)** | Dono: **`fiscal-service`** — **já existe** o cálculo (motor IBS/CBS/IS de saída, `POST /fiscal/calcular`, aceita `codigoServico` para serviço), mas emissão de NF-e/NFC-e/NFS-e é spec próprio futuro (alinhado a Fin.md §8 fase 2). Ponto de integração reservado no §8, **[Rev. 8]** gatilho **por tipo de item** (D3): NF-e no `expedir()` (mercadoria, DANFE acompanha o transporte), NFS-e no `faturar()` (serviço, por competência); pedido misto emite os dois. Evento `nfe.saida.autorizada` (mercadoria) complementa `venda.pedido.faturado`; pedido ganha `nfe_chave` e `nfse_codigo_verificacao`. Interina: emissor externo + DANFE/NFS-e anexado (ressalva operacional §7/§8). |
+| **Validação de saldo / reserva de estoque** | O módulo de estoque (mesmo `operacoes-service`) já registra movimento in-process nas transições `expedido` (baixa, só itens `MERCADORIA` — D2) e `cancelado` pós-expedição (estorno); `confirmado` ainda não mexe em estoque — reserva na confirmação é upgrade futuro. Upgrade: checagem de disponibilidade antes da transição de expedição, quando o negócio pedir bloqueio — é a flag "estoque não bloqueante" (decisão 3) sendo desativada; mesma base, mesmo serviço, só liga a validação. |
+| **Expedição / faturamento parcial** | Exige `quantidade_expedida` por item + N eventos parciais. **[Rev. 8]** Para serviço (medição, mensalidade, retainer) esse é o **caso normal**, não a exceção — é portanto a **primeira evolução após o MVP** (D6), não um item de baixa prioridade. Modelo atual (transição única) não bloqueia: upgrade path = `quantidade_faturada` por item + N faturamentos por pedido. |
 | **Alçada de aprovação (desconto máximo / faixas de crédito)** | MVP: desconto livre + bloqueio SOFT de crédito com `BLOQUEADO_CREDITO` e bypass por permissão. Upgrade: perfil de alçada por vendedor/faixa de valor (padrão `approval_regra` do Fin.md §4.10). |
 | **Devolução / RMA** | Fluxo próprio pós-`FATURADO`, com estorno no financeiro (Fin.md §4/§5) e entrada de estoque. |
 | **Comissão de vendedor** | `pedido.vendedor_id` + snapshot de preço/desconto já dão a base de cálculo; motor de comissão é spec próprio. |
-| **Split payment IBS/CBS (2027)** | Responsabilidade do financeiro (Fin.md §8 fase 4); payload do evento ganha `impostos` quando o motor fiscal existir. **[Rev. 7]** O cálculo em si já existe no `fiscal-service` (`POST /fiscal/calcular`, atrás da flag `fiscal.split-payment`, default off) — falta o O2C chamá-lo e o financeiro consumir o payload. |
+| **Split payment IBS/CBS (2027)** | Responsabilidade do financeiro (Fin.md §8 fase 4); payload do evento ganha `impostos` **[Rev. 8]** (já adicionado ao payload de `venda.pedido.faturado` por D4 — o campo em si não depende mais de "o motor fiscal existir", já existe). O cálculo em si já existe no `fiscal-service` (`POST /fiscal/calcular`, atrás da flag `fiscal.split-payment`, default off) — falta o financeiro consumir o payload. |
+| **NBS / emissão NFS-e** | **[Rev. 8]** D1 cobre só o código LC 116 (item de serviço) no `Produto`; código NBS (usado em outras integrações fiscais) e a emissão de NFS-e em si ficam para quando a emissão de documentos fiscais entrar no `fiscal-service` (ver linha "NF-e / NFC-e / NFS-e" acima). |
 | **Cotação multi-moeda** | `NUMERIC` + coluna `moeda` futura; hoje BRL implícito, como no resto do sistema. |
 
 ---
