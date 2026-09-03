@@ -84,6 +84,9 @@ databaseChangeLog:
   - include:
       file: cadastro/cadastro-schema-007.yaml
       relativeToChangelogFile: true
+  - include:
+      file: cadastro/cadastro-schema-009.yaml
+      relativeToChangelogFile: true
 
   # 3. Schema de Billing
   - include:
@@ -223,4 +226,7 @@ databaseChangeLog:
   # 7. Schema de Vendas — O2C (operacoes-service)
   - include:
       file: vendas/vendas-schema-001.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: vendas/vendas-schema-002.yaml
       relativeToChangelogFile: true

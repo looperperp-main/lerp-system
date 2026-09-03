@@ -1,5 +1,6 @@
 package com.l.erp.cadastroservice.api.dto;
 
+import com.l.erp.cadastroservice.domain.enumerators.TipoProduto;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.hateoas.RepresentationModel;
@@ -19,10 +20,12 @@ public class ProdutoResponseDTO extends RepresentationModel<ProdutoResponseDTO> 
     private String codigoExterno;
     private String nome;
     private String descricao;
+    private TipoProduto tipo;
     private String unidade;
     private String unidadeSecundaria;
     private BigDecimal fatorConversao;
     private String ncm;
+    private String codigoServico;
     private String ean;
     private String cest;
     private String origem;

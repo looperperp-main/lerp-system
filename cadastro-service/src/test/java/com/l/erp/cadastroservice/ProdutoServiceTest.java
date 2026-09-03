@@ -7,6 +7,7 @@ import com.l.erp.cadastroservice.api.mappers.ProdutoMapper;
 import com.l.erp.cadastroservice.domain.Produto;
 import com.l.erp.cadastroservice.domain.ProdutoCategoria;
 import com.l.erp.cadastroservice.domain.ProdutoPreco;
+import com.l.erp.cadastroservice.domain.enumerators.TipoProduto;
 import com.l.erp.cadastroservice.repository.DepositoRepository;
 import com.l.erp.cadastroservice.repository.FornecedorRepository;
 import com.l.erp.cadastroservice.repository.ProdutoCategoriaRepository;
@@ -53,8 +54,9 @@ class ProdutoServiceTest {
     private static final UUID USER_ID = UUID.randomUUID();
 
     private ProdutoDTO dto(UUID categoriaId, List<ProdutoEstoqueConfigDTO> estoqueConfigs) {
-        return new ProdutoDTO(null, TENANT_ID, categoriaId, "SKU1", null, "Produto 1", null, "UN",
-                null, null, null, null, null, null, null, null, null, null, null, true,
+        return new ProdutoDTO(null, TENANT_ID, categoriaId, "SKU1", null, "Produto 1", null,
+                TipoProduto.MERCADORIA, "UN",
+                null, null, null, null, null, null, null, null, null, null, null, null, true,
                 null, null, null, null, null, null, estoqueConfigs);
     }
 
@@ -84,6 +86,8 @@ class ProdutoServiceTest {
     @Test
     void create_semCategoria_naoConsultaCategoriaRepository() {
         Produto mapped = new Produto();
+        mapped.setTipo(TipoProduto.MERCADORIA);
+        mapped.setNcm("12345678");
         when(mapper.toEntity(any(ProdutoDTO.class))).thenReturn(mapped);
         when(produtoRepository.save(any(Produto.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -99,6 +103,8 @@ class ProdutoServiceTest {
         UUID categoriaId = UUID.randomUUID();
         ProdutoCategoria categoria = ProdutoCategoria.builder().id(categoriaId).build();
         Produto mapped = new Produto();
+        mapped.setTipo(TipoProduto.MERCADORIA);
+        mapped.setNcm("12345678");
 
         when(mapper.toEntity(any(ProdutoDTO.class))).thenReturn(mapped);
         when(categoriaRepository.findByIdAndTenantId(categoriaId, TENANT_ID)).thenReturn(Optional.of(categoria));
@@ -113,6 +119,8 @@ class ProdutoServiceTest {
     @Test
     void create_estoqueConfigSemDeposito_lancaBadRequest() {
         Produto mapped = new Produto();
+        mapped.setTipo(TipoProduto.MERCADORIA);
+        mapped.setNcm("12345678");
         ProdutoEstoqueConfigDTO configSemDeposito = new ProdutoEstoqueConfigDTO(
                 null, TENANT_ID, null, null, null, null, null, null, null, null, null, null);
 
@@ -122,6 +130,59 @@ class ProdutoServiceTest {
         assertThatThrownBy(() -> produtoService.create(TENANT_ID, USER_ID, dto(null, List.of(configSemDeposito))))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("obrigatório")
+                .extracting(e -> ((BusinessException) e).getStatus())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void create_tipoNulo_defaultParaMercadoria() {
+        Produto mapped = new Produto();
+        mapped.setNcm("12345678");
+        when(mapper.toEntity(any(ProdutoDTO.class))).thenReturn(mapped);
+        when(produtoRepository.save(any(Produto.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Produto saved = produtoService.create(TENANT_ID, USER_ID, dto(null, null));
+
+        assertThat(saved.getTipo()).isEqualTo(TipoProduto.MERCADORIA);
+    }
+
+    @Test
+    void create_mercadoriaSemNcm_lancaBadRequest() {
+        Produto mapped = new Produto();
+        mapped.setTipo(TipoProduto.MERCADORIA);
+        when(mapper.toEntity(any(ProdutoDTO.class))).thenReturn(mapped);
+
+        assertThatThrownBy(() -> produtoService.create(TENANT_ID, USER_ID, dto(null, null)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("NCM")
+                .extracting(e -> ((BusinessException) e).getStatus())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void create_servicoSemCodigoServico_lancaBadRequest() {
+        Produto mapped = new Produto();
+        mapped.setTipo(TipoProduto.SERVICO);
+        when(mapper.toEntity(any(ProdutoDTO.class))).thenReturn(mapped);
+
+        assertThatThrownBy(() -> produtoService.create(TENANT_ID, USER_ID, dto(null, null)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Código de serviço")
+                .extracting(e -> ((BusinessException) e).getStatus())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void create_mercadoriaComCodigoServico_lancaBadRequest() {
+        Produto mapped = new Produto();
+        mapped.setTipo(TipoProduto.MERCADORIA);
+        mapped.setNcm("12345678");
+        mapped.setCodigoServico("SRV01");
+        when(mapper.toEntity(any(ProdutoDTO.class))).thenReturn(mapped);
+
+        assertThatThrownBy(() -> produtoService.create(TENANT_ID, USER_ID, dto(null, null)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Código de serviço")
                 .extracting(e -> ((BusinessException) e).getStatus())
                 .isEqualTo(HttpStatus.BAD_REQUEST);
     }
@@ -142,6 +203,8 @@ class ProdutoServiceTest {
         UUID id = UUID.randomUUID();
         Produto existing = new Produto();
         existing.setId(id);
+        existing.setTipo(TipoProduto.MERCADORIA);
+        existing.setNcm("12345678");
         existing.setCategoria(ProdutoCategoria.builder().id(UUID.randomUUID()).build());
 
         when(produtoRepository.findByIdAndTenantId(id, TENANT_ID)).thenReturn(Optional.of(existing));
@@ -161,12 +224,15 @@ class ProdutoServiceTest {
         UUID id = UUID.randomUUID();
         Produto existing = new Produto();
         existing.setId(id);
+        existing.setTipo(TipoProduto.MERCADORIA);
+        existing.setNcm("12345678");
 
         ProdutoPrecoDTO precoSemAuditoria = new ProdutoPrecoDTO(
                 null, TENANT_ID, UUID.randomUUID(), BigDecimal.TEN, LocalDate.now(), null,
                 null, null, null, null);
-        ProdutoDTO dtoComPreco = new ProdutoDTO(null, TENANT_ID, null, "SKU1", null, "Produto 1", null, "UN",
-                null, null, null, null, null, null, null, null, null, null, null, true,
+        ProdutoDTO dtoComPreco = new ProdutoDTO(null, TENANT_ID, null, "SKU1", null, "Produto 1", null,
+                TipoProduto.MERCADORIA, "UN",
+                null, null, null, null, null, null, null, null, null, null, null, null, true,
                 null, null, null, null, List.of(precoSemAuditoria), null, null);
 
         when(produtoRepository.findByIdAndTenantId(id, TENANT_ID)).thenReturn(Optional.of(existing));

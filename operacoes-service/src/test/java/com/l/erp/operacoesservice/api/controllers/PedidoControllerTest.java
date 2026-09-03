@@ -10,6 +10,7 @@ import com.l.erp.operacoesservice.api.dto.PedidoResponseDTO;
 import com.l.erp.operacoesservice.api.mappers.PedidoAssembler;
 import com.l.erp.operacoesservice.api.mappers.PedidoMapper;
 import com.l.erp.operacoesservice.domain.vendas.Pedido;
+import com.l.erp.operacoesservice.domain.vendas.PedidoItem;
 import com.l.erp.operacoesservice.domain.vendas.enumerators.ModalidadeFrete;
 import com.l.erp.operacoesservice.domain.vendas.enumerators.StatusPedido;
 import com.l.erp.operacoesservice.infra.client.CadastroServiceClient;
@@ -83,6 +84,11 @@ class PedidoControllerTest {
     void criarDeveRetornar201ComLocation() throws Exception {
         UUID id = UUID.randomUUID();
         when(mapper.toEntity(any())).thenReturn(Pedido.builder().build());
+        when(mapper.toItemEntities(any())).thenReturn(List.of(
+                PedidoItem.builder().produtoId(UUID.randomUUID()).quantidade(BigDecimal.ONE)
+                        .precoUnitario(BigDecimal.TEN).build()));
+        when(cadastroServiceClient.buscarProduto(any(), eq(TENANT_ID), eq(USER_ID)))
+                .thenReturn(new CadastroServiceClient.ProdutoRef("MERCADORIA", null, true));
         when(service.criarOrcamento(any(), any(), eq(TENANT_ID), eq(USER_ID))).thenReturn(pedido(id));
         when(assembler.toDetailModel(any(), any(), any())).thenReturn(responseDto(id));
 
@@ -110,6 +116,11 @@ class PedidoControllerTest {
     void atualizarDeveRetornar200() throws Exception {
         UUID id = UUID.randomUUID();
         when(mapper.toEntity(any())).thenReturn(Pedido.builder().build());
+        when(mapper.toItemEntities(any())).thenReturn(List.of(
+                PedidoItem.builder().produtoId(UUID.randomUUID()).quantidade(BigDecimal.ONE)
+                        .precoUnitario(BigDecimal.TEN).build()));
+        when(cadastroServiceClient.buscarProduto(any(), eq(TENANT_ID), eq(USER_ID)))
+                .thenReturn(new CadastroServiceClient.ProdutoRef("MERCADORIA", null, true));
         when(service.atualizar(eq(id), eq(TENANT_ID), eq(USER_ID), any(), any())).thenReturn(pedido(id));
         when(assembler.toDetailModel(any(), any(), any())).thenReturn(responseDto(id));
 
@@ -119,6 +130,23 @@ class PedidoControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(requestDto())))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser(authorities = "PEDIDO_ESCRITA")
+    void criarComProdutoInativoDeveRetornar400() throws Exception {
+        when(mapper.toItemEntities(any())).thenReturn(List.of(
+                PedidoItem.builder().produtoId(UUID.randomUUID()).quantidade(BigDecimal.ONE)
+                        .precoUnitario(BigDecimal.TEN).build()));
+        when(cadastroServiceClient.buscarProduto(any(), eq(TENANT_ID), eq(USER_ID)))
+                .thenReturn(new CadastroServiceClient.ProdutoRef("MERCADORIA", null, false));
+
+        mockMvc.perform(post("/api/v1/pedidos")
+                        .header(Constants.HEADER_TENANT_ID, TENANT_ID)
+                        .header(Constants.HEADER_USER_ID, USER_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestDto())))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

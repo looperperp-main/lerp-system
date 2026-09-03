@@ -9,7 +9,9 @@ import com.l.erp.operacoesservice.api.dto.PedidoResponseDTO;
 import com.l.erp.operacoesservice.api.mappers.PedidoAssembler;
 import com.l.erp.operacoesservice.api.mappers.PedidoMapper;
 import com.l.erp.operacoesservice.domain.vendas.Pedido;
+import com.l.erp.operacoesservice.domain.vendas.PedidoItem;
 import com.l.erp.operacoesservice.domain.vendas.enumerators.StatusPedido;
+import com.l.erp.operacoesservice.domain.vendas.enumerators.TipoItemPedido;
 import com.l.erp.operacoesservice.infra.client.CadastroServiceClient;
 import com.l.erp.operacoesservice.services.vendas.PedidoService;
 import com.l.erp.operacoesservice.util.SecurityUtils;
@@ -63,7 +65,9 @@ public class PedidoController {
         logger.info("Criando orçamento para cliente ID: {}", dto.clienteId());
         Long tenantId = tenantId();
         UUID userId = userId();
-        Pedido salvo = service.criarOrcamento(mapper.toEntity(dto), mapper.toItemEntities(dto.itens()), tenantId, userId);
+        List<PedidoItem> itens = mapper.toItemEntities(dto.itens());
+        resolverTiposDosItens(itens, tenantId, userId);
+        Pedido salvo = service.criarOrcamento(mapper.toEntity(dto), itens, tenantId, userId);
         PedidoResponseDTO response = detalhe(salvo);
         return ResponseEntity.created(response.getRequiredLink(IanaLinkRelations.SELF).toUri()).body(response);
     }
@@ -72,8 +76,24 @@ public class PedidoController {
     @PreAuthorize("hasAuthority('PEDIDO_ESCRITA')")
     public ResponseEntity<PedidoResponseDTO> atualizar(@PathVariable UUID id, @RequestBody @Valid PedidoRequestDTO dto) {
         logger.info("Atualizando orçamento ID: {}", id);
-        Pedido atualizado = service.atualizar(id, tenantId(), userId(), mapper.toEntity(dto), mapper.toItemEntities(dto.itens()));
+        Long tenantId = tenantId();
+        UUID userId = userId();
+        List<PedidoItem> itens = mapper.toItemEntities(dto.itens());
+        resolverTiposDosItens(itens, tenantId, userId);
+        Pedido atualizado = service.atualizar(id, tenantId, userId, mapper.toEntity(dto), itens);
         return ResponseEntity.ok(detalhe(atualizado));
+    }
+
+    // Resolve o tipo (mercadoria/serviço) de cada item junto ao cadastro-service e rejeita
+    // produto inativo — precisa acontecer antes de chamar o service, que já espera tipoItem setado.
+    private void resolverTiposDosItens(List<PedidoItem> itens, Long tenantId, UUID userId) {
+        for (PedidoItem item : itens) {
+            CadastroServiceClient.ProdutoRef ref = cadastroServiceClient.buscarProduto(item.getProdutoId(), tenantId, userId);
+            if (Boolean.FALSE.equals(ref.ativo())) {
+                throw new BusinessException(String.format(Constants.PEDIDO_PRODUTO_INATIVO, item.getProdutoId()), HttpStatus.BAD_REQUEST);
+            }
+            item.setTipoItem(TipoItemPedido.valueOf(ref.tipo()));
+        }
     }
 
     @GetMapping("/{id}")

@@ -7,6 +7,7 @@ import com.l.erp.operacoesservice.domain.vendas.PedidoItem;
 import com.l.erp.operacoesservice.domain.vendas.PedidoStatusHistorico;
 import com.l.erp.operacoesservice.domain.vendas.enumerators.ModalidadeFrete;
 import com.l.erp.operacoesservice.domain.vendas.enumerators.StatusPedido;
+import com.l.erp.operacoesservice.domain.vendas.enumerators.TipoItemPedido;
 import com.l.erp.operacoesservice.repository.vendas.PedidoItemRepository;
 import com.l.erp.operacoesservice.repository.vendas.PedidoRepository;
 import com.l.erp.operacoesservice.repository.vendas.PedidoStatusHistoricoRepository;
@@ -118,6 +119,10 @@ public class PedidoService {
      * nesse erro; snapshot de tabela/origem fica {@code null} até lá — não há de onde vir.
      */
     private void resolverPrecoEValidarItem(PedidoItem item, Long tenantId, UUID userId, Instant agora) {
+        if (item.getTipoItem() == null) {
+            throw new BusinessException(
+                    String.format(Constants.PEDIDO_ITEM_SEM_TIPO, item.getProdutoId()), HttpStatus.BAD_REQUEST);
+        }
         if (item.getQuantidade() == null || item.getQuantidade().signum() <= 0) {
             throw new BusinessException(Constants.PEDIDO_ITEM_QUANTIDADE_INVALIDA, HttpStatus.BAD_REQUEST);
         }
@@ -227,6 +232,9 @@ public class PedidoService {
     public Pedido expedir(UUID pedidoId, Long tenantId, UUID userId, UUID depositoId, UUID transportadoraId,
                            BigDecimal valorFrete, ModalidadeFrete modalidadeFrete) {
         Pedido pedido = buscarPedido(pedidoId, tenantId);
+        if (somenteServicos(pedido)) {
+            throw new BusinessException(Constants.PEDIDO_EXPEDICAO_SO_MERCADORIA, HttpStatus.BAD_REQUEST);
+        }
         validarTransicao(pedido.getStatus(), StatusPedido.EXPEDIDO);
         if (depositoId == null) {
             throw new BusinessException(Constants.PEDIDO_DEPOSITO_OBRIGATORIO, HttpStatus.BAD_REQUEST);
@@ -249,8 +257,9 @@ public class PedidoService {
         pedido.setLastUpdatedBy(userId);
         pedidoRepository.save(pedido);
         registrarHistorico(pedido, statusAnterior, StatusPedido.EXPEDIDO, null, userId, agora);
-        // ponytail: baixa de estoque in-process (SAIDA_VENDA), mesma transação — pendente do módulo
-        // de estoque, ainda não escrito neste serviço (spec §7-expedição). Liga aqui quando existir.
+        // ponytail: baixa de estoque in-process (SAIDA_VENDA) só pros itens MERCADORIA (item SERVICO
+        // nunca movimenta estoque, D2), mesma transação — pendente do módulo de estoque, ainda não
+        // escrito neste serviço (spec §7-expedição). Liga aqui quando existir.
         return pedido;
     }
 
@@ -258,7 +267,12 @@ public class PedidoService {
     public FaturamentoResultado faturar(UUID pedidoId, Long tenantId, UUID userId,
                                          List<ParcelaDefinicao> parcelasDefinicao) {
         Pedido pedido = buscarPedido(pedidoId, tenantId);
-        validarTransicao(pedido.getStatus(), StatusPedido.FATURADO);
+        // Pedido só-serviço fatura direto de CONFIRMADO (D3, spec/o2c-vendas.md) — não passa por
+        // EXPEDIDO porque não existe estoque pra dar baixa. Pedido com mercadoria segue a tabela normal.
+        boolean faturamentoDiretoDeServico = pedido.getStatus() == StatusPedido.CONFIRMADO && somenteServicos(pedido);
+        if (!faturamentoDiretoDeServico) {
+            validarTransicao(pedido.getStatus(), StatusPedido.FATURADO);
+        }
 
         BigDecimal somaPercentuais = parcelasDefinicao.stream()
                 .map(ParcelaDefinicao::percentual)
@@ -302,8 +316,9 @@ public class PedidoService {
         pedido.setLastUpdatedBy(userId);
         pedidoRepository.save(pedido);
         registrarHistorico(pedido, statusAnterior, StatusPedido.CANCELADO, motivo, userId, agora);
-        // ponytail: estorno de estoque (ESTORNO_SAIDA_VENDA) quando statusAnterior == EXPEDIDO fica
-        // pendente do módulo de estoque, mesma ressalva do expedir() acima (spec §7-cancelamento).
+        // ponytail: estorno de estoque (ESTORNO_SAIDA_VENDA) quando statusAnterior == EXPEDIDO, só
+        // pros itens MERCADORIA (D2), fica pendente do módulo de estoque, mesma ressalva do expedir()
+        // acima (spec §7-cancelamento).
         return pedido;
     }
 
@@ -422,6 +437,12 @@ public class PedidoService {
     private Pedido buscarPedido(UUID pedidoId, Long tenantId) {
         return pedidoRepository.findByIdAndTenantId(pedidoId, tenantId)
                 .orElseThrow(() -> new BusinessException(Constants.PEDIDO_NOT_FOUND, HttpStatus.BAD_REQUEST));
+    }
+
+    /** true se nenhum item do pedido é MERCADORIA — pedido só-serviço pula expedição (D3). */
+    private boolean somenteServicos(Pedido pedido) {
+        return pedidoItemRepository.findAllByPedidoId(pedido.getId()).stream()
+                .noneMatch(item -> item.getTipoItem() == TipoItemPedido.MERCADORIA);
     }
 
     private void validarTransicao(StatusPedido origem, StatusPedido destino) {

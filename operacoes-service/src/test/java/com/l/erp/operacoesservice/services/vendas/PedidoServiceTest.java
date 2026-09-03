@@ -5,6 +5,7 @@ import com.l.erp.operacoesservice.domain.vendas.Pedido;
 import com.l.erp.operacoesservice.domain.vendas.PedidoItem;
 import com.l.erp.operacoesservice.domain.vendas.enumerators.ModalidadeFrete;
 import com.l.erp.operacoesservice.domain.vendas.enumerators.StatusPedido;
+import com.l.erp.operacoesservice.domain.vendas.enumerators.TipoItemPedido;
 import com.l.erp.operacoesservice.repository.vendas.PedidoItemRepository;
 import com.l.erp.operacoesservice.repository.vendas.PedidoRepository;
 import com.l.erp.operacoesservice.repository.vendas.PedidoStatusHistoricoRepository;
@@ -49,6 +50,7 @@ class PedidoServiceTest {
     private PedidoItem item(BigDecimal quantidade, BigDecimal precoUnitario) {
         return PedidoItem.builder()
                 .produtoId(UUID.randomUUID())
+                .tipoItem(TipoItemPedido.MERCADORIA)
                 .quantidade(quantidade)
                 .precoUnitario(precoUnitario)
                 .build();
@@ -75,7 +77,7 @@ class PedidoServiceTest {
     @Test
     void deveLancarSeItemSemPrecoUnitario_stubDoResolver() {
         PedidoItem semPreco = PedidoItem.builder().produtoId(UUID.randomUUID())
-                .quantidade(BigDecimal.ONE).build();
+                .tipoItem(TipoItemPedido.MERCADORIA).quantidade(BigDecimal.ONE).build();
 
         assertThatThrownBy(() -> pedidoService.criarOrcamento(
                 Pedido.builder().clienteId(CLIENTE_ID).build(), List.of(semPreco), TENANT_ID, USER_ID))
@@ -214,6 +216,8 @@ class PedidoServiceTest {
                 .status(StatusPedido.CONFIRMADO).valorItens(new BigDecimal("100.00"))
                 .valorDesconto(BigDecimal.ZERO).build());
         when(pedidoRepository.findByIdAndTenantId(pedido.getId(), TENANT_ID)).thenReturn(Optional.of(pedido));
+        when(pedidoItemRepository.findAllByPedidoId(pedido.getId()))
+                .thenReturn(List.of(item(BigDecimal.ONE, BigDecimal.TEN)));
 
         Pedido resultado = pedidoService.expedir(pedido.getId(), TENANT_ID, USER_ID, UUID.randomUUID(), null,
                 null, ModalidadeFrete.SEM_FRETE);
@@ -227,6 +231,8 @@ class PedidoServiceTest {
         Pedido pedido = pedidoComTenant(Pedido.builder().id(UUID.randomUUID())
                 .status(StatusPedido.CONFIRMADO).build());
         when(pedidoRepository.findByIdAndTenantId(pedido.getId(), TENANT_ID)).thenReturn(Optional.of(pedido));
+        when(pedidoItemRepository.findAllByPedidoId(pedido.getId()))
+                .thenReturn(List.of(item(BigDecimal.ONE, BigDecimal.TEN)));
 
         assertThatThrownBy(() -> pedidoService.expedir(pedido.getId(), TENANT_ID, USER_ID, null, null,
                 null, ModalidadeFrete.SEM_FRETE))
@@ -238,6 +244,8 @@ class PedidoServiceTest {
         Pedido pedido = pedidoComTenant(Pedido.builder().id(UUID.randomUUID())
                 .status(StatusPedido.CONFIRMADO).build());
         when(pedidoRepository.findByIdAndTenantId(pedido.getId(), TENANT_ID)).thenReturn(Optional.of(pedido));
+        when(pedidoItemRepository.findAllByPedidoId(pedido.getId()))
+                .thenReturn(List.of(item(BigDecimal.ONE, BigDecimal.TEN)));
 
         assertThatThrownBy(() -> pedidoService.expedir(pedido.getId(), TENANT_ID, USER_ID, UUID.randomUUID(), null,
                 BigDecimal.TEN, ModalidadeFrete.CIF))
@@ -320,6 +328,68 @@ class PedidoServiceTest {
         BigDecimal soma = parcelas.stream().map(PedidoService.ParcelaFaturamento::valor)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         assertThat(soma).isEqualByComparingTo("10.00");
+    }
+
+    // ---------------------------------------------------------------- venda de serviço (D3, spec/o2c-vendas.md)
+
+    @Test
+    void deveFaturarDiretoQuandoPedidoSoServicoEstaConfirmado() {
+        Pedido pedido = pedidoComTenant(Pedido.builder().id(UUID.randomUUID())
+                .status(StatusPedido.CONFIRMADO).valorTotal(new BigDecimal("100.00")).build());
+        when(pedidoRepository.findByIdAndTenantId(pedido.getId(), TENANT_ID)).thenReturn(Optional.of(pedido));
+        PedidoItem itemServico = PedidoItem.builder().produtoId(UUID.randomUUID())
+                .tipoItem(TipoItemPedido.SERVICO).quantidade(BigDecimal.ONE).precoUnitario(new BigDecimal("100.00"))
+                .build();
+        when(pedidoItemRepository.findAllByPedidoId(pedido.getId())).thenReturn(List.of(itemServico));
+        List<PedidoService.ParcelaDefinicao> parcelas = List.of(
+                new PedidoService.ParcelaDefinicao(1, 0, new BigDecimal("100"), "BOLETO"));
+
+        PedidoService.FaturamentoResultado resultado =
+                pedidoService.faturar(pedido.getId(), TENANT_ID, USER_ID, parcelas);
+
+        assertThat(resultado.pedido().getStatus()).isEqualTo(StatusPedido.FATURADO);
+    }
+
+    @Test
+    void deveLancarNaExpedicaoDePedidoSoServico() {
+        Pedido pedido = pedidoComTenant(Pedido.builder().id(UUID.randomUUID())
+                .status(StatusPedido.CONFIRMADO).build());
+        when(pedidoRepository.findByIdAndTenantId(pedido.getId(), TENANT_ID)).thenReturn(Optional.of(pedido));
+        PedidoItem itemServico = PedidoItem.builder().produtoId(UUID.randomUUID())
+                .tipoItem(TipoItemPedido.SERVICO).quantidade(BigDecimal.ONE).precoUnitario(BigDecimal.TEN).build();
+        when(pedidoItemRepository.findAllByPedidoId(pedido.getId())).thenReturn(List.of(itemServico));
+
+        assertThatThrownBy(() -> pedidoService.expedir(pedido.getId(), TENANT_ID, USER_ID, UUID.randomUUID(), null,
+                null, ModalidadeFrete.SEM_FRETE))
+                .isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    void deveLancarAoFaturarPedidoMistoDeConfirmado() {
+        Pedido pedido = pedidoComTenant(Pedido.builder().id(UUID.randomUUID())
+                .status(StatusPedido.CONFIRMADO).valorTotal(new BigDecimal("100.00")).build());
+        when(pedidoRepository.findByIdAndTenantId(pedido.getId(), TENANT_ID)).thenReturn(Optional.of(pedido));
+        PedidoItem itemMercadoria = item(BigDecimal.ONE, BigDecimal.TEN);
+        PedidoItem itemServico = PedidoItem.builder().produtoId(UUID.randomUUID())
+                .tipoItem(TipoItemPedido.SERVICO).quantidade(BigDecimal.ONE).precoUnitario(BigDecimal.TEN).build();
+        when(pedidoItemRepository.findAllByPedidoId(pedido.getId()))
+                .thenReturn(List.of(itemMercadoria, itemServico));
+        List<PedidoService.ParcelaDefinicao> parcelas = List.of(
+                new PedidoService.ParcelaDefinicao(1, 0, new BigDecimal("100"), "BOLETO"));
+
+        assertThatThrownBy(() -> pedidoService.faturar(pedido.getId(), TENANT_ID, USER_ID, parcelas))
+                .isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    void deveLancarAoCriarOrcamentoComItemSemTipo() {
+        PedidoItem semTipo = PedidoItem.builder().produtoId(UUID.randomUUID())
+                .quantidade(BigDecimal.ONE).precoUnitario(BigDecimal.TEN).build();
+
+        assertThatThrownBy(() -> pedidoService.criarOrcamento(
+                Pedido.builder().clienteId(CLIENTE_ID).build(), List.of(semTipo), TENANT_ID, USER_ID))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Tipo do item");
     }
 
     // ---------------------------------------------------------------- atualizar / recalcularPrecos (Fase 4, §5/§10)

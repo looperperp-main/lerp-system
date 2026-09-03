@@ -1,5 +1,7 @@
 package com.l.erp.operacoesservice.api.dto;
 
+import com.l.erp.operacoesservice.domain.vendas.enumerators.TipoItemPedido;
+
 import java.math.BigDecimal;
 import java.util.UUID;
 
@@ -7,6 +9,7 @@ import java.util.UUID;
 public record PedidoItemResponseDTO(
         UUID id,
         UUID produtoId,
+        TipoItemPedido tipoItem,
         BigDecimal quantidade,
         BigDecimal precoUnitario,
         BigDecimal desconto,

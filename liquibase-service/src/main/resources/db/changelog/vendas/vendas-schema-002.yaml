@@ -1,0 +1,21 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # Suporte a serviço no item do pedido (spec/o2c-vendas.md, Rev. 8)
+  # tipo_item: snapshot imutável de Produto.tipo no momento em que o item foi
+  # adicionado ao pedido — MERCADORIA (default, compatível com pedidos existentes) ou SERVICO.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: vendas-005-pedido-item-tipo-item
+      author: vitor-fernandes
+      changes:
+        - addColumn:
+            schemaName: vendas
+            tableName: pedido_item
+            columns:
+              - column:
+                  name: tipo_item
+                  type: varchar(12)
+                  defaultValue: 'MERCADORIA'
+                  constraints:
+                    nullable: false

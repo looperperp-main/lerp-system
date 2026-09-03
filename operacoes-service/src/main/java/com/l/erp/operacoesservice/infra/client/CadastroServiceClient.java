@@ -9,6 +9,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestClient;
 
 import java.math.BigDecimal;
@@ -63,6 +64,20 @@ public class CadastroServiceClient {
         }
     }
 
+    public ProdutoRef buscarProduto(UUID produtoId, Long tenantId, UUID userId) {
+        try {
+            return restClient.get()
+                    .uri("/api/v1/produtos/{id}", produtoId)
+                    .headers(headers -> headersInternos(headers, tenantId, userId))
+                    .retrieve()
+                    .body(ProdutoRef.class);
+        } catch (HttpClientErrorException.NotFound e) {
+            throw new BusinessException(String.format(Constants.PEDIDO_PRODUTO_NAO_ENCONTRADO, produtoId), HttpStatus.BAD_REQUEST);
+        } catch (HttpServerErrorException e) {
+            throw new BusinessException(Constants.CADASTRO_SERVICE_INDISPONIVEL, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
     private void headersInternos(HttpHeaders headers, Long tenantId, UUID userId) {
         headers.add(Constants.HEADER_INTERNAL_SECRET, internalSecret);
         headers.add(Constants.HEADER_TENANT_ID, String.valueOf(tenantId));
@@ -85,5 +100,10 @@ public class CadastroServiceClient {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     private record ParcelaRef(Integer numeroParcela, Integer diasPrazo, BigDecimal percentual, String formaPagamento) {
+    }
+
+    // Público: PedidoController usa o tipo do produto pra montar o item do pedido.
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record ProdutoRef(String tipo, String codigoServico, Boolean ativo) {
     }
 }

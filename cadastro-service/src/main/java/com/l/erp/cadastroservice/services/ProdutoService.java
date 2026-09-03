@@ -4,6 +4,7 @@ import com.l.erp.cadastroservice.api.dto.ProdutoDTO;
 import com.l.erp.cadastroservice.api.mappers.ProdutoMapper;
 import com.l.erp.cadastroservice.domain.Pessoa;
 import com.l.erp.cadastroservice.domain.Produto;
+import com.l.erp.cadastroservice.domain.enumerators.TipoProduto;
 import com.l.erp.cadastroservice.domain.ProdutoEstoqueConfig;
 import com.l.erp.cadastroservice.domain.ProdutoFornecedor;
 import com.l.erp.cadastroservice.domain.ProdutoPreco;
@@ -71,6 +72,7 @@ public class ProdutoService {
     public Produto create(Long tenantId, UUID userId, ProdutoDTO dto) {
         UUID correlationID = getCorrelationIdFromRequest(logger);
         Produto produto = mapper.toEntity(dto);
+        validarTipo(produto);
         produto.setTenantId(tenantId);
         produto.setCreatedAt(Instant.now());
         produto.setCreatedBy(userId);
@@ -98,6 +100,7 @@ public class ProdutoService {
         Produto produto = produtoRepository.findByIdAndTenantId(id, tenantId).orElseThrow(() -> new BusinessException(Constants.PRODUTO_NOT_FOUND, HttpStatus.NOT_FOUND));
 
         mapper.updateEntityFromDto(dto, produto);
+        validarTipo(produto);
 
         produto.setUpdatedAt(Instant.now());
         produto.setLastUpdatedBy(userId);
@@ -136,6 +139,24 @@ public class ProdutoService {
         produto.setUpdatedAt(Instant.now());
         produtoRepository.save(produto);
         sendAuditEvent(Constants.PRODUTO_UPDATE, userId, id, Constants.SUCCESS, "{Status Alterado: " + produto.getAtivo() + "}", correlationId);
+    }
+
+    // Nulo = MERCADORIA (compatibilidade com clientes que ainda não enviam o campo).
+    private void validarTipo(Produto produto) {
+        if (produto.getTipo() == null) {
+            produto.setTipo(TipoProduto.MERCADORIA);
+        }
+        boolean temCodigoServico = produto.getCodigoServico() != null && !produto.getCodigoServico().isBlank();
+        if (produto.getTipo() == TipoProduto.MERCADORIA) {
+            if (produto.getNcm() == null || produto.getNcm().isBlank()) {
+                throw new BusinessException(Constants.PRODUTO_NCM_OBRIGATORIO_MERCADORIA, HttpStatus.BAD_REQUEST);
+            }
+            if (temCodigoServico) {
+                throw new BusinessException(Constants.PRODUTO_CODIGO_SERVICO_APENAS_SERVICO, HttpStatus.BAD_REQUEST);
+            }
+        } else if (!temCodigoServico) {
+            throw new BusinessException(Constants.PRODUTO_CODIGO_SERVICO_OBRIGATORIO, HttpStatus.BAD_REQUEST);
+        }
     }
 
     private void processarSubEntidades(Produto produto, ProdutoDTO dto, Long tenantId, UUID userId, boolean isCreate) {

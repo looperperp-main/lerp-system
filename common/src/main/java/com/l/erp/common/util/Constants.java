@@ -212,6 +212,12 @@ public class Constants {
     public static final String PRODUTO_DELETE = PRODUTO +"_" + DELETE;
     public static final String PRODUTO_NOT_FOUND = "Produto não encontrado!";
     public static final String PRODUTO_ALREADY_EXISTS = "Já existe um Produto com este nome";
+    // Suporte a serviço (Produto.tipo) — cadastro-service
+    public static final String PRODUTO_NCM_OBRIGATORIO_MERCADORIA = "NCM é obrigatório para produto do tipo MERCADORIA";
+    public static final String PRODUTO_CODIGO_SERVICO_OBRIGATORIO =
+            "Código de serviço é obrigatório para produto do tipo SERVICO";
+    public static final String PRODUTO_CODIGO_SERVICO_APENAS_SERVICO =
+            "Código de serviço só é permitido para produto do tipo SERVICO";
 
     public static final String PLAN = "PLAN";
     public static final String PLAN_CREATION = PLAN + "_" + INSERT;
@@ -530,4 +536,16 @@ public class Constants {
     public static final String PEDIDO_UPDATE_SO_ORCAMENTO = "Só é possível editar pedido em status ORCAMENTO";
     public static final String PEDIDO_RECALCULO_SO_ORCAMENTO =
             "Só é possível recalcular preços de pedido em status ORCAMENTO";
+
+    // O2C — Suporte a serviço no item do pedido (spec/o2c-vendas.md, Rev. 8)
+    public static final String PEDIDO_EXPEDICAO_SO_MERCADORIA =
+            "Pedido só com serviços não passa por expedição; fature diretamente";
+    // Placeholder: produtoId.
+    public static final String PEDIDO_PRODUTO_NAO_ENCONTRADO = "Produto não encontrado: %s";
+    // Placeholder: produtoId.
+    public static final String PEDIDO_PRODUTO_INATIVO = "Produto inativo: %s";
+    // Placeholder: produtoId. Defesa: tipoItem só fica null se o controller não tiver resolvido
+    // o produto antes de montar a entidade — não deveria acontecer no fluxo normal via API.
+    public static final String PEDIDO_ITEM_SEM_TIPO = "Tipo do item não resolvido para o produto %s";
+    public static final String CADASTRO_SERVICE_INDISPONIVEL = "Serviço de cadastros indisponível";
 }

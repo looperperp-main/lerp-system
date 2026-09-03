@@ -1,8 +1,11 @@
 package com.l.erp.operacoesservice.domain.vendas;
 
+import com.l.erp.operacoesservice.domain.vendas.enumerators.TipoItemPedido;
 import com.l.erp.operacoesservice.repository.filter.BaseTenantEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -44,6 +47,12 @@ public class PedidoItem extends BaseTenantEntity {
     @NotNull
     @Column(name = "produto_id", nullable = false)
     private UUID produtoId;
+
+    // Snapshot de Produto.tipo no momento em que o item foi adicionado — imutável.
+    @NotNull
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tipo_item", nullable = false, length = 12)
+    private TipoItemPedido tipoItem;
 
     @NotNull
     @Column(name = "quantidade", precision = 15, scale = 4, nullable = false)

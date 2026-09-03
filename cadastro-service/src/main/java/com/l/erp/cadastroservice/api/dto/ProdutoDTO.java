@@ -1,5 +1,6 @@
 package com.l.erp.cadastroservice.api.dto;
 
+import com.l.erp.cadastroservice.domain.enumerators.TipoProduto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -27,6 +28,10 @@ public record ProdutoDTO(
 
         String descricao,
 
+        // Nulo = MERCADORIA (default aplicado no ProdutoService, compatível com clientes
+        // que ainda não enviam o campo).
+        TipoProduto tipo,
+
         @NotBlank
         @Size(max = 10)
         String unidade,
@@ -38,6 +43,9 @@ public record ProdutoDTO(
 
         @Size(max = 10)
         String ncm,
+
+        @Size(max = 10)
+        String codigoServico,
 
         @Size(max = 14)
         String ean,
