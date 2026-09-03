@@ -1,6 +1,6 @@
 # Módulo P2P — Compras (Procure-to-Pay) — Plano de implementação
 
-**Status:** EM IMPLEMENTAÇÃO — Fase 0 (infra) feita, não testada · **Data:** 2026-07-10 · **Rev.:** 2026-07-11 (decisões do usuário aplicadas) · **Rev. 2:** 2026-07-11 (arquitetura consolidada) · **Rev. 3:** 2026-09-01 (Fase 0 implementada — módulo `operacoes-service` criado, não testada) · **Serviços:** `operacoes-service` (**novo**, foco — também dono de O2C, ver `o2c-vendas.md`) · `cadastro-service` (validação de referências via API) · `fiscal-service` (**novo** — dono futuro de NF-e/motor fiscal) · `liquibase-service` (migrações) · `auth-service` (seed de permissões) · `Angular/erp-front-end-web` (última fase) · integração futura com `financeiro-service` (Fin.md — ainda não implementado)
+**Status:** EM IMPLEMENTAÇÃO — Fase 0 (infra) feita, não testada · **Data:** 2026-07-10 · **Rev.:** 2026-07-11 (decisões do usuário aplicadas) · **Rev. 2:** 2026-07-11 (arquitetura consolidada) · **Rev. 3:** 2026-09-01 (Fase 0 implementada — módulo `operacoes-service` criado, não testada) · **Rev. 4:** 3 de setembro de 2026 (O2C — `Pedido` de venda — já existe no mesmo `operacoes-service`; `fiscal-service` já existe para cálculo IBS/CBS/IS de **saída**, entrada segue backlog; JaCoCo do módulo em 60%, não 40%) · **Serviços:** `operacoes-service` (**novo**, foco — também dono de O2C, ver `o2c-vendas.md`) · `cadastro-service` (validação de referências via API) · `fiscal-service` (**já existe** — motor fiscal de saída; entrada/emissão NF-e ainda não) · `liquibase-service` (migrações) · `auth-service` (seed de permissões) · `Angular/erp-front-end-web` (última fase) · integração futura com `financeiro-service` (Fin.md — ainda não implementado)
 
 **Decisões fechadas (rev. 2026-07-11):**
 - **[Rev. 2] P2P nasce dentro do `operacoes-service`, o mesmo serviço do O2C** — decisão revista do usuário: em vez de `compra-service` e `estoque-service` como serviços à parte, os três domínios (vendas, compras, estoque) vivem juntos num único serviço novo, com **schema Postgres próprio `compras`** no mesmo banco `loop-erp` compartilhado (padrão do projeto: um Postgres, um schema por domínio, DDL via `liquibase-service`). As tabelas de estoque (`movimento_estoque`/`estoque_saldo`, schema **`estoque`**) continuam num schema à parte — porque vendas (expedição) e compras (recebimento) escrevem nelas — mas agora dentro do **mesmo serviço**, não mais um `estoque-service` externo. Justificativa e consequências em "Contexto → Onde o módulo mora".
@@ -44,10 +44,10 @@ Migrações: a pasta `cadastro/` vai até `cadastro-schema-007.yaml`, e **`cadas
 
 ### O que NÃO existe (confirmado por busca no monorepo inteiro)
 
-- Nenhuma entidade/controller/service de `RequisicaoCompra`, `PedidoCompra`, `Cotacao`, `Recebimento` em nenhum serviço (grep por `compra|requisicao|recebimento|pedido` em `**/*.java` só retorna `WebhookController`/`WebhookLogService` do billing, que são "compra de assinatura" — nada a ver).
+- Nenhuma entidade/controller/service de `RequisicaoCompra`, `PedidoCompra`, `Cotacao`, `Recebimento` em nenhum serviço — **[Rev. 4]** o `Pedido` que já existe em `operacoes-service` (`domain/vendas/Pedido.java`) é o de **venda** (O2C), não tem nada a ver com este fluxo de compra; grep por `compra|requisicao|recebimento` em `**/*.java` só retorna `WebhookController`/`WebhookLogService` do billing ("compra de assinatura", nada a ver).
 - Nenhuma tabela de **movimento ou saldo de estoque**. `ProdutoEstoqueConfig` é parametrização, não saldo.
 - `financeiro-service` (Fin.md) **não existe ainda** — o tópico `nfe.entrada.aprovada` será publicado sem consumidor até lá (decisão fechada: publicar desde já — ver "Integração com o financeiro").
-- Motor fiscal (IBS/CBS) não existe — será responsabilidade do **`fiscal-service`** (novo serviço, spec futuro); os `impostos` do evento vão **zerados** no MVP (decisão fechada).
+- Motor fiscal (IBS/CBS) — **[Rev. 4]** o `fiscal-service` **já existe**, mas só calcula o lado de **saída** (`POST /fiscal/calcular`, usado pelo O2C). O lado de **entrada** (crédito de IBS/CBS por item recebido, CST/`cClassTrib`) segue sem implementação — mesmo serviço, spec futuro; os `impostos` do evento de recebimento vão **zerados** no MVP (decisão fechada, ver backlog no fim deste doc).
 
 ### Onde o módulo mora — decisão e consequências
 
@@ -84,7 +84,7 @@ Entidades de compras: **schema `compras`** (`@Table(schema = "compras")`), dentr
 
 > **Referências cross-serviço:** onde as tabelas abaixo dizem "FK → `fornecedor`/`produto`/`deposito`/`condicao_pagamento`", leia-se **coluna UUID sem FK física** (a entidade mora no cadastro-service; validação via API na borda). FKs físicas existem apenas **entre tabelas do mesmo schema** (`requisicao_compra_item → requisicao_compra`, `pedido_compra_item → pedido_compra`, `recebimento_mercadoria → pedido_compra`, etc.).
 
-Estrutura de pacotes de cada serviço novo: a convenção padrão do projeto (`api/controllers`, `api/dto`, `api/mappers`, `domain`, `repository`, `services`, `infra/config`, `util`).
+Estrutura de pacotes: a mesma convenção já em uso no `operacoes-service` (O2C) — `api/controllers`, `api/dto`, `api/mappers`, `domain`, `repository`, `services`, `infra/config`, `util` — P2P entra como pacotes irmãos dos de vendas (`domain/compras`, `services/compras` etc.), mesmo serviço.
 
 ### `compra_numeracao`
 
@@ -258,8 +258,8 @@ Dono: o módulo de estoque dentro do `operacoes-service`. O módulo de compras c
 | `deposito_id` | UUID NOT NULL FK → `deposito` | |
 | `tipo` | VARCHAR(30) NOT NULL | MVP: `'ENTRADA_COMPRA'` \| `'ESTORNO_ENTRADA_COMPRA'` \| `'SAIDA_VENDA'` \| `'ESTORNO_SAIDA_VENDA'` (o o2c-vendas.md alimenta os dois últimos). `AJUSTE_INVENTARIO`… ficam pros módulos futuros |
 | `quantidade` | NUMERIC(15,4) NOT NULL | sempre positiva; o sinal vem do `tipo` |
-| `origem_tipo` | VARCHAR(20) NOT NULL | `'RECEBIMENTO'` no MVP |
-| `origem_id` | UUID NOT NULL | id do `recebimento_mercadoria` |
+| `origem_tipo` | VARCHAR(20) NOT NULL | `'RECEBIMENTO'` (entrada, este spec) **[Rev. 4]** ou `'PEDIDO_VENDA'` (saída, o2c-vendas.md — mesma tabela, os dois módulos escrevem nela) |
+| `origem_id` | UUID NOT NULL | id do `recebimento_mercadoria` ou do `pedido` de venda, conforme `origem_tipo` |
 | `usuario_id` | UUID NOT NULL · `ocorrido_em` TIMESTAMPTZ NOT NULL | |
 
 **`estoque_saldo`** — saldo materializado.
@@ -483,7 +483,7 @@ O recebimento guarda `faturado_em` e o pedido vai a `ENCERRADO` quando todos os 
 | RN-P2P-05 | **Quantidade recebida ≤ pendente + tolerância de 5% (decisão do usuário)** por item: `quantidade_recebida + nova ≤ quantidade × 1,05` (granel/peso variável). Acima disso → 400. Tolerância **5%** em `Constants` (configurável por tenant = upgrade). `quantidade_recebida` pode então exceder `quantidade` em até 5% — o status `RECEBIDO_TOTAL` considera "completou" quando `quantidade_recebida ≥ quantidade` | service |
 | RN-P2P-06 | **Soma das parcelas = valor da NF** no faturamento (gerado pelo próprio service, mas re-validado antes de publicar — invariante do Fin.md) | service |
 | RN-P2P-07 | **NF duplicada**: `nfe_chave` única por tenant (constraint) e alerta pra mesmo `fornecedor + nfe_numero + nfe_serie` já usado | schema + service |
-| RN-P2P-08 | **Tenant scoping**: todo `findById` de documento de compra busca por `id + tenantId` no repository (não confiar só no `@Filter` — pendência conhecida M8 de IDOR em `findById`; o P2P já nasce com o padrão correto) | repository |
+| RN-P2P-08 | **Tenant scoping**: todo `findById` de documento de compra busca por `id + tenantId` no repository (não confiar só no `@Filter` — mesma classe de IDOR do achado M8, corrigido no cadastro-service em 2026-08-04; o P2P já nasce com o padrão correto, sem repetir a lacuna) | repository |
 | RN-P2P-09 | Transições de estado só pelas setas dos diagramas; transição inválida → 400 PT-BR via `BusinessException`/`GlobalExceptionHandler` (mesmo padrão do o2c-vendas.md) (4xx = WARN sem stack, padrão do projeto) | service |
 | RN-P2P-10 | Datas: `data_necessidade`/`data_previsao_entrega` ≥ hoje na criação; `data_recebimento` não futura | Bean Validation + service |
 
@@ -520,7 +520,7 @@ Auditoria: além de `compra_status_historico`, publicar os eventos de auditoria 
 | **5** | Migração `compras-schema-004` + cotação multi-fornecedor (convite, resposta, comparativo ordenado pelo critério de desempate, vencedor **escolhido manualmente** → pedido) | Fase 2 (não bloqueia 3/4) |
 | **6** | Frontend `erp-front-end-web` (telas na ordem das fases 1→5) | backend correspondente |
 
-Testes por fase no padrão do projeto (`@WebMvcTest` + MockMvc; JaCoCo ≥ 40%): máquina de estados (transições válidas/inválidas), RN-P2P-04/05 (faixa de preço e quantidade), geração de parcelas (centavos), estorno de estoque. **Nada é considerado funcionando até rodado — o usuário executa builds/testes.**
+Testes por fase no padrão do projeto (`@WebMvcTest` + MockMvc; JaCoCo ≥ 60% — **[Rev. 4]** piso do `operacoes-service` subiu de 40% para 60% junto com o O2C, vale pro módulo inteiro, P2P incluso): máquina de estados (transições válidas/inválidas), RN-P2P-04/05 (faixa de preço e quantidade), geração de parcelas (centavos), estorno de estoque. **Nada é considerado funcionando até rodado — o usuário executa builds/testes.**
 
 ---
 
@@ -535,7 +535,7 @@ Testes por fase no padrão do projeto (`@WebMvcTest` + MockMvc; JaCoCo ≥ 40%):
 | **Portal do fornecedor** (fornecedor responde cotação online) | fornecedor não tem acesso ao sistema | novo frontend + auth de terceiro; o modelo `cotacao_compra_fornecedor` já suporta |
 | **Sugestão automática de compra** (ponto de reposição → requisição) | precisa de saldo estabilizado primeiro | job que cruza `estoque_saldo × ProdutoEstoqueConfig.ponto_reposicao` e cria requisições RASCUNHO |
 | **Devolução ao fornecedor** | fluxo fiscal próprio (NF de devolução) | novo `tipo` de movimento + documento próprio; até lá, cancelamento de recebimento cobre o caso simples |
-| **Motor fiscal na entrada** (CST, créditos IBS/CBS por item) | dono: **`fiscal-service`** (novo serviço, spec próprio futuro) | campos do payload F4.2 já reservados (`cst`, `c_class_trib`, `impostos` — zerados no MVP); o fiscal-service passa a calcular/preencher |
+| **Motor fiscal na entrada** (CST, créditos IBS/CBS por item) | dono: **`fiscal-service`** — **[Rev. 4]** já existe e já calcula o lado de **saída** (`POST /fiscal/calcular`, usado pelo O2C); falta estender pro lado de **entrada** (mesmo serviço, sem infra nova) | campos do payload F4.2 já reservados (`cst`, `c_class_trib`, `impostos` — zerados no MVP); o fiscal-service passa a calcular/preencher |
 | **Atualização automática de `preco_custo`** | decisão do usuário: custo real envolve frete/seguro/ST/IPI, não só o valor da nota — atualizar automático contaminaria margem/DRE | `ultimo_preco_compra` (informativo) já registra o rastro; quando existir custo médio/landed cost, vira cálculo próprio |
 | **Margem confiável (preço venda − custo)** | `preco_custo` é mantido **manualmente** (só `ultimo_preco_compra` atualiza sozinho, e é informativo). Qualquer relatório de margem herda esse custo possivelmente defasado — por isso **não há relatório de margem no MVP** (ver `o2c-vendas.md`, nota "vs. tabela, não vs. custo") | pré-requisito da margem confiável = custo médio ponderado/landed cost (linha abaixo) alimentando o `preco_custo`; até lá, margem é sob responsabilidade de quem mantém o custo na mão |
 | **Seleção automática do vencedor de cotação** | MVP: escolha manual do comprador | aplicar o critério de desempate já documentado (preço líquido → prazo → condição → validade/recência) como seleção automática opcional |

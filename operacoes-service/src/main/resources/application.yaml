@@ -58,3 +58,19 @@ eureka:
 # referências em lote e resolver de preço (spec/o2c-vendas.md §2/§6).
 cadastro-service:
   url: lb://cadastro-service
+
+internal:
+  gateway:
+    secret: ${INTERNAL_GATEWAY_SECRET}
+
+---
+# Profile de produção: desabilita a documentação OpenAPI/Swagger
+spring:
+  config:
+    activate:
+      on-profile: prod
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

@@ -1,0 +1,32 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # Seed de permissões RBAC do domínio PEDIDO (O2C — vendas.pedido)
+  # Padrão DOMINIO_ACAO — scope não informado, default TENANT (auth-schema-010).
+  # spec/o2c-vendas.md §5
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: auth-018-permission-pedido-seed
+      author: vitor-fernandes
+      comment: "Permissões do domínio PEDIDO (O2C — vendas.pedido). Scope TENANT (default) — inclui PEDIDO_CONFIRMACAO_SEM_LIMITE, bypass do bloqueio por limite de crédito. spec/o2c-vendas.md §5"
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO auth.permission (id, code, domain, description, created_by) VALUES
+              (gen_random_uuid(), 'PEDIDO_LEITURA', 'PEDIDO', 'Consultar orçamentos e pedidos de venda', 'system-seed'),
+              (gen_random_uuid(), 'PEDIDO_ESCRITA', 'PEDIDO', 'Criar e editar orçamentos de venda', 'system-seed'),
+              (gen_random_uuid(), 'PEDIDO_CONFIRMACAO', 'PEDIDO', 'Confirmar orçamento (ORCAMENTO/BLOQUEADO_CREDITO → CONFIRMADO)', 'system-seed'),
+              (gen_random_uuid(), 'PEDIDO_EXPEDICAO', 'PEDIDO', 'Expedir pedido confirmado (CONFIRMADO → EXPEDIDO)', 'system-seed'),
+              (gen_random_uuid(), 'PEDIDO_FATURAMENTO', 'PEDIDO', 'Faturar pedido expedido (EXPEDIDO → FATURADO)', 'system-seed'),
+              (gen_random_uuid(), 'PEDIDO_CANCELAMENTO', 'PEDIDO', 'Cancelar orçamento ou pedido não faturado', 'system-seed'),
+              (gen_random_uuid(), 'PEDIDO_CONFIRMACAO_SEM_LIMITE', 'PEDIDO', 'Confirmar pedido ignorando bloqueio por limite de crédito', 'system-seed')
+              ON CONFLICT (code) DO NOTHING;
+      rollback:
+        - sql:
+            dbms: postgresql
+            sql: >
+              DELETE FROM auth.permission WHERE code IN (
+              'PEDIDO_LEITURA', 'PEDIDO_ESCRITA', 'PEDIDO_CONFIRMACAO', 'PEDIDO_EXPEDICAO',
+              'PEDIDO_FATURAMENTO', 'PEDIDO_CANCELAMENTO', 'PEDIDO_CONFIRMACAO_SEM_LIMITE');

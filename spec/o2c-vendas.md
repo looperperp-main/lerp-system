@@ -1,6 +1,6 @@
 # O2C — Vendas (Order-to-Cash): orçamento → pedido → expedição → faturamento — Plano de implementação
 
-**Status:** EM IMPLEMENTAÇÃO — Fase 0 (infra) feita, não testada · **Data:** 2026-07-10 · **Rev.:** 2026-07-11 (decisões do usuário aplicadas) · **Rev. 2:** 2026-07-11 (arquitetura consolidada) · **Rev. 3:** 2026-07-23 (ordem de implementação com estoque + pré-requisito de UI do bloqueio de expedição) · **Rev. 4:** 2026-09-01 (Fase 0 implementada — módulo `operacoes-service` criado, não testada) · **Serviços:** `operacoes-service` (**novo**, foco — também dono de P2P e estoque, ver `p2p-compras.md`) · `cadastro-service` (validação de referências + motor de preço, via API) · `fiscal-service` (**novo** — dono futuro de NF-e/motor fiscal) · `liquibase-service` (migração) · `auth-service` (seed de permissões) · `Angular/erp-front-end-web` (última fase)
+**Status:** EM IMPLEMENTAÇÃO — Fases 0 (infra), 1 (schema, aplicada no banco), 2 (domínio + repositories) e 3 (services + máquina de estados) feitas; Fase 3 **verde** (`mvn verify -pl operacoes-service -am` com gate JaCoCo 60%, 3 de setembro de 2026); Fase 4 (API) **em andamento** — DTOs, `PedidoMapper`, `PedidoAssembler`, `CadastroServiceClient` e `PedidoController` (10 endpoints) escritos, **sem `@WebMvcTest`, não testados** · **Data:** 2026-07-10 · **Rev.:** 2026-07-11 (decisões do usuário aplicadas) · **Rev. 2:** 2026-07-11 (arquitetura consolidada) · **Rev. 3:** 2026-07-23 (ordem de implementação com estoque + pré-requisito de UI do bloqueio de expedição) · **Rev. 4:** 2026-09-01 (Fase 0 implementada — módulo `operacoes-service` criado, não testada) · **Rev. 5:** 2 de setembro de 2026 (Fase 1 implementada e migração rodada com sucesso no banco — schema `vendas` + seed de permissões `PEDIDO_*`; Fase 2 implementada — entidades/repositories JPA, não testada) · **Rev. 6:** 2 de setembro de 2026 (Fase 3 implementada — `PedidoNumeroService` + `PedidoService` com máquina de estados, validações §7 de limite de crédito, cálculo de totais/parcelas §8, stub do resolver de preço §6; testes unitários escritos; não testada) · **Rev. 7:** 3 de setembro de 2026 (revisão de consistência entre `o2c-vendas.md`, `o2c-vendas-funcional.md`, `p2p-compras.md` e o artigo `o2c-research.pdf` — correções: status real das fases 3/4, `fiscal-service` já existe, AR na exposição de crédito vira upgrade, ponto de emissão de NF-e passa pra expedição, lock nas transições registrado como pendência) · **Serviços:** `operacoes-service` (**novo**, foco — também dono de P2P e estoque, ver `p2p-compras.md`) · `cadastro-service` (validação de referências + motor de preço, via API) · `fiscal-service` (**já existe** — motor fiscal IBS/CBS/IS de saída em `POST /fiscal/calcular`; emissão NF-e/NFC-e ainda não) · `liquibase-service` (migração) · `auth-service` (seed de permissões) · `Angular/erp-front-end-web` (última fase)
 
 **Decisões fechadas (rev. 2026-07-11):**
 - **[Rev. 2] O módulo nasce dentro de um único microsserviço novo, `operacoes-service`** — decisão revista do usuário: em vez de 3 serviços separados (venda/compra/estoque), **vendas, compras e estoque vivem juntos num só serviço** (`operacoes-service`, schemas `vendas`/`compras`/`estoque` no mesmo Postgres `loop-erp`), porque os três domínios compartilhariam banco mesmo sendo serviços distintos — juntar evita pagar o custo de 3 infra novas (Maven/Docker/Eureka/gateway/Jenkins × 3) sem ganhar isolamento real. Só o **`fiscal-service`** continua separado (ciclo de vida próprio — NF-e/SEFAZ). Consequências na seção "Onde o módulo vive".
@@ -23,7 +23,7 @@ O estoque **não é uma caixa nova** paralela ao Motor Fiscal ou ao Motor de Pre
 
 ```mermaid
 flowchart TD
-    MF["Motor Fiscal<br/>Fin.md Sprint 1<br/>sem bloqueante"]
+    MF["Motor Fiscal ✅<br/>fiscal-service (POST /fiscal/calcular)<br/>emissão NF-e ainda não"]
     APAR["AP/AR<br/>Fin.md Sprint 2<br/>depende do Sprint 1"]
     MP["Motor de Preço<br/>motor-resolucao-preco.md<br/>fase 1 independente"]
     P2P["Compras — P2P<br/>operacoes-service<br/>sem pré-requisito"]
@@ -210,7 +210,7 @@ Regras transversais:
 - `BLOQUEADO_CREDITO` **não é erro**: o `confirmar()` com estouro retorna 200 com o pedido no novo status (o front mostra o motivo — limite e exposição — vindos no response). Erro 400 fica só para transição inválida/validação estrutural.
 - Transição inválida (ex.: faturar um `ORCAMENTO`) → `BusinessException` 400, mensagem PT-BR (`GlobalExceptionHandler` do `common`).
 - Toda transição grava `pedido_status_historico` e publica evento de auditoria Kafka (padrão `AuditEventDTO` já usado no serviço), com actions em `common/Constants.java` (diretiva de constantes do projeto).
-- Concorrência: transições fazem `SELECT ... FOR UPDATE` no pedido (ou `@Version` otimista — decidir na implementação; pessimista é mais simples e o volume é baixo).
+- Concorrência: **[Rev. 7] implementado sem lock no pedido** (Fase 3) — só a numeração (`pedido_sequencia`) usa `SELECT ... FOR UPDATE`. Duas transições simultâneas no mesmo pedido passam ambas pelo `validarTransicao` e a última escrita vence. Pendência: `@Lock(PESSIMISTIC_WRITE)` no `findByIdAndTenantId` usado pelas transições (uma anotação; volume baixo, mas era o que o spec pedia).
 
 ---
 
@@ -263,8 +263,8 @@ DTOs novos: `PedidoRequestDTO`, `PedidoItemRequestDTO`, `PedidoResponseDTO`, `Pe
 - `dataValidade` não expirada (`hoje ≤ dataValidade`, se informada).
 - Cliente ainda `ativo` (revalidado via API — mitiga a janela de consistência eventual do §2).
 - **Limite de crédito (bloqueio SOFT — decisão do usuário):** se `cliente.limiteCredito != null` (campo do cadastro, obtido via API), a **exposição** do cliente deve ser `≤ limiteCredito`, onde exposição = `valor_total` do pedido + `SUM(valor_total)` dos pedidos do cliente em `CONFIRMADO`/`EXPEDIDO` **ainda não faturados** (query local no `PedidoRepository`) + **total dos títulos a receber `EM_ABERTO` do cliente no `financeiro-service`** (consulta via API — Fin.md AR). Estouro **não é mais 400**: usuário com `PEDIDO_CONFIRMACAO_SEM_LIMITE` confirma mesmo assim (auditado no histórico); sem a permissão, o pedido vai para **`BLOQUEADO_CREDITO`** e aguarda liberação por quem tem a permissão (novo `confirmar()`) ou reabertura/cancelamento. `limiteCredito null` = sem limite.
-  - **Por que o AR entra na regra desde o lançamento (não é upgrade opcional):** pela ordem de implementação, o `financeiro-service` (AP/AR, Fin.md Sprint 2) nasce **antes** do Vendas-O2C. O faturado sai de `CONFIRMADO`/`EXPEDIDO` e vira título `EM_ABERTO` no financeiro — se a exposição somasse só os pedidos locais, cada faturamento liberaria crédito e o cliente acumularia dívida não-contabilizada. O handoff é limpo e sem double-count: **enquanto pedido** conta pela soma local; **depois de faturado** conta pelo AR; só some da exposição quando o título é **pago**.
-  - *Indisponibilidade do financeiro:* se a consulta de AR falhar, a confirmação **não** segue só com a soma local (subestimaria a exposição) — trata como bloqueio técnico (mesma UX do `BLOQUEADO_CREDITO`, motivo "crédito indisponível") liberável pela permissão de bypass. `ponytail: fallback conservador; refinar se o financeiro tiver SLA ruim.`
+  - **[Rev. 7] AR na exposição é upgrade obrigatório, não parte do lançamento:** a ordem real inverteu — o O2C nasceu **antes** do `financeiro-service` (que segue só spec no Fin.md), então a Fase 3 soma **só a exposição local** (pedidos `CONFIRMADO`/`EXPEDIDO`). Consequência conhecida e aceita: cada faturamento libera crédito, e o faturado-não-pago **não** consome limite até o financeiro existir. Quando o AR entrar, o handoff é limpo e sem double-count: **enquanto pedido** conta pela soma local; **depois de faturado** conta pelo AR; só some da exposição quando o título é **pago**. Ligar essa parcela é item de entrada do financeiro-service, não deste spec.
+  - *Indisponibilidade do financeiro (quando a consulta de AR existir):* se a consulta de AR falhar, a confirmação **não** segue só com a soma local (subestimaria a exposição) — trata como bloqueio técnico (mesma UX do `BLOQUEADO_CREDITO`, motivo "crédito indisponível") liberável pela permissão de bypass. `ponytail: fallback conservador; refinar se o financeiro tiver SLA ruim.`
   - *Upgrade path 2 (hook documentado):* Fin.md (dunning D+15) prevê marcar cliente `bloqueado_para_vendas` via evento "consumível pelo futuro módulo de pedidos". Quando esse evento existir, o cadastro-service consome, grava flag no cliente e a confirmação passa a validar também `bloqueado_para_vendas = false`. Nada a fazer agora além desta nota.
   - `classificacaoRisco` **não** entra em regra automática no MVP (é informativo na tela).
 
@@ -334,10 +334,10 @@ Assíncrono, no padrão que o Fin.md já especifica para criação de títulos a
 
 **Ressalva operacional interina (decisão do usuário):** o MVP fatura sem NF-e no sistema — o título nasce do `FATURADO` mesmo sem documento fiscal — mas **mercadoria não sai da doca sem XML/DANFE**: a NF-e é emitida num emissor externo, por fora, e anexada ao transporte até o `fiscal-service` existir.
 
-Quando o `fiscal-service` (dono da emissão NF-e/NFC-e e do motor fiscal IBS/CBS) existir, o fluxo de faturamento muda para: `faturar()` → `operacoes-service` aciona o `fiscal-service` (evento ou API, decisão do spec dele) → SEFAZ autoriza → **`nfe.saida.autorizada`** (evento já definido no Fin.md F4.3, publicado pelo fiscal-service) → financeiro cria os títulos. Nesse momento:
+**[Rev. 7]** O `fiscal-service` **já existe** (motor IBS/CBS/IS de saída, `POST /fiscal/calcular`), mas ainda **não emite NF-e/NFC-e**. Quando a emissão existir, o gatilho fiscal **não pode ficar no `faturar()`**: pela ordem atual (`EXPEDIDO → FATURADO`) a nota seria emitida depois de a mercadoria sair, e a regra é o contrário — **o DANFE acompanha o transporte** (mesma ressalva operacional acima). Fluxo alvo: `expedir()` → `operacoes-service` aciona o `fiscal-service` (evento ou API, decisão do spec dele) → SEFAZ autoriza → **`nfe.saida.autorizada`** (evento já definido no Fin.md F4.3, publicado pelo fiscal-service) → pedido vai a `EXPEDIDO` e o financeiro cria os títulos; `faturar()` vira fecho/conciliação ou é absorvido pela autorização (decidir no spec de emissão). Nesse momento:
 - `venda.pedido.faturado` **deixa de gerar título** (o consumer do financeiro migra para `nfe.saida.autorizada` — F4.3 já especificado) e permanece como evento de domínio (estoque, BI). **Nunca os dois gatilhos ao mesmo tempo** — um título por faturamento.
 - O pedido ganha campos `nfe_chave`/`nfe_status` (migration futura não destrutiva, fora deste spec).
-- O estado `FATURADO` pode ser desdobrado (`FATURANDO`/rejeição SEFAZ) — decisão do spec do fiscal-service.
+- A expedição pode ganhar estado intermediário (`AGUARDANDO_AUTORIZACAO`/rejeição SEFAZ) — decisão do spec de emissão do fiscal-service.
 
 ### Demais eventos de domínio
 
@@ -378,10 +378,40 @@ Mesma checagem do spec do motor de preço: 3 workspaces Angular.
    **Pendente dentro da Fase 0:** o endpoint interno `POST /api/v1/interno/referencias/validar`
    no cadastro-service ainda não foi criado — sem ele a fase 3 (services) não tem como validar
    referências em lote.
-1. **Schema** — `vendas/vendas-schema-001.yaml` (4 tabelas, FKs internas, uniques, índices) + include no master. Seed de permissões `PEDIDO_*` (incluindo `PEDIDO_CONFIRMACAO_SEM_LIMITE`) no auth (padrão `DOMINIO_ACAO`, changelog `auth-schema-0XX` idempotente, próximo número livre na implementação).
-2. **Domínio + repositories** — entidades `Pedido`, `PedidoItem`, `PedidoStatusHistorico`, `PedidoSequencia`, enums `StatusPedido` (com `BLOQUEADO_CREDITO`)/`ModalidadeFrete`; repositories; `ddl-auto=validate` contra o schema da fase 1.
+1. **Schema** — ✅ feito, não testado (2 de setembro de 2026). `vendas/vendas-schema-001.yaml` (4 tabelas, FKs internas, uniques, índices) + include no master. Seed de permissões `PEDIDO_*` (incluindo `PEDIDO_CONFIRMACAO_SEM_LIMITE`) no auth (padrão `DOMINIO_ACAO`, changelog `auth-schema-018.yaml` idempotente).
+2. **Domínio + repositories** — ✅ feito, não testado (2 de setembro de 2026). entidades `Pedido`, `PedidoItem`, `PedidoStatusHistorico`, `PedidoSequencia`, enums `StatusPedido` (com `BLOQUEADO_CREDITO`)/`ModalidadeFrete`; repositories; `ddl-auto=validate` contra o schema da fase 1.
 3. **Services** — `PedidoNumeroService`; `PedidoService`: CRUD do orçamento, máquina de estados (tabela de transições válidas), validações §7 (limite de crédito com query de exposição), cálculo de totais e parcelas. Integração com `PrecoResolverService` (§6) — **depende da fase 3 do motor de preço**; até lá, stub que força `preco_manual`. Testes unitários: transições válidas/inválidas, limite de crédito (com/sem limite, estouro, exposição acumulada), arredondamento de parcelas (soma exata), resolver 404 + preço manual, numeração concorrente.
+   **✅ Feito e verde (testes unitários passando no `mvn verify` de 3 de setembro de 2026, gate JaCoCo 60%).** `PedidoNumeroService` (upsert +
+   `SELECT ... FOR UPDATE`) e `PedidoService` com a tabela de transições completa (§4),
+   `criarOrcamento`/`confirmar`/`reabrir`/`expedir`/`faturar`/`cancelar`. Limite de crédito
+   soma só a exposição local (pedidos `CONFIRMADO`/`EXPEDIDO` do cliente via
+   `PedidoRepository.somaValorTotalPorStatus`) — o AR do financeiro-service não entra na
+   conta porque esse serviço ainda não existe no monorepo (upgrade futuro). Parcelas
+   (`calcularParcelas`) arredondam a 2 casas com resto na última parcela — soma sempre exata.
+   `PedidoNumeroServiceTest`/`PedidoServiceTest` cobrem os 5 cenários pedidos acima.
+   **Pendente/adiado dentro da Fase 3 (documentado, não esquecido):**
+   - resolver de preço real (§6) — segue como stub (preço manual obrigatório) até a fase 3
+     do motor de resolução de preço existir;
+   - validação de cliente/produto ativos via `POST /api/v1/interno/referencias/validar`
+     (§2) — endpoint ainda não existe no cadastro-service (pendência já registrada na Fase 0);
+   - baixa/estorno de estoque in-process em `expedir`/`cancelar` — módulo de estoque do
+     `operacoes-service` ainda não foi escrito;
+   - publicação do evento `venda.pedido.faturado` — fica para a Fase 5 (Kafka); `faturar()`
+     já devolve pedido + parcelas prontos para o futuro producer montar o payload do §8.
+   - **[Rev. 7]** `CadastroServiceClient` **já busca** `limiteCredito` e as parcelas da
+     condição de pagamento (via `lb://cadastro-service`) como parte da Fase 4 (API) — não
+     depende mais do endpoint de validação em lote acima, que segue pendente só para
+     validação de cliente/produto ativos.
 4. **API** — DTOs, `PedidoMapper` (MapStruct), `PedidoController` (10 endpoints), permissões, OpenAPI, `@WebMvcTest`.
+   **🟡 Em andamento, não testado (3 de setembro de 2026).** Feito: DTOs de request/response,
+   `PedidoMapper`/`PedidoAssembler` (MapStruct + HATEOAS), `PedidoController` com os 10
+   endpoints (`criar`/`atualizar`/`buscarPorId`/`listar`/`confirmar`/`expedir`/`faturar`/
+   `cancelar`/`recalcularPrecos`/`reabrir`) sob `@PreAuthorize` por permissão `PEDIDO_*`,
+   `CadastroServiceClient` (busca `limiteCredito` e parcelas da condição de pagamento),
+   `PedidoControllerTest` (`@WebMvcTest` cobrindo os 10 endpoints + casos 403). Faltando:
+   confirmação de que `PedidoControllerTest` compila limpo após a dependência
+   `spring-boot-starter-security-test` ter sido adicionada ao `pom.xml` (pendente de
+   reimport Maven), documentação OpenAPI (`@Operation`/`@ApiResponse`) nos endpoints.
 5. **Eventos** — 3 producers Kafka (`confirmado`/`faturado`/`cancelado`; `expedido` é in-process, não Kafka) + payloads, constantes em `common/Constants.java`, registro em `spec/kafka-topics.md`, eventos de auditoria (`AuditEventDTO`) nas transições.
 6. **Frontend web** — 3 telas + rotas + guards de permissão.
 
@@ -404,13 +434,13 @@ flowchart LR
 
 | Item | Upgrade path |
 |---|---|
-| **NF-e / NFC-e** | Dono: **`fiscal-service`** (spec próprio futuro; alinhado a Fin.md §8 fase 2). Ponto de integração reservado no §8: gatilho de título migra para `nfe.saida.autorizada`; pedido ganha `nfe_chave`. Interina: emissor externo + DANFE anexado (ressalva operacional §7/§8). |
+| **NF-e / NFC-e** | Dono: **`fiscal-service`** — **já existe** (motor IBS/CBS/IS de saída, `POST /fiscal/calcular`), mas emissão de NF-e/NFC-e é spec próprio futuro (alinhado a Fin.md §8 fase 2). Ponto de integração reservado no §8 **[Rev. 7]**: gatilho migra pro `expedir()` (DANFE acompanha o transporte), evento `nfe.saida.autorizada` substitui o gatilho de título de `venda.pedido.faturado`; pedido ganha `nfe_chave`. Interina: emissor externo + DANFE anexado (ressalva operacional §7/§8). |
 | **Validação de saldo / reserva de estoque** | O módulo de estoque (mesmo `operacoes-service`) já registra movimento in-process nas transições `expedido` (baixa) e `cancelado` pós-expedição (estorno); `confirmado` ainda não mexe em estoque — reserva na confirmação é upgrade futuro. Upgrade: checagem de disponibilidade antes da transição de expedição, quando o negócio pedir bloqueio — é a flag "estoque não bloqueante" (decisão 3) sendo desativada; mesma base, mesmo serviço, só liga a validação. |
 | **Expedição / faturamento parcial** | Exige `quantidade_expedida` por item + N eventos parciais. Modelo atual (transição única) não bloqueia: adicionar colunas de quantidade atendida e permitir múltiplas expedições por pedido. |
 | **Alçada de aprovação (desconto máximo / faixas de crédito)** | MVP: desconto livre + bloqueio SOFT de crédito com `BLOQUEADO_CREDITO` e bypass por permissão. Upgrade: perfil de alçada por vendedor/faixa de valor (padrão `approval_regra` do Fin.md §4.10). |
 | **Devolução / RMA** | Fluxo próprio pós-`FATURADO`, com estorno no financeiro (Fin.md §4/§5) e entrada de estoque. |
 | **Comissão de vendedor** | `pedido.vendedor_id` + snapshot de preço/desconto já dão a base de cálculo; motor de comissão é spec próprio. |
-| **Split payment IBS/CBS (2027)** | Responsabilidade do financeiro (Fin.md §8 fase 4); payload do evento ganha `impostos` quando o motor fiscal existir. |
+| **Split payment IBS/CBS (2027)** | Responsabilidade do financeiro (Fin.md §8 fase 4); payload do evento ganha `impostos` quando o motor fiscal existir. **[Rev. 7]** O cálculo em si já existe no `fiscal-service` (`POST /fiscal/calcular`, atrás da flag `fiscal.split-payment`, default off) — falta o O2C chamá-lo e o financeiro consumir o payload. |
 | **Cotação multi-moeda** | `NUMERIC` + coluna `moeda` futura; hoje BRL implícito, como no resto do sistema. |
 
 ---

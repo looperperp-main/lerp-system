@@ -17,7 +17,7 @@
     <properties>
         <java.version>25</java.version>
         <jacoco.version>0.8.14</jacoco.version>
-        <coverage.minimum>0.40</coverage.minimum>
+        <coverage.minimum>0.60</coverage.minimum>
         <spring-cloud.version>2025.1.1</spring-cloud.version>
     </properties>
 
@@ -70,6 +70,11 @@
             <artifactId>spring-boot-starter-hateoas</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>3.0.0</version>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.kafka</groupId>
             <artifactId>spring-kafka</artifactId>
         </dependency>
@@ -110,6 +115,11 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webmvc-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security-test</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>

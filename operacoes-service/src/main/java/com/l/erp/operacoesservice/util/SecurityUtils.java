@@ -6,6 +6,7 @@ import com.l.erp.common.util.Constants;
 import org.springframework.http.HttpStatus;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
@@ -47,6 +48,14 @@ public final class SecurityUtils {
             }
         }
         return UUID.randomUUID();
+    }
+
+    /** Authority populada pelo InternalRequestFilter a partir do header X-Authorities do gateway. */
+    public static boolean hasAuthority(String authority) {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null) return false;
+        return authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals(authority));
     }
 
     private static Optional<String> getHeader(String name) {

@@ -489,4 +489,45 @@ public class Constants {
     public static final String FISCAL_MEMORIA_VEDACAO_57 =
             "Art. 57 §7º LC 214/2025: exclusão de %s da base de cálculo (bem sem crédito na "
                     + "entrada, valor de aquisição %s)";
+
+    // O2C — Pedido de venda (operacoes-service, schema vendas — spec/o2c-vendas.md §4/§7/§8, Fase 3)
+    public static final String PEDIDO = "PEDIDO";
+    public static final String PEDIDO_NOT_FOUND = "Pedido não encontrado!";
+    public static final String PEDIDO_SEM_ITENS = "Pedido deve ter ao menos um item";
+    public static final String PEDIDO_ITEM_QUANTIDADE_INVALIDA = "Quantidade do item deve ser maior que zero";
+    public static final String PEDIDO_ITEM_DESCONTO_INVALIDO =
+            "Desconto do item deve ser maior ou igual a zero e menor que o valor bruto do item";
+    // Placeholder: produtoId duplicado.
+    public static final String PEDIDO_ITEM_PRODUTO_DUPLICADO = "Produto duplicado no pedido: %s";
+    // Placeholder: produtoId sem preço. Stub do resolver (§6) enquanto a fase 3 do motor de
+    // preço não existe — todo item sem precoUnitario informado cai aqui (equivalente ao 404 real).
+    public static final String PEDIDO_ITEM_SEM_PRECO =
+            "Produto %s não possui preço vigente; informe o preço manualmente.";
+    public static final String PEDIDO_DATA_VALIDADE_INVALIDA =
+            "Data de validade não pode ser anterior à data de emissão";
+    // Placeholders: status atual, status de destino.
+    public static final String PEDIDO_TRANSICAO_INVALIDA = "Transição inválida: pedido em %s não pode ir para %s";
+    public static final String PEDIDO_CONDICAO_PAGAMENTO_OBRIGATORIA =
+            "Condição de pagamento é obrigatória para confirmar o pedido";
+    // Placeholder: data de validade expirada.
+    public static final String PEDIDO_ORCAMENTO_EXPIRADO = "Orçamento expirado — data de validade %s já passou";
+    // Placeholders: exposição calculada, limite de crédito. Motivo gravado no pedido_status_historico.
+    public static final String PEDIDO_BLOQUEADO_CREDITO_MOTIVO =
+            "Limite de crédito excedido: exposição de %s supera o limite de %s";
+    public static final String PEDIDO_CONFIRMADO_COM_BYPASS_MOTIVO =
+            "Confirmado com estouro de limite de crédito (exposição %s > limite %s) por usuário com "
+                    + "permissão de bypass";
+    public static final String PEDIDO_DEPOSITO_OBRIGATORIO = "Depósito é obrigatório para expedir o pedido";
+    public static final String PEDIDO_TRANSPORTADORA_OBRIGATORIA =
+            "Transportadora é obrigatória quando a modalidade de frete não é SEM_FRETE";
+    public static final String PEDIDO_MOTIVO_CANCELAMENTO_OBRIGATORIO = "Motivo do cancelamento é obrigatório";
+    // Placeholder: soma dos percentuais encontrada.
+    public static final String PEDIDO_PARCELAS_PERCENTUAL_INVALIDO =
+            "Soma dos percentuais das parcelas da condição de pagamento deve ser 100 (atual: %s)";
+    // Placeholder: tenantId.
+    public static final String PEDIDO_NUMERACAO_FALHA = "Falha ao obter numeração do pedido para o tenant %s";
+    // O2C — Fase 4 (API/controllers, spec/o2c-vendas.md §5/§10)
+    public static final String PEDIDO_UPDATE_SO_ORCAMENTO = "Só é possível editar pedido em status ORCAMENTO";
+    public static final String PEDIDO_RECALCULO_SO_ORCAMENTO =
+            "Só é possível recalcular preços de pedido em status ORCAMENTO";
 }

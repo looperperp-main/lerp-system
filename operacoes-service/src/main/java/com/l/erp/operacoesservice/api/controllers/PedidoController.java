@@ -1,0 +1,174 @@
+package com.l.erp.operacoesservice.api.controllers;
+
+import com.l.erp.common.exception.custom.BusinessException;
+import com.l.erp.common.util.Constants;
+import com.l.erp.operacoesservice.api.dto.CancelarPedidoRequestDTO;
+import com.l.erp.operacoesservice.api.dto.ExpedirPedidoRequestDTO;
+import com.l.erp.operacoesservice.api.dto.PedidoRequestDTO;
+import com.l.erp.operacoesservice.api.dto.PedidoResponseDTO;
+import com.l.erp.operacoesservice.api.mappers.PedidoAssembler;
+import com.l.erp.operacoesservice.api.mappers.PedidoMapper;
+import com.l.erp.operacoesservice.domain.vendas.Pedido;
+import com.l.erp.operacoesservice.domain.vendas.enumerators.StatusPedido;
+import com.l.erp.operacoesservice.infra.client.CadastroServiceClient;
+import com.l.erp.operacoesservice.services.vendas.PedidoService;
+import com.l.erp.operacoesservice.util.SecurityUtils;
+import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PagedResourcesAssembler;
+import org.springframework.hateoas.IanaLinkRelations;
+import org.springframework.hateoas.PagedModel;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.UUID;
+
+/** O2C — orçamento → pedido → expedição → faturamento (spec/o2c-vendas.md §5/§10, Fase 4). */
+@RestController
+@RequestMapping("/api/v1/pedidos")
+public class PedidoController {
+
+    private final Logger logger = LoggerFactory.getLogger(PedidoController.class);
+    private final PedidoService service;
+    private final CadastroServiceClient cadastroServiceClient;
+    private final PedidoMapper mapper;
+    private final PedidoAssembler assembler;
+
+    public PedidoController(PedidoService service, CadastroServiceClient cadastroServiceClient,
+                             PedidoMapper mapper, PedidoAssembler assembler) {
+        this.service = service;
+        this.cadastroServiceClient = cadastroServiceClient;
+        this.mapper = mapper;
+        this.assembler = assembler;
+    }
+
+    @PostMapping
+    @PreAuthorize("hasAuthority('PEDIDO_ESCRITA')")
+    public ResponseEntity<PedidoResponseDTO> criar(@RequestBody @Valid PedidoRequestDTO dto) {
+        logger.info("Criando orçamento para cliente ID: {}", dto.clienteId());
+        Long tenantId = tenantId();
+        UUID userId = userId();
+        Pedido salvo = service.criarOrcamento(mapper.toEntity(dto), mapper.toItemEntities(dto.itens()), tenantId, userId);
+        PedidoResponseDTO response = detalhe(salvo);
+        return ResponseEntity.created(response.getRequiredLink(IanaLinkRelations.SELF).toUri()).body(response);
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('PEDIDO_ESCRITA')")
+    public ResponseEntity<PedidoResponseDTO> atualizar(@PathVariable UUID id, @RequestBody @Valid PedidoRequestDTO dto) {
+        logger.info("Atualizando orçamento ID: {}", id);
+        Pedido atualizado = service.atualizar(id, tenantId(), userId(), mapper.toEntity(dto), mapper.toItemEntities(dto.itens()));
+        return ResponseEntity.ok(detalhe(atualizado));
+    }
+
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('PEDIDO_LEITURA')")
+    public ResponseEntity<PedidoResponseDTO> buscarPorId(@PathVariable UUID id) {
+        return ResponseEntity.ok(detalhe(service.buscarPorId(id, tenantId())));
+    }
+
+    @GetMapping
+    @PreAuthorize("hasAuthority('PEDIDO_LEITURA')")
+    public ResponseEntity<PagedModel<PedidoResponseDTO>> listar(
+            @RequestParam(required = false) StatusPedido status,
+            @RequestParam(required = false) UUID clienteId,
+            @RequestParam(required = false) UUID vendedorId,
+            @RequestParam(required = false) Long numero,
+            @RequestParam(required = false) LocalDate dataEmissaoDe,
+            @RequestParam(required = false) LocalDate dataEmissaoAte,
+            Pageable pageable,
+            PagedResourcesAssembler<Pedido> pagedResourcesAssembler) {
+        Page<Pedido> page = service.listar(
+                tenantId(), status, clienteId, vendedorId, numero, dataEmissaoDe, dataEmissaoAte, pageable);
+        return ResponseEntity.ok(pagedResourcesAssembler.toModel(page, assembler));
+    }
+
+    @PostMapping("/{id}/confirmar")
+    @PreAuthorize("hasAuthority('PEDIDO_CONFIRMACAO')")
+    public ResponseEntity<PedidoResponseDTO> confirmar(@PathVariable UUID id) {
+        logger.info("Confirmando pedido ID: {}", id);
+        Long tenantId = tenantId();
+        UUID userId = userId();
+        boolean semLimite = SecurityUtils.hasAuthority("PEDIDO_CONFIRMACAO_SEM_LIMITE");
+        // ponytail: uma consulta a mais pro clienteId (confirmar() também busca o pedido por dentro) —
+        // trocar por uma versão que recebe Pedido já carregado só se isso virar hot path (§7).
+        Pedido pedido = service.buscarPorId(id, tenantId);
+        BigDecimal limiteCredito = cadastroServiceClient.buscarLimiteCredito(pedido.getClienteId(), tenantId, userId);
+        return ResponseEntity.ok(detalhe(service.confirmar(id, tenantId, userId, semLimite, limiteCredito)));
+    }
+
+    @PostMapping("/{id}/expedir")
+    @PreAuthorize("hasAuthority('PEDIDO_EXPEDICAO')")
+    public ResponseEntity<PedidoResponseDTO> expedir(@PathVariable UUID id, @RequestBody @Valid ExpedirPedidoRequestDTO dto) {
+        logger.info("Expedindo pedido ID: {}", id);
+        Pedido expedido = service.expedir(
+                id, tenantId(), userId(), dto.depositoId(), dto.transportadoraId(), dto.valorFrete(), dto.modalidadeFrete());
+        return ResponseEntity.ok(detalhe(expedido));
+    }
+
+    @PostMapping("/{id}/faturar")
+    @PreAuthorize("hasAuthority('PEDIDO_FATURAMENTO')")
+    public ResponseEntity<PedidoResponseDTO> faturar(@PathVariable UUID id) {
+        logger.info("Faturando pedido ID: {}", id);
+        Long tenantId = tenantId();
+        UUID userId = userId();
+        Pedido pedido = service.buscarPorId(id, tenantId);
+        if (pedido.getCondicaoPagamentoId() == null) {
+            throw new BusinessException(Constants.PEDIDO_CONDICAO_PAGAMENTO_OBRIGATORIA, HttpStatus.BAD_REQUEST);
+        }
+        List<PedidoService.ParcelaDefinicao> parcelasDefinicao =
+                cadastroServiceClient.buscarParcelas(pedido.getCondicaoPagamentoId(), tenantId, userId);
+        PedidoService.FaturamentoResultado resultado = service.faturar(id, tenantId, userId, parcelasDefinicao);
+        return ResponseEntity.ok(assembler.toFaturamentoModel(resultado));
+    }
+
+    @PostMapping("/{id}/cancelar")
+    @PreAuthorize("hasAuthority('PEDIDO_CANCELAMENTO')")
+    public ResponseEntity<PedidoResponseDTO> cancelar(@PathVariable UUID id, @RequestBody @Valid CancelarPedidoRequestDTO dto) {
+        logger.info("Cancelando pedido ID: {}", id);
+        Pedido cancelado = service.cancelar(id, tenantId(), userId(), dto.motivo());
+        return ResponseEntity.ok(detalhe(cancelado));
+    }
+
+    @PostMapping("/{id}/recalcular-precos")
+    @PreAuthorize("hasAuthority('PEDIDO_ESCRITA')")
+    public ResponseEntity<PedidoResponseDTO> recalcularPrecos(@PathVariable UUID id) {
+        return ResponseEntity.ok(detalhe(service.recalcularPrecos(id, tenantId())));
+    }
+
+    @PostMapping("/{id}/reabrir")
+    @PreAuthorize("hasAuthority('PEDIDO_ESCRITA')")
+    public ResponseEntity<PedidoResponseDTO> reabrir(@PathVariable UUID id) {
+        logger.info("Reabrindo pedido ID: {}", id);
+        return ResponseEntity.ok(detalhe(service.reabrir(id, tenantId(), userId())));
+    }
+
+    private PedidoResponseDTO detalhe(Pedido pedido) {
+        return assembler.toDetailModel(pedido, service.listarItens(pedido.getId()), service.listarHistorico(pedido.getId()));
+    }
+
+    private Long tenantId() {
+        return SecurityUtils.getCurrentTenantId()
+                .orElseThrow(() -> new BusinessException(Constants.TENANT_NOT_FOUND, HttpStatus.UNAUTHORIZED));
+    }
+
+    private UUID userId() {
+        return SecurityUtils.getCurrentUserId()
+                .orElseThrow(() -> new BusinessException(Constants.USUARIO_NAO_AUTENTICADO, HttpStatus.UNAUTHORIZED));
+    }
+}

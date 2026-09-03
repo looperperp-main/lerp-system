@@ -56,6 +56,9 @@ databaseChangeLog:
       file: auth/auth-schema-017.yaml
       relativeToChangelogFile: true
   - include:
+      file: auth/auth-schema-018.yaml
+      relativeToChangelogFile: true
+  - include:
       file: audit/audit-schema-001.yaml
       relativeToChangelogFile: true
   - include:
@@ -215,4 +218,9 @@ databaseChangeLog:
       relativeToChangelogFile: true
   - include:
       file: fiscal/fiscal-schema-014.yaml
+      relativeToChangelogFile: true
+
+  # 7. Schema de Vendas — O2C (operacoes-service)
+  - include:
+      file: vendas/vendas-schema-001.yaml
       relativeToChangelogFile: true

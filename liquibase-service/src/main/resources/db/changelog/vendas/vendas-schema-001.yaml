@@ -1,0 +1,362 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # Schema `vendas` já criado por init/000-initial-schemas.yaml
+  # (CREATE SCHEMA IF NOT EXISTS vendas) — não recriado aqui.
+  # ──────────────────────────────────────────
+
+  # ──────────────────────────────────────────
+  # TABELA: pedido
+  # Orçamento/pedido de venda (O2C). Máquina de estados:
+  # ORCAMENTO → [BLOQUEADO_CREDITO] → CONFIRMADO → EXPEDIDO → FATURADO,
+  # CANCELADO alcançável de qualquer estado pré-faturamento.
+  # spec/o2c-vendas.md §3.1
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: vendas-001-create-pedido
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: vendas
+            tableName: pedido
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: numero
+                  type: bigint
+                  constraints:
+                    nullable: false
+                  remarks: "Sequencial por tenant, atribuído na criação do orçamento — ver vendas.pedido_sequencia"
+              - column:
+                  name: status
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+                  remarks: "StatusPedido: ORCAMENTO | BLOQUEADO_CREDITO | CONFIRMADO | EXPEDIDO | FATURADO | CANCELADO"
+              - column:
+                  name: cliente_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                  remarks: "Ref. cadastro-service (cadastros.cliente) — sem FK física, valida via API"
+              - column:
+                  name: vendedor_id
+                  type: uuid
+                  remarks: "Ref. cadastro-service — sem FK física; default: vendedor default do cliente"
+              - column:
+                  name: condicao_pagamento_id
+                  type: uuid
+                  remarks: "Ref. cadastro-service — sem FK física; obrigatória na confirmação (validação, não constraint)"
+              - column:
+                  name: transportadora_id
+                  type: uuid
+                  remarks: "Ref. cadastro-service — sem FK física; obrigatória na expedição se modalidade_frete != SEM_FRETE"
+              - column:
+                  name: deposito_id
+                  type: uuid
+                  remarks: "Ref. cadastro-service — sem FK física; obrigatório na expedição"
+              - column:
+                  name: modalidade_frete
+                  type: varchar(10)
+                  defaultValue: "SEM_FRETE"
+                  constraints:
+                    nullable: false
+                  remarks: "ModalidadeFrete: CIF | FOB | SEM_FRETE"
+              - column:
+                  name: valor_frete
+                  type: decimal(15,2)
+              - column:
+                  name: valor_itens
+                  type: decimal(15,2)
+                  constraints:
+                    nullable: false
+                  remarks: "Soma bruta dos itens"
+              - column:
+                  name: valor_desconto
+                  type: decimal(15,2)
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+                  remarks: "Soma dos descontos de item"
+              - column:
+                  name: valor_total
+                  type: decimal(15,2)
+                  constraints:
+                    nullable: false
+                  remarks: "valor_itens - valor_desconto + valor_frete"
+              - column:
+                  name: data_emissao
+                  type: date
+                  constraints:
+                    nullable: false
+                  remarks: "Data do orçamento — usada no resolver de preço"
+              - column:
+                  name: data_validade
+                  type: date
+              - column:
+                  name: data_confirmacao
+                  type: timestamp
+              - column:
+                  name: data_expedicao
+                  type: timestamp
+              - column:
+                  name: data_faturamento
+                  type: timestamp
+              - column:
+                  name: data_cancelamento
+                  type: timestamp
+              - column:
+                  name: motivo_cancelamento
+                  type: varchar(500)
+              - column:
+                  name: observacao
+                  type: varchar(1000)
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: created_by
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_updated_by
+                  type: uuid
+        - addUniqueConstraint:
+            schemaName: vendas
+            tableName: pedido
+            columnNames: tenant_id, numero
+            constraintName: uq_pedido_tenant_numero
+        - createIndex:
+            schemaName: vendas
+            tableName: pedido
+            indexName: idx_pedido_tenant_status
+            columns:
+              - column:
+                  name: tenant_id
+              - column:
+                  name: status
+        - createIndex:
+            schemaName: vendas
+            tableName: pedido
+            indexName: idx_pedido_tenant_cliente
+            columns:
+              - column:
+                  name: tenant_id
+              - column:
+                  name: cliente_id
+
+  # ──────────────────────────────────────────
+  # TABELA: pedido_item
+  # Itens do pedido — snapshot de preço congelado (preco_tabela/tabela_preco_id/
+  # origem_preco não mudam se a tabela de preço mudar depois). spec/o2c-vendas.md §3.2
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: vendas-002-create-pedido-item
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: vendas
+            tableName: pedido_item
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: pedido_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_pedido_item_pedido_id
+                    referencedTableSchemaName: vendas
+                    references: vendas.pedido(id)
+              - column:
+                  name: produto_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                  remarks: "Ref. cadastro-service (cadastros.produto) — sem FK física, valida via API"
+              - column:
+                  name: quantidade
+                  type: decimal(15,4)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: preco_unitario
+                  type: decimal(15,2)
+                  constraints:
+                    nullable: false
+                  remarks: "Preço praticado — resolvido pelo motor de preço ou manual"
+              - column:
+                  name: desconto
+                  type: decimal(15,2)
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+                  remarks: "Absoluto, por linha — deve ser < quantidade × preco_unitario (validação de serviço)"
+              - column:
+                  name: valor_total
+                  type: decimal(15,2)
+                  constraints:
+                    nullable: false
+                  remarks: "quantidade × preco_unitario − desconto"
+              - column:
+                  name: preco_manual
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+                  remarks: "true quando o resolver deu 404 ou o usuário sobrescreveu o preço"
+              - column:
+                  name: preco_tabela
+                  type: decimal(15,2)
+                  remarks: "Snapshot do preço resolvido (null se manual sem resolução)"
+              - column:
+                  name: tabela_preco_id
+                  type: uuid
+                  remarks: "Ref. cadastro-service — snapshot da tabela que resolveu, sem FK física"
+              - column:
+                  name: origem_preco
+                  type: varchar(10)
+                  remarks: "Snapshot: CLIENTE | GRUPO | PADRAO (do PrecoResolvidoDTO)"
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: created_by
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_updated_by
+                  type: uuid
+        - addUniqueConstraint:
+            schemaName: vendas
+            tableName: pedido_item
+            columnNames: pedido_id, produto_id
+            constraintName: uq_pedido_item_pedido_produto
+        - createIndex:
+            schemaName: vendas
+            tableName: pedido_item
+            indexName: idx_pedido_item_pedido_id
+            columns:
+              - column:
+                  name: pedido_id
+
+  # ──────────────────────────────────────────
+  # TABELA: pedido_status_historico
+  # Append-only — insert em toda transição (inclusive criação), sem update/delete.
+  # spec/o2c-vendas.md §3.3
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: vendas-003-create-pedido-status-historico
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: vendas
+            tableName: pedido_status_historico
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: pedido_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_pedido_status_historico_pedido_id
+                    referencedTableSchemaName: vendas
+                    references: vendas.pedido(id)
+              - column:
+                  name: status_de
+                  type: varchar(20)
+                  remarks: "Null na criação do orçamento (primeira linha do histórico)"
+              - column:
+                  name: status_para
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: motivo
+                  type: varchar(500)
+                  remarks: "Preenchido no cancelamento"
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_by
+                  type: uuid
+                  constraints:
+                    nullable: false
+        - createIndex:
+            schemaName: vendas
+            tableName: pedido_status_historico
+            indexName: idx_pedido_status_historico_pedido_id
+            columns:
+              - column:
+                  name: pedido_id
+
+  # ──────────────────────────────────────────
+  # TABELA: pedido_sequencia
+  # Contador de numeração por tenant — PedidoNumeroService faz
+  # SELECT ... FOR UPDATE / incrementa / retorna. Linha criada on-demand (upsert)
+  # no primeiro pedido do tenant. spec/o2c-vendas.md §3.4
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: vendas-004-create-pedido-sequencia
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: vendas
+            tableName: pedido_sequencia
+            columns:
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: proximo_numero
+                  type: bigint
+                  defaultValueNumeric: 1
+                  constraints:
+                    nullable: false
