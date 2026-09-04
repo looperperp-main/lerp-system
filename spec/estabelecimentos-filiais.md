@@ -1,11 +1,11 @@
 # Estabelecimentos / Filiais — Modelo Party + Estabelecimento (estilo TCA)
 ## Especificação de Mudança
 
-**Status:** Planejado (não iniciado)
+**Status:** Fase 1 em andamento (changelog + backfill de matriz/proprio escritos, não testados — ver §5.1)
 **Serviço primário:** `cadastro-service` (porta 8086) · schema `cadastros`
 **Serviços impactados:** `auth-service` (onboarding do tenant), `liquibase-service` (DDL), futuros módulos NF-e / motor fiscal IBS-CBS / estoque / financeiro
 **Base package:** `com.l.erp.cadastroservice`
-**Data:** 4 de setembro de 2026 (última atualização — §6.1 adicionado)
+**Data:** 4 de setembro de 2026 (última atualização — §5.1 adicionado, escopo da Fase 1)
 
 ---
 
@@ -159,6 +159,38 @@ Ordem dos changesets (idempotentes, reversíveis quando possível):
 
 > Rollback: cada changeset com `rollback` explícito; a remoção de `ie`/`im` é a única
 > irreversível sem re-backfill — executar por último e após validação.
+
+### 5.1 Escopo real implementado na Fase 1 (`cadastro-schema-011.yaml`, `cad-030`..`cad-039`)
+
+Os passos 1, 3, 5 e 6 desta lista (tabela `estabelecimento`, `pessoa.cnpj_raiz` + backfill,
+`proprio=true` na matriz do tenant, swap das uniques de `pessoa`) foram escritos — **não
+testados** (sem `mvn`/Liquibase rodado). Os passos 2 (rebind `endereco`/`contato` para
+`estabelecimento_id`, incluindo o CHECK XOR) e 7 (dropar `ie`/`im` de `pessoa`) foram
+**deliberadamente cortados** desta Fase, porque:
+
+- **Rebind de `endereco`/`contato`:** `CadastroServiceClient.buscarEnderecoFiscal`
+  (operacoes-service, ver §6.1) e qualquer outro consumidor hoje leem endereço/contato por
+  `pessoa_id`. Nular `pessoa_id` nos registros de PJ antes de qualquer código migrar pra ler
+  por `estabelecimento_id` quebraria esses fluxos em produção assim que este changelog
+  rodasse. Isso precisa entrar **junto** com a Fase 2 (entidades `Endereco`/`Contato` +
+  services que passam a resolver por `estabelecimento`), não antes.
+- **Drop de `ie`/`im`:** `Pessoa.java` ainda mapeia essas colunas; `cadastro-service` roda com
+  `ddl-auto=validate` (CLAUDE.md) — dropar as colunas sem atualizar a entity na mesma janela
+  de deploy derruba o startup do serviço por falha de validação de schema. Sai junto da Fase 3
+  (que já é onde o doc original também colocava essa remoção, §8).
+
+Nenhuma dessas duas exclusões quebra o que foi criado agora: são todas aditivas (tabela nova,
+coluna nova, troca de unique constraint sem mudança de dado) e não têm contrapartida em
+`Pessoa.java`/`Endereco.java`/`Contato.java` ainda — Hibernate `validate` ignora colunas de
+banco não mapeadas na entity.
+
+Achado à parte, também sem correção nesta Fase (fica pra Fase 3, junto com a reconciliação de
+dedup): `CnpjService` mencionado na decisão 1 (§3) **não existe** com esse propósito — o único
+`CnpjService` do monorepo é o de consulta à Receita (`partner-service`, API externa). A raiz do
+CNPJ foi extraída inline via SQL (`LEFT(UPPER(REGEXP_REPLACE(documento, ...)), 8)`); quando a
+Fase 2/3 escrever isso em Java, não há utilitário pronto pra reaproveitar — precisa ser criado
+(provavelmente em `common`, já que `cadastro-service` e o onboarding de `auth-service`, Fase 4,
+vão precisar da mesma lógica).
 
 ---
 

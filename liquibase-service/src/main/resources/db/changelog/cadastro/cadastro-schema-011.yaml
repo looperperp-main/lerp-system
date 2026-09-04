@@ -1,0 +1,296 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # TABELA: estabelecimento (matriz/filial — spec/estabelecimentos-filiais.md §4.1)
+  # Vive lado a lado com pessoa; proprio=true = emitente (empresa do tenant).
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-030-create-estabelecimento
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: cadastros
+            tableName: estabelecimento
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: pessoa_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_estabelecimento_pessoa_id
+                    referencedTableSchemaName: cadastros
+                    references: cadastros.pessoa(id)
+              - column:
+                  name: cnpj_completo
+                  type: varchar(18)
+                  constraints:
+                    nullable: false
+                  remarks: "Mesmo mask de pessoa.documento"
+              - column:
+                  name: ordem
+                  type: varchar(4)
+                  constraints:
+                    nullable: false
+                  remarks: "0001 = matriz, 0002+ = filial"
+              - column:
+                  name: is_matriz
+                  type: boolean
+                  constraints:
+                    nullable: false
+              - column:
+                  name: proprio
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+                  remarks: "true = empresa do tenant (emitente NF-e)"
+              - column:
+                  name: ie
+                  type: varchar(20)
+                  remarks: "Inscrição Estadual (por estabelecimento)"
+              - column:
+                  name: im
+                  type: varchar(20)
+                  remarks: "Inscrição Municipal (por estabelecimento)"
+              - column:
+                  name: ativo
+                  type: boolean
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: created_by
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_updated_by
+                  type: uuid
+        - addUniqueConstraint:
+            schemaName: cadastros
+            tableName: estabelecimento
+            columnNames: tenant_id, cnpj_completo
+            constraintName: uq_estab_tenant_cnpj
+        - createIndex:
+            schemaName: cadastros
+            tableName: estabelecimento
+            indexName: idx_estab_pessoa_id
+            columns:
+              - column:
+                  name: pessoa_id
+        - createIndex:
+            schemaName: cadastros
+            tableName: estabelecimento
+            indexName: idx_estab_tenant_id
+            columns:
+              - column:
+                  name: tenant_id
+
+  # ──────────────────────────────────────────
+  # Partial unique index: uma matriz por pessoa
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-031-uidx-estabelecimento-matriz-por-pessoa
+      author: vitor-fernandes
+      changes:
+        - sql:
+            sql: >
+              CREATE UNIQUE INDEX uq_estab_matriz_pessoa
+              ON cadastros.estabelecimento (tenant_id, pessoa_id)
+              WHERE is_matriz = true;
+      rollback:
+        - sql:
+            sql: DROP INDEX cadastros.uq_estab_matriz_pessoa;
+
+  # ──────────────────────────────────────────
+  # Partial unique index: uma única "própria empresa" (matriz proprio=true) por tenant
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-032-uidx-estabelecimento-proprio-por-tenant
+      author: vitor-fernandes
+      changes:
+        - sql:
+            sql: >
+              CREATE UNIQUE INDEX uq_estab_proprio_matriz
+              ON cadastros.estabelecimento (tenant_id)
+              WHERE proprio = true AND is_matriz = true;
+      rollback:
+        - sql:
+            sql: DROP INDEX cadastros.uq_estab_proprio_matriz;
+
+  # ──────────────────────────────────────────
+  # pessoa.cnpj_raiz — raiz do CNPJ (8 primeiros dígitos), usada pro dedup
+  # matriz/filial (decisão 1, spec/estabelecimentos-filiais.md §3). Coluna
+  # ainda não é lida pela entidade Pessoa.java — isso é Fase 2/3.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-033-add-pessoa-cnpj-raiz
+      author: vitor-fernandes
+      changes:
+        - addColumn:
+            schemaName: cadastros
+            tableName: pessoa
+            columns:
+              - column:
+                  name: cnpj_raiz
+                  type: varchar(8)
+                  remarks: "8 primeiros dígitos do CNPJ (PJ) — dedup matriz/filial"
+
+  # ──────────────────────────────────────────
+  # Backfill: 1 estabelecimento matriz (0001) por pessoa PJ existente.
+  # ie/im copiados de pessoa (ainda não removidos de lá — Fase 3).
+  # ON CONFLICT idempotente (uq_estab_tenant_cnpj) — changeset roda uma vez
+  # via Liquibase, mas fica seguro em caso de replay manual.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-034-backfill-estabelecimento-matriz-pj
+      author: vitor-fernandes
+      changes:
+        - sql:
+            sql: >
+              INSERT INTO cadastros.estabelecimento
+                (id, tenant_id, pessoa_id, cnpj_completo, ordem, is_matriz, proprio, ie, im, ativo, created_at, created_by)
+              SELECT
+                gen_random_uuid(), p.tenant_id, p.id, p.documento, '0001', true, false, p.ie, p.im, p.ativo, p.created_at, p.created_by
+              FROM cadastros.pessoa p
+              WHERE p.tipo = 'PJ'
+              ON CONFLICT (tenant_id, cnpj_completo) DO NOTHING;
+      rollback:
+        - sql:
+            sql: DELETE FROM cadastros.estabelecimento WHERE ordem = '0001' AND is_matriz = true;
+
+  # ──────────────────────────────────────────
+  # Backfill: pessoa.cnpj_raiz para todo PJ existente.
+  # Sem CnpjService.raiz() reaproveitável hoje (o único CnpjService do
+  # monorepo é o de consulta externa em partner-service) — raiz = 8
+  # primeiros chars do documento sem máscara, maiúsculo (CNPJ alfanumérico
+  # NT 2026.004 ready).
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-035-backfill-pessoa-cnpj-raiz
+      author: vitor-fernandes
+      changes:
+        - sql:
+            sql: >
+              UPDATE cadastros.pessoa
+              SET cnpj_raiz = LEFT(UPPER(REGEXP_REPLACE(documento, '[^0-9A-Za-z]', '', 'g')), 8)
+              WHERE tipo = 'PJ';
+      rollback:
+        - sql:
+            sql: UPDATE cadastros.pessoa SET cnpj_raiz = NULL WHERE tipo = 'PJ';
+
+  # ──────────────────────────────────────────
+  # Backfill: marca proprio=true na matriz da "própria empresa" de cada
+  # tenant (spec §5 passo 5). Casa raiz(tenant.cnpj) = pessoa.cnpj_raiz
+  # dentro do mesmo tenant; se não existir pessoa com essa raiz, cria
+  # pessoa + estabelecimento matriz sintéticos (mesmo efeito da Fase 4 de
+  # onboarding). created_by = UUID nulo reservado p/ registros de migração
+  # (coluna sem FK, sem convenção prévia de "system user" em uuid — ver
+  # 'system-seed' que é usado só em colunas varchar no schema auth).
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-036-backfill-estabelecimento-proprio-tenant
+      author: vitor-fernandes
+      changes:
+        - sql:
+            sql: >
+              DO $$
+              DECLARE
+                t RECORD;
+                raiz VARCHAR(8);
+                pessoa_uuid UUID;
+                now_ts TIMESTAMP := now();
+                sys_user UUID := '00000000-0000-0000-0000-000000000000';
+              BEGIN
+                FOR t IN SELECT id, name, cnpj FROM auth.tenant LOOP
+                  raiz := LEFT(UPPER(t.cnpj), 8);
+
+                  SELECT id INTO pessoa_uuid
+                  FROM cadastros.pessoa
+                  WHERE tenant_id = t.id AND tipo = 'PJ' AND cnpj_raiz = raiz
+                  LIMIT 1;
+
+                  IF pessoa_uuid IS NULL THEN
+                    pessoa_uuid := gen_random_uuid();
+                    INSERT INTO cadastros.pessoa
+                      (id, tenant_id, tipo, nome_razao, documento, cnpj_raiz, ativo, created_at, created_by)
+                    VALUES
+                      (pessoa_uuid, t.id, 'PJ', t.name, t.cnpj, raiz, true, now_ts, sys_user);
+
+                    INSERT INTO cadastros.estabelecimento
+                      (id, tenant_id, pessoa_id, cnpj_completo, ordem, is_matriz, proprio, ativo, created_at, created_by)
+                    VALUES
+                      (gen_random_uuid(), t.id, pessoa_uuid, t.cnpj, '0001', true, true, true, now_ts, sys_user);
+                  ELSE
+                    UPDATE cadastros.estabelecimento
+                    SET proprio = true
+                    WHERE tenant_id = t.id AND pessoa_id = pessoa_uuid AND is_matriz = true;
+                  END IF;
+                END LOOP;
+              END $$;
+      rollback:
+        - sql:
+            sql: >
+              UPDATE cadastros.estabelecimento SET proprio = false WHERE proprio = true AND is_matriz = true;
+              DELETE FROM cadastros.estabelecimento WHERE created_by = '00000000-0000-0000-0000-000000000000';
+              DELETE FROM cadastros.pessoa WHERE created_by = '00000000-0000-0000-0000-000000000000';
+
+  # ──────────────────────────────────────────
+  # Swap das uniques de pessoa: dedup por raiz (PJ) / documento (PF)
+  # em vez de documento cru (spec §3 decisão 1). Matriz e filial de uma
+  # mesma empresa colapsam numa única pessoa a partir daqui.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-037-drop-uq-pessoa-tenant-documento
+      author: vitor-fernandes
+      changes:
+        - dropUniqueConstraint:
+            schemaName: cadastros
+            tableName: pessoa
+            constraintName: uq_pessoa_tenant_documento
+            uniqueColumns: tenant_id, documento
+
+  - changeSet:
+      id: cad-038-uidx-pessoa-tenant-cnpj-raiz-pj
+      author: vitor-fernandes
+      changes:
+        - sql:
+            sql: >
+              CREATE UNIQUE INDEX uq_pessoa_tenant_cnpj_raiz
+              ON cadastros.pessoa (tenant_id, cnpj_raiz)
+              WHERE tipo = 'PJ';
+      rollback:
+        - sql:
+            sql: DROP INDEX cadastros.uq_pessoa_tenant_cnpj_raiz;
+
+  - changeSet:
+      id: cad-039-uidx-pessoa-tenant-documento-pf
+      author: vitor-fernandes
+      changes:
+        - sql:
+            sql: >
+              CREATE UNIQUE INDEX uq_pessoa_tenant_documento_pf
+              ON cadastros.pessoa (tenant_id, documento)
+              WHERE tipo = 'PF';
+      rollback:
+        - sql:
+            sql: DROP INDEX cadastros.uq_pessoa_tenant_documento_pf;
