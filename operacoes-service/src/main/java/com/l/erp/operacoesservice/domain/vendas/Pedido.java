@@ -108,6 +108,26 @@ public class Pedido extends BaseTenantEntity {
     @Column(name = "motivo_cancelamento", length = 500)
     private String motivoCancelamento;
 
+    // D4: preenchidos só no faturamento, a partir do agregado de POST /fiscal/calcular por item
+    // (fiscal-service) — nulos em ORCAMENTO/CONFIRMADO/EXPEDIDO. spec/o2c-vendas.md §8.
+    @Column(name = "valor_total_nf", precision = 15, scale = 2)
+    private BigDecimal valorTotalNf;
+
+    @Column(name = "valor_ibs", precision = 15, scale = 2)
+    private BigDecimal valorIbs;
+
+    @Column(name = "valor_cbs", precision = 15, scale = 2)
+    private BigDecimal valorCbs;
+
+    @Column(name = "valor_is", precision = 15, scale = 2)
+    private BigDecimal valorIs;
+
+    @Column(name = "valor_iss", precision = 15, scale = 2)
+    private BigDecimal valorIss;
+
+    @Column(name = "valor_retencoes", precision = 15, scale = 2)
+    private BigDecimal valorRetencoes;
+
     @Size(max = 1000)
     @Column(name = "observacao", length = 1000)
     private String observacao;

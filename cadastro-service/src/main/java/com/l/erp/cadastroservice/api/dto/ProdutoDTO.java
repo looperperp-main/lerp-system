@@ -47,6 +47,11 @@ public record ProdutoDTO(
         @Size(max = 10)
         String codigoServico,
 
+        // D4 (spec/o2c-vendas.md §8) — classificação tributária IBS/CBS do serviço (Anexo VIII);
+        // obrigatório quando tipo=SERVICO (validado em ProdutoService.validarTipo).
+        @Size(max = 10)
+        String classTrib,
+
         @Size(max = 14)
         String ean,
 

@@ -14,6 +14,7 @@ import com.l.erp.operacoesservice.domain.vendas.PedidoItem;
 import com.l.erp.operacoesservice.domain.vendas.enumerators.ModalidadeFrete;
 import com.l.erp.operacoesservice.domain.vendas.enumerators.StatusPedido;
 import com.l.erp.operacoesservice.infra.client.CadastroServiceClient;
+import com.l.erp.operacoesservice.infra.client.FiscalServiceClient;
 import com.l.erp.operacoesservice.services.vendas.PedidoService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,6 +56,8 @@ class PedidoControllerTest {
     @MockitoBean
     private CadastroServiceClient cadastroServiceClient;
     @MockitoBean
+    private FiscalServiceClient fiscalServiceClient;
+    @MockitoBean
     private PedidoMapper mapper;
     @MockitoBean
     private PedidoAssembler assembler;
@@ -88,7 +91,7 @@ class PedidoControllerTest {
                 PedidoItem.builder().produtoId(UUID.randomUUID()).quantidade(BigDecimal.ONE)
                         .precoUnitario(BigDecimal.TEN).build()));
         when(cadastroServiceClient.buscarProduto(any(), eq(TENANT_ID), eq(USER_ID)))
-                .thenReturn(new CadastroServiceClient.ProdutoRef("MERCADORIA", null, true));
+                .thenReturn(new CadastroServiceClient.ProdutoRef("MERCADORIA", null, true, null, null));
         when(service.criarOrcamento(any(), any(), eq(TENANT_ID), eq(USER_ID))).thenReturn(pedido(id));
         when(assembler.toDetailModel(any(), any(), any())).thenReturn(responseDto(id));
 
@@ -120,7 +123,7 @@ class PedidoControllerTest {
                 PedidoItem.builder().produtoId(UUID.randomUUID()).quantidade(BigDecimal.ONE)
                         .precoUnitario(BigDecimal.TEN).build()));
         when(cadastroServiceClient.buscarProduto(any(), eq(TENANT_ID), eq(USER_ID)))
-                .thenReturn(new CadastroServiceClient.ProdutoRef("MERCADORIA", null, true));
+                .thenReturn(new CadastroServiceClient.ProdutoRef("MERCADORIA", null, true, null, null));
         when(service.atualizar(eq(id), eq(TENANT_ID), eq(USER_ID), any(), any())).thenReturn(pedido(id));
         when(assembler.toDetailModel(any(), any(), any())).thenReturn(responseDto(id));
 
@@ -139,7 +142,7 @@ class PedidoControllerTest {
                 PedidoItem.builder().produtoId(UUID.randomUUID()).quantidade(BigDecimal.ONE)
                         .precoUnitario(BigDecimal.TEN).build()));
         when(cadastroServiceClient.buscarProduto(any(), eq(TENANT_ID), eq(USER_ID)))
-                .thenReturn(new CadastroServiceClient.ProdutoRef("MERCADORIA", null, false));
+                .thenReturn(new CadastroServiceClient.ProdutoRef("MERCADORIA", null, false, null, null));
 
         mockMvc.perform(post("/api/v1/pedidos")
                         .header(Constants.HEADER_TENANT_ID, TENANT_ID)
@@ -215,7 +218,8 @@ class PedidoControllerTest {
                 .status(StatusPedido.EXPEDIDO).condicaoPagamentoId(condicaoId).build();
         when(service.buscarPorId(id, TENANT_ID)).thenReturn(pedidoComCondicao);
         when(cadastroServiceClient.buscarParcelas(condicaoId, TENANT_ID, USER_ID)).thenReturn(List.of());
-        when(service.faturar(eq(id), eq(TENANT_ID), eq(USER_ID), any()))
+        when(service.listarItens(id)).thenReturn(List.of());
+        when(service.faturar(eq(id), eq(TENANT_ID), eq(USER_ID), any(), any()))
                 .thenReturn(new PedidoService.FaturamentoResultado(pedidoComCondicao, List.of()));
         when(assembler.toFaturamentoModel(any())).thenReturn(responseDto(id));
 

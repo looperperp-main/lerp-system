@@ -26,6 +26,7 @@ public class ProdutoResponseDTO extends RepresentationModel<ProdutoResponseDTO> 
     private BigDecimal fatorConversao;
     private String ncm;
     private String codigoServico;
+    private String classTrib;
     private String ean;
     private String cest;
     private String origem;

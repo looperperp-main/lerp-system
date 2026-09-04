@@ -14,6 +14,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -39,6 +40,8 @@ class PedidoServiceTest {
     private PedidoStatusHistoricoRepository pedidoStatusHistoricoRepository;
     @Mock
     private PedidoNumeroService pedidoNumeroService;
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private PedidoService pedidoService;
@@ -290,7 +293,8 @@ class PedidoServiceTest {
         List<PedidoService.ParcelaDefinicao> parcelas = List.of(
                 new PedidoService.ParcelaDefinicao(1, 0, new BigDecimal("50"), "BOLETO"));
 
-        assertThatThrownBy(() -> pedidoService.faturar(pedido.getId(), TENANT_ID, USER_ID, parcelas))
+        assertThatThrownBy(() -> pedidoService.faturar(pedido.getId(), TENANT_ID, USER_ID, parcelas,
+                PedidoService.ResultadoFiscalAgregado.zero()))
                 .isInstanceOf(BusinessException.class);
     }
 
@@ -305,7 +309,8 @@ class PedidoServiceTest {
                 new PedidoService.ParcelaDefinicao(3, 90, new BigDecimal("33.34"), "BOLETO"));
 
         PedidoService.FaturamentoResultado resultado =
-                pedidoService.faturar(pedido.getId(), TENANT_ID, USER_ID, definicoes);
+                pedidoService.faturar(pedido.getId(), TENANT_ID, USER_ID, definicoes,
+                        PedidoService.ResultadoFiscalAgregado.zero());
 
         assertThat(resultado.pedido().getStatus()).isEqualTo(StatusPedido.FATURADO);
         BigDecimal soma = resultado.parcelas().stream().map(PedidoService.ParcelaFaturamento::valor)
@@ -345,7 +350,8 @@ class PedidoServiceTest {
                 new PedidoService.ParcelaDefinicao(1, 0, new BigDecimal("100"), "BOLETO"));
 
         PedidoService.FaturamentoResultado resultado =
-                pedidoService.faturar(pedido.getId(), TENANT_ID, USER_ID, parcelas);
+                pedidoService.faturar(pedido.getId(), TENANT_ID, USER_ID, parcelas,
+                        PedidoService.ResultadoFiscalAgregado.zero());
 
         assertThat(resultado.pedido().getStatus()).isEqualTo(StatusPedido.FATURADO);
     }
@@ -377,7 +383,8 @@ class PedidoServiceTest {
         List<PedidoService.ParcelaDefinicao> parcelas = List.of(
                 new PedidoService.ParcelaDefinicao(1, 0, new BigDecimal("100"), "BOLETO"));
 
-        assertThatThrownBy(() -> pedidoService.faturar(pedido.getId(), TENANT_ID, USER_ID, parcelas))
+        assertThatThrownBy(() -> pedidoService.faturar(pedido.getId(), TENANT_ID, USER_ID, parcelas,
+                PedidoService.ResultadoFiscalAgregado.zero()))
                 .isInstanceOf(BusinessException.class);
     }
 

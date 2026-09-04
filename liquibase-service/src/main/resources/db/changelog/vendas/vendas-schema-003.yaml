@@ -1,0 +1,35 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # D4: integração fiscal no faturamento (spec/o2c-vendas.md §8, Rev. 10)
+  # Colunas preenchidas só no momento do faturamento, a partir do agregado das chamadas a
+  # POST /fiscal/calcular (fiscal-service) por item do pedido — nulas até lá.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: vendas-006-pedido-colunas-fiscais
+      author: vitor-fernandes
+      changes:
+        - addColumn:
+            schemaName: vendas
+            tableName: pedido
+            columns:
+              - column:
+                  name: valor_total_nf
+                  type: decimal(15,2)
+                  remarks: 'valor_total + IBS + CBS + IS + ISS — base da nota fiscal, difere de valor_total (só itens)'
+              - column:
+                  name: valor_ibs
+                  type: decimal(15,2)
+              - column:
+                  name: valor_cbs
+                  type: decimal(15,2)
+              - column:
+                  name: valor_is
+                  type: decimal(15,2)
+              - column:
+                  name: valor_iss
+                  type: decimal(15,2)
+              - column:
+                  name: valor_retencoes
+                  type: decimal(15,2)
+                  remarks: 'soma de ISS retido + IRRF + CSRF + INSS retidos na fonte — abatido do valor das parcelas'

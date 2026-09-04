@@ -156,6 +156,8 @@ public class ProdutoService {
             }
         } else if (!temCodigoServico) {
             throw new BusinessException(Constants.PRODUTO_CODIGO_SERVICO_OBRIGATORIO, HttpStatus.BAD_REQUEST);
+        } else if (produto.getClassTrib() == null || produto.getClassTrib().isBlank()) {
+            throw new BusinessException(Constants.PRODUTO_CLASS_TRIB_OBRIGATORIO_SERVICO, HttpStatus.BAD_REQUEST);
         }
     }
 

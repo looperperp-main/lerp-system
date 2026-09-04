@@ -13,8 +13,11 @@ import com.l.erp.operacoesservice.domain.vendas.PedidoItem;
 import com.l.erp.operacoesservice.domain.vendas.enumerators.StatusPedido;
 import com.l.erp.operacoesservice.domain.vendas.enumerators.TipoItemPedido;
 import com.l.erp.operacoesservice.infra.client.CadastroServiceClient;
+import com.l.erp.operacoesservice.infra.client.FiscalServiceClient;
 import com.l.erp.operacoesservice.services.vendas.PedidoService;
 import com.l.erp.operacoesservice.util.SecurityUtils;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,22 +46,29 @@ import java.util.UUID;
 /** O2C — orçamento → pedido → expedição → faturamento (spec/o2c-vendas.md §5/§10, Fase 4). */
 @RestController
 @RequestMapping("/api/v1/pedidos")
+@Tag(name = "Pedidos", description = "O2C — orçamento → pedido → expedição → faturamento")
 public class PedidoController {
 
     private final Logger logger = LoggerFactory.getLogger(PedidoController.class);
     private final PedidoService service;
     private final CadastroServiceClient cadastroServiceClient;
+    private final FiscalServiceClient fiscalServiceClient;
     private final PedidoMapper mapper;
     private final PedidoAssembler assembler;
 
     public PedidoController(PedidoService service, CadastroServiceClient cadastroServiceClient,
+                             FiscalServiceClient fiscalServiceClient,
                              PedidoMapper mapper, PedidoAssembler assembler) {
         this.service = service;
         this.cadastroServiceClient = cadastroServiceClient;
+        this.fiscalServiceClient = fiscalServiceClient;
         this.mapper = mapper;
         this.assembler = assembler;
     }
 
+    @Operation(summary = "Criar orçamento",
+            description = "Cria um pedido em status ORCAMENTO. Resolve o tipo (mercadoria/serviço) de cada "
+                    + "item junto ao cadastro-service e rejeita produto inativo (400).")
     @PostMapping
     @PreAuthorize("hasAuthority('PEDIDO_ESCRITA')")
     public ResponseEntity<PedidoResponseDTO> criar(@RequestBody @Valid PedidoRequestDTO dto) {
@@ -72,6 +82,7 @@ public class PedidoController {
         return ResponseEntity.created(response.getRequiredLink(IanaLinkRelations.SELF).toUri()).body(response);
     }
 
+    @Operation(summary = "Atualizar orçamento", description = "Edita um pedido em status ORCAMENTO (§7).")
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('PEDIDO_ESCRITA')")
     public ResponseEntity<PedidoResponseDTO> atualizar(@PathVariable UUID id, @RequestBody @Valid PedidoRequestDTO dto) {
@@ -96,12 +107,14 @@ public class PedidoController {
         }
     }
 
+    @Operation(summary = "Buscar pedido por ID", description = "Detalhe do pedido: itens, parcelas e histórico de status.")
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('PEDIDO_LEITURA')")
     public ResponseEntity<PedidoResponseDTO> buscarPorId(@PathVariable UUID id) {
         return ResponseEntity.ok(detalhe(service.buscarPorId(id, tenantId())));
     }
 
+    @Operation(summary = "Listar pedidos", description = "Lista paginada com filtros por status, cliente, vendedor, número e período de emissão.")
     @GetMapping
     @PreAuthorize("hasAuthority('PEDIDO_LEITURA')")
     public ResponseEntity<PagedModel<PedidoResponseDTO>> listar(
@@ -118,6 +131,9 @@ public class PedidoController {
         return ResponseEntity.ok(pagedResourcesAssembler.toModel(page, assembler));
     }
 
+    @Operation(summary = "Confirmar orçamento",
+            description = "Transição ORCAMENTO → CONFIRMADO. Checa limite de crédito no cadastro-service, salvo "
+                    + "quem tem a authority PEDIDO_CONFIRMACAO_SEM_LIMITE.")
     @PostMapping("/{id}/confirmar")
     @PreAuthorize("hasAuthority('PEDIDO_CONFIRMACAO')")
     public ResponseEntity<PedidoResponseDTO> confirmar(@PathVariable UUID id) {
@@ -132,6 +148,9 @@ public class PedidoController {
         return ResponseEntity.ok(detalhe(service.confirmar(id, tenantId, userId, semLimite, limiteCredito)));
     }
 
+    @Operation(summary = "Expedir pedido",
+            description = "Transição CONFIRMADO → EXPEDIDO, com baixa de estoque. Bloqueada (400) para pedido "
+                    + "só de serviço — esse caso vai direto de CONFIRMADO pra FATURADO (§D3).")
     @PostMapping("/{id}/expedir")
     @PreAuthorize("hasAuthority('PEDIDO_EXPEDICAO')")
     public ResponseEntity<PedidoResponseDTO> expedir(@PathVariable UUID id, @RequestBody @Valid ExpedirPedidoRequestDTO dto) {
@@ -141,6 +160,9 @@ public class PedidoController {
         return ResponseEntity.ok(detalhe(expedido));
     }
 
+    @Operation(summary = "Faturar pedido",
+            description = "Transição EXPEDIDO → FATURADO (ou direto de CONFIRMADO, se só serviço). Gera parcelas "
+                    + "pela condição de pagamento do cliente no cadastro-service.")
     @PostMapping("/{id}/faturar")
     @PreAuthorize("hasAuthority('PEDIDO_FATURAMENTO')")
     public ResponseEntity<PedidoResponseDTO> faturar(@PathVariable UUID id) {
@@ -153,10 +175,35 @@ public class PedidoController {
         }
         List<PedidoService.ParcelaDefinicao> parcelasDefinicao =
                 cadastroServiceClient.buscarParcelas(pedido.getCondicaoPagamentoId(), tenantId, userId);
-        PedidoService.FaturamentoResultado resultado = service.faturar(id, tenantId, userId, parcelasDefinicao);
+        PedidoService.ResultadoFiscalAgregado fiscal = calcularFiscal(id, pedido.getClienteId(), tenantId, userId);
+        PedidoService.FaturamentoResultado resultado = service.faturar(id, tenantId, userId, parcelasDefinicao, fiscal);
         return ResponseEntity.ok(assembler.toFaturamentoModel(resultado));
     }
 
+    // D4: chama POST /fiscal/calcular (fiscal-service) por item do pedido e soma o resultado —
+    // dataCompetencia = hoje, já que o cálculo só acontece no momento do faturamento (§8).
+    // P2: UF/IBGE de destino vêm do endereço fiscal do cliente (buscarEnderecoFiscal), buscado
+    // uma vez por pedido (não muda por item).
+    private PedidoService.ResultadoFiscalAgregado calcularFiscal(UUID pedidoId, UUID clienteId, Long tenantId, UUID userId) {
+        LocalDate dataCompetencia = LocalDate.now();
+        UUID pessoaId = cadastroServiceClient.buscarClientePessoaId(clienteId, tenantId, userId);
+        CadastroServiceClient.EnderecoFiscalRef endereco = pessoaId != null
+                ? cadastroServiceClient.buscarEnderecoFiscal(pessoaId, tenantId, userId) : null;
+        BigDecimal ibs = BigDecimal.ZERO, cbs = BigDecimal.ZERO, is = BigDecimal.ZERO,
+                iss = BigDecimal.ZERO, retencoes = BigDecimal.ZERO;
+        for (PedidoItem item : service.listarItens(pedidoId)) {
+            CadastroServiceClient.ProdutoRef produto = cadastroServiceClient.buscarProduto(item.getProdutoId(), tenantId, userId);
+            FiscalServiceClient.ResultadoFiscalItem r = fiscalServiceClient.calcularItem(item, produto, dataCompetencia, tenantId, endereco);
+            ibs = ibs.add(r.valorIbs());
+            cbs = cbs.add(r.valorCbs());
+            is = is.add(r.valorIs());
+            iss = iss.add(r.valorIss());
+            retencoes = retencoes.add(r.valorRetencoes());
+        }
+        return new PedidoService.ResultadoFiscalAgregado(ibs, cbs, is, iss, retencoes);
+    }
+
+    @Operation(summary = "Cancelar pedido", description = "Cancela o pedido (motivo obrigatório) em qualquer status anterior a FATURADO.")
     @PostMapping("/{id}/cancelar")
     @PreAuthorize("hasAuthority('PEDIDO_CANCELAMENTO')")
     public ResponseEntity<PedidoResponseDTO> cancelar(@PathVariable UUID id, @RequestBody @Valid CancelarPedidoRequestDTO dto) {
@@ -165,12 +212,14 @@ public class PedidoController {
         return ResponseEntity.ok(detalhe(cancelado));
     }
 
+    @Operation(summary = "Recalcular preços", description = "Reaplica tabela de preços vigente aos itens do pedido em ORCAMENTO.")
     @PostMapping("/{id}/recalcular-precos")
     @PreAuthorize("hasAuthority('PEDIDO_ESCRITA')")
     public ResponseEntity<PedidoResponseDTO> recalcularPrecos(@PathVariable UUID id) {
         return ResponseEntity.ok(detalhe(service.recalcularPrecos(id, tenantId())));
     }
 
+    @Operation(summary = "Reabrir pedido", description = "Volta o pedido de CONFIRMADO para ORCAMENTO, permitindo nova edição.")
     @PostMapping("/{id}/reabrir")
     @PreAuthorize("hasAuthority('PEDIDO_ESCRITA')")
     public ResponseEntity<PedidoResponseDTO> reabrir(@PathVariable UUID id) {

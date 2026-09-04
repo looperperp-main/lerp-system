@@ -5,7 +5,7 @@
 **Serviço primário:** `cadastro-service` (porta 8086) · schema `cadastros`
 **Serviços impactados:** `auth-service` (onboarding do tenant), `liquibase-service` (DDL), futuros módulos NF-e / motor fiscal IBS-CBS / estoque / financeiro
 **Base package:** `com.l.erp.cadastroservice`
-**Data:** 2026-06-19
+**Data:** 4 de setembro de 2026 (última atualização — §6.1 adicionado)
 
 ---
 
@@ -172,6 +172,33 @@ Ordem dos changesets (idempotentes, reversíveis quando possível):
   endereço fiscal do estabelecimento alimenta IBS/CBS.
 - **Estoque / financeiro (futuro):** `deposito` e títulos ganham `estabelecimento_id` como
   dimensão de segregação por filial.
+
+### 6.1 Stopgaps já implementados no `operacoes-service` (D4, spec/o2c-vendas.md §8)
+
+Antes deste modelo existir, o motor fiscal (`POST /fiscal/calcular`) já exige `cClassTrib` e
+`ibgeDestino`/`ufDestino` pra calcular IBS/CBS/ISS no faturamento do pedido (§8). Dois gaps
+foram fechados em 2026-09-04 como stopgap, **sem depender de `estabelecimento`**:
+
+- **`cClassTrib` (classificação tributária do serviço, Anexo VIII):** virou campo
+  `Produto.classTrib` (`cadastro-schema-010.yaml`, `cad-029`), obrigatório quando
+  `tipo=SERVICO` (mesma validação de `codigoServico` em `ProdutoService.validarTipo`). Isso é
+  **permanente** — não tem relação com matriz/filial, fica como está depois desta migração.
+- **`ibgeDestino`/`ufDestino` (UF/IBGE do destinatário):** `CadastroServiceClient.buscarEnderecoFiscal`
+  busca o endereço da `pessoa` do cliente hoje (prioriza `tipo=FISCAL`, senão `principal`, senão
+  o primeiro). Isso **também é permanente** pro lado destinatário — `estabelecimento` não muda
+  onde mora esse dado (endereço do cliente continua em `pessoa`/`endereco`, só ganha
+  `estabelecimento_id` como FK adicional pra PJ, XOR com `pessoa_id`, §4.2). Nenhum retrabalho
+  necessário aqui quando a Fase 1–3 deste doc sair.
+
+**O que fica bloqueado até este modelo existir — `ufOrigem` (emitente):**
+`FiscalServiceClient` (operacoes-service) hoje envia `ufOrigem=null` sempre — não há
+`estabelecimento` emitente modelado, então não existe onde ler a UF de origem do tenant. Isso
+só destrava na **Fase 6** deste doc (Integração NF-e / motor fiscal), quando
+`estabelecimento WHERE proprio=true` existir: `ufOrigem` passa a vir do endereço do
+estabelecimento emitente do tenant (a matriz, ou a filial de onde o pedido saiu, se o modelo
+de filial-por-pedido existir nessa altura). Até lá, o cálculo fiscal do O2C roda com origem
+indefinida — aceitável pro estágio atual (regime único presumido, sem split multi-UF), mas é
+o ponto exato a resolver quando a Fase 6 começar.
 
 ---
 

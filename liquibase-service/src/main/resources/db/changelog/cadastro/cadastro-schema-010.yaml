@@ -1,0 +1,20 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # Classificação tributária IBS/CBS do serviço (Anexo VIII, spec/o2c-vendas.md Rev. 10).
+  # Obrigatória quando tipo=SERVICO, exigida pelo fiscal-service (MotorFiscalService) —
+  # validada em ProdutoService.validarTipo.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-029-produto-class-trib
+      author: vitor-fernandes
+      changes:
+        - addColumn:
+            schemaName: cadastros
+            tableName: produto
+            columns:
+              - column:
+                  name: class_trib
+                  type: varchar(10)
+                  constraints:
+                    nullable: true

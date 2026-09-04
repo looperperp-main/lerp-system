@@ -218,6 +218,10 @@ public class Constants {
             "Código de serviço é obrigatório para produto do tipo SERVICO";
     public static final String PRODUTO_CODIGO_SERVICO_APENAS_SERVICO =
             "Código de serviço só é permitido para produto do tipo SERVICO";
+    // D4 (spec/o2c-vendas.md §8) — classificação tributária IBS/CBS do serviço (Anexo VIII),
+    // exigida pelo fiscal-service (MotorFiscalService) sempre que codigoServico vem preenchido.
+    public static final String PRODUTO_CLASS_TRIB_OBRIGATORIO_SERVICO =
+            "Classificação tributária (cClassTrib) é obrigatória para produto do tipo SERVICO";
 
     public static final String PLAN = "PLAN";
     public static final String PLAN_CREATION = PLAN + "_" + INSERT;
@@ -548,4 +552,22 @@ public class Constants {
     // o produto antes de montar a entidade — não deveria acontecer no fluxo normal via API.
     public static final String PEDIDO_ITEM_SEM_TIPO = "Tipo do item não resolvido para o produto %s";
     public static final String CADASTRO_SERVICE_INDISPONIVEL = "Serviço de cadastros indisponível";
+
+    // O2C — D4: integração fiscal no faturamento (spec/o2c-vendas.md §8, Rev. 8)
+    public static final String FISCAL_SERVICE_INDISPONIVEL = "Serviço fiscal indisponível, tente novamente";
+    // Placeholders: produtoId, motivo devolvido pelo fiscal-service (ex.: FISCAL_CCLASSTRIB_OBRIGATORIO).
+    public static final String PEDIDO_FISCAL_CALCULO_REJEITADO = "Cálculo fiscal rejeitado para o produto %s: %s";
+    // Defaults do request ao fiscal-service — CFOP (dentro do estado) e regime tributário do
+    // emitente ainda não são campos modelados no ERP (UF do cliente/tenant, regime do Tenant);
+    // ver ponytail em FiscalServiceClient.
+    public static final String PEDIDO_FISCAL_CFOP_MERCADORIA_DEFAULT = "5102";
+    public static final String PEDIDO_FISCAL_CFOP_SERVICO_DEFAULT = "5933";
+
+    // O2C — Fase 5: eventos Kafka das transições de pedido (spec/o2c-vendas.md §8)
+    public static final String PEDIDO_CONFIRMADO_TOPIC = "venda.pedido.confirmado";
+    public static final String PEDIDO_FATURADO_TOPIC = "venda.pedido.faturado";
+    public static final String PEDIDO_CANCELADO_TOPIC = "venda.pedido.cancelado";
+    public static final String AUDIT_ACAO_PEDIDO_CONFIRMADO = "PEDIDO_CONFIRMADO";
+    public static final String AUDIT_ACAO_PEDIDO_FATURADO = "PEDIDO_FATURADO";
+    public static final String AUDIT_ACAO_PEDIDO_CANCELADO = "PEDIDO_CANCELADO";
 }

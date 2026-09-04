@@ -11,6 +11,7 @@ import com.l.erp.operacoesservice.domain.vendas.enumerators.TipoItemPedido;
 import com.l.erp.operacoesservice.repository.vendas.PedidoItemRepository;
 import com.l.erp.operacoesservice.repository.vendas.PedidoRepository;
 import com.l.erp.operacoesservice.repository.vendas.PedidoStatusHistoricoRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -58,15 +59,18 @@ public class PedidoService {
     private final PedidoItemRepository pedidoItemRepository;
     private final PedidoStatusHistoricoRepository pedidoStatusHistoricoRepository;
     private final PedidoNumeroService pedidoNumeroService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public PedidoService(PedidoRepository pedidoRepository,
                           PedidoItemRepository pedidoItemRepository,
                           PedidoStatusHistoricoRepository pedidoStatusHistoricoRepository,
-                          PedidoNumeroService pedidoNumeroService) {
+                          PedidoNumeroService pedidoNumeroService,
+                          ApplicationEventPublisher eventPublisher) {
         this.pedidoRepository = pedidoRepository;
         this.pedidoItemRepository = pedidoItemRepository;
         this.pedidoStatusHistoricoRepository = pedidoStatusHistoricoRepository;
         this.pedidoNumeroService = pedidoNumeroService;
+        this.eventPublisher = eventPublisher;
     }
 
     // ---------------------------------------------------------------- criação do orçamento (§7)
@@ -210,6 +214,7 @@ public class PedidoService {
         pedido.setLastUpdatedBy(userId);
         pedidoRepository.save(pedido);
         registrarHistorico(pedido, statusAtual, StatusPedido.CONFIRMADO, motivo, userId, agora);
+        eventPublisher.publishEvent(new PedidoConfirmadoEvent(pedido, pedidoItemRepository.findAllByPedidoId(pedido.getId())));
         return pedido;
     }
 
@@ -265,7 +270,8 @@ public class PedidoService {
 
     @Transactional
     public FaturamentoResultado faturar(UUID pedidoId, Long tenantId, UUID userId,
-                                         List<ParcelaDefinicao> parcelasDefinicao) {
+                                         List<ParcelaDefinicao> parcelasDefinicao,
+                                         ResultadoFiscalAgregado fiscal) {
         Pedido pedido = buscarPedido(pedidoId, tenantId);
         // Pedido só-serviço fatura direto de CONFIRMADO (D3, spec/o2c-vendas.md) — não passa por
         // EXPEDIDO porque não existe estoque pra dar baixa. Pedido com mercadoria segue a tabela normal.
@@ -290,12 +296,23 @@ public class PedidoService {
         pedido.setDataFaturamento(agora);
         pedido.setUpdatedAt(agora);
         pedido.setLastUpdatedBy(userId);
+        // D4: agregado de POST /fiscal/calcular por item (fiscal-service), montado pelo controller
+        // antes de chamar faturar() — valorTotalNf é a base da nota fiscal (spec/o2c-vendas.md §8).
+        BigDecimal valorTotalNf = pedido.getValorTotal()
+                .add(fiscal.valorIbs()).add(fiscal.valorCbs()).add(fiscal.valorIs()).add(fiscal.valorIss());
+        pedido.setValorTotalNf(valorTotalNf);
+        pedido.setValorIbs(fiscal.valorIbs());
+        pedido.setValorCbs(fiscal.valorCbs());
+        pedido.setValorIs(fiscal.valorIs());
+        pedido.setValorIss(fiscal.valorIss());
+        pedido.setValorRetencoes(fiscal.valorRetencoes());
         pedidoRepository.save(pedido);
         registrarHistorico(pedido, statusAnterior, StatusPedido.FATURADO, null, userId, agora);
 
-        List<ParcelaFaturamento> parcelas = calcularParcelas(pedido.getValorTotal(), dataFaturamento, parcelasDefinicao);
-        // ponytail: publicação do evento venda.pedido.faturado (AFTER_COMMIT) é Fase 5 — aqui só
-        // devolve pedido + parcelas pro chamador (futuro controller/producer) montar o payload (§8).
+        List<ParcelaFaturamento> parcelas = calcularParcelas(
+                valorTotalNf.subtract(fiscal.valorRetencoes()), dataFaturamento, parcelasDefinicao);
+        List<PedidoItem> itens = pedidoItemRepository.findAllByPedidoId(pedido.getId());
+        eventPublisher.publishEvent(new PedidoFaturadoEvent(pedido, itens, parcelas));
         return new FaturamentoResultado(pedido, parcelas);
     }
 
@@ -316,6 +333,7 @@ public class PedidoService {
         pedido.setLastUpdatedBy(userId);
         pedidoRepository.save(pedido);
         registrarHistorico(pedido, statusAnterior, StatusPedido.CANCELADO, motivo, userId, agora);
+        eventPublisher.publishEvent(new PedidoCanceladoEvent(pedido, pedidoItemRepository.findAllByPedidoId(pedido.getId())));
         // ponytail: estorno de estoque (ESTORNO_SAIDA_VENDA) quando statusAnterior == EXPEDIDO, só
         // pros itens MERCADORIA (D2), fica pendente do módulo de estoque, mesma ressalva do expedir()
         // acima (spec §7-cancelamento).
@@ -481,5 +499,13 @@ public class PedidoService {
     }
 
     public record FaturamentoResultado(Pedido pedido, List<ParcelaFaturamento> parcelas) {
+    }
+
+    /** Agregado das chamadas a POST /fiscal/calcular por item, montado pelo controller (D4, §8). */
+    public record ResultadoFiscalAgregado(BigDecimal valorIbs, BigDecimal valorCbs, BigDecimal valorIs,
+                                           BigDecimal valorIss, BigDecimal valorRetencoes) {
+        public static ResultadoFiscalAgregado zero() {
+            return new ResultadoFiscalAgregado(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+        }
     }
 }

@@ -35,13 +35,23 @@ public class CadastroServiceClient {
     }
 
     public BigDecimal buscarLimiteCredito(UUID clienteId, Long tenantId, UUID userId) {
+        ClienteRef cliente = buscarCliente(clienteId, tenantId, userId);
+        return cliente != null && cliente.limiteCredito() != null ? cliente.limiteCredito() : BigDecimal.ZERO;
+    }
+
+    // Fase 5: cliente_pessoa_id do payload do evento venda.pedido.faturado (spec/o2c-vendas.md §8).
+    public UUID buscarClientePessoaId(UUID clienteId, Long tenantId, UUID userId) {
+        ClienteRef cliente = buscarCliente(clienteId, tenantId, userId);
+        return cliente != null ? cliente.pessoaId() : null;
+    }
+
+    private ClienteRef buscarCliente(UUID clienteId, Long tenantId, UUID userId) {
         try {
-            ClienteRef cliente = restClient.get()
+            return restClient.get()
                     .uri("/api/v1/clientes/{id}", clienteId)
                     .headers(headers -> headersInternos(headers, tenantId, userId))
                     .retrieve()
                     .body(ClienteRef.class);
-            return cliente != null && cliente.limiteCredito() != null ? cliente.limiteCredito() : BigDecimal.ZERO;
         } catch (HttpClientErrorException.NotFound e) {
             throw new BusinessException(Constants.CLIENTE_NOT_FOUND, HttpStatus.BAD_REQUEST);
         }
@@ -87,7 +97,7 @@ public class CadastroServiceClient {
     // Records locais só com os campos que este client usa — @JsonIgnoreProperties porque a
     // resposta real do cadastro-service traz outros campos (id, createdAt, _links etc).
     @JsonIgnoreProperties(ignoreUnknown = true)
-    private record ClienteRef(BigDecimal limiteCredito) {
+    private record ClienteRef(BigDecimal limiteCredito, UUID pessoaId) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -104,6 +114,46 @@ public class CadastroServiceClient {
 
     // Público: PedidoController usa o tipo do produto pra montar o item do pedido.
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record ProdutoRef(String tipo, String codigoServico, Boolean ativo) {
+    public record ProdutoRef(String tipo, String codigoServico, Boolean ativo, String ncm, String classTrib) {
+    }
+
+    // P2 (spec/o2c-vendas.md, gaps do D4) — UF/IBGE do cliente pro MotorFiscalRequest.
+    public EnderecoFiscalRef buscarEnderecoFiscal(UUID pessoaId, Long tenantId, UUID userId) {
+        try {
+            EnderecoEnvelope envelope = restClient.get()
+                    .uri("/api/v1/pessoas/{pessoaId}/enderecos", pessoaId)
+                    .headers(headers -> headersInternos(headers, tenantId, userId))
+                    .retrieve()
+                    .body(EnderecoEnvelope.class);
+            List<EnderecoRef> enderecos = envelope != null && envelope._embedded() != null
+                    ? envelope._embedded().enderecos() : List.of();
+            // ponytail: cadastro-service não tem endpoint dedicado de endereço fiscal — prioriza
+            // tipo=FISCAL, senão o principal, senão o primeiro da lista. Sobe pra endpoint dedicado
+            // (ou pro modelo de Estabelecimento, spec/estabelecimentos-filiais.md) se isso não bastar.
+            return enderecos.stream()
+                    .filter(e -> "FISCAL".equals(e.tipo()))
+                    .findFirst()
+                    .or(() -> enderecos.stream().filter(e -> Boolean.TRUE.equals(e.principal())).findFirst())
+                    .or(() -> enderecos.stream().findFirst())
+                    .map(e -> new EnderecoFiscalRef(e.uf(), e.ibgeCodigo()))
+                    .orElse(null);
+        } catch (HttpClientErrorException.NotFound e) {
+            return null;
+        }
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record EnderecoEnvelope(EnderecoEmbedded _embedded) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record EnderecoEmbedded(List<EnderecoRef> enderecos) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record EnderecoRef(String tipo, String uf, String ibgeCodigo, Boolean principal) {
+    }
+
+    public record EnderecoFiscalRef(String uf, String ibgeCodigo) {
     }
 }

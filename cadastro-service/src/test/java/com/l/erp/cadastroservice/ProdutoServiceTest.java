@@ -56,7 +56,7 @@ class ProdutoServiceTest {
     private ProdutoDTO dto(UUID categoriaId, List<ProdutoEstoqueConfigDTO> estoqueConfigs) {
         return new ProdutoDTO(null, TENANT_ID, categoriaId, "SKU1", null, "Produto 1", null,
                 TipoProduto.MERCADORIA, "UN",
-                null, null, null, null, null, null, null, null, null, null, null, null, true,
+                null, null, null, null, null, null, null, null, null, null, null, null, null, true,
                 null, null, null, null, null, null, estoqueConfigs);
     }
 
@@ -173,6 +173,20 @@ class ProdutoServiceTest {
     }
 
     @Test
+    void create_servicoComCodigoServicoSemClassTrib_lancaBadRequest() {
+        Produto mapped = new Produto();
+        mapped.setTipo(TipoProduto.SERVICO);
+        mapped.setCodigoServico("SRV01");
+        when(mapper.toEntity(any(ProdutoDTO.class))).thenReturn(mapped);
+
+        assertThatThrownBy(() -> produtoService.create(TENANT_ID, USER_ID, dto(null, null)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("cClassTrib")
+                .extracting(e -> ((BusinessException) e).getStatus())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
     void create_mercadoriaComCodigoServico_lancaBadRequest() {
         Produto mapped = new Produto();
         mapped.setTipo(TipoProduto.MERCADORIA);
@@ -232,7 +246,7 @@ class ProdutoServiceTest {
                 null, null, null, null);
         ProdutoDTO dtoComPreco = new ProdutoDTO(null, TENANT_ID, null, "SKU1", null, "Produto 1", null,
                 TipoProduto.MERCADORIA, "UN",
-                null, null, null, null, null, null, null, null, null, null, null, null, true,
+                null, null, null, null, null, null, null, null, null, null, null, null, null, true,
                 null, null, null, null, List.of(precoSemAuditoria), null, null);
 
         when(produtoRepository.findByIdAndTenantId(id, TENANT_ID)).thenReturn(Optional.of(existing));

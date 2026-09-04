@@ -59,6 +59,11 @@ eureka:
 cadastro-service:
   url: lb://cadastro-service
 
+# URL lógica (Eureka) do fiscal-service p/ RestClient @LoadBalanced — cálculo de IBS/CBS/IS/ISS
+# de saída por item no faturamento (D4, spec/o2c-vendas.md §8).
+fiscal-service:
+  url: lb://fiscal-service
+
 internal:
   gateway:
     secret: ${INTERNAL_GATEWAY_SECRET}
