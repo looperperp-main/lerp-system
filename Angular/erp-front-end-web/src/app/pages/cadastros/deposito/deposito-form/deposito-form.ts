@@ -12,6 +12,9 @@ import { InputText } from 'primeng/inputtext';
 import { NgClass, NgIf } from '@angular/common';
 import { Textarea } from 'primeng/textarea';
 import { Select } from 'primeng/select';
+import { CnpjPipe } from '../../../../util/pipe/cnpj.pipe';
+
+type EstabelecimentoOption = Estabelecimento & { label: string };
 
 @Component({
   selector: 'app-deposito-form',
@@ -31,7 +34,7 @@ export class DepositoForm implements OnInit {
 
   form!: FormGroup;
   isSaving = false;
-  estabelecimentos: Estabelecimento[] = [];
+  estabelecimentos: EstabelecimentoOption[] = [];
 
   ngOnInit(): void {
     this.form = this.fb.group({
@@ -50,12 +53,17 @@ export class DepositoForm implements OnInit {
     this.estabelecimentoService.buscarPessoaIdProprio().subscribe({
       next: (pessoaId) => {
         this.estabelecimentoService.listar(pessoaId).subscribe({
-          next: (lista) => (this.estabelecimentos = lista),
+          next: (lista) => (this.estabelecimentos = lista.map((e) => this.toOption(e))),
           error: () => (this.estabelecimentos = []),
         });
       },
       error: () => (this.estabelecimentos = []),
     });
+  }
+
+  private toOption(e: Estabelecimento): EstabelecimentoOption {
+    const tipo = e.matriz ? 'Matriz' : `Filial ${e.ordem || ''}`.trim();
+    return { ...e, label: `${tipo} - ${new CnpjPipe().transform(e.cnpjCompleto)}` };
   }
 
   onSubmit(): void {
