@@ -1,25 +1,17 @@
-import {Component, EventEmitter, inject, Input, OnInit, Output} from '@angular/core';
-import {GrupoCliente} from '../grupo-cliente.model';
-import {FormBuilder, FormGroup, ReactiveFormsModule, Validators} from '@angular/forms';
-import {ToastrService} from 'ngx-toastr';
-import {GrupoClienteService} from '../grupo-cliente.service';
-import {Checkbox} from 'primeng/checkbox';
-import {Button} from 'primeng/button';
-import {NgClass, NgIf} from '@angular/common';
-import {Textarea} from 'primeng/textarea';
-import {InputText} from 'primeng/inputtext';
+import { Component, EventEmitter, inject, Input, OnInit, Output } from '@angular/core';
+import { GrupoCliente } from '../grupo-cliente.model';
+import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { MessageService } from 'primeng/api';
+import { GrupoClienteService } from '../grupo-cliente.service';
+import { Checkbox } from 'primeng/checkbox';
+import { Button } from 'primeng/button';
+import { NgClass, NgIf } from '@angular/common';
+import { Textarea } from 'primeng/textarea';
+import { InputText } from 'primeng/inputtext';
 
 @Component({
   selector: 'app-grupo-cliente-form',
-  imports: [
-    Checkbox,
-    ReactiveFormsModule,
-    Button,
-    NgClass,
-    Textarea,
-    InputText,
-    NgIf
-  ],
+  imports: [Checkbox, ReactiveFormsModule, Button, NgClass, Textarea, InputText, NgIf],
   templateUrl: './grupo-cliente-form.html',
   styleUrl: './grupo-cliente-form.scss',
 })
@@ -30,7 +22,7 @@ export class GrupoClienteForm implements OnInit {
 
   private fb = inject(FormBuilder);
   private grupoService = inject(GrupoClienteService);
-  private toastService = inject(ToastrService);
+  private messageService = inject(MessageService);
 
   form!: FormGroup;
   isSaving = false;
@@ -40,7 +32,7 @@ export class GrupoClienteForm implements OnInit {
       id: [this.grupoData?.id || null],
       nome: [this.grupoData?.nome || '', [Validators.required, Validators.maxLength(100)]],
       descricao: [this.grupoData?.descricao || '', [Validators.maxLength(500)]],
-      ativo: [this.grupoData ? this.grupoData.ativo : true]
+      ativo: [this.grupoData ? this.grupoData.ativo : true],
     });
   }
 
@@ -55,7 +47,11 @@ export class GrupoClienteForm implements OnInit {
 
     this.grupoService.salvar(formValue).subscribe({
       next: () => {
-        this.toastService.success('Grupo de cliente salvo com sucesso!');
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Sucesso',
+          detail: 'Grupo de cliente salvo com sucesso!',
+        });
         this.isSaving = false;
         this.saved.emit();
       },
@@ -63,11 +59,19 @@ export class GrupoClienteForm implements OnInit {
         this.isSaving = false;
         // O backend joga "GROUP_C_ALREADY_EXISTS" caso já exista
         if (err.error?.message === 'GROUP_C_ALREADY_EXISTS') {
-          this.toastService.error('Já existe um grupo com este nome.');
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Erro',
+            detail: 'Já existe um grupo com este nome.',
+          });
         } else {
-          this.toastService.error('Erro ao salvar o grupo.');
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Erro',
+            detail: 'Erro ao salvar o grupo.',
+          });
         }
-      }
+      },
     });
   }
 

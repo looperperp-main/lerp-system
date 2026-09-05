@@ -4,6 +4,7 @@ export interface Deposito {
   descricao?: string;
   tipo?: string;
   ativo: boolean;
+  estabelecimentoId?: string;
   createdAt?: string;
   updatedAt?: string;
 }

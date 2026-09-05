@@ -5,6 +5,7 @@ import com.l.erp.common.exception.custom.BusinessException;
 import com.l.erp.common.util.Constants;
 import com.l.erp.operacoesservice.services.vendas.PedidoService.ParcelaDefinicao;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cloud.client.loadbalancer.LoadBalanced;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
@@ -29,7 +30,7 @@ public class CadastroServiceClient {
     @Value("${internal.gateway.secret}")
     private String internalSecret;
 
-    public CadastroServiceClient(RestClient.Builder restClientBuilder,
+    public CadastroServiceClient(@LoadBalanced RestClient.Builder restClientBuilder,
                                   @Value("${cadastro-service.url}") String baseUrl) {
         this.restClient = restClientBuilder.baseUrl(baseUrl).build();
     }
@@ -155,5 +156,24 @@ public class CadastroServiceClient {
     }
 
     public record EnderecoFiscalRef(String uf, String ibgeCodigo) {
+    }
+
+    // Fase 6 (spec/estabelecimentos-filiais.md §6.1) — pessoaId do estabelecimento emitente do
+    // tenant, usado pra buscar o endereço fiscal de origem (ufOrigem) no faturamento.
+    public UUID buscarPessoaIdEstabelecimentoProprio(Long tenantId, UUID userId) {
+        try {
+            EstabelecimentoProprioRef proprio = restClient.get()
+                    .uri("/api/v1/estabelecimentos/proprio")
+                    .headers(headers -> headersInternos(headers, tenantId, userId))
+                    .retrieve()
+                    .body(EstabelecimentoProprioRef.class);
+            return proprio != null ? proprio.pessoaId() : null;
+        } catch (HttpClientErrorException.NotFound e) {
+            return null;
+        }
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record EstabelecimentoProprioRef(UUID pessoaId) {
     }
 }

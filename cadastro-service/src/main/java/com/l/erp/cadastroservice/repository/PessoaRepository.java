@@ -15,5 +15,7 @@ public interface PessoaRepository extends JpaRepository<Pessoa, UUID> {
 
     Optional<Pessoa> findByIdAndTenantId(UUID id, Long tenantId);
 
-    boolean existsByDocumentoAndNomeRazaoAndTenantId(String documento, String nomeRazao, Long tenantId);
+    boolean existsByCnpjRaizAndTenantId(String cnpjRaiz, Long tenantId);
+
+    boolean existsByDocumentoAndTenantId(String documento, Long tenantId);
 }

@@ -39,7 +39,7 @@ public class EnderecoAssembler extends RepresentationModelAssemblerSupport<Ender
         dto.setUpdatedAt(entity.getUpdatedAt());
         dto.setCreatedBy(entity.getCreatedBy());
         dto.setLastUpdatedBy(entity.getLastUpdatedBy());
-        UUID pessoaId = entity.getPessoa().getId();
+        UUID pessoaId = entity.getPessoa() != null ? entity.getPessoa().getId() : entity.getEstabelecimento().getPessoa().getId();
 
         // Self link
         dto.add(linkTo(methodOn(EnderecoController.class).findById(pessoaId, entity.getId())).withSelfRel());

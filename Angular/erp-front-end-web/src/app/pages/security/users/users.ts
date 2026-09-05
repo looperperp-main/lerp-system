@@ -29,7 +29,6 @@ import { Breadcrumb } from '../../../components/breadcrumb/breadcrumb';
     UserForm,
     Breadcrumb,
   ],
-  providers: [MessageService],
   templateUrl: './users.html',
   styleUrl: './users.scss',
 })

@@ -96,6 +96,21 @@ export const routes: Routes = [
         },
       },
       {
+        path: 'cadastros/pessoas/:pessoaId/estabelecimentos',
+        loadComponent: () =>
+          import('./pages/cadastros/estabelecimento/estabelecimentos').then(
+            (m) => m.Estabelecimentos,
+          ),
+        data: {
+          breadcrumb: [
+            { label: 'Home', link: '/web/home' },
+            { label: 'Parceiros de Negócio' },
+            { label: 'Pessoas (Geral)', link: '/web/cadastros/pessoas' },
+            { label: 'Filiais' },
+          ],
+        },
+      },
+      {
         path: 'cadastros/vendedores',
         loadComponent: () =>
           import('./pages/cadastros/vendedores/vendedores').then((m) => m.Vendedores),

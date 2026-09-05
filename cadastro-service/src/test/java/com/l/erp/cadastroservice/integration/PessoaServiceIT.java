@@ -47,22 +47,20 @@ class PessoaServiceIT extends AbstractIntegrationTest {
     }
 
     @Test
-    void shouldDetectDuplicateDocumentWithinSameTenant() {
+    void shouldDetectDuplicateCnpjRaizWithinSameTenant() {
         Pessoa primeira = buildPessoa("12345678000195", "Empresa Duplicada", TENANT_A);
         pessoaRepository.save(primeira);
 
-        boolean exists = pessoaRepository.existsByDocumentoAndNomeRazaoAndTenantId(
-                "12345678000195", "Empresa Duplicada", TENANT_A);
+        boolean exists = pessoaRepository.existsByCnpjRaizAndTenantId("12345678", TENANT_A);
         assertThat(exists).isTrue();
     }
 
     @Test
-    void shouldNotTreatSameDocumentAsDuplicateAcrossTenants() {
+    void shouldNotTreatSameCnpjRaizAsDuplicateAcrossTenants() {
         Pessoa tenantA = buildPessoa("12345678000195", "Empresa Cross-Tenant", TENANT_A);
         pessoaRepository.save(tenantA);
 
-        boolean exists = pessoaRepository.existsByDocumentoAndNomeRazaoAndTenantId(
-                "12345678000195", "Empresa Cross-Tenant", TENANT_B);
+        boolean exists = pessoaRepository.existsByCnpjRaizAndTenantId("12345678", TENANT_B);
         assertThat(exists).isFalse();
     }
 
@@ -71,6 +69,7 @@ class PessoaServiceIT extends AbstractIntegrationTest {
         p.setTipo(TipoPessoa.PJ);
         p.setNomeRazao(nome);
         p.setDocumento(documento);
+        p.setCnpjRaiz(documento.substring(0, 8));
         p.setTenantId(tenantId);
         p.setAtivo(true);
         p.setCreatedAt(Instant.now());

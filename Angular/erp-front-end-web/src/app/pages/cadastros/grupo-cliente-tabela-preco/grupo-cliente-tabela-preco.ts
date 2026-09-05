@@ -31,7 +31,6 @@ import { Breadcrumb } from '../../../components/breadcrumb/breadcrumb';
   ],
   templateUrl: './grupo-cliente-tabela-preco.html',
   styleUrl: './grupo-cliente-tabela-preco.scss',
-  providers: [MessageService],
 })
 export class GrupoClienteTabelaPrecoComponent implements OnInit {
   private messageService = inject(MessageService);

@@ -840,6 +840,24 @@ html.theme-light .p-textarea::placeholder {
 .p-toast-message-secondary { background: rgba(244, 244, 245, 0.55) !important; }
 .p-toast-message-contrast { background: rgba(0, 0, 0, 0.55) !important; }
 
+/* Aura (tema PrimeNG) pinta texto/ícone do toast pra fundo sólido claro — sobre o "vidro"
+   translúcido acima (55% de opacidade), em cima do fundo escuro do app, isso ficava ilegível.
+   Força os tokens de tinta do próprio app em vez da cor padrão do tema. */
+.p-toast-summary,
+.p-toast-message-icon {
+  color: var(--ink) !important;
+}
+.p-toast-detail {
+  color: var(--ink-2) !important;
+}
+.p-toast-close-button,
+.p-toast-close-icon {
+  color: var(--ink-2) !important;
+}
+.p-toast-close-button:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+}
+
 .p-select-list,
 .p-select-list-container,
 .p-select-option {

@@ -6,6 +6,7 @@ import com.l.erp.common.util.Constants;
 import com.l.erp.operacoesservice.domain.vendas.PedidoItem;
 import com.l.erp.operacoesservice.domain.vendas.enumerators.TipoItemPedido;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cloud.client.loadbalancer.LoadBalanced;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
@@ -20,24 +21,24 @@ import java.time.LocalDate;
  * de saída por item do pedido no momento do faturamento (POST /fiscal/calcular).
  *
  * ponytail: cfop/regimeEmpresa/tipoDocumento vêm de defaults (Constants.PEDIDO_FISCAL_CFOP_*,
- * Constants.REGIME_LUCRO_PRESUMIDO) — Tenant ainda não modela regime tributário real, e
- * ufOrigem fica sempre null (não há estabelecimento emitente modelado — depende do modelo de
- * Estabelecimento, spec/estabelecimentos-filiais.md). cClassTrib (Produto) e UF/IBGE de destino
- * (Endereco do cliente) já vêm de dado real desde P1/P2.
+ * Constants.REGIME_LUCRO_PRESUMIDO) — Tenant ainda não modela regime tributário real. ufOrigem
+ * (Fase 6, spec/estabelecimentos-filiais.md §6.1) já vem do endereço fiscal do estabelecimento
+ * "próprio" do tenant. cClassTrib (Produto) e UF/IBGE de destino (Endereco do cliente) já vêm de
+ * dado real desde P1/P2.
  */
 @Component
 public class FiscalServiceClient {
 
     private final RestClient restClient;
 
-    public FiscalServiceClient(RestClient.Builder restClientBuilder,
+    public FiscalServiceClient(@LoadBalanced RestClient.Builder restClientBuilder,
                                 @Value("${fiscal-service.url}") String baseUrl) {
         this.restClient = restClientBuilder.baseUrl(baseUrl).build();
     }
 
     public ResultadoFiscalItem calcularItem(PedidoItem item, CadastroServiceClient.ProdutoRef produto,
                                              LocalDate dataCompetencia, Long tenantId,
-                                             CadastroServiceClient.EnderecoFiscalRef endereco) {
+                                             CadastroServiceClient.EnderecoFiscalRef endereco, String ufOrigem) {
         boolean servico = item.getTipoItem() == TipoItemPedido.SERVICO;
         String ibge = endereco != null ? endereco.ibgeCodigo() : null;
         String uf = endereco != null ? endereco.uf() : null;
@@ -54,7 +55,8 @@ public class FiscalServiceClient {
                 dataCompetencia,
                 Constants.REGIME_LUCRO_PRESUMIDO,
                 servico ? "NFSe" : "NFe",
-                uf);
+                uf,
+                ufOrigem);
         try {
             OperacaoFiscalResultado resultado = restClient.post()
                     .uri("/fiscal/calcular")
@@ -75,7 +77,8 @@ public class FiscalServiceClient {
     private record MotorFiscalRequestLocal(String cfop, String ncm, String codigoServico, String cClassTrib,
                                             String ibgeDestino, String ibgeLocalPrestacao,
                                             BigDecimal valorOperacao, LocalDate dataCompetencia,
-                                            String regimeEmpresa, String tipoDocumento, String ufDestino) {
+                                            String regimeEmpresa, String tipoDocumento, String ufDestino,
+                                            String ufOrigem) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

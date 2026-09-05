@@ -212,7 +212,8 @@ databaseChangeLog:
       author: vitor-fernandes
       changes:
         - sql:
-            sql: >
+            splitStatements: false
+            sql: |
               DO $$
               DECLARE
                 t RECORD;
@@ -249,7 +250,7 @@ databaseChangeLog:
               END $$;
       rollback:
         - sql:
-            sql: >
+            sql: |
               UPDATE cadastros.estabelecimento SET proprio = false WHERE proprio = true AND is_matriz = true;
               DELETE FROM cadastros.estabelecimento WHERE created_by = '00000000-0000-0000-0000-000000000000';
               DELETE FROM cadastros.pessoa WHERE created_by = '00000000-0000-0000-0000-000000000000';

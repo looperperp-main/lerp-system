@@ -165,6 +165,13 @@
             <artifactId>spring-boot-starter-hateoas</artifactId>
         </dependency>
 
+        <!-- Appender do Loki usado por logback-spring.xml — os demais serviços herdam isso do pom
+             raiz (erp-vsd), mas este módulo ainda tem parent=spring-boot-starter-parent direto. -->
+        <dependency>
+            <groupId>com.github.loki4j</groupId>
+            <artifactId>loki-logback-appender</artifactId>
+            <version>1.6.0</version>
+        </dependency>
 
     </dependencies>
 

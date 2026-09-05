@@ -38,7 +38,6 @@ import { Breadcrumb } from '../../../components/breadcrumb/breadcrumb';
     PrimaryButtonComponent,
     Breadcrumb,
   ],
-  providers: [MessageService],
   templateUrl: './grupo-clientes.html',
   styleUrl: './grupo-clientes.scss',
 })

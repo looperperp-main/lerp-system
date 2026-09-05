@@ -2,6 +2,7 @@ package com.l.erp.cadastroservice.services;
 
 import com.l.erp.cadastroservice.api.dto.PessoaRequestDTO;
 import com.l.erp.cadastroservice.api.mappers.PessoaMapper;
+import com.l.erp.cadastroservice.domain.Estabelecimento;
 import com.l.erp.cadastroservice.domain.Pessoa;
 import com.l.erp.cadastroservice.domain.enumerators.TipoPessoa;
 import com.l.erp.cadastroservice.repository.PessoaRepository;
@@ -19,7 +20,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static com.l.erp.cadastroservice.util.SecurityUtils.getCorrelationIdFromRequest;
 
@@ -30,24 +35,36 @@ public class PessoaService {
     private final PessoaMapper pessoaMapper;
     private final PessoaRepository pessoaRepository;
     private final AuditProducerService auditService;
+    private final EstabelecimentoService estabelecimentoService;
 
-    public PessoaService(PessoaMapper pessoaMapper, PessoaRepository pessoaRepository, AuditProducerService auditService) {
+    public PessoaService(PessoaMapper pessoaMapper, PessoaRepository pessoaRepository, AuditProducerService auditService, EstabelecimentoService estabelecimentoService) {
         this.pessoaMapper = pessoaMapper;
         this.pessoaRepository = pessoaRepository;
         this.auditService = auditService;
+        this.estabelecimentoService = estabelecimentoService;
     }
 
     @Transactional(readOnly = true)
     public Page<Pessoa> findAllByTenant(Long tenantId, Pageable pageable) {
         logger.debug("Buscando pessoas para o tenant {}", tenantId);
-        return pessoaRepository.findAllByTenantId(tenantId, pageable);
+        Page<Pessoa> page = pessoaRepository.findAllByTenantId(tenantId, pageable);
+        popularIeImMatrizes(page.getContent(), tenantId);
+        return page;
     }
 
     @Transactional(readOnly = true)
     public Pessoa findByIdAndTenant(UUID id, Long tenantId) {
         logger.debug("Buscando pessoa {} para tenant {}", id, tenantId);
-        return pessoaRepository.findByIdAndTenantId(id, tenantId)
+        Pessoa pessoa = pessoaRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new BusinessException(Constants.PESSOA_NOT_FOUND, HttpStatus.NOT_FOUND));
+        if (pessoa.getTipo() == TipoPessoa.PJ) {
+            estabelecimentoService.buscarMatrizOpcionalPorPessoa(id, tenantId)
+                    .ifPresent(matriz -> {
+                        pessoa.setIe(matriz.getIe());
+                        pessoa.setIm(matriz.getIm());
+                    });
+        }
+        return pessoa;
     }
 
     @Transactional
@@ -57,7 +74,13 @@ public class PessoaService {
 
         validateDocumento(dto.tipo(), dto.documento());
 
-        if (pessoaRepository.existsByDocumentoAndNomeRazaoAndTenantId(dto.documento(),dto.nomeRazao(), tenantId)) {
+        boolean isPj = dto.tipo() == TipoPessoa.PJ;
+        String cnpjRaiz = isPj ? extrairCnpjRaiz(dto.documento()) : null;
+        boolean jaExiste = isPj
+                ? pessoaRepository.existsByCnpjRaizAndTenantId(cnpjRaiz, tenantId)
+                : pessoaRepository.existsByDocumentoAndTenantId(dto.documento(), tenantId);
+
+        if (jaExiste) {
             sendAuditEvent(
                     Constants.PESSOA_CREATION,
                     userId,
@@ -73,8 +96,16 @@ public class PessoaService {
         entity.setTenantId(tenantId);
         entity.setCreatedBy(userId);
         entity.setCreatedAt(Instant.now());
+        entity.setCnpjRaiz(cnpjRaiz);
 
         Pessoa saved = pessoaRepository.save(entity);
+
+        if (isPj) {
+            estabelecimentoService.criarMatriz(saved, dto.ie(), dto.im(), userId);
+            saved.setIe(dto.ie());
+            saved.setIm(dto.im());
+        }
+
         sendAuditEvent(Constants.PESSOA_CREATION, userId, saved.getId(), Constants.SUCCESS, null, correlationId);
 
         return saved;
@@ -104,6 +135,8 @@ public class PessoaService {
             throw new BusinessException(Constants.TENANT_ASSOC_ERROR, HttpStatus.BAD_REQUEST);
         }
 
+        boolean isPj = dto.tipo() == TipoPessoa.PJ;
+
         Pessoa pessoa = pessoaMapper.toEntityRequest(dto);
         pessoa.setId(id);
         pessoa.setCreatedBy(oldPessoa.getCreatedBy());
@@ -111,8 +144,16 @@ public class PessoaService {
         pessoa.setUpdatedAt(Instant.now());
         pessoa.setLastUpdatedBy(userId);
         pessoa.setTenantId(tenantID);
+        pessoa.setCnpjRaiz(isPj ? extrairCnpjRaiz(dto.documento()) : null);
 
         Pessoa saved = pessoaRepository.save(pessoa);
+
+        if (isPj) {
+            estabelecimentoService.atualizarIeImMatriz(id, tenantID, dto.ie(), dto.im(), userId);
+            saved.setIe(dto.ie());
+            saved.setIm(dto.im());
+        }
+
         sendAuditEvent(
                 Constants.PESSOA_UPDATE,
                 userId,
@@ -149,6 +190,31 @@ public class PessoaService {
         if (tipo == TipoPessoa.PJ && digits.length() != 14) {
             throw new BusinessException("CNPJ inválido: deve conter 14 dígitos", HttpStatus.BAD_REQUEST);
         }
+    }
+
+    /** 8 primeiros chars do documento sem máscara, maiúsculo (CNPJ alfanumérico NT 2026.004 ready) — usado só para PJ. */
+    private String extrairCnpjRaiz(String documento) {
+        String semMascara = documento.replaceAll("[^0-9A-Za-z]", "").toUpperCase();
+        return semMascara.length() > 8 ? semMascara.substring(0, 8) : semMascara;
+    }
+
+    private void popularIeImMatrizes(List<Pessoa> pessoas, Long tenantId) {
+        List<UUID> pjIds = pessoas.stream()
+                .filter(p -> p.getTipo() == TipoPessoa.PJ)
+                .map(Pessoa::getId)
+                .toList();
+        if (pjIds.isEmpty()) {
+            return;
+        }
+        Map<UUID, Estabelecimento> matrizPorPessoa = estabelecimentoService.buscarMatrizesPorPessoas(pjIds, tenantId).stream()
+                .collect(Collectors.toMap(e -> e.getPessoa().getId(), Function.identity()));
+        pessoas.forEach(p -> {
+            Estabelecimento matriz = matrizPorPessoa.get(p.getId());
+            if (matriz != null) {
+                p.setIe(matriz.getIe());
+                p.setIm(matriz.getIm());
+            }
+        });
     }
 
     private void sendAuditEvent(String action, UUID actorId, UUID targetId, String result, String detailsJson, UUID correlationId) {

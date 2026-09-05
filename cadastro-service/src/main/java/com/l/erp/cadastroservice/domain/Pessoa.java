@@ -10,6 +10,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
@@ -49,13 +50,18 @@ public class Pessoa extends BaseTenantEntity {
     @Column(name = "documento", nullable = false, length = 18)
     private String documento;
 
+    /** Resolvido a partir do Estabelecimento matriz (ver §5.1 spec/estabelecimentos-filiais.md) — populado/consumido pelo service, não persistido em pessoa. */
     @Size(max = 20)
-    @Column(name = "ie", length = 20)
+    @Transient
     private String ie;
 
     @Size(max = 20)
-    @Column(name = "im", length = 20)
+    @Transient
     private String im;
+
+    @Size(max = 8)
+    @Column(name = "cnpj_raiz", length = 8)
+    private String cnpjRaiz;
 
     @Size(max = 20)
     @Column(name = "rg", length = 20)

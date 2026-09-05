@@ -164,6 +164,16 @@ public class Constants {
     public static final String CONTATO_NOT_FOUND = "Contato nao encontrada!";
     public static final String CONTATO_ALREADY_EXISTS = "Já existe um Contato com este nome";
 
+    public static final String ESTABELECIMENTO = "ESTABELECIMENTO";
+    public static final String ESTABELECIMENTO_CREATION = ESTABELECIMENTO + "_" + INSERT;
+    public static final String ESTABELECIMENTO_UPDATE = ESTABELECIMENTO + "_" + UPDATE;
+    public static final String ESTABELECIMENTO_NOT_FOUND = "Estabelecimento nao encontrado!";
+    public static final String ESTABELECIMENTO_MATRIZ_NAO_ENCONTRADA = "Matriz nao encontrada para esta Pessoa!";
+    public static final String ESTABELECIMENTO_APENAS_PJ = "Apenas Pessoa Juridica pode ter Estabelecimentos!";
+    public static final String ESTABELECIMENTO_PROPRIO_JA_DEFINIDO = "Este tenant ja possui um estabelecimento proprio definido!";
+    public static final String ESTABELECIMENTO_MATRIZ_NAO_PODE_SER_INATIVADA = "A matriz nao pode ser inativada, pois nao e possivel criar outra em seu lugar!";
+    public static final String ESTABELECIMENTO_PROPRIO_NAO_ENCONTRADO = "Estabelecimento proprio do tenant nao encontrado!";
+
     public static final String VENDEDOR = "VENDEDOR";
     public static final String VENDEDOR_CREATION = VENDEDOR + "_" + INSERT;
     public static final String VENDEDOR_UPDATE = VENDEDOR +"_" + UPDATE;

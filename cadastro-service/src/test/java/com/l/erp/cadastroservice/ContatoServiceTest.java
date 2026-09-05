@@ -2,10 +2,13 @@ package com.l.erp.cadastroservice;
 
 import com.l.erp.cadastroservice.api.dto.ContatoRequestDTO;
 import com.l.erp.cadastroservice.domain.Contato;
+import com.l.erp.cadastroservice.domain.Estabelecimento;
 import com.l.erp.cadastroservice.domain.Pessoa;
 import com.l.erp.cadastroservice.domain.enumerators.TipoContato;
+import com.l.erp.cadastroservice.domain.enumerators.TipoPessoa;
 import com.l.erp.cadastroservice.repository.ContatoRepository;
 import com.l.erp.cadastroservice.services.ContatoService;
+import com.l.erp.cadastroservice.services.EstabelecimentoService;
 import com.l.erp.cadastroservice.services.PessoaService;
 import com.l.erp.cadastroservice.util.Utils;
 import com.l.erp.common.exception.custom.BusinessException;
@@ -35,6 +38,9 @@ class ContatoServiceTest {
     private PessoaService pessoaService;
 
     @Mock
+    private EstabelecimentoService estabelecimentoService;
+
+    @Mock
     private Utils utils;
 
     @InjectMocks
@@ -47,6 +53,7 @@ class ContatoServiceTest {
         Pessoa pessoa = new Pessoa();
         pessoa.setId(pessoaId);
         pessoa.setTenantId(TENANT_ID);
+        pessoa.setTipo(TipoPessoa.PF);
         return pessoa;
     }
 
@@ -115,6 +122,26 @@ class ContatoServiceTest {
         Contato result = contatoService.create(pessoaId, dto, TENANT_ID, USER_ID);
 
         assertThat(result.getTipo()).isEqualTo(TipoContato.TECNICO);
+    }
+
+    @Test
+    void shouldRouteToEstabelecimentoMatrizWhenPessoaIsPJ() {
+        UUID pessoaId = UUID.randomUUID();
+        Pessoa pessoa = buildPessoa(pessoaId);
+        pessoa.setTipo(TipoPessoa.PJ);
+        ContatoRequestDTO dto = buildDto(TipoContato.COMERCIAL, true);
+
+        Estabelecimento matriz = new Estabelecimento();
+        matriz.setId(UUID.randomUUID());
+
+        when(pessoaService.findByIdAndTenant(pessoaId, TENANT_ID)).thenReturn(pessoa);
+        when(estabelecimentoService.buscarMatrizPorPessoa(pessoaId, TENANT_ID)).thenReturn(matriz);
+        when(contatoRepository.save(any(Contato.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Contato result = contatoService.create(pessoaId, dto, TENANT_ID, USER_ID);
+
+        assertThat(result.getEstabelecimento()).isEqualTo(matriz);
+        assertThat(result.getPessoa()).isNull();
     }
 
     @Test

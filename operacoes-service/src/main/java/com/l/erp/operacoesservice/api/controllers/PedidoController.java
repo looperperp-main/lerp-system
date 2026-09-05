@@ -184,16 +184,22 @@ public class PedidoController {
     // dataCompetencia = hoje, já que o cálculo só acontece no momento do faturamento (§8).
     // P2: UF/IBGE de destino vêm do endereço fiscal do cliente (buscarEnderecoFiscal), buscado
     // uma vez por pedido (não muda por item).
+    // Fase 6 (spec/estabelecimentos-filiais.md §6.1): UF de origem vem do endereço fiscal do
+    // estabelecimento "próprio" do tenant, buscado uma vez por pedido (mesmo padrão do destino).
     private PedidoService.ResultadoFiscalAgregado calcularFiscal(UUID pedidoId, UUID clienteId, Long tenantId, UUID userId) {
         LocalDate dataCompetencia = LocalDate.now();
         UUID pessoaId = cadastroServiceClient.buscarClientePessoaId(clienteId, tenantId, userId);
         CadastroServiceClient.EnderecoFiscalRef endereco = pessoaId != null
                 ? cadastroServiceClient.buscarEnderecoFiscal(pessoaId, tenantId, userId) : null;
+        UUID pessoaIdProprio = cadastroServiceClient.buscarPessoaIdEstabelecimentoProprio(tenantId, userId);
+        CadastroServiceClient.EnderecoFiscalRef enderecoOrigem = pessoaIdProprio != null
+                ? cadastroServiceClient.buscarEnderecoFiscal(pessoaIdProprio, tenantId, userId) : null;
+        String ufOrigem = enderecoOrigem != null ? enderecoOrigem.uf() : null;
         BigDecimal ibs = BigDecimal.ZERO, cbs = BigDecimal.ZERO, is = BigDecimal.ZERO,
                 iss = BigDecimal.ZERO, retencoes = BigDecimal.ZERO;
         for (PedidoItem item : service.listarItens(pedidoId)) {
             CadastroServiceClient.ProdutoRef produto = cadastroServiceClient.buscarProduto(item.getProdutoId(), tenantId, userId);
-            FiscalServiceClient.ResultadoFiscalItem r = fiscalServiceClient.calcularItem(item, produto, dataCompetencia, tenantId, endereco);
+            FiscalServiceClient.ResultadoFiscalItem r = fiscalServiceClient.calcularItem(item, produto, dataCompetencia, tenantId, endereco, ufOrigem);
             ibs = ibs.add(r.valorIbs());
             cbs = cbs.add(r.valorCbs());
             is = is.add(r.valorIs());

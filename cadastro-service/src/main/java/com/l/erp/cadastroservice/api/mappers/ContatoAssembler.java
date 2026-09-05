@@ -36,7 +36,7 @@ public class ContatoAssembler extends RepresentationModelAssemblerSupport<Contat
         dto.setCreatedBy(entity.getCreatedBy());
         dto.setLastUpdatedBy(entity.getLastUpdatedBy());
 
-        UUID pessoaId = entity.getPessoa().getId();
+        UUID pessoaId = entity.getPessoa() != null ? entity.getPessoa().getId() : entity.getEstabelecimento().getPessoa().getId();
 
         dto.add(linkTo(methodOn(ContatoController.class).findById(pessoaId, entity.getId())).withSelfRel());
         dto.add(linkTo(methodOn(ContatoController.class).listarPorPessoa(pessoaId)).withRel("contatos"));

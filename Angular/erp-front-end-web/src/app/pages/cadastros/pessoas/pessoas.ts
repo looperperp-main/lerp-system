@@ -1,4 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
+import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { TableModule } from 'primeng/table';
 import { MessageService } from 'primeng/api';
@@ -36,13 +37,13 @@ import { Breadcrumb } from '../../../components/breadcrumb/breadcrumb';
     Tooltip /*, PessoaForm*/,
     Breadcrumb,
   ],
-  providers: [MessageService],
   templateUrl: './pessoas.html',
   styleUrl: './pessoas.scss',
 })
 export class Pessoas {
   private pessoaService = inject(PessoaService);
   private messageService = inject(MessageService);
+  private router = inject(Router);
 
   loading = signal<boolean>(true);
   totalRecords = signal<number>(0);
@@ -85,6 +86,10 @@ export class Pessoas {
   editPessoa(pessoa: Pessoa): void {
     this.selectedPessoa = { ...pessoa };
     this.displayForm = true;
+  }
+
+  verFiliais(pessoa: Pessoa): void {
+    this.router.navigate(['/web/cadastros/pessoas', pessoa.id, 'estabelecimentos']);
   }
 
   deletePessoa(pessoa: Pessoa): void {

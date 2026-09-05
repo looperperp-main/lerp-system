@@ -2,10 +2,13 @@ package com.l.erp.cadastroservice;
 
 import com.l.erp.cadastroservice.api.dto.EnderecoRequestDTO;
 import com.l.erp.cadastroservice.domain.Endereco;
+import com.l.erp.cadastroservice.domain.Estabelecimento;
 import com.l.erp.cadastroservice.domain.Pessoa;
 import com.l.erp.cadastroservice.domain.enumerators.TipoEndereco;
+import com.l.erp.cadastroservice.domain.enumerators.TipoPessoa;
 import com.l.erp.cadastroservice.repository.EnderecoRepository;
 import com.l.erp.cadastroservice.services.EnderecoService;
+import com.l.erp.cadastroservice.services.EstabelecimentoService;
 import com.l.erp.cadastroservice.services.PessoaService;
 import com.l.erp.cadastroservice.util.Utils;
 import com.l.erp.common.exception.custom.BusinessException;
@@ -35,6 +38,9 @@ class EnderecoServiceTest {
     private PessoaService pessoaService;
 
     @Mock
+    private EstabelecimentoService estabelecimentoService;
+
+    @Mock
     private Utils utils;
 
     @InjectMocks
@@ -47,6 +53,7 @@ class EnderecoServiceTest {
         Pessoa pessoa = new Pessoa();
         pessoa.setId(pessoaId);
         pessoa.setTenantId(TENANT_ID);
+        pessoa.setTipo(TipoPessoa.PF);
         return pessoa;
     }
 
@@ -118,6 +125,26 @@ class EnderecoServiceTest {
         Endereco result = enderecoService.create(pessoaId, dto, TENANT_ID, USER_ID);
 
         assertThat(result.getTipo()).isEqualTo(TipoEndereco.COBRANCA);
+    }
+
+    @Test
+    void shouldRouteToEstabelecimentoMatrizWhenPessoaIsPJ() {
+        UUID pessoaId = UUID.randomUUID();
+        Pessoa pessoa = buildPessoa(pessoaId);
+        pessoa.setTipo(TipoPessoa.PJ);
+        EnderecoRequestDTO dto = buildDto(TipoEndereco.FISCAL, true);
+
+        Estabelecimento matriz = new Estabelecimento();
+        matriz.setId(UUID.randomUUID());
+
+        when(pessoaService.findByIdAndTenant(pessoaId, TENANT_ID)).thenReturn(pessoa);
+        when(estabelecimentoService.buscarMatrizPorPessoa(pessoaId, TENANT_ID)).thenReturn(matriz);
+        when(enderecoRepository.save(any(Endereco.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Endereco result = enderecoService.create(pessoaId, dto, TENANT_ID, USER_ID);
+
+        assertThat(result.getEstabelecimento()).isEqualTo(matriz);
+        assertThat(result.getPessoa()).isNull();
     }
 
     @Test

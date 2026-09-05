@@ -8,6 +8,7 @@ import com.l.erp.authservice.api.mappers.AuthMapper;
 import com.l.erp.authservice.configuration.ObjectMapperConfig;
 import com.l.erp.authservice.dominio.Tenant;
 import com.l.erp.authservice.dominio.enumerators.EnumTenantStatus;
+import com.l.erp.authservice.infra.client.CadastroServiceClient;
 import com.l.erp.authservice.repositorios.TenantRepository;
 import com.l.erp.authservice.services.TenantService;
 import com.l.erp.authservice.services.audit.AuditService;
@@ -64,6 +65,9 @@ class TenantControllerTest {
 
     @MockitoBean
     private AuditService auditService;
+
+    @MockitoBean
+    private CadastroServiceClient cadastroServiceClient;
 
     @Test
     @WithMockUser(authorities = "TENANT_READ")

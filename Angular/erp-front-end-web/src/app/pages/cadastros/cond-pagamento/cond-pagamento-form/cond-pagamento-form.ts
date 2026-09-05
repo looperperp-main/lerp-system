@@ -1,17 +1,17 @@
-import {Component, EventEmitter, inject, Input, OnInit, Output} from '@angular/core';
-import {CondPagamento, CondPagamentoParcela} from '../cond-pagamento.model';
-import {FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators} from '@angular/forms';
-import {ToastrService} from 'ngx-toastr';
-import {CondPagamentoService} from '../cond-pagamento.service';
-import {Checkbox} from 'primeng/checkbox';
-import {Button, ButtonDirective} from 'primeng/button';
-import {NgClass, NgForOf, NgIf} from '@angular/common';
-import {Textarea} from 'primeng/textarea';
-import {InputText} from 'primeng/inputtext';
-import {Tooltip} from 'primeng/tooltip';
-import {Select} from 'primeng/select';
-import {MessageService} from 'primeng/api';
-import {Toast} from 'primeng/toast';
+import { Component, EventEmitter, inject, Input, OnInit, Output } from '@angular/core';
+import { CondPagamento, CondPagamentoParcela } from '../cond-pagamento.model';
+import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ToastrService } from 'ngx-toastr';
+import { CondPagamentoService } from '../cond-pagamento.service';
+import { Checkbox } from 'primeng/checkbox';
+import { Button, ButtonDirective } from 'primeng/button';
+import { NgClass, NgForOf, NgIf } from '@angular/common';
+import { Textarea } from 'primeng/textarea';
+import { InputText } from 'primeng/inputtext';
+import { Tooltip } from 'primeng/tooltip';
+import { Select } from 'primeng/select';
+import { MessageService } from 'primeng/api';
+import { Toast } from 'primeng/toast';
 
 @Component({
   selector: 'app-cond-pagamento-form',
@@ -27,9 +27,8 @@ import {Toast} from 'primeng/toast';
     Tooltip,
     NgForOf,
     Select,
-    Toast
+    Toast,
   ],
-  providers: [MessageService],
   templateUrl: './cond-pagamento-form.html',
   styleUrl: './cond-pagamento-form.scss',
 })
@@ -52,7 +51,7 @@ export class CondPagamentoForm implements OnInit {
     { label: 'Cartão de Crédito', value: 'CARTAO_CREDITO' },
     { label: 'Cartão de Débito', value: 'CARTAO_DEBITO' },
     { label: 'Dinheiro', value: 'DINHEIRO' },
-    { label: 'Transferência', value: 'TRANSFERENCIA' }
+    { label: 'Transferência', value: 'TRANSFERENCIA' },
   ];
 
   ngOnInit(): void {
@@ -61,7 +60,7 @@ export class CondPagamentoForm implements OnInit {
       nome: [this.cPagData?.nome || '', [Validators.required, Validators.maxLength(100)]],
       descricao: [this.cPagData?.descricao || '', [Validators.maxLength(500)]],
       ativo: [this.cPagData ? this.cPagData.ativo : true],
-      parcelas: this.fb.array([])
+      parcelas: this.fb.array([]),
     });
 
     if (this.cPagData?.id) {
@@ -81,28 +80,33 @@ export class CondPagamentoForm implements OnInit {
     this.grupoService.buscarParcelas(condicaoId).subscribe({
       next: (response) => {
         // HATEOAS collection fallback
-        const parcelas: CondPagamentoParcela[] = response._embedded?.parcelas || response.content || [];
+        const parcelas: CondPagamentoParcela[] =
+          response._embedded?.parcelas || response.content || [];
         this.parcelasArray.clear();
-        parcelas.forEach(p => {
+        parcelas.forEach((p) => {
           // Agora a formaPagamento que vem da API é passada e setada corretamente no formulário
           this.addParcela(p.numeroParcela, p.diasPrazo, p.percentual, p.formaPagamento);
         });
         this.isLoadingParcelas = false;
       },
       error: () => {
-        this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao carregar as parcelas.' });
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Erro',
+          detail: 'Erro ao carregar as parcelas.',
+        });
         this.isLoadingParcelas = false;
-      }
+      },
     });
   }
 
   addParcela(numero?: number, diasPrazo?: number, percentual?: number, formaPagamento?: string) {
-    const nextNum = numero || (this.parcelasArray.length + 1);
+    const nextNum = numero || this.parcelasArray.length + 1;
     const parcelaForm = this.fb.group({
       numeroParcela: [nextNum, [Validators.required, Validators.min(1)]],
       diasPrazo: [diasPrazo ?? 30, [Validators.required, Validators.min(0)]],
       percentual: [percentual ?? 0, [Validators.required, Validators.min(0.01)]],
-      formaPagamento: [formaPagamento ?? 'BOLETO', [Validators.required]]
+      formaPagamento: [formaPagamento ?? 'BOLETO', [Validators.required]],
     });
     this.parcelasArray.push(parcelaForm);
   }
@@ -133,12 +137,20 @@ export class CondPagamentoForm implements OnInit {
     }
 
     if (!this.validarSomaPercentual()) {
-      this.messageService.add({ severity: 'warning', summary: 'Aviso', detail: 'A soma dos percentuais das parcelas deve ser 100%' });
+      this.messageService.add({
+        severity: 'warning',
+        summary: 'Aviso',
+        detail: 'A soma dos percentuais das parcelas deve ser 100%',
+      });
       return;
     }
 
     if (this.parcelasArray.length === 0) {
-      this.messageService.add({ severity: 'warning', summary: 'Aviso', detail: 'Adicione pelo menos uma parcela.' });
+      this.messageService.add({
+        severity: 'warning',
+        summary: 'Aviso',
+        detail: 'Adicione pelo menos uma parcela.',
+      });
       return;
     }
 
@@ -153,33 +165,50 @@ export class CondPagamentoForm implements OnInit {
         // Prepara DTO das parcelas com o ID pai
         const parcelasPayload: CondPagamentoParcela[] = this.parcelasArray.value.map((p: any) => ({
           ...p,
-          condicaoPagamentoId: condId
+          condicaoPagamentoId: condId,
         }));
 
         this.grupoService.salvarParcelasEmLote(condId, parcelasPayload).subscribe({
           next: () => {
-            this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Condição de Pagamento e Parcelas salvas com sucesso!', life: 3000 });
+            this.messageService.add({
+              severity: 'success',
+              summary: 'Sucesso',
+              detail: 'Condição de Pagamento e Parcelas salvas com sucesso!',
+              life: 3000,
+            });
             this.isSaving = false;
             this.saved.emit();
           },
           error: () => {
-            this.messageService.add({ severity: 'error', summary: 'Aviso', detail: 'Condição salva, mas houve erro ao salvar as parcelas.' });
+            this.messageService.add({
+              severity: 'error',
+              summary: 'Aviso',
+              detail: 'Condição salva, mas houve erro ao salvar as parcelas.',
+            });
             this.isSaving = false;
             this.saved.emit();
-          }
+          },
         });
       },
       error: (err) => {
         this.isSaving = false;
         // O backend joga "GROUP_C_ALREADY_EXISTS" caso já exista
         if (err.error?.message === 'COND_PAG_ALREADY_EXISTS') {
-          this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Já existe uma condição com este nome.' });
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Erro',
+            detail: 'Já existe uma condição com este nome.',
+          });
           this.canceled.emit();
         } else {
-          this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao salvar a Condição de Pagamento.' });
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Erro',
+            detail: 'Erro ao salvar a Condição de Pagamento.',
+          });
           this.canceled.emit();
         }
-      }
+      },
     });
   }
 
