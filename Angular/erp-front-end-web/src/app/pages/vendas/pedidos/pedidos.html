@@ -1,0 +1,142 @@
+<div>
+
+  <div class="jb-page-head">
+    <div>
+      <app-breadcrumb></app-breadcrumb>
+      <h1>Pedidos de Venda</h1>
+      <p class="sub">Orçamentos, confirmações, expedição e faturamento de pedidos</p>
+    </div>
+  </div>
+
+  <div class="jb-panel">
+    <div class="jb-panel-head">
+      <h3><i class="pi pi-arrow-circle-right"></i> Pedidos Cadastrados</h3>
+      <div class="jb-panel-actions">
+        <app-primary-button
+          class="jb-btn-paginator-style"
+          label="Novo Orçamento"
+          icon="pi pi-plus"
+          (onClick)="openNew()">
+        </app-primary-button>
+      </div>
+    </div>
+
+    <form [formGroup]="filtroForm" class="jb-filtros" (ngSubmit)="aplicarFiltro()">
+      <div class="jb-filtro-campo">
+        <label class="jb-label-sm">Nº do Pedido</label>
+        <input type="number" pInputText formControlName="numero" placeholder="Ex: 1024">
+      </div>
+      <div class="jb-filtro-campo">
+        <label class="jb-label-sm">Status</label>
+        <p-select
+          [options]="statusOptions"
+          formControlName="status"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Todos"
+          [showClear]="true"
+          appendTo="body">
+        </p-select>
+      </div>
+      <div class="jb-filtro-acoes">
+        <button pButton type="submit" icon="pi pi-search" label="Filtrar" class="p-button-sm"></button>
+        <button pButton type="button" icon="pi pi-times" label="Limpar" class="p-button-sm p-button-text" (click)="limparFiltro()"></button>
+      </div>
+    </form>
+
+    <div class="table-container">
+      <p-table
+        [value]="pedidos()"
+        [loading]="loading()"
+        [lazy]="true"
+        (onLazyLoad)="loadPedidos($event)"
+        [totalRecords]="totalRecords()"
+        [paginator]="true"
+        [rows]="10"
+        [rowsPerPageOptions]="[10, 20, 50]"
+        [tableStyle]="{ 'min-width': '60rem' }"
+        styleClass="p-datatable-sm text-sm"
+        [paginatorDropdownAppendTo]="'body'"
+      >
+        <ng-template pTemplate="header">
+          <tr>
+            <th>Nº</th>
+            <th>Cliente</th>
+            <th>Vendedor</th>
+            <th>Status</th>
+            <th>Data Emissão</th>
+            <th>Valor Total</th>
+            <th>Ações</th>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="body" let-rowData>
+          <tr>
+            <td class="jb-strong">{{ rowData.numero }}</td>
+            <td>{{ nomeCliente(rowData.clienteId) }}</td>
+            <td>{{ nomeVendedor(rowData.vendedorId) }}</td>
+            <td>
+              <span class="jb-status" [class]="statusBadgeClass(rowData.status)">
+                {{ label(rowData.status) }}
+              </span>
+            </td>
+            <td>{{ rowData.dataEmissao | date:'dd/MM/yyyy' }}</td>
+            <td>{{ rowData.valorTotal | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}</td>
+            <td>
+              <button
+                pButton
+                pRipple
+                icon="pi pi-eye"
+                class="p-button-rounded p-button-text p-button-info p-button-sm w-8 h-8"
+                pTooltip="Ver Detalhe"
+                (click)="verPedido(rowData)"
+                tooltipPosition="top">
+              </button>
+              <button
+                pButton
+                pRipple
+                icon="pi pi-pencil"
+                class="p-button-rounded p-button-text p-button-sm w-8 h-8"
+                pTooltip="Editar"
+                [disabled]="!podeEditar(rowData)"
+                (click)="editarPedido(rowData)"
+                tooltipPosition="top">
+              </button>
+            </td>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td colspan="7" style="text-align: center; padding: 24px; color: var(--muted);">
+              Nenhum pedido encontrado.
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </div>
+  </div>
+
+  <footer class="jb-list-footer">
+    <span>© 2026 SYAX TECNOLOGIA · BUILD 26.04.01</span>
+    <span>{{ totalRecords() }} {{ totalRecords() === 1 ? 'PEDIDO CADASTRADO' : 'PEDIDOS CADASTRADOS' }}</span>
+  </footer>
+
+</div>
+
+<p-dialog [(visible)]="displayForm" [style]="{width: '1100px', maxWidth: '95vw'}" [breakpoints]="{ '1200px': '90vw', '640px': '95vw' }" [modal]="true" [resizable]="true">
+  <ng-template pTemplate="header">
+    <div class="jb-dialog-head">
+      <span class="eyebrow">VENDAS · PEDIDOS</span>
+      <h2>{{ selectedPedido ? 'Editar Orçamento' : 'Novo Orçamento' }}</h2>
+    </div>
+  </ng-template>
+
+  <app-pedido-form
+    *ngIf="displayForm"
+    [pedidoData]="selectedPedido"
+    (saved)="onFormSaved()"
+    (canceled)="onFormCanceled()">
+  </app-pedido-form>
+
+</p-dialog>

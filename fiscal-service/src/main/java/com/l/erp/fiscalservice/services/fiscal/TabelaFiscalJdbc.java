@@ -134,9 +134,9 @@ public class TabelaFiscalJdbc implements TabelaFiscal {
                AND uf_origem = :ufOrigem
                AND uf_destino = :ufDestino
                AND ncm_nbs IN (:ncmNbs, :fallback)
-               AND (tenant_id = :tenantId OR tenant_id IS NULL)
+               AND (tenant_id = :tenantId::bigint OR tenant_id IS NULL)
                AND vigente_de <= :data AND (vigente_ate IS NULL OR vigente_ate > :data)
-             ORDER BY CASE WHEN tenant_id = :tenantId THEN 0 ELSE 1 END,
+             ORDER BY CASE WHEN tenant_id = :tenantId::bigint THEN 0 ELSE 1 END,
                       CASE WHEN ncm_nbs = :ncmNbs THEN 0 ELSE 1 END,
                       vigente_de DESC
              LIMIT 1
@@ -148,9 +148,9 @@ public class TabelaFiscalJdbc implements TabelaFiscal {
             SELECT aliquota_pct, valor_minimo_base
               FROM fiscal.retencao_config
              WHERE tributo = :tributo
-               AND (tenant_id = :tenantId OR tenant_id IS NULL)
+               AND (tenant_id = :tenantId::bigint OR tenant_id IS NULL)
                AND ativo = true
-             ORDER BY CASE WHEN tenant_id = :tenantId THEN 0 ELSE 1 END
+             ORDER BY CASE WHEN tenant_id = :tenantId::bigint THEN 0 ELSE 1 END
              LIMIT 1
             """;
 

@@ -37,6 +37,12 @@ public class PedidoResponseDTO extends RepresentationModel<PedidoResponseDTO> {
     private BigDecimal valorItens;
     private BigDecimal valorDesconto;
     private BigDecimal valorTotal;
+    private BigDecimal valorTotalNf;
+    private BigDecimal valorIbs;
+    private BigDecimal valorCbs;
+    private BigDecimal valorIs;
+    private BigDecimal valorIss;
+    private BigDecimal valorRetencoes;
     private LocalDate dataEmissao;
     private LocalDate dataValidade;
     private Instant dataConfirmacao;

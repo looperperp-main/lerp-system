@@ -368,6 +368,11 @@ public class PedidoService {
         }
 
         pedidoItemRepository.deleteAllByPedidoId(pedidoId);
+        // ponytail: deleteAllByPedidoId (derivado sem @Modifying) agenda EntityDeleteAction, que o
+        // Hibernate só executa no flush — e DEPOIS dos inserts do saveAll abaixo. Sem o flush aqui,
+        // o insert do item reeditado roda antes do delete do item antigo do mesmo produto e bate na
+        // uq_pedido_item_pedido_produto.
+        pedidoItemRepository.flush();
         for (PedidoItem item : itens) {
             item.setPedido(pedido);
         }

@@ -113,9 +113,10 @@ public class CadastroServiceClient {
     private record ParcelaRef(Integer numeroParcela, Integer diasPrazo, BigDecimal percentual, String formaPagamento) {
     }
 
-    // Público: PedidoController usa o tipo do produto pra montar o item do pedido.
+    // Público: PedidoController usa o tipo do produto pra montar o item do pedido, e o nome pra
+    // mensagem de erro de produto inativo (em vez do UUID cru, ilegível pro usuário).
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record ProdutoRef(String tipo, String codigoServico, Boolean ativo, String ncm, String classTrib) {
+    public record ProdutoRef(String tipo, String codigoServico, Boolean ativo, String ncm, String classTrib, String nome) {
     }
 
     // P2 (spec/o2c-vendas.md, gaps do D4) — UF/IBGE do cliente pro MotorFiscalRequest.

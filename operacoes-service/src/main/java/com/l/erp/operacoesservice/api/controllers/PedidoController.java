@@ -101,7 +101,7 @@ public class PedidoController {
         for (PedidoItem item : itens) {
             CadastroServiceClient.ProdutoRef ref = cadastroServiceClient.buscarProduto(item.getProdutoId(), tenantId, userId);
             if (Boolean.FALSE.equals(ref.ativo())) {
-                throw new BusinessException(String.format(Constants.PEDIDO_PRODUTO_INATIVO, item.getProdutoId()), HttpStatus.BAD_REQUEST);
+                throw new BusinessException(String.format(Constants.PEDIDO_PRODUTO_INATIVO, ref.nome()), HttpStatus.BAD_REQUEST);
             }
             item.setTipoItem(TipoItemPedido.valueOf(ref.tipo()));
         }
@@ -177,7 +177,7 @@ public class PedidoController {
                 cadastroServiceClient.buscarParcelas(pedido.getCondicaoPagamentoId(), tenantId, userId);
         PedidoService.ResultadoFiscalAgregado fiscal = calcularFiscal(id, pedido.getClienteId(), tenantId, userId);
         PedidoService.FaturamentoResultado resultado = service.faturar(id, tenantId, userId, parcelasDefinicao, fiscal);
-        return ResponseEntity.ok(assembler.toFaturamentoModel(resultado));
+        return ResponseEntity.ok(assembler.toFaturamentoModel(resultado, service.listarItens(id), service.listarHistorico(id)));
     }
 
     // D4: chama POST /fiscal/calcular (fiscal-service) por item do pedido e soma o resultado —

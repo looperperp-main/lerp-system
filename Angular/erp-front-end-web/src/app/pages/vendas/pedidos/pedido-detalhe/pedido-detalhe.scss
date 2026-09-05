@@ -1,0 +1,244 @@
+.jb-detalhe-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.jb-page-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+
+  h1 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+}
+
+.jb-info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px 24px;
+  margin-top: 8px;
+}
+
+.jb-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ink-3);
+  }
+
+  span {
+    color: var(--ink-2);
+    font-size: 14px;
+  }
+}
+
+.jb-info-observacao {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.jb-simple-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+
+  th {
+    text-align: left;
+    color: var(--ink-3);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border-bottom: 1px solid var(--line);
+    padding: 0 8px 10px;
+  }
+
+  td {
+    color: var(--ink-2);
+    padding: 10px 8px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  tr:last-child td {
+    border-bottom: 0;
+  }
+}
+
+.jb-strong {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.jb-totais-breakdown {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.jb-subtotal-linha {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--ink-3);
+  padding: 2px 0;
+}
+
+.jb-total-geral {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  font-size: 15px;
+
+  strong {
+    font-size: 18px;
+    color: var(--ink);
+  }
+}
+
+.jb-panel-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.jb-sem-acoes {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.jb-status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+
+  &.ok { background: rgba(33, 215, 137, 0.15); color: var(--ok); }
+  &.bad { background: rgba(255, 92, 92, 0.15); color: var(--bad); }
+  &.info { background: rgba(66, 153, 225, 0.15); color: #4299e1; }
+  &.neutral { background: rgba(255, 255, 255, 0.08); color: var(--ink-3); }
+}
+
+.jb-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.jb-timeline-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+
+  &:last-child {
+    border-bottom: 0;
+  }
+}
+
+.jb-timeline-data {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--ink-3);
+}
+
+.jb-timeline-motivo {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.jb-loading {
+  text-align: center;
+  padding: 60px;
+  color: var(--muted);
+}
+
+.jb-field {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 14px;
+}
+
+.jb-label {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--ink-2);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.jb-form-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+:host ::ng-deep {
+  .p-select,
+  .p-inputnumber input,
+  .p-textarea {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--line-2);
+    border-radius: 12px;
+    color: var(--ink);
+  }
+
+  .p-button:not(.p-button-secondary):not(.p-button-text):not(.p-button-danger) {
+    background: var(--brand-grad);
+    border-color: transparent;
+    color: #fff;
+  }
+
+  .p-button-secondary {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--line-2);
+    color: var(--ink-2);
+  }
+
+  .p-select-overlay {
+    background: var(--bg-panel-2);
+    border: 1px solid var(--line-2);
+    color: var(--ink-2);
+  }
+
+  .p-dialog {
+    background: rgba(40, 40, 50, 0.32);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 20px;
+    backdrop-filter: blur(35px) saturate(180%);
+    -webkit-backdrop-filter: blur(35px) saturate(180%);
+  }
+
+  .p-dialog-header {
+    background: transparent;
+    color: var(--ink);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .p-dialog-content {
+    background: transparent;
+    color: var(--ink-2);
+  }
+}

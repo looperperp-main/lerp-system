@@ -40,9 +40,11 @@ public class PedidoAssembler extends RepresentationModelAssemblerSupport<Pedido,
         return dto;
     }
 
-    /** Resposta de POST .../faturar: resumo + parcelas calculadas (não persistidas, §8/Fase 5). */
-    public PedidoResponseDTO toFaturamentoModel(PedidoService.FaturamentoResultado resultado) {
+    /** Resposta de POST .../faturar: resumo + itens + histórico + parcelas calculadas (não persistidas, §8/Fase 5). */
+    public PedidoResponseDTO toFaturamentoModel(PedidoService.FaturamentoResultado resultado, List<PedidoItem> itens, List<PedidoStatusHistorico> historico) {
         PedidoResponseDTO dto = toModel(resultado.pedido());
+        dto.setItens(mapper.toItemResponseDtos(itens));
+        dto.setHistorico(mapper.toHistoricoDtos(historico));
         dto.setParcelas(mapper.toParcelaDtos(resultado.parcelas()));
         return dto;
     }

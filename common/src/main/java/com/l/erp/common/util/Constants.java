@@ -556,7 +556,7 @@ public class Constants {
             "Pedido só com serviços não passa por expedição; fature diretamente";
     // Placeholder: produtoId.
     public static final String PEDIDO_PRODUTO_NAO_ENCONTRADO = "Produto não encontrado: %s";
-    // Placeholder: produtoId.
+    // Placeholder: nome do produto.
     public static final String PEDIDO_PRODUTO_INATIVO = "Produto inativo: %s";
     // Placeholder: produtoId. Defesa: tipoItem só fica null se o controller não tiver resolvido
     // o produto antes de montar a entidade — não deveria acontecer no fluxo normal via API.

@@ -91,7 +91,7 @@ class PedidoControllerTest {
                 PedidoItem.builder().produtoId(UUID.randomUUID()).quantidade(BigDecimal.ONE)
                         .precoUnitario(BigDecimal.TEN).build()));
         when(cadastroServiceClient.buscarProduto(any(), eq(TENANT_ID), eq(USER_ID)))
-                .thenReturn(new CadastroServiceClient.ProdutoRef("MERCADORIA", null, true, null, null));
+                .thenReturn(new CadastroServiceClient.ProdutoRef("MERCADORIA", null, true, null, null, "Produto Teste"));
         when(service.criarOrcamento(any(), any(), eq(TENANT_ID), eq(USER_ID))).thenReturn(pedido(id));
         when(assembler.toDetailModel(any(), any(), any())).thenReturn(responseDto(id));
 
@@ -123,7 +123,7 @@ class PedidoControllerTest {
                 PedidoItem.builder().produtoId(UUID.randomUUID()).quantidade(BigDecimal.ONE)
                         .precoUnitario(BigDecimal.TEN).build()));
         when(cadastroServiceClient.buscarProduto(any(), eq(TENANT_ID), eq(USER_ID)))
-                .thenReturn(new CadastroServiceClient.ProdutoRef("MERCADORIA", null, true, null, null));
+                .thenReturn(new CadastroServiceClient.ProdutoRef("MERCADORIA", null, true, null, null, "Produto Teste"));
         when(service.atualizar(eq(id), eq(TENANT_ID), eq(USER_ID), any(), any())).thenReturn(pedido(id));
         when(assembler.toDetailModel(any(), any(), any())).thenReturn(responseDto(id));
 
@@ -142,7 +142,7 @@ class PedidoControllerTest {
                 PedidoItem.builder().produtoId(UUID.randomUUID()).quantidade(BigDecimal.ONE)
                         .precoUnitario(BigDecimal.TEN).build()));
         when(cadastroServiceClient.buscarProduto(any(), eq(TENANT_ID), eq(USER_ID)))
-                .thenReturn(new CadastroServiceClient.ProdutoRef("MERCADORIA", null, false, null, null));
+                .thenReturn(new CadastroServiceClient.ProdutoRef("MERCADORIA", null, false, null, null, "Produto Inativo"));
 
         mockMvc.perform(post("/api/v1/pedidos")
                         .header(Constants.HEADER_TENANT_ID, TENANT_ID)
@@ -219,9 +219,10 @@ class PedidoControllerTest {
         when(service.buscarPorId(id, TENANT_ID)).thenReturn(pedidoComCondicao);
         when(cadastroServiceClient.buscarParcelas(condicaoId, TENANT_ID, USER_ID)).thenReturn(List.of());
         when(service.listarItens(id)).thenReturn(List.of());
+        when(service.listarHistorico(id)).thenReturn(List.of());
         when(service.faturar(eq(id), eq(TENANT_ID), eq(USER_ID), any(), any()))
                 .thenReturn(new PedidoService.FaturamentoResultado(pedidoComCondicao, List.of()));
-        when(assembler.toFaturamentoModel(any())).thenReturn(responseDto(id));
+        when(assembler.toFaturamentoModel(any(), any(), any())).thenReturn(responseDto(id));
 
         mockMvc.perform(post("/api/v1/pedidos/{id}/faturar", id)
                         .header(Constants.HEADER_TENANT_ID, TENANT_ID)

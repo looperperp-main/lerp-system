@@ -198,6 +198,10 @@ export class Home implements OnInit {
     this.router.navigate(['/web/cadastros/produtos']);
   }
 
+  novaVenda() {
+    this.router.navigate(['/web/vendas/pedidos']);
+  }
+
   emDesenvolvimento(recurso: string) {
     this.messageService.add({
       severity: 'info',

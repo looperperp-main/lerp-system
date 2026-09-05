@@ -32,15 +32,31 @@
             <input pInputText id="descricao" formControlName="descricao" class="w-full" />
           </div>
 
-          <!-- Linha: Categoria e UN -->
+          <!-- Linha: Tipo e Categoria -->
+          <div class="col-span-12 md:col-span-6 flex flex-col gap-2">
+            <label for="tipo" class="jb-label">Tipo *</label>
+            <p-select [options]="tipoProdutoOptions" formControlName="tipo" optionLabel="label" optionValue="value" appendTo="body" class="w-full" styleClass="w-full"></p-select>
+          </div>
           <div class="col-span-12 md:col-span-6 flex flex-col gap-2">
             <label for="categoriaId" class="jb-label">Categoria</label>
             <p-select [options]="categoriasOptions()" formControlName="categoriaId" optionLabel="label" optionValue="value" placeholder="Selecione" [filter]="true" appendTo="body" class="w-full" styleClass="w-full"></p-select>
           </div>
-          <div class="col-span-12 md:col-span-6 flex flex-col gap-2">
+
+          <!-- Linha: Código do Serviço (só p/ tipo=SERVICO) e UN -->
+          <div class="col-span-12 md:col-span-6 flex flex-col gap-2" *ngIf="form.get('tipo')?.value === 'SERVICO'">
+            <label for="codigoServico" class="jb-label">Código do Serviço *</label>
+            <input pInputText id="codigoServico" formControlName="codigoServico" class="w-full" placeholder="Ex: LC116-01.01" />
+          </div>
+          <div class="col-span-12 flex flex-col gap-2" [ngClass]="form.get('tipo')?.value === 'SERVICO' ? 'md:col-span-6' : 'md:col-span-12'">
             <label for="unidade" class="jb-label">UN *</label>
             <input pInputText id="unidade" formControlName="unidade" class="w-full" placeholder="Ex: UN" />
             <small class="text-red-500" *ngIf="form.get('unidade')?.invalid && form.get('unidade')?.touched">Unidade é obrigatória.</small>
+          </div>
+
+          <!-- Linha: Classificação Tributária (só p/ tipo=SERVICO) -->
+          <div class="col-span-12 md:col-span-6 flex flex-col gap-2" *ngIf="form.get('tipo')?.value === 'SERVICO'">
+            <label for="classTrib" class="jb-label">Classificação Tributária (cClassTrib) *</label>
+            <input pInputText id="classTrib" formControlName="classTrib" class="w-full" maxlength="10" placeholder="Ex: 000001" />
           </div>
 
           <!-- Linha: UN Secundária e Fator Conv. -->

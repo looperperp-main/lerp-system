@@ -41,6 +41,8 @@ export interface ProdutoEstoqueConfigDTO {
   lastUpdatedBy?: string;
 }
 
+export type TipoProduto = 'MERCADORIA' | 'SERVICO';
+
 export interface Produto {
   id?: string;
   tenantId?: number;
@@ -49,6 +51,9 @@ export interface Produto {
   codigoExterno?: string;
   nome: string;
   descricao?: string;
+  tipo: TipoProduto;
+  codigoServico?: string;
+  classTrib?: string;
   unidade: string;
   unidadeSecundaria?: string;
   fatorConversao?: number;

@@ -75,7 +75,7 @@ class PedidoEventProducerTest {
         producer = new PedidoEventProducer(kafkaTemplate, objectMapper, cadastroServiceClient);
         Pedido p = pedido();
         when(cadastroServiceClient.buscarProduto(PRODUTO_ID, TENANT_ID, USER_ID))
-                .thenReturn(new CadastroServiceClient.ProdutoRef("MERCADORIA", "000001", true, "8471.30.19", null));
+                .thenReturn(new CadastroServiceClient.ProdutoRef("MERCADORIA", "000001", true, "8471.30.19", null, "Notebook"));
         when(objectMapper.writeValueAsString(any())).thenReturn("{}");
 
         producer.publicarConfirmado(new PedidoConfirmadoEvent(p, List.of(item())));

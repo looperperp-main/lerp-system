@@ -29,8 +29,8 @@ class TabelaFiscalJdbcTest {
 
     private static TabelaFiscalJdbc tabela;
 
-    /** UUID fixo só para os testes de override de tenant da matriz ICMS. */
-    private static final String TENANT = "11111111-1111-1111-1111-111111111111";
+    /** tenant_id fixo (bigint, como Tenant.id em auth-service) só para os testes de override. */
+    private static final String TENANT = "24";
 
     /** Competência "de hoje" usada pela maioria dos testes — dentro da janela vigente_de/vigente_ate
      *  de todo dado marcado como "vigente" no SEED e fora da de todo dado marcado "vencido" (item 7.8). */
@@ -103,7 +103,7 @@ class TabelaFiscalJdbcTest {
             """,
             """
             CREATE TABLE fiscal.matriz_tributaria (
-                tenant_id uuid,
+                tenant_id bigint,
                 ncm_nbs varchar(9) NOT NULL,
                 tipo_item varchar(1) NOT NULL,
                 uf_origem char(2) NOT NULL,
@@ -115,7 +115,7 @@ class TabelaFiscalJdbcTest {
             """,
             """
             CREATE TABLE fiscal.retencao_config (
-                tenant_id uuid,
+                tenant_id bigint,
                 tributo varchar(10) NOT NULL,
                 aliquota_pct numeric(5,2) NOT NULL,
                 valor_minimo_base numeric(12,2) NOT NULL,
@@ -198,8 +198,8 @@ class TabelaFiscalJdbcTest {
                 (tenant_id, ncm_nbs, tipo_item, uf_origem, uf_destino, aliq_nominal, p_reducao_base, vigente_de, vigente_ate) VALUES
                 (NULL, '00000000', 'P', 'SP', 'SP', 18.00, 0,  DATE '2026-01-01', NULL),
                 (NULL, '10063021', 'P', 'SP', 'SP', 12.00, 0,  DATE '2026-01-01', NULL),
-                ('11111111-1111-1111-1111-111111111111', '00000000', 'P', 'SP', 'SP', 25.00, 10.00, DATE '2026-01-01', NULL),
-                ('11111111-1111-1111-1111-111111111111', '20099999', 'P', 'SP', 'SP', 30.00, 5.00,  DATE '2026-01-01', NULL),
+                (24, '00000000', 'P', 'SP', 'SP', 25.00, 10.00, DATE '2026-01-01', NULL),
+                (24, '20099999', 'P', 'SP', 'SP', 30.00, 5.00,  DATE '2026-01-01', NULL),
                 (NULL, '00000000', 'P', 'RJ', 'RJ', 99.00, 0,  DATE '2020-01-01', DATE '2025-12-31'),
                 (NULL, '00000000', 'P', 'RJ', 'RJ', 22.00, 0,  DATE '2026-01-01', NULL)
             """,
@@ -209,7 +209,7 @@ class TabelaFiscalJdbcTest {
             INSERT INTO fiscal.retencao_config (tenant_id, tributo, aliquota_pct, valor_minimo_base, ativo) VALUES
                 (NULL, 'IRRF', 1.50, 10.00, true),
                 (NULL, 'CSRF', 4.65, 5000.00, true),
-                ('11111111-1111-1111-1111-111111111111', 'IRRF', 2.00, 0.00, true)
+                (24, 'IRRF', 2.00, 0.00, true)
             """,
             // PROUNI (art. 308): override sem ano_vigencia = vale pra qualquer ano, só zera CBS.
             // SERVICO_FINANCEIRO (art. 233): override por ano — 2027 e 2029 aqui, 2028 de propósito

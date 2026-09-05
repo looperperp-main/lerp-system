@@ -64,6 +64,11 @@ export class ProdutosForm implements OnInit, OnChanges {
   private messageService = inject(MessageService);
   private produtoService = inject(ProdutoService);
 
+  tipoProdutoOptions = [
+    { label: 'Mercadoria', value: 'MERCADORIA' },
+    { label: 'Serviço', value: 'SERVICO' },
+  ];
+
   categoriasOptions = signal<any[]>([]);
   fornecedoresOptions = signal<any[]>([]);
   tabelasPrecoOptions = signal<any[]>([]);
@@ -77,6 +82,9 @@ export class ProdutosForm implements OnInit, OnChanges {
       ativo: [this.ProdutoData?.ativo ?? true],
       sku: [this.ProdutoData?.sku || '', [Validators.required, Validators.maxLength(80)]],
       nome: [this.ProdutoData?.nome || '', [Validators.required, Validators.maxLength(200)]],
+      tipo: [this.ProdutoData?.tipo || 'MERCADORIA', Validators.required],
+      codigoServico: [this.ProdutoData?.codigoServico || ''],
+      classTrib: [this.ProdutoData?.classTrib || '', Validators.maxLength(10)],
       categoriaId: [this.ProdutoData?.categoriaId || null],
       unidade: [this.ProdutoData?.unidade || '', [Validators.required, Validators.maxLength(10)]],
       unidadeSecundaria: [this.ProdutoData?.unidadeSecundaria || ''],
@@ -125,6 +133,9 @@ export class ProdutosForm implements OnInit, OnChanges {
         ativo: this.ProdutoData.ativo !== false,
         sku: this.ProdutoData.sku,
         nome: this.ProdutoData.nome,
+        tipo: this.ProdutoData.tipo || 'MERCADORIA',
+        codigoServico: this.ProdutoData.codigoServico,
+        classTrib: this.ProdutoData.classTrib,
         categoriaId: this.ProdutoData.categoriaId,
         unidade: this.ProdutoData.unidade,
         unidadeSecundaria: this.ProdutoData.unidadeSecundaria,

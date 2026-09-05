@@ -85,6 +85,32 @@ export const routes: Routes = [
         },
       },
       {
+        path: 'vendas/pedidos',
+        loadComponent: () => import('./pages/vendas/pedidos/pedidos').then((m) => m.Pedidos),
+        data: {
+          breadcrumb: [
+            { label: 'Home', link: '/web/home' },
+            { label: 'Comercial & Financeiro' },
+            { label: 'Pedidos de Venda' },
+          ],
+        },
+      },
+      {
+        path: 'vendas/pedidos/:id',
+        loadComponent: () =>
+          import('./pages/vendas/pedidos/pedido-detalhe/pedido-detalhe').then(
+            (m) => m.PedidoDetalhe,
+          ),
+        data: {
+          breadcrumb: [
+            { label: 'Home', link: '/web/home' },
+            { label: 'Comercial & Financeiro' },
+            { label: 'Pedidos de Venda', link: '/web/vendas/pedidos' },
+            { label: 'Detalhe do Pedido' },
+          ],
+        },
+      },
+      {
         path: 'cadastros/pessoas',
         loadComponent: () => import('./pages/cadastros/pessoas/pessoas').then((m) => m.Pessoas),
         data: {
