@@ -1,6 +1,6 @@
 # Motor de resolução de preço (padrão → grupo → cliente) — Plano de implementação
 
-**Status:** PLANEJADO (não iniciado) · **Data:** 2026-07-10 · **Serviços:** `cadastro-service` (foco) · `liquibase-service` (migração) · `Angular/erp-front-end-web` (fase 4)
+**Status:** IMPLEMENTADO e integrado ao O2C (fases 1-3 + integração em `operacoes-service`); testado ao vivo via front-end em 2026-09-05/06 (não commitado, `mvn`/`npm build` não executados) · **Última atualização:** 6 de setembro de 2026 · **Data original:** 2026-07-10 · **Serviços:** `cadastro-service` (foco) · `operacoes-service` (integração no O2C) · `liquibase-service` (migração) · `Angular/erp-front-end-web` (fase 4, ainda pendente)
 
 **Decisões fechadas:** preço individual de cliente = **TabelaPreco vinculada direto ao cliente** (nova FK `cliente.tabela_preco_id`), **sem** entidade `PrecoCliente` nova · precedência **CLIENTE → GRUPO → PADRÃO** com fall-through por nível · desempate determinístico (maior `inicioVigencia`, depois maior `updatedAt`/`createdAt`) · validação de sobreposição de vigência **só dentro da mesma tabela** (tabelas distintas coexistem por design).
 
@@ -146,7 +146,7 @@ flowchart TD
 ## Fixes de bugs colaterais
 
 1. `ProdutoService.java:211` e `:188` — trocar `.orElse(null)` por `.orElseThrow(BusinessException 400)` (fornecedor/tabela de preço inexistente ou de outro tenant deixa de virar null silencioso).
-2. `TabelaPrecoService.java:100` — novo método `existsByPadraoIsTrueAndTenantIdAndIdNot(tenantId, id)` no repository, excluindo o próprio registro da checagem de duplicidade de `padrao`. Corrigir também a action de auditoria (usa `CREATION` num fluxo de update).
+2. `TabelaPrecoService.java:102` — novo método `existsByPadraoIsTrueAndTenantIdAndIdNot(tenantId, id)` no repository, excluindo o próprio registro da checagem de duplicidade de `padrao`. Corrigir também a action de auditoria (usa `CREATION` num fluxo de update). **CONFIRMADO ainda não corrigido** — reproduzido em teste manual 2026-09-06: editar a tabela padrão sem trocar o campo `padrao` ainda dispara `TABELA_PRECO_PADRAO_ALREADY_EXISTS`, porque a única tabela padrão já existente é ela mesma.
 3. `ProdutoController.java:60-61` — trocar `tenantId`/`userId` mockados no create por `SecurityUtils`, como os demais endpoints.
 
 ---
@@ -191,3 +191,17 @@ flowchart LR
 - **Constraint `EXCLUDE` do Postgres** para vigência — hardening futuro, changelog à parte.
 - **Entidade `PrecoCliente` dedicada** — só se o volume de preço individual por cliente justificar (ver decisão de modelagem).
 - **Cache do resolver** — 3 queries no pior caso; medir antes de cachear.
+
+---
+
+## Bugs encontrados em teste manual da integração O2C (2026-09-05/06)
+
+Achados testando o motor de preço integrado no fluxo de Pedido via front-end (não commitados, não cobertos por teste automatizado ainda):
+
+1. **`PedidoService.atualizar()` congelava preço auto-resolvido como manual** (`operacoes-service/.../services/vendas/PedidoService.java`, método `atualizar`) — **CORRIGIDO em 2026-09-06** e confirmado ao vivo pelo usuário. O front do `pedido-form` sempre reenvia o `precoUnitario` atual do item ao editar o pedido, e `resolverPrecoEValidarItem` tratava qualquer `precoUnitario` não-nulo como override manual. Qualquer edição do pedido (mesmo em outro campo/item) fixava `precoManual=true` pra sempre, e `recalcularPrecos()` passou a pular esse item pra sempre (ela ignora item manual por design). Fix: compara o valor recebido com o do item existente antes de resolver; se igual e o existente não era manual, zera o campo pra forçar reresolução fresca em vez de fixar manual. Teste: `PedidoServiceTest.deveAtualizarPedidoSemFixarPrecoManualQuandoFrontReenviaPrecoInalterado`. **Limitação:** o fix só evita novas corrupções — item que já ficou com `precoManual=true` gravado antes do fix precisa de recuperação manual (limpar o campo "Preço Unit." no form e salvar, manda `precoUnitario=null`, resolve fresco e zera o manual).
+
+2. **Mensagem de erro genérica ao criar/editar Produto** (`Angular/.../pages/cadastros/produtos/produtos-form/produtos-form.ts:305-310` e `:322-327`) — o handler `error: (err: HttpErrorResponse) =>` ignora o corpo `StandardError` (`{message, ...}`, padrão do `GlobalExceptionHandler`) e sempre mostra "Erro ao criar/atualizar produto!" fixo, mesmo quando o backend já manda o motivo real (ex.: nome duplicado, preço vigente sobreposto) em `err.error.message`. **Não corrigido ainda.**
+
+3. **Pedidos: preciso clicar duas vezes no botão Editar + erro de console NG0100** (`Angular/.../pages/vendas/pedidos/pedidos.ts:146-155` `editarPedido()`, `pedidos.html:127` `<p-dialog [(visible)]="displayForm">`) — `ExpressionChangedAfterItHasBeenCheckedError` no console ao abrir o dialog de edição; sintoma relatado é precisar clicar 2x no botão "Editar" pra o form realmente abrir. `displayForm`/`selectedPedido` são propriedades simples (não signals) setadas dentro do `subscribe.next` de uma chamada HTTP assíncrona — suspeita de timing entre a resposta do `buscarPorId` e o ciclo de change detection do `p-dialog`. **Não corrigido ainda, causa raiz não confirmada.**
+
+4. **Erro "produto sem preço vigente" mostra o UUID em vez do nome** (`operacoes-service/.../services/vendas/PedidoService.java:160`, `Constants.PEDIDO_ITEM_SEM_PRECO`) — usa `item.getProdutoId()` (UUID cru) no lugar de `%s`, mensagem final tipo "Produto 7f1b53a2-... não possui preço vigente; informe o preço manualmente." O client `CadastroServiceClient` já tem `buscarProduto(produtoId, tenantId, userId)` retornando `ProdutoRef.nome()` — usado exatamente pra esse propósito num erro parecido (produto inativo, ver comentário em `CadastroServiceClient.java:140-141`). **Não corrigido ainda** — mesmo padrão de fix já existe no código, só falta aplicar aqui.

@@ -212,6 +212,8 @@ public class Constants {
     public static final String TABELA_PRECO_NOT_FOUND = "Tabela de Preco não encontrada!";
     public static final String TABELA_PRECO_ALREADY_EXISTS = "Já existe uma Tabela de Preco com este nome";
     public static final String TABELA_PRECO_PADRAO_ALREADY_EXISTS = "Já existe uma Tabela de Preco Padrao pra esse Tenant";
+    public static final String TABELA_PRECO_VIGENCIA_INVALIDA = "Início de vigência não pode ser posterior ao fim de vigência";
+    public static final String PRECO_NAO_RESOLVIDO = "Não foi possível resolver um preço para o produto informado";
 
     public static final String GRP_C_TABELA_PRECO = "TABELA_PRECO_GRUPO_CLIENTE";
     public static final String GRP_C_TABELA_PRECO_ASSOCIACAO = GRP_C_TABELA_PRECO+"_ASSOCIACAO";
@@ -232,6 +234,10 @@ public class Constants {
     // exigida pelo fiscal-service (MotorFiscalService) sempre que codigoServico vem preenchido.
     public static final String PRODUTO_CLASS_TRIB_OBRIGATORIO_SERVICO =
             "Classificação tributária (cClassTrib) é obrigatória para produto do tipo SERVICO";
+    public static final String PRODUTO_PRECO_VIGENCIA_INVALIDA =
+            "Início de vigência do preço não pode ser posterior ao fim de vigência";
+    public static final String PRODUTO_PRECO_VIGENCIA_SOBREPOSTA =
+            "Já existe um preço vigente para esta Tabela de Preço no período informado";
 
     public static final String PLAN = "PLAN";
     public static final String PLAN_CREATION = PLAN + "_" + INSERT;
@@ -519,8 +525,8 @@ public class Constants {
             "Desconto do item deve ser maior ou igual a zero e menor que o valor bruto do item";
     // Placeholder: produtoId duplicado.
     public static final String PEDIDO_ITEM_PRODUTO_DUPLICADO = "Produto duplicado no pedido: %s";
-    // Placeholder: produtoId sem preço. Stub do resolver (§6) enquanto a fase 3 do motor de
-    // preço não existe — todo item sem precoUnitario informado cai aqui (equivalente ao 404 real).
+    // Placeholder: produtoId sem preço. Item sem precoUnitario informado cai aqui quando o motor de
+    // preço (spec/motor-resolucao-preco.md) não resolve preço em nenhum nível da cascata.
     public static final String PEDIDO_ITEM_SEM_PRECO =
             "Produto %s não possui preço vigente; informe o preço manualmente.";
     public static final String PEDIDO_DATA_VALIDADE_INVALIDA =

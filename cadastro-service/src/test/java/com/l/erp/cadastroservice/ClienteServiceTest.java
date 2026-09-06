@@ -7,6 +7,7 @@ import com.l.erp.cadastroservice.repository.ClienteRepository;
 import com.l.erp.cadastroservice.repository.CondicaoPagamentoRepository;
 import com.l.erp.cadastroservice.repository.GrupoClienteRepository;
 import com.l.erp.cadastroservice.repository.PessoaRepository;
+import com.l.erp.cadastroservice.repository.TabelaPrecoRepository;
 import com.l.erp.cadastroservice.repository.VendedorRepository;
 import com.l.erp.cadastroservice.services.AuditProducerService;
 import com.l.erp.cadastroservice.services.ClienteService;
@@ -35,6 +36,7 @@ class ClienteServiceTest {
     @Mock private CondicaoPagamentoRepository condicaoPagamentoRepository;
     @Mock private GrupoClienteRepository grupoClienteRepository;
     @Mock private VendedorRepository vendedorRepository;
+    @Mock private TabelaPrecoRepository tabelaPrecoRepository;
     @Mock private AuditProducerService auditProducer;
 
     @InjectMocks private ClienteService clienteService;
@@ -43,7 +45,7 @@ class ClienteServiceTest {
     private static final UUID USER_ID = UUID.randomUUID();
 
     private ClienteDTO baseDto(UUID pessoaId) {
-        return new ClienteDTO(null, TENANT_ID, pessoaId, "COD1", null, null, null,
+        return new ClienteDTO(null, TENANT_ID, pessoaId, "COD1", null, null, null, null,
                 null, null, null, true, null, null, null, null);
     }
 

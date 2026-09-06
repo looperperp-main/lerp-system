@@ -262,7 +262,7 @@ class PedidoControllerTest {
     @WithMockUser(authorities = "PEDIDO_ESCRITA")
     void recalcularPrecosDeveRetornar200() throws Exception {
         UUID id = UUID.randomUUID();
-        when(service.recalcularPrecos(id, TENANT_ID)).thenReturn(pedido(id));
+        when(service.recalcularPrecos(id, TENANT_ID, USER_ID)).thenReturn(pedido(id));
         when(assembler.toDetailModel(any(), any(), any())).thenReturn(responseDto(id));
 
         mockMvc.perform(post("/api/v1/pedidos/{id}/recalcular-precos", id)

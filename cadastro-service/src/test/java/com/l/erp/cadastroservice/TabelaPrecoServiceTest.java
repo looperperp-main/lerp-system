@@ -158,6 +158,37 @@ class TabelaPrecoServiceTest {
     }
 
     @Test
+    void update_propriaTabelaPadrao_naoBloqueia() {
+        UUID id = UUID.randomUUID();
+        TabelaPreco existing = TabelaPreco.builder().id(id).nome("Padrao").ativa(true).padrao(true).build();
+
+        when(repository.findByIdAndTenantId(id, TENANT_ID)).thenReturn(Optional.of(existing));
+        when(repository.existsByPadraoIsTrueAndTenantIdAndIdNot(TENANT_ID, id)).thenReturn(false);
+        when(repository.save(any(TabelaPreco.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        TabelaPreco updated = tabelaPrecoService.update(id, dto("Padrao", true), USER_ID);
+
+        assertThat(updated.getPadrao()).isTrue();
+        verify(repository).save(any(TabelaPreco.class));
+    }
+
+    @Test
+    void update_marcarPadraoComOutraJaExistente_lancaBadRequest() {
+        UUID id = UUID.randomUUID();
+        TabelaPreco existing = TabelaPreco.builder().id(id).nome("Promo").ativa(true).padrao(false).build();
+
+        when(repository.findByIdAndTenantId(id, TENANT_ID)).thenReturn(Optional.of(existing));
+        when(repository.existsByPadraoIsTrueAndTenantIdAndIdNot(TENANT_ID, id)).thenReturn(true);
+
+        assertThatThrownBy(() -> tabelaPrecoService.update(id, dto("Promo", true), USER_ID))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getStatus())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+
+        verify(repository, never()).save(any());
+    }
+
+    @Test
     void updateStatus_alternaAtiva() {
         UUID id = UUID.randomUUID();
         TabelaPreco tabela = TabelaPreco.builder().id(id).ativa(true).build();

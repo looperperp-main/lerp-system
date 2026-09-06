@@ -222,7 +222,7 @@ public class PedidoController {
     @PostMapping("/{id}/recalcular-precos")
     @PreAuthorize("hasAuthority('PEDIDO_ESCRITA')")
     public ResponseEntity<PedidoResponseDTO> recalcularPrecos(@PathVariable UUID id) {
-        return ResponseEntity.ok(detalhe(service.recalcularPrecos(id, tenantId())));
+        return ResponseEntity.ok(detalhe(service.recalcularPrecos(id, tenantId(), userId())));
     }
 
     @Operation(summary = "Reabrir pedido", description = "Volta o pedido de CONFIRMADO para ORCAMENTO, permitindo nova edição.")

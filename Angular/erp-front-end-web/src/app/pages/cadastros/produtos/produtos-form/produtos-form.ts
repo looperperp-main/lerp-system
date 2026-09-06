@@ -306,7 +306,7 @@ export class ProdutosForm implements OnInit, OnChanges {
           this.messageService.add({
             severity: 'error',
             summary: 'Erro',
-            detail: 'Erro ao atualizar produto!',
+            detail: err.error?.message || 'Erro ao atualizar produto!',
           }),
       });
     } else {
@@ -323,7 +323,7 @@ export class ProdutosForm implements OnInit, OnChanges {
           this.messageService.add({
             severity: 'error',
             summary: 'Erro',
-            detail: 'Erro ao criar produto! ',
+            detail: err.error?.message || 'Erro ao criar produto!',
           }),
       });
     }

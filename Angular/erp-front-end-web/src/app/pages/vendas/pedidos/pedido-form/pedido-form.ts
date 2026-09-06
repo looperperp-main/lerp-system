@@ -1,4 +1,14 @@
-import { Component, EventEmitter, inject, Input, OnInit, Output, signal } from '@angular/core';
+import {
+  Component,
+  EventEmitter,
+  inject,
+  Input,
+  OnChanges,
+  OnInit,
+  Output,
+  signal,
+  SimpleChanges,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MessageService } from 'primeng/api';
@@ -36,7 +46,7 @@ import { ProdutoService } from '../../../cadastros/produtos/produto.service';
   templateUrl: './pedido-form.html',
   styleUrl: './pedido-form.scss',
 })
-export class PedidoForm implements OnInit {
+export class PedidoForm implements OnInit, OnChanges {
   @Input() pedidoData: Pedido | null = null;
   @Output() saved = new EventEmitter<void>();
   @Output() canceled = new EventEmitter<void>();
@@ -65,16 +75,43 @@ export class PedidoForm implements OnInit {
 
   ngOnInit(): void {
     this.form = this.fb.group({
-      clienteId: [this.pedidoData?.clienteId || null, Validators.required],
-      vendedorId: [this.pedidoData?.vendedorId || null],
-      condicaoPagamentoId: [this.pedidoData?.condicaoPagamentoId || null],
-      modalidadeFrete: [this.pedidoData?.modalidadeFrete || null],
-      dataEmissao: [
-        this.pedidoData?.dataEmissao ? new Date(this.pedidoData.dataEmissao) : new Date(),
-      ],
-      dataValidade: [this.pedidoData?.dataValidade ? new Date(this.pedidoData.dataValidade) : null],
-      observacao: [this.pedidoData?.observacao || '', [Validators.maxLength(1000)]],
+      clienteId: [null, Validators.required],
+      vendedorId: [null],
+      condicaoPagamentoId: [null],
+      modalidadeFrete: [null],
+      dataEmissao: [new Date()],
+      dataValidade: [null],
+      observacao: ['', [Validators.maxLength(1000)]],
       itens: this.fb.array([]),
+    });
+
+    this.populateForm();
+    this.loadDropdowns();
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    // O diálogo de edição abre com os dados parciais da linha da tabela (evita o NG0100 do
+    // p-dialog ao abrir de dentro de um subscribe assíncrono, ver pedidos.ts#editarPedido);
+    // quando o pedido completo chega do backend, pedidoData troca de referência e o
+    // formulário precisa ser repopulado. Mesmo padrão de produtos-form.ts.
+    if (changes['pedidoData'] && !changes['pedidoData'].firstChange && this.form) {
+      this.populateForm();
+    }
+  }
+
+  private populateForm(): void {
+    this.itensArray.clear();
+
+    this.form.patchValue({
+      clienteId: this.pedidoData?.clienteId || null,
+      vendedorId: this.pedidoData?.vendedorId || null,
+      condicaoPagamentoId: this.pedidoData?.condicaoPagamentoId || null,
+      modalidadeFrete: this.pedidoData?.modalidadeFrete || null,
+      dataEmissao: this.pedidoData?.dataEmissao
+        ? new Date(this.pedidoData.dataEmissao)
+        : new Date(),
+      dataValidade: this.pedidoData?.dataValidade ? new Date(this.pedidoData.dataValidade) : null,
+      observacao: this.pedidoData?.observacao || '',
     });
 
     if (this.pedidoData?.itens?.length) {
@@ -84,8 +121,6 @@ export class PedidoForm implements OnInit {
     } else {
       this.addItem();
     }
-
-    this.loadDropdowns();
   }
 
   get itensArray(): FormArray {

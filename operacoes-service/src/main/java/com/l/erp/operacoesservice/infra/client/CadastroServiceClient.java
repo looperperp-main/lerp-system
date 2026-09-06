@@ -75,6 +75,30 @@ public class CadastroServiceClient {
         }
     }
 
+    // Motor de preço (spec/motor-resolucao-preco.md) — cascata CLIENTE→GRUPO→PADRAO. clienteId nulo
+    // é válido (pedido sem cliente ainda não deveria chegar aqui, mas a cascata cai direto pro PADRAO).
+    public PrecoResolvidoRef resolverPreco(UUID produtoId, UUID clienteId, Long tenantId, UUID userId) {
+        try {
+            return restClient.get()
+                    .uri(uriBuilder -> {
+                        var uri = uriBuilder.path("/api/v1/precos/resolver").queryParam("produtoId", produtoId);
+                        if (clienteId != null) {
+                            uri = uri.queryParam("clienteId", clienteId);
+                        }
+                        return uri.build();
+                    })
+                    .headers(headers -> headersInternos(headers, tenantId, userId))
+                    .retrieve()
+                    .body(PrecoResolvidoRef.class);
+        } catch (HttpClientErrorException.NotFound e) {
+            return null;
+        }
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record PrecoResolvidoRef(UUID tabelaPrecoId, String origem, BigDecimal preco) {
+    }
+
     public ProdutoRef buscarProduto(UUID produtoId, Long tenantId, UUID userId) {
         try {
             return restClient.get()

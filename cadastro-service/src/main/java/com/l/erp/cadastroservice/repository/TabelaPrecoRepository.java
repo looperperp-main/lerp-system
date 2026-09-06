@@ -13,8 +13,11 @@ import java.util.UUID;
 public interface TabelaPrecoRepository extends JpaRepository<TabelaPreco, UUID> {
     boolean existsByNomeIgnoreCaseAndTenantId(String nome, Long tenantId);
     boolean existsByPadraoIsTrueAndTenantId( Long tenantId);
+    boolean existsByPadraoIsTrueAndTenantIdAndIdNot(Long tenantId, UUID id);
     Page<TabelaPreco> findAll(Pageable pageable);
     Optional<TabelaPreco> findById(UUID id);
 
     Optional<TabelaPreco> findByIdAndTenantId(UUID tabelaId, Long tenantId);
+
+    Optional<TabelaPreco> findByPadraoIsTrueAndTenantId(Long tenantId);
 }

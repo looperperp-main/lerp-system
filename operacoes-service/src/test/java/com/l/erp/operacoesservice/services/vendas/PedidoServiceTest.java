@@ -6,6 +6,7 @@ import com.l.erp.operacoesservice.domain.vendas.PedidoItem;
 import com.l.erp.operacoesservice.domain.vendas.enumerators.ModalidadeFrete;
 import com.l.erp.operacoesservice.domain.vendas.enumerators.StatusPedido;
 import com.l.erp.operacoesservice.domain.vendas.enumerators.TipoItemPedido;
+import com.l.erp.operacoesservice.infra.client.CadastroServiceClient;
 import com.l.erp.operacoesservice.repository.vendas.PedidoItemRepository;
 import com.l.erp.operacoesservice.repository.vendas.PedidoRepository;
 import com.l.erp.operacoesservice.repository.vendas.PedidoStatusHistoricoRepository;
@@ -27,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -42,6 +44,8 @@ class PedidoServiceTest {
     private PedidoNumeroService pedidoNumeroService;
     @Mock
     private ApplicationEventPublisher eventPublisher;
+    @Mock
+    private CadastroServiceClient cadastroServiceClient;
 
     @InjectMocks
     private PedidoService pedidoService;
@@ -78,14 +82,42 @@ class PedidoServiceTest {
     }
 
     @Test
-    void deveLancarSeItemSemPrecoUnitario_stubDoResolver() {
+    void deveLancarSeItemSemPrecoUnitarioEMotorNaoResolve() {
         PedidoItem semPreco = PedidoItem.builder().produtoId(UUID.randomUUID())
                 .tipoItem(TipoItemPedido.MERCADORIA).quantidade(BigDecimal.ONE).build();
+        when(cadastroServiceClient.resolverPreco(semPreco.getProdutoId(), CLIENTE_ID, TENANT_ID, USER_ID))
+                .thenReturn(null);
+        when(cadastroServiceClient.buscarProduto(semPreco.getProdutoId(), TENANT_ID, USER_ID))
+                .thenReturn(new CadastroServiceClient.ProdutoRef("MERCADORIA", null, true, null, null, "Parafuso Sextavado"));
 
         assertThatThrownBy(() -> pedidoService.criarOrcamento(
                 Pedido.builder().clienteId(CLIENTE_ID).build(), List.of(semPreco), TENANT_ID, USER_ID))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("preço vigente");
+                .hasMessageContaining("preço vigente")
+                .hasMessageContaining("Parafuso Sextavado")
+                .hasMessageNotContaining(semPreco.getProdutoId().toString());
+    }
+
+    @Test
+    void deveResolverPrecoViaMotorQuandoPrecoUnitarioOmitido() {
+        UUID tabelaPrecoId = UUID.randomUUID();
+        PedidoItem semPreco = PedidoItem.builder().produtoId(UUID.randomUUID())
+                .tipoItem(TipoItemPedido.MERCADORIA).quantidade(new BigDecimal("2")).build();
+        when(cadastroServiceClient.resolverPreco(semPreco.getProdutoId(), CLIENTE_ID, TENANT_ID, USER_ID))
+                .thenReturn(new CadastroServiceClient.PrecoResolvidoRef(tabelaPrecoId, "CLIENTE", new BigDecimal("15.00")));
+        when(pedidoNumeroService.proximoNumero(TENANT_ID)).thenReturn(1L);
+        when(pedidoRepository.save(any(Pedido.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Pedido salvo = pedidoService.criarOrcamento(
+                Pedido.builder().clienteId(CLIENTE_ID).build(), List.of(semPreco), TENANT_ID, USER_ID);
+
+        assertThat(semPreco.getPrecoManual()).isFalse();
+        assertThat(semPreco.getPrecoUnitario()).isEqualByComparingTo("15.00");
+        assertThat(semPreco.getPrecoTabela()).isEqualByComparingTo("15.00");
+        assertThat(semPreco.getTabelaPrecoId()).isEqualTo(tabelaPrecoId);
+        assertThat(semPreco.getOrigemPreco()).isEqualTo("CLIENTE");
+        assertThat(semPreco.getValorTotal()).isEqualByComparingTo("30.00");
+        assertThat(salvo.getValorTotal()).isEqualByComparingTo("30.00");
     }
 
     @Test
@@ -443,23 +475,80 @@ class PedidoServiceTest {
     }
 
     @Test
+    void deveAtualizarPedidoSemFixarPrecoManualQuandoFrontReenviaPrecoInalterado() {
+        Pedido pedido = pedidoComTenant(Pedido.builder().id(UUID.randomUUID())
+                .status(StatusPedido.ORCAMENTO).clienteId(CLIENTE_ID).build());
+        UUID produtoId = UUID.randomUUID();
+        PedidoItem itemExistente = PedidoItem.builder().produtoId(produtoId)
+                .tipoItem(TipoItemPedido.MERCADORIA).quantidade(new BigDecimal("2"))
+                .precoUnitario(new BigDecimal("10.00")).precoManual(false).build();
+        when(pedidoRepository.findByIdAndTenantId(pedido.getId(), TENANT_ID)).thenReturn(Optional.of(pedido));
+        when(pedidoItemRepository.findAllByPedidoId(pedido.getId())).thenReturn(List.of(itemExistente));
+        when(pedidoRepository.save(any(Pedido.class))).thenAnswer(inv -> inv.getArgument(0));
+        UUID novaTabelaId = UUID.randomUUID();
+        when(cadastroServiceClient.resolverPreco(produtoId, CLIENTE_ID, TENANT_ID, USER_ID))
+                .thenReturn(new CadastroServiceClient.PrecoResolvidoRef(novaTabelaId, "PADRAO", new BigDecimal("9.00")));
+
+        Pedido dados = Pedido.builder().clienteId(CLIENTE_ID).build();
+        PedidoItem itemReenviado = PedidoItem.builder().produtoId(produtoId)
+                .tipoItem(TipoItemPedido.MERCADORIA).quantidade(new BigDecimal("2"))
+                .precoUnitario(new BigDecimal("10.00")).build();
+
+        pedidoService.atualizar(pedido.getId(), TENANT_ID, USER_ID, dados, List.of(itemReenviado));
+
+        assertThat(itemReenviado.getPrecoManual()).isFalse();
+        assertThat(itemReenviado.getPrecoUnitario()).isEqualByComparingTo("9.00");
+        assertThat(itemReenviado.getTabelaPrecoId()).isEqualTo(novaTabelaId);
+    }
+
+    @Test
     void deveLancarAoRecalcularPrecosDePedidoQueNaoEstaEmOrcamento() {
         Pedido pedido = pedidoComTenant(Pedido.builder().id(UUID.randomUUID())
                 .status(StatusPedido.CONFIRMADO).build());
         when(pedidoRepository.findByIdAndTenantId(pedido.getId(), TENANT_ID)).thenReturn(Optional.of(pedido));
 
-        assertThatThrownBy(() -> pedidoService.recalcularPrecos(pedido.getId(), TENANT_ID))
+        assertThatThrownBy(() -> pedidoService.recalcularPrecos(pedido.getId(), TENANT_ID, USER_ID))
                 .isInstanceOf(BusinessException.class);
     }
 
     @Test
-    void recalcularPrecosDeveSerNoOpParaOrcamento() {
+    void recalcularPrecosDeveIgnorarItemComPrecoManual() {
         Pedido pedido = pedidoComTenant(Pedido.builder().id(UUID.randomUUID())
-                .status(StatusPedido.ORCAMENTO).valorTotal(new BigDecimal("20.00")).build());
+                .clienteId(CLIENTE_ID).status(StatusPedido.ORCAMENTO).build());
+        PedidoItem itemManual = item(new BigDecimal("2"), new BigDecimal("10.00"));
+        itemManual.setPrecoManual(true);
+        itemManual.setDesconto(BigDecimal.ZERO);
+        itemManual.setValorTotal(new BigDecimal("20.00"));
         when(pedidoRepository.findByIdAndTenantId(pedido.getId(), TENANT_ID)).thenReturn(Optional.of(pedido));
+        when(pedidoItemRepository.findAllByPedidoId(pedido.getId())).thenReturn(List.of(itemManual));
+        when(pedidoRepository.save(any(Pedido.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        Pedido resultado = pedidoService.recalcularPrecos(pedido.getId(), TENANT_ID);
+        Pedido resultado = pedidoService.recalcularPrecos(pedido.getId(), TENANT_ID, USER_ID);
 
+        verifyNoInteractions(cadastroServiceClient);
+        assertThat(itemManual.getPrecoUnitario()).isEqualByComparingTo("10.00");
         assertThat(resultado.getValorTotal()).isEqualByComparingTo("20.00");
+    }
+
+    @Test
+    void recalcularPrecosDeveReresolverItemSemOverrideManual() {
+        Pedido pedido = pedidoComTenant(Pedido.builder().id(UUID.randomUUID())
+                .clienteId(CLIENTE_ID).status(StatusPedido.ORCAMENTO).build());
+        PedidoItem itemAuto = item(new BigDecimal("2"), new BigDecimal("10.00"));
+        itemAuto.setPrecoManual(false);
+        itemAuto.setDesconto(BigDecimal.ZERO);
+        UUID novaTabelaId = UUID.randomUUID();
+        when(pedidoRepository.findByIdAndTenantId(pedido.getId(), TENANT_ID)).thenReturn(Optional.of(pedido));
+        when(pedidoItemRepository.findAllByPedidoId(pedido.getId())).thenReturn(List.of(itemAuto));
+        when(cadastroServiceClient.resolverPreco(itemAuto.getProdutoId(), CLIENTE_ID, TENANT_ID, USER_ID))
+                .thenReturn(new CadastroServiceClient.PrecoResolvidoRef(novaTabelaId, "PADRAO", new BigDecimal("12.00")));
+        when(pedidoRepository.save(any(Pedido.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Pedido resultado = pedidoService.recalcularPrecos(pedido.getId(), TENANT_ID, USER_ID);
+
+        assertThat(itemAuto.getPrecoUnitario()).isEqualByComparingTo("12.00");
+        assertThat(itemAuto.getTabelaPrecoId()).isEqualTo(novaTabelaId);
+        assertThat(itemAuto.getOrigemPreco()).isEqualTo("PADRAO");
+        assertThat(resultado.getValorTotal()).isEqualByComparingTo("24.00");
     }
 }

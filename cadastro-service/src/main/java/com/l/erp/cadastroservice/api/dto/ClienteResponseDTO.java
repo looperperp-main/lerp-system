@@ -19,6 +19,7 @@ public class ClienteResponseDTO extends RepresentationModel<ClienteResponseDTO> 
     private UUID condicaoPagamentoId;
     private UUID grupoClienteId;
     private UUID vendedorId;
+    private UUID tabelaPrecoId;
     private String codigoInterno;
     private String nome;
     private BigDecimal limiteCredito;

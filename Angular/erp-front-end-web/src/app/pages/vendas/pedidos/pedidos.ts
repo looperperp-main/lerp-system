@@ -144,13 +144,22 @@ export class Pedidos implements OnInit {
   }
 
   editarPedido(pedido: Pedido): void {
+    // Abre o diálogo já no clique (síncrono, como openNew()) — abrir só dentro do
+    // subscribe do HTTP causava NG0100 no [(visible)] do p-dialog (o setter de visible
+    // do PrimeNG grava signals internos durante o ciclo de CD, e isso só quebra quando
+    // a mudança vem de um callback assíncrono, não de um clique). Ver mesmo fix em
+    // produtos.ts:editProduto().
+    this.selectedPedido = pedido;
+    this.displayForm = true;
+
     this.pedidoService.buscarPorId(pedido.id!).subscribe({
       next: (p) => {
         this.selectedPedido = p;
-        this.displayForm = true;
       },
-      error: (err: HttpErrorResponse) =>
-        this.handleError(err, 'Erro ao carregar o pedido para edição.'),
+      error: (err: HttpErrorResponse) => {
+        this.displayForm = false;
+        this.handleError(err, 'Erro ao carregar o pedido para edição.');
+      },
     });
   }
 

@@ -8,6 +8,7 @@ import com.l.erp.operacoesservice.domain.vendas.PedidoStatusHistorico;
 import com.l.erp.operacoesservice.domain.vendas.enumerators.ModalidadeFrete;
 import com.l.erp.operacoesservice.domain.vendas.enumerators.StatusPedido;
 import com.l.erp.operacoesservice.domain.vendas.enumerators.TipoItemPedido;
+import com.l.erp.operacoesservice.infra.client.CadastroServiceClient;
 import com.l.erp.operacoesservice.repository.vendas.PedidoItemRepository;
 import com.l.erp.operacoesservice.repository.vendas.PedidoRepository;
 import com.l.erp.operacoesservice.repository.vendas.PedidoStatusHistoricoRepository;
@@ -32,13 +33,12 @@ import java.util.UUID;
 /**
  * CRUD do orçamento, máquina de estados e validações de negócio do O2C (spec/o2c-vendas.md §4/§7/§8, Fase 3).
  *
- * <p>ponytail: dois pontos de integração externa ainda não existem nesta fase e ficam stub/parametrizados —
- * o motor de preço (§6: "até lá, stub que força preco_manual" — item sem {@code precoUnitario} informado
- * vira erro de "sem preço vigente", equivalente ao 404 real do resolver) e a validação em lote de
+ * <p>ponytail: item sem {@code precoUnitario} informado é resolvido via motor de preço
+ * (spec/motor-resolucao-preco.md, {@link CadastroServiceClient#resolverPreco}); a validação em lote de
  * referências no cadastro-service (§2: endpoint {@code /interno/referencias/validar} ainda não existe,
- * pendência registrada na Fase 0 do spec). Dados que viriam do cadastro-service por HTTP (limite de
- * crédito do cliente, parcelas da condição de pagamento) entram como parâmetro — resolvidos pelo
- * chamador quando o client HTTP for escrito (Fase 4/controller).</p>
+ * pendência registrada na Fase 0 do spec) continua pendente. Dados que viriam do cadastro-service por
+ * HTTP (limite de crédito do cliente, parcelas da condição de pagamento) entram como parâmetro —
+ * resolvidos pelo chamador (Fase 4/controller).</p>
  */
 @Service
 public class PedidoService {
@@ -60,17 +60,20 @@ public class PedidoService {
     private final PedidoStatusHistoricoRepository pedidoStatusHistoricoRepository;
     private final PedidoNumeroService pedidoNumeroService;
     private final ApplicationEventPublisher eventPublisher;
+    private final CadastroServiceClient cadastroServiceClient;
 
     public PedidoService(PedidoRepository pedidoRepository,
                           PedidoItemRepository pedidoItemRepository,
                           PedidoStatusHistoricoRepository pedidoStatusHistoricoRepository,
                           PedidoNumeroService pedidoNumeroService,
-                          ApplicationEventPublisher eventPublisher) {
+                          ApplicationEventPublisher eventPublisher,
+                          CadastroServiceClient cadastroServiceClient) {
         this.pedidoRepository = pedidoRepository;
         this.pedidoItemRepository = pedidoItemRepository;
         this.pedidoStatusHistoricoRepository = pedidoStatusHistoricoRepository;
         this.pedidoNumeroService = pedidoNumeroService;
         this.eventPublisher = eventPublisher;
+        this.cadastroServiceClient = cadastroServiceClient;
     }
 
     // ---------------------------------------------------------------- criação do orçamento (§7)
@@ -85,7 +88,7 @@ public class PedidoService {
         validarItensSemDuplicidade(itens);
         Instant agora = Instant.now();
         for (PedidoItem item : itens) {
-            resolverPrecoEValidarItem(item, tenantId, userId, agora);
+            resolverPrecoEValidarItem(item, pedido.getClienteId(), tenantId, userId, agora);
         }
 
         pedido.setTenantId(tenantId);
@@ -117,12 +120,12 @@ public class PedidoService {
     }
 
     /**
-     * ponytail: stub do resolver de preço (§6) — sem client HTTP pro cadastro-service ainda, item
-     * sem {@code precoUnitario} informado é tratado como "sem preço vigente" (mesmo efeito de um 404
-     * real do resolver). Quando a fase 3 do motor existir, este método passa a chamá-lo antes de cair
-     * nesse erro; snapshot de tabela/origem fica {@code null} até lá — não há de onde vir.
+     * Motor de preço (spec/motor-resolucao-preco.md) — item sem {@code precoUnitario} informado é
+     * resolvido via {@link CadastroServiceClient#resolverPreco} (cascata CLIENTE→GRUPO→PADRAO); sem
+     * preço vigente em nenhum nível, mesmo erro de antes ("sem preço vigente"). precoUnitario
+     * informado continua sendo tratado como override manual — resolver nunca é chamado nesse caso.
      */
-    private void resolverPrecoEValidarItem(PedidoItem item, Long tenantId, UUID userId, Instant agora) {
+    private void resolverPrecoEValidarItem(PedidoItem item, UUID clienteId, Long tenantId, UUID userId, Instant agora) {
         if (item.getTipoItem() == null) {
             throw new BusinessException(
                     String.format(Constants.PEDIDO_ITEM_SEM_TIPO, item.getProdutoId()), HttpStatus.BAD_REQUEST);
@@ -130,11 +133,12 @@ public class PedidoService {
         if (item.getQuantidade() == null || item.getQuantidade().signum() <= 0) {
             throw new BusinessException(Constants.PEDIDO_ITEM_QUANTIDADE_INVALIDA, HttpStatus.BAD_REQUEST);
         }
-        if (item.getPrecoUnitario() == null) {
-            throw new BusinessException(
-                    String.format(Constants.PEDIDO_ITEM_SEM_PRECO, item.getProdutoId()), HttpStatus.BAD_REQUEST);
+
+        if (item.getPrecoUnitario() != null) {
+            item.setPrecoManual(true);
+        } else {
+            aplicarPrecoResolvido(item, clienteId, tenantId, userId);
         }
-        item.setPrecoManual(true);
 
         BigDecimal desconto = item.getDesconto() != null ? item.getDesconto() : BigDecimal.ZERO;
         BigDecimal bruto = item.getQuantidade().multiply(item.getPrecoUnitario());
@@ -146,6 +150,21 @@ public class PedidoService {
         item.setTenantId(tenantId);
         item.setCreatedAt(agora);
         item.setCreatedBy(userId);
+    }
+
+    private void aplicarPrecoResolvido(PedidoItem item, UUID clienteId, Long tenantId, UUID userId) {
+        CadastroServiceClient.PrecoResolvidoRef resolvido =
+                cadastroServiceClient.resolverPreco(item.getProdutoId(), clienteId, tenantId, userId);
+        if (resolvido == null) {
+            CadastroServiceClient.ProdutoRef produto = cadastroServiceClient.buscarProduto(item.getProdutoId(), tenantId, userId);
+            throw new BusinessException(
+                    String.format(Constants.PEDIDO_ITEM_SEM_PRECO, produto.nome()), HttpStatus.BAD_REQUEST);
+        }
+        item.setPrecoUnitario(resolvido.preco());
+        item.setPrecoTabela(resolvido.preco());
+        item.setTabelaPrecoId(resolvido.tabelaPrecoId());
+        item.setOrigemPreco(resolvido.origem());
+        item.setPrecoManual(false);
     }
 
     private void recalcularTotaisDosItens(Pedido pedido, List<PedidoItem> itens) {
@@ -362,9 +381,22 @@ public class PedidoService {
         aplicarCabecalhoPadrao(pedido);
 
         validarItensSemDuplicidade(itens);
+        Map<UUID, PedidoItem> existentesPorProduto = pedidoItemRepository.findAllByPedidoId(pedidoId).stream()
+                .collect(java.util.stream.Collectors.toMap(PedidoItem::getProdutoId, item -> item));
         Instant agora = Instant.now();
         for (PedidoItem item : itens) {
-            resolverPrecoEValidarItem(item, tenantId, userId, agora);
+            PedidoItem existente = existentesPorProduto.get(item.getProdutoId());
+            // ponytail: o front sempre reenvia o precoUnitario atual do item ao editar o pedido; se o
+            // valor não mudou em relação ao item existente (e ele não era override manual), trata como
+            // "ainda resolvido pelo motor" e deixa reresolver fresco — senão qualquer edição não
+            // relacionada congela o preço antigo em precoManual=true e recalcularPrecos() nunca mais
+            // atualiza esse item.
+            if (existente != null && !Boolean.TRUE.equals(existente.getPrecoManual())
+                    && item.getPrecoUnitario() != null && existente.getPrecoUnitario() != null
+                    && item.getPrecoUnitario().compareTo(existente.getPrecoUnitario()) == 0) {
+                item.setPrecoUnitario(null);
+            }
+            resolverPrecoEValidarItem(item, pedido.getClienteId(), tenantId, userId, agora);
         }
 
         pedidoItemRepository.deleteAllByPedidoId(pedidoId);
@@ -383,16 +415,27 @@ public class PedidoService {
         return pedidoRepository.save(pedido);
     }
 
+    /** Reaplica o motor de preço (CLIENTE→GRUPO→PADRAO) nos itens sem override manual do orçamento. */
     @Transactional
-    public Pedido recalcularPrecos(UUID pedidoId, Long tenantId) {
+    public Pedido recalcularPrecos(UUID pedidoId, Long tenantId, UUID userId) {
         Pedido pedido = buscarPedido(pedidoId, tenantId);
         if (pedido.getStatus() != StatusPedido.ORCAMENTO) {
             throw new BusinessException(Constants.PEDIDO_RECALCULO_SO_ORCAMENTO, HttpStatus.BAD_REQUEST);
         }
-        // ponytail: motor de preço ainda não existe (§6) — resolverPrecoEValidarItem sempre marca
-        // precoManual=true, então hoje nenhum item é elegível a recálculo automático. No-op até o
-        // resolver existir; endpoint fica pronto pro contrato da API.
-        return pedido;
+        List<PedidoItem> itens = pedidoItemRepository.findAllByPedidoId(pedidoId);
+        for (PedidoItem item : itens) {
+            if (Boolean.TRUE.equals(item.getPrecoManual())) {
+                continue;
+            }
+            aplicarPrecoResolvido(item, pedido.getClienteId(), tenantId, userId);
+            BigDecimal desconto = item.getDesconto() != null ? item.getDesconto() : BigDecimal.ZERO;
+            item.setValorTotal(item.getQuantidade().multiply(item.getPrecoUnitario()).subtract(desconto));
+        }
+        pedidoItemRepository.saveAll(itens);
+        recalcularTotaisDosItens(pedido, itens);
+        pedido.setUpdatedAt(Instant.now());
+        pedido.setLastUpdatedBy(userId);
+        return pedidoRepository.save(pedido);
     }
 
     @Transactional(readOnly = true)

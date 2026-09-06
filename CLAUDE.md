@@ -181,4 +181,6 @@ Angular 21, standalone components (no NgModules). Pages in `src/app/pages/` (`lo
 
 **Sempre revisar os testes ao mexer no back-end:** toda alteração em código backend (serviço, handler, config, entidade) exige passar o olho nos testes que cobrem aquele código **na mesma mudança** — verificar se algum teste passou a contradizer o novo comportamento e atualizá-lo (ou o código, conforme a intenção correta pela spec). Motivação: um fix de segurança/comportamento que não atualiza o teste correspondente deixa o teste validando a versão antiga e quebra o pipeline (ex.: auditoria 7.6 mudou `PaymentReceivedHandler` p/ usar `sub.getValue()`, mas o teste ficou esperando o valor do payload → build vermelho).
 
+**Botões desabilitados vs. escondidos:** quando uma ação não pode ser realizada por regra de negócio (ex.: status não permite editar/excluir), o botão correspondente deve ser **escondido** (`*ngIf`/`hidden`), nunca desabilitado (`disabled`). Vale para toda tela nova e refactor de tela existente a partir de agora.
+
 **Não gerar mensagem de commit:** o Claude não deve propor/gerar mensagens de commit ao final das mudanças, a menos que o usuário peça explicitamente.

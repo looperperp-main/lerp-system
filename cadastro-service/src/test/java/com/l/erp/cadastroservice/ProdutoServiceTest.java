@@ -7,6 +7,7 @@ import com.l.erp.cadastroservice.api.mappers.ProdutoMapper;
 import com.l.erp.cadastroservice.domain.Produto;
 import com.l.erp.cadastroservice.domain.ProdutoCategoria;
 import com.l.erp.cadastroservice.domain.ProdutoPreco;
+import com.l.erp.cadastroservice.domain.TabelaPreco;
 import com.l.erp.cadastroservice.domain.enumerators.TipoProduto;
 import com.l.erp.cadastroservice.repository.DepositoRepository;
 import com.l.erp.cadastroservice.repository.FornecedorRepository;
@@ -252,6 +253,8 @@ class ProdutoServiceTest {
         when(produtoRepository.findByIdAndTenantId(id, TENANT_ID)).thenReturn(Optional.of(existing));
         when(produtoRepository.saveAndFlush(any(Produto.class))).thenAnswer(inv -> inv.getArgument(0));
         when(produtoRepository.save(any(Produto.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(tabelaPrecoRepository.findByIdAndTenantId(any(UUID.class), any(Long.class)))
+                .thenReturn(Optional.of(TabelaPreco.builder().id(UUID.randomUUID()).build()));
 
         Produto updated = produtoService.update(id, USER_ID, dtoComPreco, TENANT_ID);
 

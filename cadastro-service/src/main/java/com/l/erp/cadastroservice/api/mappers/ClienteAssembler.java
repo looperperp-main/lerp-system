@@ -4,6 +4,7 @@ import com.l.erp.cadastroservice.api.controllers.ClienteController;
 import com.l.erp.cadastroservice.api.controllers.CondicaoPagamentoController;
 import com.l.erp.cadastroservice.api.controllers.GrupoClienteController;
 import com.l.erp.cadastroservice.api.controllers.PessoaController;
+import com.l.erp.cadastroservice.api.controllers.TabelaPrecoController;
 import com.l.erp.cadastroservice.api.controllers.VendedorController;
 import com.l.erp.cadastroservice.api.dto.ClienteResponseDTO;
 import com.l.erp.cadastroservice.domain.Cliente;
@@ -30,6 +31,7 @@ public class ClienteAssembler extends RepresentationModelAssemblerSupport<Client
         dto.setCondicaoPagamentoId(entity.getCondicaoPagamento() != null ? entity.getCondicaoPagamento().getId() : null);
         dto.setGrupoClienteId(entity.getGrupoCliente() != null ? entity.getGrupoCliente().getId() : null);
         dto.setVendedorId(entity.getVendedor() != null ? entity.getVendedor().getId() : null);
+        dto.setTabelaPrecoId(entity.getTabelaPreco() != null ? entity.getTabelaPreco().getId() : null);
 
         // Campos normais
         dto.setNome(entity.getPessoa() != null ? entity.getPessoa().getNomeRazao() : null);
@@ -58,6 +60,9 @@ public class ClienteAssembler extends RepresentationModelAssemblerSupport<Client
         }
         if (entity.getVendedor() != null) {
             dto.add(linkTo(methodOn(VendedorController.class).findById(entity.getVendedor().getId())).withRel("vendedor"));
+        }
+        if (entity.getTabelaPreco() != null) {
+            dto.add(linkTo(methodOn(TabelaPrecoController.class).findById(entity.getTabelaPreco().getId())).withRel("tabela-preco"));
         }
 
         return dto;
