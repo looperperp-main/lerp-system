@@ -169,6 +169,13 @@ Angular 21, standalone components (no NgModules). Pages in `src/app/pages/` (`lo
 
 ## Workflow Directives
 
+**Padrão de qualidade: o sistema precisa ficar o mais profissional possível.** Vale nas três frentes, não só numa:
+- **UI/UX (os 3 front-ends):** nada de tela com cara de protótipo — estados de loading, erro e vazio tratados, responsividade, consistência com o design system `jb-*`/PrimeNG já em uso, mensagens em PT-BR claras pro usuário final (nunca stacktrace/erro técnico na tela).
+- **Código/arquitetura:** seguir os padrões já fixados neste arquivo (camadas, `common/Constants`, tratamento de erro via `GlobalExceptionHandler`, etc.) em vez de atalho pontual; sem gambiarra "resolve e esquece".
+- **Robustez funcional:** cobrir os edge cases da regra de negócio (não só o caminho feliz), sem deixar fluxo pela metade quando a spec já define o comportamento completo.
+
+Ao decidir entre a solução rápida e a solução correta, puxar pra correta — a menos que o usuário peça explicitamente algo descartável/protótipo.
+
 **Specs com Fable (SUSPENSO por ora — 2026-07-22):** o Fable **não está no plano atual**, então trabalho em specs (`spec/*.md`) segue no modelo disponível (Opus 4.8) sem trocar de modelo. Não sugerir `/model Fable`. Reavaliar/reativar esta diretiva se o Fable voltar ao plano.
 
 **Data no header dos docs:** todo doc em `spec/*.md` que tenha um header de "Última atualização" deve trazer a **data completa** (dia + mês + ano, ex. `20 de julho de 2026`), nunca só mês/ano. Ao editar qualquer doc desse tipo, atualizar esse header pra data corrente da edição.
