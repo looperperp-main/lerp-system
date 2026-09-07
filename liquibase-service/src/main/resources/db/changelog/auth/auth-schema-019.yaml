@@ -1,0 +1,25 @@
+databaseChangeLog:
+  # ──────────────────────────────────────────
+  # Seed de permissões RBAC do domínio ESTOQUE (operacoes-service — schema estoque).
+  # Padrão DOMINIO_ACAO — scope não informado, default TENANT (auth-schema-010).
+  # spec/estoque.md §3.4
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: auth-019-permission-estoque-seed
+      author: vitor-fernandes
+      comment: "Permissões do domínio ESTOQUE (saldo e movimento — operacoes-service). Scope TENANT (default). spec/estoque.md §3.4"
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO auth.permission (id, code, domain, description, created_by) VALUES
+              (gen_random_uuid(), 'ESTOQUE_VISUALIZAR', 'ESTOQUE', 'Consultar saldos e extrato de movimentos de estoque', 'system-seed'),
+              (gen_random_uuid(), 'ESTOQUE_AJUSTAR', 'ESTOQUE', 'Registrar ajuste/inventário de saldo de estoque', 'system-seed')
+              ON CONFLICT (code) DO NOTHING;
+      rollback:
+        - sql:
+            dbms: postgresql
+            sql: >
+              DELETE FROM auth.permission WHERE code IN (
+              'ESTOQUE_VISUALIZAR', 'ESTOQUE_AJUSTAR');

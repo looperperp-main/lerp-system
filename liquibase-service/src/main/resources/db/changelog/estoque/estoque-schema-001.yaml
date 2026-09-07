@@ -1,0 +1,256 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # SCHEMA: estoque
+  # Saldo e movimento de estoque (operacoes-service). Não vem do init/000-initial-schemas.yaml
+  # porque nasceu depois — mesmo padrão de fiscal-001-create-schema. spec/estoque.md §3.4
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: estoque-001-create-schema
+      author: vitor-fernandes
+      changes:
+        - sql:
+            sql: CREATE SCHEMA IF NOT EXISTS estoque;
+      rollback:
+        - sql:
+            sql: DROP SCHEMA IF EXISTS estoque CASCADE;
+
+  # ──────────────────────────────────────────
+  # TABELA: estoque.movimento_estoque
+  # Livro-razão append-only do estoque: nunca sofre UPDATE/DELETE, correção é sempre um
+  # movimento novo (estorno ou ajuste). estoque_saldo pode ser reconstruído inteiro a partir
+  # daqui. spec/estoque.md §3.1
+  #
+  # `quantidade` é sempre positiva — o sinal do movimento vem do `tipo` (enum
+  # TipoMovimentoEstoque). `origem_id` é obrigatório para movimentos documentais
+  # (PEDIDO_VENDA/RECEBIMENTO) e nulo só para AJUSTE/INVENTARIO, daí o CHECK cruzado com
+  # `origem_tipo`.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: estoque-002-create-movimento-estoque
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: estoque
+            tableName: movimento_estoque
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: produto_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                  remarks: "Ref. cadastros.produto — sem FK física (outro serviço), como em vendas.pedido"
+              - column:
+                  name: deposito_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                  remarks: "Ref. cadastros.deposito — sem FK física"
+              - column:
+                  name: tipo
+                  type: varchar(25)
+                  constraints:
+                    nullable: false
+                  remarks: "TipoMovimentoEstoque: ENTRADA_COMPRA | ESTORNO_ENTRADA_COMPRA | SAIDA_VENDA | ESTORNO_SAIDA_VENDA | AJUSTE_ENTRADA | AJUSTE_SAIDA"
+              - column:
+                  name: quantidade
+                  type: decimal(15,4)
+                  constraints:
+                    nullable: false
+                  remarks: "Sempre positiva — o sinal vem do tipo. CHECK quantidade > 0"
+              - column:
+                  name: valor_unitario
+                  type: decimal(15,4)
+                  remarks: "[D3] preço da NF na entrada, preço de venda na saída, custo informado (ou null) no ajuste"
+              - column:
+                  name: origem_tipo
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+                  remarks: "OrigemMovimentoEstoque: PEDIDO_VENDA | RECEBIMENTO | AJUSTE | INVENTARIO"
+              - column:
+                  name: origem_id
+                  type: uuid
+                  remarks: "vendas.pedido.id / compras.recebimento_mercadoria.id — NULL só quando origem_tipo é AJUSTE/INVENTARIO"
+              - column:
+                  name: motivo
+                  type: varchar(500)
+                  remarks: "Obrigatório quando origem_tipo é AJUSTE/INVENTARIO"
+              - column:
+                  name: usuario_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                  remarks: "Autor da ação, do JWT"
+              - column:
+                  name: ocorrido_em
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+                  remarks: "Momento do fato (expedição/recebimento/ajuste) — não confundir com created_at"
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: created_by
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_updated_by
+                  type: uuid
+        # CHECKs entre colunas/valor (createTable não expressa bem): spec/estoque.md §3.1
+        - sql:
+            sql: >
+              ALTER TABLE estoque.movimento_estoque
+              ADD CONSTRAINT chk_mov_estoque_quantidade
+              CHECK (quantidade > 0);
+        - sql:
+            sql: >
+              ALTER TABLE estoque.movimento_estoque
+              ADD CONSTRAINT chk_mov_estoque_origem
+              CHECK (origem_tipo IN ('AJUSTE', 'INVENTARIO') OR origem_id IS NOT NULL);
+      rollback:
+        - dropTable:
+            schemaName: estoque
+            tableName: movimento_estoque
+
+  # ──────────────────────────────────────────
+  # TABELA: estoque.estoque_saldo
+  # Saldo materializado por produto+depósito, atualizado via upsert com SELECT ... FOR UPDATE
+  # na mesma transação do movimento (spec/estoque.md §3.3, §4.1).
+  #
+  # Sem CHECK quantidade >= 0 (decisão D2): saldo negativo sistêmico é aceitável no MVP; um
+  # CHECK aqui seria bloqueio disfarçado de constraint e devolveria erro de banco em vez da
+  # mensagem PT-BR correta. O bloqueio, quando ligado, é validação de aplicação (§6).
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: estoque-003-create-estoque-saldo
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: estoque
+            tableName: estoque_saldo
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: produto_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                  remarks: "Ref. cadastros.produto — sem FK física"
+              - column:
+                  name: deposito_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                  remarks: "Ref. cadastros.deposito — sem FK física"
+              - column:
+                  name: quantidade
+                  type: decimal(15,4)
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: created_by
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_updated_by
+                  type: uuid
+        - addUniqueConstraint:
+            schemaName: estoque
+            tableName: estoque_saldo
+            columnNames: tenant_id, produto_id, deposito_id
+            constraintName: uq_estoque_saldo_produto_deposito
+      rollback:
+        - dropTable:
+            schemaName: estoque
+            tableName: estoque_saldo
+
+  # ──────────────────────────────────────────
+  # ÍNDICES: estoque.movimento_estoque
+  # spec/estoque.md §3.1. O índice único de idempotência usa WHERE (índice parcial) — Liquibase
+  # createIndex não expressa isso de forma portável, por isso vai via sql: cru, como o padrão já
+  # usado para CHECK multi-coluna (fiscal-schema-001.yaml).
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: estoque-004-indexes
+      author: vitor-fernandes
+      changes:
+        - createIndex:
+            schemaName: estoque
+            tableName: movimento_estoque
+            indexName: idx_mov_estoque_produto_deposito
+            columns:
+              - column:
+                  name: tenant_id
+              - column:
+                  name: produto_id
+              - column:
+                  name: deposito_id
+              - column:
+                  name: ocorrido_em
+                  descending: true
+        - createIndex:
+            schemaName: estoque
+            tableName: movimento_estoque
+            indexName: idx_mov_estoque_origem
+            columns:
+              - column:
+                  name: tenant_id
+              - column:
+                  name: origem_tipo
+              - column:
+                  name: origem_id
+        - sql:
+            sql: >
+              CREATE UNIQUE INDEX uq_mov_estoque_origem_produto
+              ON estoque.movimento_estoque (tenant_id, tipo, origem_tipo, origem_id, produto_id)
+              WHERE origem_id IS NOT NULL;
+      rollback:
+        - dropIndex:
+            schemaName: estoque
+            tableName: movimento_estoque
+            indexName: idx_mov_estoque_produto_deposito
+        - dropIndex:
+            schemaName: estoque
+            tableName: movimento_estoque
+            indexName: idx_mov_estoque_origem
+        - sql:
+            sql: DROP INDEX IF EXISTS estoque.uq_mov_estoque_origem_produto;

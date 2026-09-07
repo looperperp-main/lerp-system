@@ -1,8 +1,8 @@
 # Módulo ESTOQUE — saldo e movimento (`operacoes-service`) — Plano de implementação
 
-**Última atualização:** 6 de setembro de 2026
+**Última atualização:** 7 de setembro de 2026
 
-**Status:** PLANEJADO — nada implementado · **Serviço:** `operacoes-service` (porta 8089, já existe — Fase 0 do `o2c-vendas.md`/`p2p-compras.md` feita), schema Postgres **`estoque`** · **Depende de:** nada além do que já está no ar (schema `vendas` aplicado, `Produto.tipo` já existe no `cadastro-service`) · **Fecha:** issue **#80** (parte estoque) e issue **#89** (baixa/estorno no O2C) · **Specs irmãos:** `o2c-vendas.md` (§7 expedição/cancelamento, §10 Fase 3), `p2p-compras.md` (Fase E), `Fin.md` §11.1 (contabilidade de estoque — fora de escopo aqui)
+**Status:** EM IMPLEMENTAÇÃO — **E1 e E2 feitos** (schema Liquibase + domínio/repositories), **não compilado nem rodado** (o usuário executa builds/migração); E3-E7 ainda PLANEJADO · **Serviço:** `operacoes-service` (porta 8089, já existe — Fase 0 do `o2c-vendas.md`/`p2p-compras.md` feita), schema Postgres **`estoque`** · **Depende de:** nada além do que já está no ar (schema `vendas` aplicado, `Produto.tipo` já existe no `cadastro-service`) · **Fecha:** issue **#80** (parte estoque) e issue **#89** (baixa/estorno no O2C) · **Specs irmãos:** `o2c-vendas.md` (§7 expedição/cancelamento, §10 Fase 3), `p2p-compras.md` (Fase E), `Fin.md` §11.1 (contabilidade de estoque — fora de escopo aqui)
 
 **Decisões fechadas (6 de setembro de 2026, com o usuário):**
 
@@ -191,6 +191,8 @@ Pasta nova `estoque/` no changelog (padrão por schema, como `vendas/`, `fiscal/
 | `ESTOQUE_AJUSTAR` | `ESTOQUE` | Registrar ajuste/inventário de saldo |
 
 Ambas atribuídas ao papel de proprietário no mesmo changeset, como as `PEDIDO_*`.
+
+> **Nota de implementação (7 de setembro de 2026):** o `auth-schema-018.yaml` real (PEDIDO_*) **não** contém nenhuma atribuição a `role_permission` — só o `INSERT INTO auth.permission ... ON CONFLICT (code) DO NOTHING`. O mesmo vale para `auth-schema-009.yaml` (seed maior de permissões CADASTRO/AUTH). Não existe nenhum seed de `role_permission` em todo o changelog. `auth-schema-019.yaml` (E1) seguiu o precedente real — só o insert em `auth.permission` — em vez do texto acima. A atribuição ao papel de proprietário, se existir, é resolvida em runtime pelo bypass `isOwner` do JWT (`AuthService`/`TokenService`), não por linha de `role_permission`.
 
 ---
 
@@ -390,7 +392,7 @@ PRs pequenos e independentes, na ordem. Cada fase compila e passa no gate sozinh
 | Fase | Entrega | Depende de |
 |---|---|---|
 | **E1** | **Schema.** `estoque/estoque-schema-001.yaml` (schema + 2 tabelas + CHECKs + 3 índices) + include no `db.changelog-master.yaml` + `auth/auth-schema-019.yaml` (seed `ESTOQUE_VISUALIZAR`/`ESTOQUE_AJUSTAR`, idempotente). Migração rodada pelo usuário via `liquibase-service` | — |
-| **E2** | **Domínio + repositories.** `MovimentoEstoque`, `EstoqueSaldo`, os 2 enums, `MovimentoEstoqueRepository` (query do extrato com filtros), `EstoqueSaldoRepository` (com `@Lock(PESSIMISTIC_WRITE)`). `ddl-auto=validate` valida contra E1 | E1 |
+| **E2** | **Domínio + repositories.** `MovimentoEstoque`, `EstoqueSaldo`, os 2 enums, `MovimentoEstoqueRepository` (query do extrato com filtros), `EstoqueSaldoRepository` (com `@Lock(PESSIMISTIC_WRITE)`). `ddl-auto=validate` valida contra E1. `EstoqueSaldoRepositoryTest`/`MovimentoEstoqueRepositoryTest` (`@DataJpaTest`, H2 — não conta pro gate de cobertura) cobrem os repositories; cada classe força `hibernate.dialect=H2Dialect` + `@DirtiesContext(AFTER_CLASS)` porque o dialect de produção é Postgres (`for no key update` do `@Lock` não existe no H2, e sem isolar o contexto as duas classes reaproveitavam o mesmo H2 embarcado) | E1 |
 | **E3** | **`EstoqueService`** — `registrarMovimento` (agregação, ordenação de lock, upsert `FOR UPDATE`, insert do movimento), `ajustar` (§5.3), flag `estoque.bloquear-saida` no `application.yaml`, mensagens novas em `common/Constants.java`. **`EstoqueServiceTest` completo (§8.1)** | E2 |
 | **E4** | **Fecha a issue #89** — `PedidoService.expedir()`/`cancelar()` chamam o estoque (§7); os 2 comentários `ponytail:` saem. **`PedidoServiceTest` com os cenários do §8.2.** A partir daqui a expedição baixa estoque de verdade | E3 |
 | **E5** | **API REST** — `EstoqueController` (3 endpoints), DTOs, `EstoqueMapper`, assembler HATEOAS, `@PreAuthorize`, OpenAPI (`@Operation`/`@ApiResponse`), tradução do 409 de idempotência. **`EstoqueControllerTest` (§8.3)**. Fecha a parte estoque da issue **#80** | E3 |
