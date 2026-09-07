@@ -36,6 +36,7 @@ public class Constants {
 
     public static final String SUCCESS = "SUCCESS";
     public static final String ERROR   = "ERROR";
+    public static final String VALIDATION_ERROR   = "Erro de validação";
     public static final String FAILED  = "FAILED";
 
     public static final String TENANT = "TENANT";

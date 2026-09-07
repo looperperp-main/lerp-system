@@ -98,7 +98,7 @@ public class GlobalExceptionHandler {
                 .collect(Collectors.joining("; "));
         logClientError(HttpStatus.BAD_REQUEST.value(), request, message);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(body(HttpStatus.BAD_REQUEST.value(), "Erro de validação", message, request));
+                .body(body(HttpStatus.BAD_REQUEST.value(), Constants.VALIDATION_ERROR, message, request));
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
@@ -107,7 +107,7 @@ public class GlobalExceptionHandler {
         String message = e.getName() + ": valor inválido";
         logClientError(HttpStatus.BAD_REQUEST.value(), request, message);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(body(HttpStatus.BAD_REQUEST.value(), "Erro de validação", message, request));
+                .body(body(HttpStatus.BAD_REQUEST.value(), Constants.VALIDATION_ERROR, message, request));
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
@@ -116,7 +116,7 @@ public class GlobalExceptionHandler {
         // É erro do cliente → 400. Sem detalhe do parser no corpo: pode citar trecho do payload.
         logClientError(HttpStatus.BAD_REQUEST.value(), request, "corpo ilegível: " + e.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(body(HttpStatus.BAD_REQUEST.value(), "Erro de validação",
+                .body(body(HttpStatus.BAD_REQUEST.value(), Constants.VALIDATION_ERROR,
                         "Corpo da requisição ausente ou mal-formado.", request));
     }
 

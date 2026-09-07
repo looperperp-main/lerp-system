@@ -38,9 +38,11 @@ public class CorrelationIdProducerInterceptor implements ProducerInterceptor<Obj
 
     @Override
     public void close() {
+        // ponytail: nada a fazer
     }
 
     @Override
     public void configure(Map<String, ?> configs) {
+        // ponytail: nada a fazer
     }
 }
