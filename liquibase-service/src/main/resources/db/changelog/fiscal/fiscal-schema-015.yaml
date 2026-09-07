@@ -1,0 +1,36 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # Fix: tenant_id era uuid em matriz_tributaria/retencao_config (fiscal-030/fiscal-0XX), mas
+  # Tenant.id (auth-service) é Long/bigint — todo o resto do sistema trata tenant_id como numérico.
+  # Com a coluna uuid, TabelaFiscalJdbc.aliquotaIcms(tenantId: String) gerava
+  # "operator does not exist: uuid = character varying" (500) ao comparar "24" com uuid.
+  # As duas colunas estão 100% NULL em produção/dev (override de tenant ainda não usado), então o
+  # ALTER TYPE ... USING NULL é seguro — não há dado a converter.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: fiscal-049-fix-tenant-id-uuid-para-bigint
+      author: vitor-fernandes
+      comment: Corrige tenant_id de uuid para bigint em matriz_tributaria e retencao_config (consistente com Tenant.id)
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              ALTER TABLE fiscal.matriz_tributaria ALTER COLUMN tenant_id TYPE bigint USING NULL;
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              ALTER TABLE fiscal.retencao_config ALTER COLUMN tenant_id TYPE bigint USING NULL;
+      rollback:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              ALTER TABLE fiscal.matriz_tributaria ALTER COLUMN tenant_id TYPE uuid USING NULL;
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              ALTER TABLE fiscal.retencao_config ALTER COLUMN tenant_id TYPE uuid USING NULL;

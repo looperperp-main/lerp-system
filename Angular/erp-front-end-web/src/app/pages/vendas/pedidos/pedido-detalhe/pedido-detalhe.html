@@ -1,0 +1,222 @@
+<div *ngIf="pedido() as p" class="jb-detalhe-wrap">
+
+  <div class="jb-page-head">
+    <div>
+      <app-breadcrumb></app-breadcrumb>
+      <h1>
+        Pedido Nº {{ p.numero }}
+        <span class="jb-status" [class]="statusBadgeClass(p.status)">{{ statusLabel[p.status!] }}</span>
+      </h1>
+      <p class="sub">Orçamento, confirmação, expedição e faturamento</p>
+    </div>
+    <div class="jb-panel-actions">
+      <button pButton icon="pi pi-arrow-left" label="Voltar" class="p-button-text" (click)="voltar()"></button>
+    </div>
+  </div>
+
+  <div class="jb-panel">
+    <h3><i class="pi pi-info-circle"></i> Dados Gerais</h3>
+    <div class="jb-info-grid">
+      <div class="jb-info-item">
+        <label>Cliente</label>
+        <span>{{ nomeCliente(p.clienteId) }}</span>
+      </div>
+      <div class="jb-info-item">
+        <label>Vendedor</label>
+        <span>{{ nomeVendedor(p.vendedorId) }}</span>
+      </div>
+      <div class="jb-info-item">
+        <label>Condição de Pagamento</label>
+        <span>{{ nomeCondicao(p.condicaoPagamentoId) }}</span>
+      </div>
+      <div class="jb-info-item">
+        <label>Modalidade de Frete</label>
+        <span>{{ p.modalidadeFrete || '-' }}</span>
+      </div>
+      <div class="jb-info-item">
+        <label>Data de Emissão</label>
+        <span>{{ p.dataEmissao | date:'dd/MM/yyyy' }}</span>
+      </div>
+      <div class="jb-info-item">
+        <label>Data de Validade</label>
+        <span>{{ p.dataValidade ? (p.dataValidade | date:'dd/MM/yyyy') : '-' }}</span>
+      </div>
+      <div class="jb-info-item" *ngIf="p.depositoId">
+        <label>Depósito</label>
+        <span>{{ nomeDeposito(p.depositoId) }}</span>
+      </div>
+      <div class="jb-info-item" *ngIf="p.transportadoraId">
+        <label>Transportadora</label>
+        <span>{{ nomeTransportadora(p.transportadoraId) }}</span>
+      </div>
+    </div>
+    <div class="jb-info-item jb-info-observacao" *ngIf="p.observacao">
+      <label>Observação</label>
+      <span>{{ p.observacao }}</span>
+    </div>
+  </div>
+
+  <div class="jb-panel">
+    <h3><i class="pi pi-box"></i> Itens</h3>
+    <div class="table-container">
+      <table class="jb-simple-table">
+        <thead>
+          <tr>
+            <th>Produto</th>
+            <th>Tipo</th>
+            <th>Qtd.</th>
+            <th>Preço Unit.</th>
+            <th>Desconto</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of p.itens">
+            <td>{{ nomeProduto(item.produtoId) }}</td>
+            <td>{{ item.tipoItem }}</td>
+            <td>{{ item.quantidade }}</td>
+            <td>{{ item.precoUnitario | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}</td>
+            <td>{{ item.desconto | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}</td>
+            <td class="jb-strong">{{ item.valorTotal | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="jb-totais-breakdown" *ngIf="p.valorFrete || p.valorDesconto || p.valorTotalNf">
+      <div class="jb-subtotal-linha">
+        <span>Subtotal dos Itens</span>
+        <span>{{ p.valorItens | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}</span>
+      </div>
+      <div class="jb-subtotal-linha" *ngIf="p.valorDesconto">
+        <span>Desconto</span>
+        <span>- {{ p.valorDesconto | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}</span>
+      </div>
+      <div class="jb-subtotal-linha" *ngIf="p.valorFrete">
+        <span>Frete</span>
+        <span>{{ p.valorFrete | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}</span>
+      </div>
+      <div class="jb-subtotal-linha" *ngIf="p.valorTotalNf">
+        <span>Impostos (IBS + CBS + IS)</span>
+        <span>{{ valorImpostos() | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}</span>
+      </div>
+    </div>
+    <div class="jb-total-geral">
+      <span>{{ p.valorTotalNf ? 'Total da Nota Fiscal' : 'Total do Pedido' }}</span>
+      <strong>{{ (p.valorTotalNf || p.valorTotal) | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}</strong>
+    </div>
+  </div>
+
+  <div class="jb-panel" *ngIf="p.status === 'FATURADO' && p.parcelas?.length">
+    <h3><i class="pi pi-wallet"></i> Parcelas de Faturamento</h3>
+    <div class="table-container">
+      <table class="jb-simple-table">
+        <thead>
+          <tr>
+            <th>Nº</th>
+            <th>Vencimento</th>
+            <th>Forma de Pagamento</th>
+            <th>Valor</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let parcela of p.parcelas">
+            <td>{{ parcela.numero }}</td>
+            <td>{{ parcela.dataVencimento | date:'dd/MM/yyyy' }}</td>
+            <td>{{ parcela.formaPagamento }}</td>
+            <td>{{ parcela.valor | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="jb-panel">
+    <h3><i class="pi pi-bolt"></i> Ações</h3>
+    <div class="jb-panel-actions" *ngIf="temAcaoDisponivel(); else semAcoes">
+      <button pButton icon="pi pi-check" label="Confirmar" *ngIf="podeConfirmar()" [disabled]="processando()" (click)="confirmar()"></button>
+      <button pButton icon="pi pi-refresh" label="Recalcular Preços" class="p-button-text" *ngIf="podeRecalcularPrecos()" [disabled]="processando()" (click)="recalcularPrecos()"></button>
+      <button pButton icon="pi pi-send" label="Expedir" *ngIf="podeExpedir()" [disabled]="processando()" (click)="abrirExpedir()"></button>
+      <button pButton icon="pi pi-file-check" label="Faturar" *ngIf="podeFaturar()" [disabled]="processando()" (click)="faturar()"></button>
+      <button pButton icon="pi pi-undo" label="Reabrir para Orçamento" class="p-button-text" *ngIf="podeReabrir()" [disabled]="processando()" (click)="reabrir()"></button>
+      <button pButton icon="pi pi-times" label="Cancelar Pedido" class="p-button-danger p-button-text" *ngIf="podeCancelar()" [disabled]="processando()" (click)="abrirCancelar()"></button>
+    </div>
+    <ng-template #semAcoes>
+      <p class="jb-sem-acoes">Nenhuma ação disponível para este pedido.</p>
+    </ng-template>
+  </div>
+
+  <div class="jb-panel" *ngIf="p.historico?.length">
+    <h3><i class="pi pi-history"></i> Histórico</h3>
+    <div class="jb-timeline">
+      <div class="jb-timeline-item" *ngFor="let h of p.historico">
+        <span class="jb-status" [class]="statusBadgeClass(h.statusPara)">{{ statusLabel[h.statusPara] }}</span>
+        <span class="jb-timeline-data">{{ h.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
+        <span class="jb-timeline-motivo" *ngIf="h.motivo">— {{ h.motivo }}</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="jb-loading" *ngIf="loading()">Carregando pedido...</div>
+
+<p-dialog [(visible)]="displayCancelarDialog" [style]="{width: '440px'}" [modal]="true" header="Cancelar Pedido">
+  <form [formGroup]="cancelarForm" (ngSubmit)="confirmarCancelamento()">
+    <div class="jb-field">
+      <label class="jb-label">Motivo do Cancelamento *</label>
+      <textarea pTextarea formControlName="motivo" rows="3" style="width: 100%;"></textarea>
+    </div>
+    <div class="jb-form-footer">
+      <button pButton type="button" label="Voltar" class="p-button-secondary" (click)="displayCancelarDialog = false"></button>
+      <button pButton type="submit" label="Confirmar Cancelamento" class="p-button-danger" [loading]="processando()"></button>
+    </div>
+  </form>
+</p-dialog>
+
+<p-dialog [(visible)]="displayExpedirDialog" [style]="{width: '480px'}" [modal]="true" header="Expedir Pedido">
+  <form [formGroup]="expedirForm" (ngSubmit)="confirmarExpedicao()">
+    <div class="jb-field">
+      <label class="jb-label">Depósito *</label>
+      <p-select
+        [options]="depositosOptions"
+        formControlName="depositoId"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Selecione o depósito"
+        appendTo="body">
+      </p-select>
+    </div>
+    <div class="jb-field">
+      <label class="jb-label">Transportadora</label>
+      <p-select
+        [options]="transportadorasOptions"
+        formControlName="transportadoraId"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Selecione a transportadora"
+        [showClear]="true"
+        appendTo="body">
+      </p-select>
+    </div>
+    <div class="jb-field">
+      <label class="jb-label">Valor do Frete</label>
+      <p-inputNumber formControlName="valorFrete" mode="currency" currency="BRL" locale="pt-BR"></p-inputNumber>
+    </div>
+    <div class="jb-field">
+      <label class="jb-label">Modalidade de Frete</label>
+      <p-select
+        [options]="modalidadeFreteOptions"
+        formControlName="modalidadeFrete"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Selecione a modalidade"
+        [showClear]="true"
+        appendTo="body">
+      </p-select>
+    </div>
+    <div class="jb-form-footer">
+      <button pButton type="button" label="Voltar" class="p-button-secondary" (click)="displayExpedirDialog = false"></button>
+      <button pButton type="submit" label="Confirmar Expedição" [loading]="processando()"></button>
+    </div>
+  </form>
+</p-dialog>

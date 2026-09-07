@@ -13,7 +13,7 @@ import java.util.UUID;
  * DTO for {@link com.l.erp.cadastroservice.domain.Cliente}
  */
 public record ClienteDTO(UUID id, Long tenantId, UUID pessoaId, @Size(max = 50) String codigoInterno,
-                         UUID condicaoPagamentoId, UUID grupoClienteId, UUID vendedorId,
+                         UUID condicaoPagamentoId, UUID grupoClienteId, UUID vendedorId, UUID tabelaPrecoId,
                          @PositiveOrZero BigDecimal limiteCredito, @Size(max = 10) String classificacaoRisco,
                          @PositiveOrZero Integer prazoMedioPagamentoDias, @NotNull Boolean ativo,
                          Instant createdAt, Instant updatedAt, UUID createdBy,

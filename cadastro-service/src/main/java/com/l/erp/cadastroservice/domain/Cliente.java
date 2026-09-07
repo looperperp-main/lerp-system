@@ -57,6 +57,10 @@ public class Cliente extends BaseTenantEntity {
     @JoinColumn(name = "vendedor_id")
     private Vendedor vendedor;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "tabela_preco_id")
+    private TabelaPreco tabelaPreco;
+
     @Column(name = "limite_credito", precision = 15, scale = 2)
     private BigDecimal limiteCredito;
 

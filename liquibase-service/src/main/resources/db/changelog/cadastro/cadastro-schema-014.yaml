@@ -1,0 +1,33 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # Motor de Resolução de Preço (spec/motor-resolucao-preco.md Fase 2):
+  # cliente.tabela_preco_id — vínculo opcional cliente→tabela de preço,
+  # usado no nível CLIENTE da cascata de precedência (CLIENTE > GRUPO > PADRAO).
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-051-add-cliente-tabela-preco-id
+      author: vitor-fernandes
+      changes:
+        - addColumn:
+            schemaName: cadastros
+            tableName: cliente
+            columns:
+              - column:
+                  name: tabela_preco_id
+                  type: uuid
+        - addForeignKeyConstraint:
+            baseTableSchemaName: cadastros
+            baseTableName: cliente
+            baseColumnNames: tabela_preco_id
+            referencedTableSchemaName: cadastros
+            referencedTableName: tabela_preco
+            referencedColumnNames: id
+            constraintName: fk_cliente_tabela_preco_id
+        - createIndex:
+            schemaName: cadastros
+            tableName: cliente
+            indexName: idx_cliente_tabela_preco_id
+            columns:
+              - column:
+                  name: tabela_preco_id

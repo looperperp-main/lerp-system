@@ -4,6 +4,7 @@ import com.l.erp.cadastroservice.api.dto.DepositoDTO;
 import com.l.erp.cadastroservice.api.mappers.DepositoMapper;
 import com.l.erp.cadastroservice.domain.Deposito;
 import com.l.erp.cadastroservice.repository.DepositoRepository;
+import com.l.erp.cadastroservice.repository.EstabelecimentoRepository;
 import com.l.erp.common.util.Constants;
 import com.l.erp.common.api.dto.AuditEventDTO;
 import com.l.erp.common.exception.custom.BusinessException;
@@ -34,10 +35,13 @@ public class DepositoService {
 
     private final DepositoRepository repository;
 
-    public DepositoService(AuditProducerService auditProducer, DepositoMapper mapper, DepositoRepository repository) {
+    private final EstabelecimentoRepository estabelecimentoRepository;
+
+    public DepositoService(AuditProducerService auditProducer, DepositoMapper mapper, DepositoRepository repository, EstabelecimentoRepository estabelecimentoRepository) {
         this.auditProducer = auditProducer;
         this.mapper = mapper;
         this.repository = repository;
+        this.estabelecimentoRepository = estabelecimentoRepository;
     }
 
     /**
@@ -79,11 +83,14 @@ public class DepositoService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, Constants.DEPOSITO_CREATION);
         }
 
+        validarEstabelecimento(dto.estabelecimentoId(), tenantId);
+
         Deposito entity = Deposito.builder()
                 .tenantId(tenantId)
                 .nome(dto.nome())
                 .descricao(dto.descricao())
                 .tipo(dto.tipo())
+                .estabelecimentoId(dto.estabelecimentoId())
                 .ativo(dto.ativo() != null ? dto.ativo() : true)
                 .createdAt(Instant.now())
                 .createdBy(userId)
@@ -123,6 +130,8 @@ public class DepositoService {
             );
             throw new BusinessException(Constants.TENANT_ASSOC_ERROR, HttpStatus.BAD_REQUEST);
         }
+
+        validarEstabelecimento(dto.estabelecimentoId(), tenantID);
 
         Deposito deposito = mapper.toEntity(dto);
         deposito.setId(id);
@@ -166,6 +175,12 @@ public class DepositoService {
                 "{Status Alterado: " + deposito.getAtivo() + "}",
                 correlationId
         );
+    }
+
+    private void validarEstabelecimento(UUID estabelecimentoId, Long tenantId) {
+        if (estabelecimentoId != null && !estabelecimentoRepository.existsByIdAndTenantId(estabelecimentoId, tenantId)) {
+            throw new BusinessException(Constants.ESTABELECIMENTO_NOT_FOUND, HttpStatus.BAD_REQUEST);
+        }
     }
 
     /**

@@ -32,9 +32,14 @@ public class Contato extends BaseTenantEntity {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    /** Exatamente um de pessoa/estabelecimento é preenchido — pessoa p/ PF direto, estabelecimento p/ PJ via matriz/filial (CHECK XOR no banco). */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "pessoa_id", nullable = false)
+    @JoinColumn(name = "pessoa_id", nullable = true)
     private Pessoa pessoa;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "estabelecimento_id", nullable = true)
+    private Estabelecimento estabelecimento;
 
     @Size(max = 200)
     @NotNull

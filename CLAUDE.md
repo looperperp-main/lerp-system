@@ -169,6 +169,13 @@ Angular 21, standalone components (no NgModules). Pages in `src/app/pages/` (`lo
 
 ## Workflow Directives
 
+**Padrão de qualidade: o sistema precisa ficar o mais profissional possível.** Vale nas três frentes, não só numa:
+- **UI/UX (os 3 front-ends):** nada de tela com cara de protótipo — estados de loading, erro e vazio tratados, responsividade, consistência com o design system `jb-*`/PrimeNG já em uso, mensagens em PT-BR claras pro usuário final (nunca stacktrace/erro técnico na tela).
+- **Código/arquitetura:** seguir os padrões já fixados neste arquivo (camadas, `common/Constants`, tratamento de erro via `GlobalExceptionHandler`, etc.) em vez de atalho pontual; sem gambiarra "resolve e esquece".
+- **Robustez funcional:** cobrir os edge cases da regra de negócio (não só o caminho feliz), sem deixar fluxo pela metade quando a spec já define o comportamento completo.
+
+Ao decidir entre a solução rápida e a solução correta, puxar pra correta — a menos que o usuário peça explicitamente algo descartável/protótipo.
+
 **Specs com Fable (SUSPENSO por ora — 2026-07-22):** o Fable **não está no plano atual**, então trabalho em specs (`spec/*.md`) segue no modelo disponível (Opus 4.8) sem trocar de modelo. Não sugerir `/model Fable`. Reavaliar/reativar esta diretiva se o Fable voltar ao plano.
 
 **Data no header dos docs:** todo doc em `spec/*.md` que tenha um header de "Última atualização" deve trazer a **data completa** (dia + mês + ano, ex. `20 de julho de 2026`), nunca só mês/ano. Ao editar qualquer doc desse tipo, atualizar esse header pra data corrente da edição.
@@ -180,5 +187,7 @@ Angular 21, standalone components (no NgModules). Pages in `src/app/pages/` (`lo
 **Padrão de erros/logs (backend):** tratamento de erro passa pelo `common/GlobalExceptionHandler`. Regras: (1) status correto — erro de cliente (4xx) nunca vira 500 (`NoResourceFound`→404, validação→400, `AccessDenied`→403); (2) log por classe — 4xx → `WARN`, uma linha, **sem** stacktrace; 5xx → `ERROR` **com** stacktrace (único lugar que loga stack); (3) mensagens em **PT-BR**; (4) 5xx nunca vaza detalhe interno pro cliente; (5) corpo `StandardError` = `{timestamp, status, error, message, path, correlationId}`, com `correlationId` vindo do MDC (`CorrelationIdFilter` lê o header `X-Correlation-ID`). Pra correlationId sair em toda linha de log, falta `[%X{correlationId}]` no pattern do logback de cada serviço.
 
 **Sempre revisar os testes ao mexer no back-end:** toda alteração em código backend (serviço, handler, config, entidade) exige passar o olho nos testes que cobrem aquele código **na mesma mudança** — verificar se algum teste passou a contradizer o novo comportamento e atualizá-lo (ou o código, conforme a intenção correta pela spec). Motivação: um fix de segurança/comportamento que não atualiza o teste correspondente deixa o teste validando a versão antiga e quebra o pipeline (ex.: auditoria 7.6 mudou `PaymentReceivedHandler` p/ usar `sub.getValue()`, mas o teste ficou esperando o valor do payload → build vermelho).
+
+**Botões desabilitados vs. escondidos:** quando uma ação não pode ser realizada por regra de negócio (ex.: status não permite editar/excluir), o botão correspondente deve ser **escondido** (`*ngIf`/`hidden`), nunca desabilitado (`disabled`). Vale para toda tela nova e refactor de tela existente a partir de agora.
 
 **Não gerar mensagem de commit:** o Claude não deve propor/gerar mensagens de commit ao final das mudanças, a menos que o usuário peça explicitamente.

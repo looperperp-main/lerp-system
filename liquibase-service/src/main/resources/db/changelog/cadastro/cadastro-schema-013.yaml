@@ -1,0 +1,33 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # Fase 5 (spec/estabelecimentos-filiais.md §8): deposito.estabelecimento_id
+  # Vincula um depósito/almoxarifado à filial (estabelecimento) onde fisicamente fica —
+  # nullable pra não quebrar depósitos já cadastrados sem filial associada.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-050-add-deposito-estabelecimento-id
+      author: vitor-fernandes
+      changes:
+        - addColumn:
+            schemaName: cadastros
+            tableName: deposito
+            columns:
+              - column:
+                  name: estabelecimento_id
+                  type: uuid
+        - addForeignKeyConstraint:
+            baseTableSchemaName: cadastros
+            baseTableName: deposito
+            baseColumnNames: estabelecimento_id
+            referencedTableSchemaName: cadastros
+            referencedTableName: estabelecimento
+            referencedColumnNames: id
+            constraintName: fk_deposito_estabelecimento_id
+        - createIndex:
+            schemaName: cadastros
+            tableName: deposito
+            indexName: idx_deposito_estabelecimento_id
+            columns:
+              - column:
+                  name: estabelecimento_id

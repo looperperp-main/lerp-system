@@ -1,0 +1,147 @@
+<form [formGroup]="form" (ngSubmit)="onSubmit()">
+
+  <div class="jb-grid-2">
+    <div class="jb-field">
+      <label class="jb-label">Cliente *</label>
+      <p-select
+        [options]="clientesOptions()"
+        formControlName="clienteId"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Selecione o cliente"
+        [filter]="true"
+        filterBy="label"
+        [showClear]="true"
+        appendTo="body"
+        [class.ng-invalid]="isFieldInvalid('clienteId')">
+      </p-select>
+      <small class="jb-hint" *ngIf="isFieldInvalid('clienteId')">Cliente é obrigatório.</small>
+    </div>
+
+    <div class="jb-field">
+      <label class="jb-label">Vendedor</label>
+      <p-select
+        [options]="vendedoresOptions()"
+        formControlName="vendedorId"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Selecione o vendedor"
+        [filter]="true"
+        filterBy="label"
+        [showClear]="true"
+        appendTo="body">
+      </p-select>
+    </div>
+  </div>
+
+  <div class="jb-grid-2">
+    <div class="jb-field">
+      <label class="jb-label">Condição de Pagamento</label>
+      <p-select
+        [options]="condicoesOptions()"
+        formControlName="condicaoPagamentoId"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Selecione a condição"
+        [filter]="true"
+        filterBy="label"
+        [showClear]="true"
+        appendTo="body">
+      </p-select>
+    </div>
+
+    <div class="jb-field">
+      <label class="jb-label">Modalidade de Frete</label>
+      <p-select
+        [options]="modalidadeFreteOptions"
+        formControlName="modalidadeFrete"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Selecione a modalidade"
+        [showClear]="true"
+        appendTo="body">
+      </p-select>
+    </div>
+  </div>
+
+  <div class="jb-grid-2">
+    <div class="jb-field">
+      <label class="jb-label">Data de Emissão</label>
+      <p-datepicker formControlName="dataEmissao" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body"></p-datepicker>
+    </div>
+
+    <div class="jb-field">
+      <label class="jb-label">Data de Validade</label>
+      <p-datepicker formControlName="dataValidade" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body"></p-datepicker>
+    </div>
+  </div>
+
+  <div class="jb-field">
+    <label class="jb-label">Observação</label>
+    <textarea pTextarea formControlName="observacao" rows="2" style="width: 100%;"></textarea>
+  </div>
+
+  <h4 class="jb-section-title">Itens do Pedido</h4>
+
+  <div formArrayName="itens">
+    <div class="jb-item-row" *ngFor="let item of itensArray.controls; let i = index" [formGroupName]="i">
+      <div class="jb-field jb-item-produto">
+        <label class="jb-label-sm">Produto *</label>
+        <p-select
+          [options]="produtosOptions()"
+          formControlName="produtoId"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Selecione o produto"
+          [filter]="true"
+          filterBy="label"
+          appendTo="body">
+        </p-select>
+      </div>
+
+      <div class="jb-field jb-item-qtd">
+        <label class="jb-label-sm">Qtd.</label>
+        <p-inputNumber formControlName="quantidade" [minFractionDigits]="0" [maxFractionDigits]="3" [min]="0.001"></p-inputNumber>
+      </div>
+
+      <div class="jb-field jb-item-preco">
+        <label class="jb-label-sm">Preço Unit.</label>
+        <p-inputNumber formControlName="precoUnitario" mode="currency" currency="BRL" locale="pt-BR"></p-inputNumber>
+      </div>
+
+      <div class="jb-field jb-item-desconto">
+        <label class="jb-label-sm">Desconto</label>
+        <p-inputNumber formControlName="desconto" mode="currency" currency="BRL" locale="pt-BR"></p-inputNumber>
+      </div>
+
+      <div class="jb-field jb-item-total">
+        <label class="jb-label-sm">Total</label>
+        <span class="jb-item-total-valor">{{ totalItem(i) | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}</span>
+      </div>
+
+      <button
+        pButton
+        type="button"
+        icon="pi pi-trash"
+        class="p-button-rounded p-button-text p-button-danger p-button-sm"
+        pTooltip="Remover item"
+        (click)="removeItem(i)">
+      </button>
+    </div>
+
+    <p class="jb-itens-empty" *ngIf="itensArray.length === 0">Nenhum item adicionado.</p>
+  </div>
+
+  <button pButton type="button" icon="pi pi-plus" label="Adicionar Item" class="p-button-sm p-button-text" (click)="addItem()"></button>
+
+  <div class="jb-total-geral">
+    <span>Total do Pedido</span>
+    <strong>{{ totalGeral() | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}</strong>
+  </div>
+
+  <div class="jb-form-footer">
+    <button pButton type="button" label="Cancelar" class="p-button-secondary" (click)="onCancel()"></button>
+    <button pButton type="submit" label="Salvar" [loading]="isSaving"></button>
+  </div>
+
+</form>

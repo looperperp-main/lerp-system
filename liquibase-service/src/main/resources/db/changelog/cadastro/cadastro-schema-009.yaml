@@ -1,0 +1,26 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # Suporte a serviço no cadastro de produto (spec/o2c-vendas.md, Rev. 8)
+  # tipo: MERCADORIA (default, compatível com produtos existentes) ou SERVICO.
+  # codigo_servico: obrigatório se SERVICO, vazio se MERCADORIA (validado em ProdutoService).
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-028-produto-tipo-servico
+      author: vitor-fernandes
+      changes:
+        - addColumn:
+            schemaName: cadastros
+            tableName: produto
+            columns:
+              - column:
+                  name: tipo
+                  type: varchar(12)
+                  defaultValue: 'MERCADORIA'
+                  constraints:
+                    nullable: false
+              - column:
+                  name: codigo_servico
+                  type: varchar(10)
+                  constraints:
+                    nullable: true

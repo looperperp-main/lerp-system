@@ -98,6 +98,18 @@
                   tooltipPosition="top"
                 >
                 </button>
+
+                <!-- Filiais (apenas PJ) -->
+                <button
+                  *ngIf="rowData.tipo === 'PJ'"
+                  pButton
+                  pRipple
+                  icon="pi pi-building"
+                  class="p-button-rounded p-button-text p-button-sm w-8 h-8"
+                  pTooltip="Filiais"
+                  (click)="verFiliais(rowData)"
+                  tooltipPosition="top">
+                </button>
               </ng-container>
 
               <!-- Dados em Texto Normal -->

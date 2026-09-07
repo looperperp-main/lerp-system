@@ -3,6 +3,7 @@ package com.l.erp.cadastroservice.services;
 import com.l.erp.cadastroservice.api.dto.ContatoRequestDTO;
 import com.l.erp.cadastroservice.domain.Contato;
 import com.l.erp.cadastroservice.domain.Pessoa;
+import com.l.erp.cadastroservice.domain.enumerators.TipoPessoa;
 import com.l.erp.cadastroservice.repository.ContatoRepository;
 import com.l.erp.common.util.Constants;
 import com.l.erp.cadastroservice.util.Utils;
@@ -24,11 +25,13 @@ public class ContatoService {
     private final Logger logger = LoggerFactory.getLogger(ContatoService.class);
     private final ContatoRepository contatoRepository;
     private final PessoaService pessoaService;
+    private final EstabelecimentoService estabelecimentoService;
     private final Utils utils;
 
-    public ContatoService(ContatoRepository contatoRepository, PessoaService pessoaService, Utils utils) {
+    public ContatoService(ContatoRepository contatoRepository, PessoaService pessoaService, EstabelecimentoService estabelecimentoService, Utils utils) {
         this.contatoRepository = contatoRepository;
         this.pessoaService = pessoaService;
+        this.estabelecimentoService = estabelecimentoService;
         this.utils = utils;
     }
 
@@ -65,7 +68,11 @@ public class ContatoService {
         }
 
         Contato entity = new Contato();
-        entity.setPessoa(pessoa);
+        if (pessoa.getTipo() == TipoPessoa.PJ) {
+            entity.setEstabelecimento(estabelecimentoService.buscarMatrizPorPessoa(pessoaId, tenantId));
+        } else {
+            entity.setPessoa(pessoa);
+        }
         entity.setTenantId(tenantId);
         setContatoData(dto, entity);
 

@@ -1,7 +1,7 @@
-# Kafka — Tópicos do Syax (verificado no código, 2026-06-29)
+# Kafka — Tópicos do Syax (verificado no código, 2026-09-03)
 
 Levantamento direto dos `@KafkaListener` e `kafkaTemplate.send(...)` nos serviços
-(`auth`, `partner`, `billing`, `cadastro`). Acompanha o diagrama `onboarding-payment-state-machine.svg`.
+(`auth`, `partner`, `billing`, `cadastro`, `operacoes`). Acompanha o diagrama `onboarding-payment-state-machine.svg`.
 
 > **Partições:** não há `NewTopic`/`@Bean NewTopic` nem `KAFKA_CREATE_TOPICS` no `compose.yaml` —
 > os tópicos são **auto-criados com o default do broker** (provável `num.partitions=1`). O `compose.yaml`
@@ -29,7 +29,10 @@ Levantamento direto dos `@KafkaListener` e `kafkaTemplate.send(...)` nos serviç
 | `user-welcome-email-topic` | email | auth · `EmailNotificationService` | auth · `EmailConsumerService` | auth-service-group |
 | `trial.login` | tenantId | auth · `AuthService` | partner · `LoginAuditConsumer` | partner-service-group |
 | `trial.feature.used` | (n/d) | cadastro · `EngagementController` | auth · `TrialEngagementConsumer` · partner · `FeatureAccessConsumer` | auth-service-group / partner-service-group |
-| `audit.events` | actorId (billing.sendAuditEvent usa targetId) | partner/billing · `AuditProducerService`, billing · `KafkaBillingProducerService` | auth · `AuditConsumer` | auth-service-group |
+| `venda.pedido.confirmado` | pedidoId | operacoes · `PedidoEventProducer` | — (nenhum consumidor ainda) | — |
+| `venda.pedido.faturado` | pedidoId | operacoes · `PedidoEventProducer` | — (nenhum consumidor ainda) | — |
+| `venda.pedido.cancelado` | pedidoId | operacoes · `PedidoEventProducer` | — (nenhum consumidor ainda) | — |
+| `audit.events` | actorId (billing.sendAuditEvent usa targetId; operacoes usa pedidoId) | partner/billing · `AuditProducerService`, billing · `KafkaBillingProducerService`, operacoes · `PedidoEventProducer` | auth · `AuditConsumer` | auth-service-group |
 | `<topic>.DLT` | herda | `DeadLetterPublishingRecoverer` (auth/partner/billing) | — (inspeção manual) | — |
 
 ## Fluxos principais

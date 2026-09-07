@@ -1,12 +1,19 @@
 package com.l.erp.authservice.infra;
 
+import com.auth0.jwt.interfaces.Claim;
+import com.auth0.jwt.interfaces.DecodedJWT;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.l.erp.authservice.api.dto.AtivarContaRequest;
+import com.l.erp.authservice.api.dto.CriarContaGratisRequest;
 import com.l.erp.authservice.api.dto.LoginResponse;
+import com.l.erp.authservice.api.dto.TenantLoginResponse;
 import com.l.erp.authservice.api.mappers.AuthMapper;
 import com.l.erp.authservice.dominio.Role;
 import com.l.erp.authservice.dominio.Tenant;
 import com.l.erp.authservice.dominio.UserAccount;
 import com.l.erp.authservice.dominio.UserRole;
+import com.l.erp.authservice.dominio.enumerators.EnumTenantStatus;
+import com.l.erp.authservice.infra.client.CadastroServiceClient;
 import com.l.erp.authservice.infra.config.Roles;
 import com.l.erp.authservice.repositorios.OwnerMarkerRepository;
 import com.l.erp.authservice.repositorios.RolePermissionRepository;
@@ -32,6 +39,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -46,16 +57,18 @@ class AuthServiceTest {
     private UserAccountRepository userRepo;
     private OwnerMarkerRepository ownerRepo;
     private UserRoleRepository userRoleRepository;
+    private TenantRepository tenantRepository;
     private TokenService tokenService;
     private RefreshTokenService refreshTokenService;
     private AuthMapper authMapper;
+    private CadastroServiceClient cadastroServiceClient;
     private AuthService authService;
 
     @BeforeEach
     void setUp() {
         userRepo = mock(UserAccountRepository.class);
         ownerRepo = mock(OwnerMarkerRepository.class);
-        TenantRepository tenantRepository = mock(TenantRepository.class);
+        tenantRepository = mock(TenantRepository.class);
         tokenService = mock(TokenService.class);
         refreshTokenService = mock(RefreshTokenService.class);
         PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
@@ -69,10 +82,12 @@ class AuthServiceTest {
         ObjectMapper objectMapper = new ObjectMapper();
         TrialEngagementService trialEngagementService = mock(TrialEngagementService.class);
         TenantOwnerBootstrapService tenantOwnerBootstrapService = mock(TenantOwnerBootstrapService.class);
+        cadastroServiceClient = mock(CadastroServiceClient.class);
 
         authService = new AuthService(userRepo, ownerRepo, tenantRepository, tokenService, refreshTokenService,
                 passwordEncoder, authMapper, userRoleRepository, rolePermissionRepository, auditService,
-                passwordValidatorUtil, kafkaTemplate, objectMapper, trialEngagementService, tenantOwnerBootstrapService);
+                passwordValidatorUtil, kafkaTemplate, objectMapper, trialEngagementService, tenantOwnerBootstrapService,
+                cadastroServiceClient);
 
         when(passwordEncoder.matches(any(), any())).thenReturn(true);
         when(refreshTokenService.issue(any(), any())).thenReturn(new RefreshTokenService.TokenPair("refresh-raw", null));
@@ -207,5 +222,63 @@ class AuthServiceTest {
         // Cadastro e login precisam gravar/buscar o mesmo formato — sem pontuação, uppercase.
         assertThat(AuthService.normalizeCnpj("12.abc.678/0001-95")).isEqualTo("12ABC678000195");
         assertThat(AuthService.normalizeCnpj(null)).isNull();
+    }
+
+    // ── Fase 4 (spec/estabelecimentos-filiais.md §6): os dois pontos que criam um tenant
+    // "de verdade" fora de TenantService.createTenant também precisam provisionar a
+    // pessoa/matriz própria no cadastro-service. ──
+
+    @Test
+    void ativarConta_provisionaPessoaPropriaAposAtivar() {
+        Tenant tenant = new Tenant();
+        tenant.setId(1L);
+        tenant.setStatus(EnumTenantStatus.CONVIDADO);
+        tenant.setEmail("convidado@empresa.com");
+        tenant.setName("Empresa Convidada");
+
+        DecodedJWT decoded = mock(DecodedJWT.class);
+        when(decoded.getSubject()).thenReturn("1");
+        Claim emailClaim = mock(Claim.class);
+        when(emailClaim.asString()).thenReturn("convidado@empresa.com");
+        when(decoded.getClaim(Constants.EMAIL)).thenReturn(emailClaim);
+        when(decoded.getClaim("referralId")).thenReturn(mock(Claim.class));
+        when(tokenService.validateInvitationToken("token-valido")).thenReturn(decoded);
+
+        when(tenantRepository.findById(1L)).thenReturn(Optional.of(tenant));
+        when(userRepo.findByEmailAndTenantId(anyString(), anyLong())).thenReturn(Optional.empty());
+        when(userRepo.findByEmail(anyString())).thenReturn(Optional.empty());
+        doAnswer(inv -> {
+            UserAccount saved = inv.getArgument(0);
+            saved.setId(UUID.randomUUID());
+            return saved;
+        }).when(userRepo).save(any(UserAccount.class));
+
+        authService.ativarConta(new AtivarContaRequest("token-valido", "senhaForteDemais123", "senhaForteDemais123"));
+
+        ArgumentCaptor<UUID> userIdCaptor = ArgumentCaptor.forClass(UUID.class);
+        verify(cadastroServiceClient).provisionarPessoaPropria(eq(tenant), userIdCaptor.capture());
+        assertThat(userIdCaptor.getValue()).isNotNull();
+    }
+
+    @Test
+    void criarContaGratis_provisionaPessoaPropriaAposCriar() {
+        when(tenantRepository.findByCnpj(anyString())).thenReturn(Optional.empty());
+        when(userRepo.findByEmail(anyString())).thenReturn(Optional.empty());
+        doAnswer(inv -> {
+            Tenant t = inv.getArgument(0);
+            t.setId(2L);
+            return t;
+        }).when(tenantRepository).save(any(Tenant.class));
+        doAnswer(inv -> {
+            UserAccount saved = inv.getArgument(0);
+            saved.setId(UUID.randomUUID());
+            return saved;
+        }).when(userRepo).save(any(UserAccount.class));
+        when(authMapper.toTenantLoginResponse(any(), any(), any(), any())).thenReturn(mock(TenantLoginResponse.class));
+
+        authService.criarContaGratis(new CriarContaGratisRequest("11222333000181", "Empresa Nova Ltda",
+                "Empresa Nova", "nova@empresa.com", "senhaForteDemais123", "11999999999"));
+
+        verify(cadastroServiceClient).provisionarPessoaPropria(any(Tenant.class), any(UUID.class));
     }
 }

@@ -61,6 +61,8 @@ public class TabelaPrecoService {
             throw new BusinessException(Constants.TABELA_PRECO_PADRAO_ALREADY_EXISTS+": " + dto.nome(), HttpStatus.BAD_REQUEST);
         }
 
+        validarVigencia(dto.inicioVigencia(), dto.fimVigencia());
+
         TabelaPreco tabelaPreco = TabelaPreco.builder()
                 .nome(dto.nome())
                 .moeda(dto.moeda() != null ? dto.moeda() : "BRL")
@@ -97,10 +99,12 @@ public class TabelaPrecoService {
             throw new BusinessException(Constants.TABELA_PRECO_ALREADY_EXISTS+": " + dto.nome(), HttpStatus.BAD_REQUEST);
         }
 
-        if (Boolean.TRUE.equals(dto.padrao()) && repository.existsByPadraoIsTrueAndTenantId(tenantId)) {
-            sendAuditEvent(Constants.TABELA_PRECO_CREATION, userId, null, Constants.ERROR, "{"+Constants.ERROR+": "+Constants.TABELA_PRECO_PADRAO_ALREADY_EXISTS+"}", correlationID);
+        if (Boolean.TRUE.equals(dto.padrao()) && repository.existsByPadraoIsTrueAndTenantIdAndIdNot(tenantId, id)) {
+            sendAuditEvent(Constants.TABELA_PRECO_UPDATE, userId, null, Constants.ERROR, "{"+Constants.ERROR+": "+Constants.TABELA_PRECO_PADRAO_ALREADY_EXISTS+"}", correlationID);
             throw new BusinessException(Constants.TABELA_PRECO_PADRAO_ALREADY_EXISTS+": " + dto.nome(), HttpStatus.BAD_REQUEST);
         }
+
+        validarVigencia(dto.inicioVigencia(), dto.fimVigencia());
 
         tabelaPreco.setNome(dto.nome());
         tabelaPreco.setMoeda(dto.moeda());
@@ -136,6 +140,12 @@ public class TabelaPrecoService {
         repository.save(tabelaPreco);
 
         sendAuditEvent(Constants.TABELA_PRECO_UPDATE, userId, id, Constants.SUCCESS, "{\"status_alterado\": " + tabelaPreco.getAtiva() + "}", correlationID);
+    }
+
+    private void validarVigencia(java.time.LocalDate inicioVigencia, java.time.LocalDate fimVigencia) {
+        if (fimVigencia != null && inicioVigencia.isAfter(fimVigencia)) {
+            throw new BusinessException(Constants.TABELA_PRECO_VIGENCIA_INVALIDA, HttpStatus.BAD_REQUEST);
+        }
     }
 
     private void sendAuditEvent(String action, UUID actorId, UUID targetId, String result, String detailsJson, UUID correlationId) {

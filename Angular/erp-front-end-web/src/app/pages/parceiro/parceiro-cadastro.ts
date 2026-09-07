@@ -10,7 +10,6 @@ import { Toast } from 'primeng/toast';
   selector: 'app-parceiro-cadastro',
   standalone: true,
   imports: [ReactiveFormsModule, Toast],
-  providers: [MessageService],
   templateUrl: './parceiro-cadastro.html',
   styleUrl: './parceiro-cadastro.scss',
 })

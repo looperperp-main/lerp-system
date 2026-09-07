@@ -35,7 +35,7 @@ pipeline {
 
         stage('Build & Test') {
             steps {
-                sh './mvnw clean verify -pl auth-service,cadastro-service,partner-service,billing-service,fiscal-service,gateway,registry -am --batch-mode --no-transfer-progress'
+                sh './mvnw clean verify -pl auth-service,cadastro-service,partner-service,billing-service,fiscal-service,operacoes-service,gateway,registry -am --batch-mode --no-transfer-progress'
             }
             post {
                 always {
@@ -53,7 +53,7 @@ pipeline {
                     // GAV completo em vez do prefixo 'sonar:sonar': o primeiro projeto do reator é o
                     // 'common', que herda do spring-boot-starter-parent e não enxerga o pluginManagement
                     // do pom raiz — o prefixo não resolve. Versão espelha a do pom.xml raiz.
-                    sh './mvnw org.sonarsource.scanner.maven:sonar-maven-plugin:5.1.0.4751:sonar -pl auth-service,cadastro-service,partner-service,billing-service,fiscal-service,gateway,registry -am -Dsonar.token=${SONAR_TOKEN} --batch-mode --no-transfer-progress'
+                    sh './mvnw org.sonarsource.scanner.maven:sonar-maven-plugin:5.1.0.4751:sonar -pl auth-service,cadastro-service,partner-service,billing-service,fiscal-service,operacoes-service,gateway,registry -am -Dsonar.token=${SONAR_TOKEN} --batch-mode --no-transfer-progress'
                 }
             }
         }
@@ -73,11 +73,11 @@ pipeline {
             when { branch 'main' }
             steps {
                 sh '''
-                    for svc in auth-service cadastro-service partner-service billing-service fiscal-service gateway registry; do
+                    for svc in auth-service cadastro-service partner-service billing-service fiscal-service operacoes-service gateway registry; do
                         docker build -t ${DOCKER_REGISTRY}/${svc}:${IMAGE_TAG} -t ${DOCKER_REGISTRY}/${svc}:latest -f ${svc}/Dockerfile ${svc}/
                     done
                     echo "${DOCKER_HUB_CREDS_PSW}" | docker login -u "${DOCKER_HUB_CREDS_USR}" --password-stdin
-                    for svc in auth-service cadastro-service partner-service billing-service fiscal-service gateway registry; do
+                    for svc in auth-service cadastro-service partner-service billing-service fiscal-service operacoes-service gateway registry; do
                         docker push ${DOCKER_REGISTRY}/${svc}:${IMAGE_TAG}
                         docker push ${DOCKER_REGISTRY}/${svc}:latest
                     done
@@ -93,7 +93,7 @@ pipeline {
 
     post {
         cleanup {
-            sh 'for svc in auth-service cadastro-service partner-service billing-service fiscal-service gateway registry; do docker rmi ${DOCKER_REGISTRY}/${svc}:${IMAGE_TAG} || true; done'
+            sh 'for svc in auth-service cadastro-service partner-service billing-service fiscal-service operacoes-service gateway registry; do docker rmi ${DOCKER_REGISTRY}/${svc}:${IMAGE_TAG} || true; done'
             cleanWs()
         }
     }

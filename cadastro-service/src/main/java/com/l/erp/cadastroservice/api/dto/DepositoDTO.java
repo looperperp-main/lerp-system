@@ -22,6 +22,7 @@ public record DepositoDTO(
         @NoHtml
         @Size(max = 30, message = "O nome deve ter no máximo 30 caracteres")
         String tipo,
+        UUID estabelecimentoId,
         Boolean ativo,
         Instant createdAt,
         Instant updatedAt,

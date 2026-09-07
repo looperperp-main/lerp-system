@@ -30,7 +30,6 @@ import { Breadcrumb } from '../../../components/breadcrumb/breadcrumb';
     ToastModule,
     Breadcrumb,
   ],
-  providers: [MessageService],
   templateUrl: './roles.html',
   styleUrl: './roles.scss',
 })

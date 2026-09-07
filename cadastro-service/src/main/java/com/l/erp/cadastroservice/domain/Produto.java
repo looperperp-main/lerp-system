@@ -1,9 +1,12 @@
 package com.l.erp.cadastroservice.domain;
 
+import com.l.erp.cadastroservice.domain.enumerators.TipoProduto;
 import com.l.erp.cadastroservice.repository.filter.BaseTenantEntity;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -55,6 +58,12 @@ public class Produto extends BaseTenantEntity {
     @Column(name = "descricao", length = Integer.MAX_VALUE)
     private String descricao;
 
+    @NotNull
+    @ColumnDefault("'MERCADORIA'")
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tipo", nullable = false, length = 12)
+    private TipoProduto tipo;
+
     @Size(max = 10)
     @NotNull
     @Column(name = "unidade", nullable = false, length = 10)
@@ -70,6 +79,15 @@ public class Produto extends BaseTenantEntity {
     @Size(max = 10)
     @Column(name = "ncm", length = 10)
     private String ncm;
+
+    @Size(max = 10)
+    @Column(name = "codigo_servico", length = 10)
+    private String codigoServico;
+
+    // D4 (spec/o2c-vendas.md §8) — classificação tributária IBS/CBS do serviço (Anexo VIII).
+    @Size(max = 10)
+    @Column(name = "class_trib", length = 10)
+    private String classTrib;
 
     @Size(max = 14)
     @Column(name = "ean", length = 14)

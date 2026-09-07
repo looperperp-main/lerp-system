@@ -1,0 +1,182 @@
+.jb-label {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--ink-2);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.jb-label-sm {
+  font-weight: 600;
+  font-size: 11px;
+  color: var(--ink-3);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.jb-hint {
+  color: var(--bad);
+  font-size: 12px;
+}
+
+.jb-section-title {
+  font-weight: 700;
+  color: var(--ink);
+  margin: 20px 0 10px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.jb-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.jb-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.jb-item-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  padding: 10px;
+  margin-bottom: 8px;
+}
+
+.jb-item-produto { flex: 2 1 200px; min-width: 0; }
+.jb-item-qtd { flex: 1 1 90px; min-width: 0; }
+.jb-item-preco { flex: 1 1 120px; min-width: 0; }
+.jb-item-desconto { flex: 1 1 120px; min-width: 0; }
+.jb-item-total {
+  flex: 1 1 100px;
+  min-width: 0;
+  align-items: center;
+
+  .jb-item-total-valor {
+    font-weight: 600;
+    color: var(--ink);
+    padding-bottom: 8px;
+  }
+}
+
+.jb-itens-empty {
+  text-align: center;
+  padding: 16px;
+  border: 1px dashed var(--line-2);
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.jb-total-geral {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  font-size: 15px;
+
+  strong {
+    font-size: 18px;
+    color: var(--ink);
+  }
+}
+
+.jb-form-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+:host ::ng-deep {
+  .p-inputtext,
+  .p-select,
+  .p-inputnumber input,
+  .p-datepicker input,
+  .p-checkbox .p-checkbox-box {
+    background: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(6px);
+    border: 1px solid var(--line-2);
+    border-radius: 12px;
+    color: var(--ink);
+  }
+
+  .p-textarea {
+    background: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(6px);
+    border: 1px solid var(--line-2);
+    border-radius: 12px;
+    color: var(--ink);
+    width: 100%;
+  }
+
+  .jb-item-row {
+    .p-select,
+    .p-inputnumber {
+      width: 100%;
+      min-width: 0;
+    }
+
+    .p-inputnumber-input {
+      width: 100%;
+      min-width: 0;
+    }
+  }
+
+  .p-button {
+    border-radius: 12px;
+  }
+
+  .p-button:not(.p-button-secondary):not(.p-button-success):not(.p-button-text):not(.p-button-danger) {
+    background: var(--brand-grad);
+    border-color: transparent;
+    color: #fff;
+  }
+
+  .p-inputtext::placeholder,
+  textarea::placeholder {
+    color: var(--muted);
+  }
+
+  .p-inputtext:enabled:focus,
+  .p-select:not(.p-disabled).p-focus,
+  .p-inputnumber input:enabled:focus,
+  textarea:enabled:focus {
+    border-color: var(--syax);
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .ng-invalid.p-select {
+    border-color: var(--bad);
+  }
+
+  .p-select-label { color: var(--ink); }
+  .p-select-overlay,
+  .p-datepicker-panel {
+    background: var(--bg-panel-2);
+    border: 1px solid var(--line-2);
+    color: var(--ink-2);
+  }
+
+  .p-button-secondary {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--line-2);
+    color: var(--ink-2);
+  }
+  .p-button-secondary:hover {
+    background: rgba(255, 255, 255, 0.09);
+  }
+}

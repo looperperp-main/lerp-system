@@ -10,7 +10,6 @@ import { Breadcrumb } from '../../components/breadcrumb/breadcrumb';
   selector: 'app-home',
   standalone: true,
   imports: [NgIf, NgForOf, CurrencyPipe, ToastModule, Breadcrumb],
-  providers: [MessageService],
   templateUrl: './home.html',
   styleUrl: './home.scss',
 })
@@ -197,6 +196,10 @@ export class Home implements OnInit {
 
   cadastrarProduto() {
     this.router.navigate(['/web/cadastros/produtos']);
+  }
+
+  novaVenda() {
+    this.router.navigate(['/web/vendas/pedidos']);
   }
 
   emDesenvolvimento(recurso: string) {

@@ -47,6 +47,9 @@ public class Deposito {
     @Column(name = "tipo", length = 30)
     private String tipo;
 
+    @Column(name = "estabelecimento_id")
+    private UUID estabelecimentoId;
+
     @NotNull
     @ColumnDefault("true")
     @Column(name = "ativo", nullable = false)

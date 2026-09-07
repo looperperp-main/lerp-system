@@ -116,6 +116,11 @@ export class WebLayout {
       path: '/web/financeiro/recebiveis',
       items: [
         {
+          label: 'Pedidos de Venda',
+          icon: 'pi pi-shopping-cart',
+          routerLink: '/web/vendas/pedidos',
+        },
+        {
           label: 'Títulos a Receber',
           icon: 'pi pi-file',
           routerLink: '/web/financeiro/recebiveis',

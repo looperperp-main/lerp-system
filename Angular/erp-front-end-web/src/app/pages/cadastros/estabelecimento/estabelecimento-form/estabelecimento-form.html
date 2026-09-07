@@ -1,0 +1,50 @@
+<form [formGroup]="form" (ngSubmit)="onSubmit()" class="flex flex-col gap-4 mt-2">
+
+  <div class="flex flex-col gap-2">
+    <label for="cnpjCompleto" class="jb-label">CNPJ <span class="text-red-500">*</span></label>
+    <input
+      id="cnpjCompleto"
+      type="text"
+      pInputText
+      formControlName="cnpjCompleto"
+      class="w-full"
+      [ngClass]="{'ng-invalid ng-dirty': isFieldInvalid('cnpjCompleto')}"
+      (input)="onCnpjInput($any($event.target).value)"
+      placeholder="00.000.000/0001-00">
+    <small *ngIf="isFieldInvalid('cnpjCompleto')" class="text-red-500">O CNPJ é obrigatório.</small>
+    <small *ngIf="isMatriz" class="jb-label">Matriz: CNPJ segue o documento da pessoa, não editável aqui.</small>
+  </div>
+
+  <div class="flex flex-col gap-2">
+    <label for="ie" class="jb-label">Inscrição Estadual</label>
+    <input id="ie" type="text" pInputText formControlName="ie" class="w-full" placeholder="IE do estabelecimento">
+  </div>
+
+  <div class="flex flex-col gap-2">
+    <label for="im" class="jb-label">Inscrição Municipal</label>
+    <input id="im" type="text" pInputText formControlName="im" class="w-full" placeholder="IM do estabelecimento">
+  </div>
+
+  <div class="flex items-center gap-2 mt-2">
+    <p-checkbox
+      inputId="ativo"
+      formControlName="ativo"
+      [binary]="true"></p-checkbox>
+    <label for="ativo" class="jb-label cursor-pointer">Estabelecimento Ativo</label>
+  </div>
+
+  <div class="flex justify-end gap-2 mt-6 pt-4 border-t border-gray-200">
+    <p-button
+      label="Cancelar"
+      icon="pi pi-times"
+      styleClass="p-button-text p-button-secondary"
+      (onClick)="onCancel()"
+      [disabled]="isSaving"></p-button>
+    <p-button
+      label="Salvar"
+      icon="pi pi-check"
+      type="submit"
+      [loading]="isSaving"
+      [disabled]="form.invalid"></p-button>
+  </div>
+</form>

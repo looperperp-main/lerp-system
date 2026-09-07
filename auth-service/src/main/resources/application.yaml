@@ -82,6 +82,16 @@ eureka:
     service-url:
       defaultZone: http://localhost:8761/eureka/
 
+# URL lógica (Eureka) do cadastro-service p/ RestClient @LoadBalanced — onboarding síncrono
+# do tenant: cria a Pessoa própria + marca a matriz como proprio=true (Fase 4,
+# spec/estabelecimentos-filiais.md §6).
+cadastro-service:
+  url: lb://cadastro-service
+
+internal:
+  gateway:
+    secret: ${INTERNAL_GATEWAY_SECRET}
+
 ---
 # Profile de produção: desabilita a documentação OpenAPI/Swagger
 spring:

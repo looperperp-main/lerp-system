@@ -1,0 +1,201 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # Fase 2 + rebind (spec/estabelecimentos-filiais.md §5.2): endereco/contato passam
+  # a poder pertencer a um Estabelecimento (PJ, via matriz/filial) em vez de só a
+  # Pessoa (PF, direto). Estabelecimento matriz por pessoa já existe desde a Fase 1
+  # (cadastro-schema-011.yaml, cad-030..036).
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-040-add-estabelecimento-id-endereco
+      author: vitor-fernandes
+      changes:
+        - addColumn:
+            schemaName: cadastros
+            tableName: endereco
+            columns:
+              - column:
+                  name: estabelecimento_id
+                  type: uuid
+        - addForeignKeyConstraint:
+            baseTableName: endereco
+            baseTableSchemaName: cadastros
+            baseColumnNames: estabelecimento_id
+            constraintName: fk_endereco_estabelecimento_id
+            referencedTableName: estabelecimento
+            referencedTableSchemaName: cadastros
+            referencedColumnNames: id
+            onDelete: RESTRICT
+            onUpdate: CASCADE
+        - createIndex:
+            schemaName: cadastros
+            tableName: endereco
+            indexName: idx_endereco_estabelecimento_id
+            columns:
+              - column:
+                  name: estabelecimento_id
+
+  - changeSet:
+      id: cad-041-add-estabelecimento-id-contato
+      author: vitor-fernandes
+      changes:
+        - addColumn:
+            schemaName: cadastros
+            tableName: contato
+            columns:
+              - column:
+                  name: estabelecimento_id
+                  type: uuid
+        - addForeignKeyConstraint:
+            baseTableName: contato
+            baseTableSchemaName: cadastros
+            baseColumnNames: estabelecimento_id
+            constraintName: fk_contato_estabelecimento_id
+            referencedTableName: estabelecimento
+            referencedTableSchemaName: cadastros
+            referencedColumnNames: id
+            onDelete: RESTRICT
+            onUpdate: CASCADE
+        - createIndex:
+            schemaName: cadastros
+            tableName: contato
+            indexName: idx_contato_estabelecimento_id
+            columns:
+              - column:
+                  name: estabelecimento_id
+
+  # ──────────────────────────────────────────
+  # pessoa_id deixa de ser obrigatório: rows de PJ vão passar a apontar
+  # para estabelecimento_id em vez disso (XOR abaixo).
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-042-endereco-pessoa-id-nullable
+      author: vitor-fernandes
+      changes:
+        - dropNotNullConstraint:
+            schemaName: cadastros
+            tableName: endereco
+            columnName: pessoa_id
+            columnDataType: uuid
+      rollback:
+        - addNotNullConstraint:
+            schemaName: cadastros
+            tableName: endereco
+            columnName: pessoa_id
+            columnDataType: uuid
+
+  - changeSet:
+      id: cad-043-contato-pessoa-id-nullable
+      author: vitor-fernandes
+      changes:
+        - dropNotNullConstraint:
+            schemaName: cadastros
+            tableName: contato
+            columnName: pessoa_id
+            columnDataType: uuid
+      rollback:
+        - addNotNullConstraint:
+            schemaName: cadastros
+            tableName: contato
+            columnName: pessoa_id
+            columnDataType: uuid
+
+  # ──────────────────────────────────────────
+  # Rebind: endereco/contato de pessoa PJ passam a apontar para a matriz
+  # (estabelecimento is_matriz=true) em vez da pessoa diretamente.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-044-rebind-endereco-pj-para-estabelecimento
+      author: vitor-fernandes
+      changes:
+        - sql:
+            sql: >
+              UPDATE cadastros.endereco e
+              SET estabelecimento_id = est.id,
+                  pessoa_id = NULL
+              FROM cadastros.pessoa p
+              JOIN cadastros.estabelecimento est
+                ON est.pessoa_id = p.id AND est.is_matriz = true AND est.tenant_id = p.tenant_id
+              WHERE e.pessoa_id = p.id AND p.tipo = 'PJ';
+      rollback:
+        - sql:
+            sql: >
+              UPDATE cadastros.endereco e
+              SET pessoa_id = est.pessoa_id,
+                  estabelecimento_id = NULL
+              FROM cadastros.estabelecimento est
+              WHERE e.estabelecimento_id = est.id;
+
+  - changeSet:
+      id: cad-045-rebind-contato-pj-para-estabelecimento
+      author: vitor-fernandes
+      changes:
+        - sql:
+            sql: >
+              UPDATE cadastros.contato c
+              SET estabelecimento_id = est.id,
+                  pessoa_id = NULL
+              FROM cadastros.pessoa p
+              JOIN cadastros.estabelecimento est
+                ON est.pessoa_id = p.id AND est.is_matriz = true AND est.tenant_id = p.tenant_id
+              WHERE c.pessoa_id = p.id AND p.tipo = 'PJ';
+      rollback:
+        - sql:
+            sql: >
+              UPDATE cadastros.contato c
+              SET pessoa_id = est.pessoa_id,
+                  estabelecimento_id = NULL
+              FROM cadastros.estabelecimento est
+              WHERE c.estabelecimento_id = est.id;
+
+  # ──────────────────────────────────────────
+  # XOR: exatamente um dos dois donos preenchido (pessoa p/ PF direto,
+  # estabelecimento p/ PJ via matriz/filial).
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-046-xor-endereco-pessoa-estabelecimento
+      author: vitor-fernandes
+      changes:
+        - sql:
+            sql: >
+              ALTER TABLE cadastros.endereco
+              ADD CONSTRAINT ck_endereco_pessoa_xor_estabelecimento
+              CHECK ((pessoa_id IS NOT NULL)::int + (estabelecimento_id IS NOT NULL)::int = 1);
+      rollback:
+        - sql:
+            sql: ALTER TABLE cadastros.endereco DROP CONSTRAINT ck_endereco_pessoa_xor_estabelecimento;
+
+  - changeSet:
+      id: cad-047-xor-contato-pessoa-estabelecimento
+      author: vitor-fernandes
+      changes:
+        - sql:
+            sql: >
+              ALTER TABLE cadastros.contato
+              ADD CONSTRAINT ck_contato_pessoa_xor_estabelecimento
+              CHECK ((pessoa_id IS NOT NULL)::int + (estabelecimento_id IS NOT NULL)::int = 1);
+      rollback:
+        - sql:
+            sql: ALTER TABLE cadastros.contato DROP CONSTRAINT ck_contato_pessoa_xor_estabelecimento;
+
+  # ──────────────────────────────────────────
+  # pessoa.ie/im migram para estabelecimento (já preenchidos na matriz desde a
+  # Fase 1 — cad-030). Pessoa.ie/im viram @Transient, resolvidos via matriz.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-048-drop-pessoa-ie
+      author: vitor-fernandes
+      changes:
+        - dropColumn:
+            schemaName: cadastros
+            tableName: pessoa
+            columnName: ie
+
+  - changeSet:
+      id: cad-049-drop-pessoa-im
+      author: vitor-fernandes
+      changes:
+        - dropColumn:
+            schemaName: cadastros
+            tableName: pessoa
+            columnName: im

@@ -4,6 +4,7 @@ import com.l.erp.cadastroservice.api.dto.DepositoDTO;
 import com.l.erp.cadastroservice.api.mappers.DepositoMapper;
 import com.l.erp.cadastroservice.domain.Deposito;
 import com.l.erp.cadastroservice.repository.DepositoRepository;
+import com.l.erp.cadastroservice.repository.EstabelecimentoRepository;
 import com.l.erp.cadastroservice.services.AuditProducerService;
 import com.l.erp.cadastroservice.services.DepositoService;
 import com.l.erp.common.exception.custom.BusinessException;
@@ -31,6 +32,7 @@ class DepositoServiceTest {
     @Mock private AuditProducerService auditProducer;
     @Mock private DepositoMapper mapper;
     @Mock private DepositoRepository repository;
+    @Mock private EstabelecimentoRepository estabelecimentoRepository;
 
     @InjectMocks private DepositoService service;
 
@@ -38,7 +40,11 @@ class DepositoServiceTest {
     private static final UUID USER_ID = UUID.randomUUID();
 
     private DepositoDTO dto(String nome) {
-        return new DepositoDTO(null, TENANT_ID, nome, "desc", "PRINCIPAL", true, null, null, null, null);
+        return new DepositoDTO(null, TENANT_ID, nome, "desc", "PRINCIPAL", null, true, null, null, null, null);
+    }
+
+    private DepositoDTO dtoComEstabelecimento(String nome, UUID estabelecimentoId) {
+        return new DepositoDTO(null, TENANT_ID, nome, "desc", "PRINCIPAL", estabelecimentoId, true, null, null, null, null);
     }
 
     @Test
@@ -79,6 +85,20 @@ class DepositoServiceTest {
     }
 
     @Test
+    void save_estabelecimentoInvalido_lancaBadRequest() {
+        UUID estabelecimentoId = UUID.randomUUID();
+        when(repository.existsByTenantIdAndNomeIgnoreCase(TENANT_ID, "CD1")).thenReturn(false);
+        when(estabelecimentoRepository.existsByIdAndTenantId(estabelecimentoId, TENANT_ID)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.save(dtoComEstabelecimento("CD1", estabelecimentoId), TENANT_ID, USER_ID))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getStatus())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+
+        verify(repository, never()).save(any());
+    }
+
+    @Test
     void update_naoEncontrado_lanca404() {
         UUID id = UUID.randomUUID();
         when(repository.findById(id)).thenReturn(Optional.empty());
@@ -116,6 +136,23 @@ class DepositoServiceTest {
 
         assertThat(result.nome()).isEqualTo("Novo");
         verify(repository).save(any(Deposito.class));
+    }
+
+    @Test
+    void update_estabelecimentoInvalido_lancaBadRequest() {
+        UUID id = UUID.randomUUID();
+        UUID estabelecimentoId = UUID.randomUUID();
+        Deposito existing = Deposito.builder().id(id).tenantId(TENANT_ID).createdBy(USER_ID).build();
+
+        when(repository.findById(id)).thenReturn(Optional.of(existing));
+        when(estabelecimentoRepository.existsByIdAndTenantId(estabelecimentoId, TENANT_ID)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.update(id, dtoComEstabelecimento("Novo", estabelecimentoId), TENANT_ID, USER_ID))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getStatus())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+
+        verify(repository, never()).save(any());
     }
 
     @Test

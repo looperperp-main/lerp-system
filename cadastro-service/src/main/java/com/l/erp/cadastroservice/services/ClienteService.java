@@ -5,11 +5,13 @@ import com.l.erp.cadastroservice.domain.Cliente;
 import com.l.erp.cadastroservice.domain.CondicaoPagamento;
 import com.l.erp.cadastroservice.domain.GrupoCliente;
 import com.l.erp.cadastroservice.domain.Pessoa;
+import com.l.erp.cadastroservice.domain.TabelaPreco;
 import com.l.erp.cadastroservice.domain.Vendedor;
 import com.l.erp.cadastroservice.repository.ClienteRepository;
 import com.l.erp.cadastroservice.repository.CondicaoPagamentoRepository;
 import com.l.erp.cadastroservice.repository.GrupoClienteRepository;
 import com.l.erp.cadastroservice.repository.PessoaRepository;
+import com.l.erp.cadastroservice.repository.TabelaPrecoRepository;
 import com.l.erp.cadastroservice.repository.VendedorRepository;
 import com.l.erp.common.util.Constants;
 import com.l.erp.common.api.dto.AuditEventDTO;
@@ -36,6 +38,7 @@ public class ClienteService {
     private final CondicaoPagamentoRepository condicaoPagamentoRepository;
     private final GrupoClienteRepository grupoClienteRepository;
     private final VendedorRepository vendedorRepository;
+    private final TabelaPrecoRepository tabelaPrecoRepository;
     private final AuditProducerService auditProducer;
 
     public ClienteService(ClienteRepository clienteRepository,
@@ -43,12 +46,14 @@ public class ClienteService {
                           CondicaoPagamentoRepository condicaoPagamentoRepository,
                           GrupoClienteRepository grupoClienteRepository,
                           VendedorRepository vendedorRepository,
+                          TabelaPrecoRepository tabelaPrecoRepository,
                           AuditProducerService auditProducer) {
         this.clienteRepository = clienteRepository;
         this.pessoaRepository = pessoaRepository;
         this.condicaoPagamentoRepository = condicaoPagamentoRepository;
         this.grupoClienteRepository = grupoClienteRepository;
         this.vendedorRepository = vendedorRepository;
+        this.tabelaPrecoRepository = tabelaPrecoRepository;
         this.auditProducer = auditProducer;
     }
 
@@ -97,6 +102,12 @@ public class ClienteService {
                     .orElseThrow(() -> new BusinessException(Constants.VENDEDOR_NOT_FOUND, HttpStatus.BAD_REQUEST));
         }
 
+        TabelaPreco tabelaPreco = null;
+        if (dto.tabelaPrecoId() != null) {
+            tabelaPreco = tabelaPrecoRepository.findByIdAndTenantId(dto.tabelaPrecoId(), tenantId)
+                    .orElseThrow(() -> new BusinessException(Constants.TABELA_PRECO_NOT_FOUND, HttpStatus.BAD_REQUEST));
+        }
+
         // 3. Monta a entidade
         Cliente cliente = Cliente.builder()
                 .pessoa(pessoa)
@@ -104,6 +115,7 @@ public class ClienteService {
                 .condicaoPagamento(condicaoPagamento)
                 .grupoCliente(grupoCliente)
                 .vendedor(vendedor)
+                .tabelaPreco(tabelaPreco)
                 .limiteCredito(dto.limiteCredito())
                 .classificacaoRisco(dto.classificacaoRisco())
                 .prazoMedioPagamentoDias(dto.prazoMedioPagamentoDias())
@@ -150,6 +162,9 @@ public class ClienteService {
 
         cliente.setVendedor(dto.vendedorId() != null ?
                 vendedorRepository.findByIdAndTenantId(dto.vendedorId(), tenantId).orElse(null) : null);
+
+        cliente.setTabelaPreco(dto.tabelaPrecoId() != null ?
+                tabelaPrecoRepository.findByIdAndTenantId(dto.tabelaPrecoId(), tenantId).orElse(null) : null);
 
         // Atualiza campos
         cliente.setCodigoInterno(dto.codigoInterno());

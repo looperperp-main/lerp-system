@@ -11,6 +11,7 @@ import com.l.erp.authservice.api.mappers.AuthMapper;
 import com.l.erp.authservice.dominio.RefreshToken;
 import com.l.erp.authservice.dominio.Tenant;
 import com.l.erp.authservice.dominio.UserAccount;
+import com.l.erp.authservice.infra.client.CadastroServiceClient;
 import com.l.erp.authservice.infra.config.Roles;
 import com.l.erp.authservice.repositorios.OwnerMarkerRepository;
 import com.l.erp.authservice.repositorios.RolePermissionRepository;
@@ -59,6 +60,7 @@ public class AuthService {
     private final ObjectMapper objectMapper;
     private final com.l.erp.authservice.services.TrialEngagementService trialEngagementService;
     private final com.l.erp.authservice.services.TenantOwnerBootstrapService tenantOwnerBootstrapService;
+    private final CadastroServiceClient cadastroServiceClient;
 
     public AuthService(UserAccountRepository userRepo,
                        OwnerMarkerRepository ownerRepo,
@@ -74,7 +76,8 @@ public class AuthService {
                        KafkaTemplate<String, String> kafkaTemplate,
                        ObjectMapper objectMapper,
                        com.l.erp.authservice.services.TrialEngagementService trialEngagementService,
-                       com.l.erp.authservice.services.TenantOwnerBootstrapService tenantOwnerBootstrapService) {
+                       com.l.erp.authservice.services.TenantOwnerBootstrapService tenantOwnerBootstrapService,
+                       CadastroServiceClient cadastroServiceClient) {
         this.userRepo = userRepo;
         this.ownerRepo = ownerRepo;
         this.tenantRepository = tenantRepository;
@@ -90,6 +93,7 @@ public class AuthService {
         this.objectMapper = objectMapper;
         this.trialEngagementService = trialEngagementService;
         this.tenantOwnerBootstrapService = tenantOwnerBootstrapService;
+        this.cadastroServiceClient = cadastroServiceClient;
     }
 
     public LoginResponse loginPartner(String email, String password) {
@@ -453,6 +457,12 @@ public class AuthService {
         tenant.setTrialExpiresAt(trialExpiresAt);
         tenantRepository.save(tenant);
 
+        // Fase 4 (spec/estabelecimentos-filiais.md §6): mesmo provisionamento síncrono do
+        // TenantService.createTenant, aplicado aqui porque este é o outro ponto que "nasce" um
+        // tenant de verdade (convite de parceiro ativado) — sem isso o tenant fica sem
+        // pessoa/matriz própria no cadastro-service.
+        cadastroServiceClient.provisionarPessoaPropria(tenant, user.getId());
+
         String referralId = decoded.getClaim("referralId").asString();
         publishTenantActivated(tenant.getId(), referralId, trialStartedAt, trialExpiresAt);
 
@@ -522,6 +532,10 @@ public class AuthService {
 
         // Bootstrap: cria a role do owner (PROPRIETARIO) com as permissões de segurança e a atribui ao usuário.
         tenantOwnerBootstrapService.bootstrapOwner(tenant, user);
+
+        // Fase 4 (spec/estabelecimentos-filiais.md §6): idem TenantService.createTenant — este é
+        // o terceiro (e último) ponto que cria um tenant de verdade (auto-cadastro TRIAL).
+        cadastroServiceClient.provisionarPessoaPropria(tenant, user.getId());
 
         publishBoasVindasTrial(req.email(), displayName, tenant.getName(), trialExpiresAt);
 

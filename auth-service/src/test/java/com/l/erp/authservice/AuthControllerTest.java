@@ -17,6 +17,7 @@ import com.l.erp.authservice.dominio.enumerators.EnumTenantStatus;
 import com.l.erp.authservice.infra.AuthService;
 import com.l.erp.authservice.infra.RefreshTokenService;
 import com.l.erp.authservice.infra.TokenService;
+import com.l.erp.authservice.infra.client.CadastroServiceClient;
 import com.l.erp.authservice.repositorios.OwnerMarkerRepository;
 import com.l.erp.authservice.repositorios.RolePermissionRepository;
 import com.l.erp.authservice.repositorios.TenantRepository;
@@ -104,6 +105,9 @@ class AuthControllerTest {
 
     @MockitoBean
     private TenantOwnerBootstrapService tenantOwnerBootstrapService;
+
+    @MockitoBean
+    private CadastroServiceClient cadastroServiceClient;
 
     @Test
     void shouldLoginSuccess() throws Exception {

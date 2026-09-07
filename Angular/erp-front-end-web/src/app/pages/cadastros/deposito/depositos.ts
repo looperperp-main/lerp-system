@@ -36,7 +36,6 @@ import { Breadcrumb } from '../../../components/breadcrumb/breadcrumb';
     DepositoForm,
     Breadcrumb,
   ],
-  providers: [MessageService],
   templateUrl: './depositos.html',
   styleUrl: './depositos.scss',
 })

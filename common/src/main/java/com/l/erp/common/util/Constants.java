@@ -164,6 +164,16 @@ public class Constants {
     public static final String CONTATO_NOT_FOUND = "Contato nao encontrada!";
     public static final String CONTATO_ALREADY_EXISTS = "Já existe um Contato com este nome";
 
+    public static final String ESTABELECIMENTO = "ESTABELECIMENTO";
+    public static final String ESTABELECIMENTO_CREATION = ESTABELECIMENTO + "_" + INSERT;
+    public static final String ESTABELECIMENTO_UPDATE = ESTABELECIMENTO + "_" + UPDATE;
+    public static final String ESTABELECIMENTO_NOT_FOUND = "Estabelecimento nao encontrado!";
+    public static final String ESTABELECIMENTO_MATRIZ_NAO_ENCONTRADA = "Matriz nao encontrada para esta Pessoa!";
+    public static final String ESTABELECIMENTO_APENAS_PJ = "Apenas Pessoa Juridica pode ter Estabelecimentos!";
+    public static final String ESTABELECIMENTO_PROPRIO_JA_DEFINIDO = "Este tenant ja possui um estabelecimento proprio definido!";
+    public static final String ESTABELECIMENTO_MATRIZ_NAO_PODE_SER_INATIVADA = "A matriz nao pode ser inativada, pois nao e possivel criar outra em seu lugar!";
+    public static final String ESTABELECIMENTO_PROPRIO_NAO_ENCONTRADO = "Estabelecimento proprio do tenant nao encontrado!";
+
     public static final String VENDEDOR = "VENDEDOR";
     public static final String VENDEDOR_CREATION = VENDEDOR + "_" + INSERT;
     public static final String VENDEDOR_UPDATE = VENDEDOR +"_" + UPDATE;
@@ -202,6 +212,8 @@ public class Constants {
     public static final String TABELA_PRECO_NOT_FOUND = "Tabela de Preco não encontrada!";
     public static final String TABELA_PRECO_ALREADY_EXISTS = "Já existe uma Tabela de Preco com este nome";
     public static final String TABELA_PRECO_PADRAO_ALREADY_EXISTS = "Já existe uma Tabela de Preco Padrao pra esse Tenant";
+    public static final String TABELA_PRECO_VIGENCIA_INVALIDA = "Início de vigência não pode ser posterior ao fim de vigência";
+    public static final String PRECO_NAO_RESOLVIDO = "Não foi possível resolver um preço para o produto informado";
 
     public static final String GRP_C_TABELA_PRECO = "TABELA_PRECO_GRUPO_CLIENTE";
     public static final String GRP_C_TABELA_PRECO_ASSOCIACAO = GRP_C_TABELA_PRECO+"_ASSOCIACAO";
@@ -212,6 +224,20 @@ public class Constants {
     public static final String PRODUTO_DELETE = PRODUTO +"_" + DELETE;
     public static final String PRODUTO_NOT_FOUND = "Produto não encontrado!";
     public static final String PRODUTO_ALREADY_EXISTS = "Já existe um Produto com este nome";
+    // Suporte a serviço (Produto.tipo) — cadastro-service
+    public static final String PRODUTO_NCM_OBRIGATORIO_MERCADORIA = "NCM é obrigatório para produto do tipo MERCADORIA";
+    public static final String PRODUTO_CODIGO_SERVICO_OBRIGATORIO =
+            "Código de serviço é obrigatório para produto do tipo SERVICO";
+    public static final String PRODUTO_CODIGO_SERVICO_APENAS_SERVICO =
+            "Código de serviço só é permitido para produto do tipo SERVICO";
+    // D4 (spec/o2c-vendas.md §8) — classificação tributária IBS/CBS do serviço (Anexo VIII),
+    // exigida pelo fiscal-service (MotorFiscalService) sempre que codigoServico vem preenchido.
+    public static final String PRODUTO_CLASS_TRIB_OBRIGATORIO_SERVICO =
+            "Classificação tributária (cClassTrib) é obrigatória para produto do tipo SERVICO";
+    public static final String PRODUTO_PRECO_VIGENCIA_INVALIDA =
+            "Início de vigência do preço não pode ser posterior ao fim de vigência";
+    public static final String PRODUTO_PRECO_VIGENCIA_SOBREPOSTA =
+            "Já existe um preço vigente para esta Tabela de Preço no período informado";
 
     public static final String PLAN = "PLAN";
     public static final String PLAN_CREATION = PLAN + "_" + INSERT;
@@ -253,6 +279,11 @@ public class Constants {
     public static final String METRIC_JOB_SEGUNDOS_DESDE_OK = "job_segundos_desde_ok";
     public static final String METRIC_TAG_JOB = "job";
     public static final double METRIC_JOB_NUNCA_EXECUTADO = -1.0;
+
+    // Tag de tenant nas métricas http.server.requests (load test estruturado do billing-service,
+    // ver billing-service/loadtest/README.md). Cardinalidade só é aceitável porque o número de
+    // tenants é limitado ao load test controlado — não usar tenant_id como label fora desse cenário.
+    public static final String METRIC_TAG_TENANT = "tenant_id";
 
     //Parceiros
     public static final String PARCEIRO = "PARCEIRO";
@@ -471,4 +502,88 @@ public class Constants {
     public static final String FISCAL_TRIBUTO_TOTAL = "TOTAL";
     public static final String FISCAL_TIPO_PERCENTUAL_REDUCAO = "PERCENTUAL_REDUCAO";
     public static final String FISCAL_TIPO_ALIQUOTA_ABSOLUTA = "ALIQUOTA_ABSOLUTA";
+
+    // Art. 57 §7º da LC 214/2025 (incluído pela LC 227/2026) — revenda de bem que não gerou
+    // crédito na entrada (uso e consumo pessoal) pode excluir da base de saída o valor de
+    // aquisição, até o limite do valor da venda. Só existe do lado da SAÍDA — a vedação em si
+    // já é decidida na entrada (item 4), então declarar o flag numa entrada não faz sentido.
+    public static final String FISCAL_VEDACAO_57_APENAS_SAIDA = "FISCAL_VEDACAO_57_APENAS_SAIDA";
+    // Flag ligada sem o valor de aquisição: sem ele não dá pra calcular a exclusão — 400 em vez
+    // de tratar como zero (o que devolveria o mesmo imposto de uma venda comum, calado).
+    public static final String FISCAL_VEDACAO_57_SEM_VALOR_AQUISICAO = "FISCAL_VEDACAO_57_SEM_VALOR_AQUISICAO";
+    // Memória de cálculo da exclusão (art. 57 §7º). Placeholders: valor excluído, valor de aquisição.
+    public static final String FISCAL_MEMORIA_VEDACAO_57 =
+            "Art. 57 §7º LC 214/2025: exclusão de %s da base de cálculo (bem sem crédito na "
+                    + "entrada, valor de aquisição %s)";
+
+    // O2C — Pedido de venda (operacoes-service, schema vendas — spec/o2c-vendas.md §4/§7/§8, Fase 3)
+    public static final String PEDIDO = "PEDIDO";
+    public static final String PEDIDO_NOT_FOUND = "Pedido não encontrado!";
+    public static final String PEDIDO_SEM_ITENS = "Pedido deve ter ao menos um item";
+    public static final String PEDIDO_ITEM_QUANTIDADE_INVALIDA = "Quantidade do item deve ser maior que zero";
+    public static final String PEDIDO_ITEM_DESCONTO_INVALIDO =
+            "Desconto do item deve ser maior ou igual a zero e menor que o valor bruto do item";
+    // Placeholder: produtoId duplicado.
+    public static final String PEDIDO_ITEM_PRODUTO_DUPLICADO = "Produto duplicado no pedido: %s";
+    // Placeholder: produtoId sem preço. Item sem precoUnitario informado cai aqui quando o motor de
+    // preço (spec/motor-resolucao-preco.md) não resolve preço em nenhum nível da cascata.
+    public static final String PEDIDO_ITEM_SEM_PRECO =
+            "Produto %s não possui preço vigente; informe o preço manualmente.";
+    public static final String PEDIDO_DATA_VALIDADE_INVALIDA =
+            "Data de validade não pode ser anterior à data de emissão";
+    // Placeholders: status atual, status de destino.
+    public static final String PEDIDO_TRANSICAO_INVALIDA = "Transição inválida: pedido em %s não pode ir para %s";
+    public static final String PEDIDO_CONDICAO_PAGAMENTO_OBRIGATORIA =
+            "Condição de pagamento é obrigatória para confirmar o pedido";
+    // Placeholder: data de validade expirada.
+    public static final String PEDIDO_ORCAMENTO_EXPIRADO = "Orçamento expirado — data de validade %s já passou";
+    // Placeholders: exposição calculada, limite de crédito. Motivo gravado no pedido_status_historico.
+    public static final String PEDIDO_BLOQUEADO_CREDITO_MOTIVO =
+            "Limite de crédito excedido: exposição de %s supera o limite de %s";
+    public static final String PEDIDO_CONFIRMADO_COM_BYPASS_MOTIVO =
+            "Confirmado com estouro de limite de crédito (exposição %s > limite %s) por usuário com "
+                    + "permissão de bypass";
+    public static final String PEDIDO_DEPOSITO_OBRIGATORIO = "Depósito é obrigatório para expedir o pedido";
+    public static final String PEDIDO_TRANSPORTADORA_OBRIGATORIA =
+            "Transportadora é obrigatória quando a modalidade de frete não é SEM_FRETE";
+    public static final String PEDIDO_MOTIVO_CANCELAMENTO_OBRIGATORIO = "Motivo do cancelamento é obrigatório";
+    // Placeholder: soma dos percentuais encontrada.
+    public static final String PEDIDO_PARCELAS_PERCENTUAL_INVALIDO =
+            "Soma dos percentuais das parcelas da condição de pagamento deve ser 100 (atual: %s)";
+    // Placeholder: tenantId.
+    public static final String PEDIDO_NUMERACAO_FALHA = "Falha ao obter numeração do pedido para o tenant %s";
+    // O2C — Fase 4 (API/controllers, spec/o2c-vendas.md §5/§10)
+    public static final String PEDIDO_UPDATE_SO_ORCAMENTO = "Só é possível editar pedido em status ORCAMENTO";
+    public static final String PEDIDO_RECALCULO_SO_ORCAMENTO =
+            "Só é possível recalcular preços de pedido em status ORCAMENTO";
+
+    // O2C — Suporte a serviço no item do pedido (spec/o2c-vendas.md, Rev. 8)
+    public static final String PEDIDO_EXPEDICAO_SO_MERCADORIA =
+            "Pedido só com serviços não passa por expedição; fature diretamente";
+    // Placeholder: produtoId.
+    public static final String PEDIDO_PRODUTO_NAO_ENCONTRADO = "Produto não encontrado: %s";
+    // Placeholder: nome do produto.
+    public static final String PEDIDO_PRODUTO_INATIVO = "Produto inativo: %s";
+    // Placeholder: produtoId. Defesa: tipoItem só fica null se o controller não tiver resolvido
+    // o produto antes de montar a entidade — não deveria acontecer no fluxo normal via API.
+    public static final String PEDIDO_ITEM_SEM_TIPO = "Tipo do item não resolvido para o produto %s";
+    public static final String CADASTRO_SERVICE_INDISPONIVEL = "Serviço de cadastros indisponível";
+
+    // O2C — D4: integração fiscal no faturamento (spec/o2c-vendas.md §8, Rev. 8)
+    public static final String FISCAL_SERVICE_INDISPONIVEL = "Serviço fiscal indisponível, tente novamente";
+    // Placeholders: produtoId, motivo devolvido pelo fiscal-service (ex.: FISCAL_CCLASSTRIB_OBRIGATORIO).
+    public static final String PEDIDO_FISCAL_CALCULO_REJEITADO = "Cálculo fiscal rejeitado para o produto %s: %s";
+    // Defaults do request ao fiscal-service — CFOP (dentro do estado) e regime tributário do
+    // emitente ainda não são campos modelados no ERP (UF do cliente/tenant, regime do Tenant);
+    // ver ponytail em FiscalServiceClient.
+    public static final String PEDIDO_FISCAL_CFOP_MERCADORIA_DEFAULT = "5102";
+    public static final String PEDIDO_FISCAL_CFOP_SERVICO_DEFAULT = "5933";
+
+    // O2C — Fase 5: eventos Kafka das transições de pedido (spec/o2c-vendas.md §8)
+    public static final String PEDIDO_CONFIRMADO_TOPIC = "venda.pedido.confirmado";
+    public static final String PEDIDO_FATURADO_TOPIC = "venda.pedido.faturado";
+    public static final String PEDIDO_CANCELADO_TOPIC = "venda.pedido.cancelado";
+    public static final String AUDIT_ACAO_PEDIDO_CONFIRMADO = "PEDIDO_CONFIRMADO";
+    public static final String AUDIT_ACAO_PEDIDO_FATURADO = "PEDIDO_FATURADO";
+    public static final String AUDIT_ACAO_PEDIDO_CANCELADO = "PEDIDO_CANCELADO";
 }

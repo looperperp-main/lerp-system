@@ -8,6 +8,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -28,8 +29,12 @@ class TabelaFiscalJdbcTest {
 
     private static TabelaFiscalJdbc tabela;
 
-    /** UUID fixo só para os testes de override de tenant da matriz ICMS. */
-    private static final String TENANT = "11111111-1111-1111-1111-111111111111";
+    /** tenant_id fixo (bigint, como Tenant.id em auth-service) só para os testes de override. */
+    private static final String TENANT = "24";
+
+    /** Competência "de hoje" usada pela maioria dos testes — dentro da janela vigente_de/vigente_ate
+     *  de todo dado marcado como "vigente" no SEED e fora da de todo dado marcado "vencido" (item 7.8). */
+    private static final LocalDate HOJE = LocalDate.of(2027, 6, 1);
 
     private static final String[] SCHEMA = {
             "CREATE SCHEMA IF NOT EXISTS fiscal",
@@ -98,7 +103,7 @@ class TabelaFiscalJdbcTest {
             """,
             """
             CREATE TABLE fiscal.matriz_tributaria (
-                tenant_id uuid,
+                tenant_id bigint,
                 ncm_nbs varchar(9) NOT NULL,
                 tipo_item varchar(1) NOT NULL,
                 uf_origem char(2) NOT NULL,
@@ -110,7 +115,7 @@ class TabelaFiscalJdbcTest {
             """,
             """
             CREATE TABLE fiscal.retencao_config (
-                tenant_id uuid,
+                tenant_id bigint,
                 tributo varchar(10) NOT NULL,
                 aliquota_pct numeric(5,2) NOT NULL,
                 valor_minimo_base numeric(12,2) NOT NULL,
@@ -193,8 +198,8 @@ class TabelaFiscalJdbcTest {
                 (tenant_id, ncm_nbs, tipo_item, uf_origem, uf_destino, aliq_nominal, p_reducao_base, vigente_de, vigente_ate) VALUES
                 (NULL, '00000000', 'P', 'SP', 'SP', 18.00, 0,  DATE '2026-01-01', NULL),
                 (NULL, '10063021', 'P', 'SP', 'SP', 12.00, 0,  DATE '2026-01-01', NULL),
-                ('11111111-1111-1111-1111-111111111111', '00000000', 'P', 'SP', 'SP', 25.00, 10.00, DATE '2026-01-01', NULL),
-                ('11111111-1111-1111-1111-111111111111', '20099999', 'P', 'SP', 'SP', 30.00, 5.00,  DATE '2026-01-01', NULL),
+                (24, '00000000', 'P', 'SP', 'SP', 25.00, 10.00, DATE '2026-01-01', NULL),
+                (24, '20099999', 'P', 'SP', 'SP', 30.00, 5.00,  DATE '2026-01-01', NULL),
                 (NULL, '00000000', 'P', 'RJ', 'RJ', 99.00, 0,  DATE '2020-01-01', DATE '2025-12-31'),
                 (NULL, '00000000', 'P', 'RJ', 'RJ', 22.00, 0,  DATE '2026-01-01', NULL)
             """,
@@ -204,7 +209,7 @@ class TabelaFiscalJdbcTest {
             INSERT INTO fiscal.retencao_config (tenant_id, tributo, aliquota_pct, valor_minimo_base, ativo) VALUES
                 (NULL, 'IRRF', 1.50, 10.00, true),
                 (NULL, 'CSRF', 4.65, 5000.00, true),
-                ('11111111-1111-1111-1111-111111111111', 'IRRF', 2.00, 0.00, true)
+                (24, 'IRRF', 2.00, 0.00, true)
             """,
             // PROUNI (art. 308): override sem ano_vigencia = vale pra qualquer ano, só zera CBS.
             // SERVICO_FINANCEIRO (art. 233): override por ano — 2027 e 2029 aqui, 2028 de propósito
@@ -251,7 +256,7 @@ class TabelaFiscalJdbcTest {
     void regimeNcm_ncmDaNota_casaComOPrefixoMaisLongo() {
         // NCM completo da NF-e ('10063021') contra a posição publicada ('1006.30'):
         // '1006' também prefixa, mas perde por ser menos específico.
-        RegimeDiferenciado regime = tabela.regimeNcm("10063021");
+        RegimeDiferenciado regime = tabela.regimeNcm("10063021", HOJE);
         assertEquals("ANEXO_I_ZERO", regime.name());
         assertTrue(regime.aliquotaZero());
         assertEquals(0, new BigDecimal("100").compareTo(regime.reducaoPercentual()));
@@ -259,14 +264,14 @@ class TabelaFiscalJdbcTest {
 
     @Test
     void regimeNcm_prefixoCurtoAindaVale_quandoNaoHaMaisEspecifico() {
-        RegimeDiferenciado regime = tabela.regimeNcm("10061010");
+        RegimeDiferenciado regime = tabela.regimeNcm("10061010", HOJE);
         assertEquals("ANEXO_VII_60", regime.name());
         assertFalse(regime.aliquotaZero());
     }
 
     @Test
     void regimeNcm_monofasico_reconhecidoPeloNome() {
-        RegimeDiferenciado regime = tabela.regimeNcm("24022000");
+        RegimeDiferenciado regime = tabela.regimeNcm("24022000", HOJE);
         assertEquals(Constants.REGIME_DIF_MONOFASICO, regime.name());
         assertTrue(regime.monofasico());
         assertFalse(regime.aliquotaZero());
@@ -274,18 +279,33 @@ class TabelaFiscalJdbcTest {
 
     @Test
     void regimeNcm_semCadastro_caiEmPadrao() {
-        assertSame(RegimeDiferenciado.PADRAO, tabela.regimeNcm("39269090"));
+        assertSame(RegimeDiferenciado.PADRAO, tabela.regimeNcm("39269090", HOJE));
     }
 
     @Test
     void regimeNcm_regraVencida_ignorada() {
-        // '8471' está na tabela mas com vigente_ate no passado: não pode zerar um notebook.
-        assertSame(RegimeDiferenciado.PADRAO, tabela.regimeNcm("84713012"));
+        // '8471' está na tabela mas com vigente_ate no passado: não pode zerar um notebook hoje.
+        assertSame(RegimeDiferenciado.PADRAO, tabela.regimeNcm("84713012", HOJE));
+    }
+
+    @Test
+    void regimeNcm_competenciaDentroDaJanelaVencidaHoje_pegaARegraDaEpoca() {
+        // item 7.8: reprocessar uma nota de 2025 tem que enxergar a regra que valia então — mesmo
+        // '8471' vencido "hoje" (HOJE) estava vigente em 2025-06-01 (janela 2020-01-01..2026-12-31).
+        RegimeDiferenciado regime = tabela.regimeNcm("84713012", LocalDate.of(2025, 6, 1));
+        assertEquals("ANEXO_I_ZERO", regime.name());
+        assertTrue(regime.aliquotaZero());
+    }
+
+    @Test
+    void regimeNcm_competenciaAnteriorAQualquerVigencia_caiEmPadrao() {
+        // Antes de 2020-01-01 nenhuma linha de '8471' existia ainda — PADRAO, não a mais antiga.
+        assertSame(RegimeDiferenciado.PADRAO, tabela.regimeNcm("84713012", LocalDate.of(2019, 1, 1)));
     }
 
     @Test
     void regimeCClassTrib_casaExato() {
-        RegimeDiferenciado regime = tabela.regimeCClassTrib("200029");
+        RegimeDiferenciado regime = tabela.regimeCClassTrib("200029", HOJE);
         assertEquals("ANEXO_III_60", regime.name());
         assertEquals(0, new BigDecimal("60").compareTo(regime.reducaoPercentual()));
     }
@@ -294,14 +314,21 @@ class TabelaFiscalJdbcTest {
     void regimeCClassTrib_naoCasaPorPrefixo() {
         // Ao contrário do NCM: cClassTrib é código fechado. '2000' não pode herdar de '200029'
         // nem '20002999' cair nele — prefixo aqui daria redução a quem não tem direito.
-        assertSame(RegimeDiferenciado.PADRAO, tabela.regimeCClassTrib("2000"));
-        assertSame(RegimeDiferenciado.PADRAO, tabela.regimeCClassTrib("2000299"));
+        assertSame(RegimeDiferenciado.PADRAO, tabela.regimeCClassTrib("2000", HOJE));
+        assertSame(RegimeDiferenciado.PADRAO, tabela.regimeCClassTrib("2000299", HOJE));
     }
 
     @Test
     void regimeCClassTrib_semCadastroOuVencido_caiEmPadrao() {
-        assertSame(RegimeDiferenciado.PADRAO, tabela.regimeCClassTrib("200048"));  // sem cadastro
-        assertSame(RegimeDiferenciado.PADRAO, tabela.regimeCClassTrib("200028"));  // vigência vencida
+        assertSame(RegimeDiferenciado.PADRAO, tabela.regimeCClassTrib("200048", HOJE));  // sem cadastro
+        assertSame(RegimeDiferenciado.PADRAO, tabela.regimeCClassTrib("200028", HOJE));  // vigência vencida
+    }
+
+    @Test
+    void regimeCClassTrib_competenciaHistorica_pegaARegraDaEpoca() {
+        // '200028' vale de 2020-01-01 a 2026-12-31 — vencido em HOJE, mas era a regra em 2025.
+        RegimeDiferenciado regime = tabela.regimeCClassTrib("200028", LocalDate.of(2025, 6, 1));
+        assertEquals("ANEXO_II_60", regime.name());
     }
 
     @Test
@@ -360,14 +387,14 @@ class TabelaFiscalJdbcTest {
 
     @Test
     void aliquotaIs_casaPorPrefixo_eIgnoraLinhaSemAliquotaRegulamentada() {
-        assertEquals(0, new BigDecimal("150").compareTo(tabela.aliquotaIs("24022000").orElseThrow()));
+        assertEquals(0, new BigDecimal("150").compareTo(tabela.aliquotaIs("24022000", HOJE).orElseThrow()));
 
         // '8703' consta do Anexo XVII mas com alíquota ainda não regulamentada (NULL):
         // o motor não pode destacar IS a partir dela.
-        Optional<BigDecimal> semRegulamentacao = tabela.aliquotaIs("87032100");
+        Optional<BigDecimal> semRegulamentacao = tabela.aliquotaIs("87032100", HOJE);
         assertTrue(semRegulamentacao.isEmpty());
 
-        assertTrue(tabela.aliquotaIs("84713012").isEmpty());
+        assertTrue(tabela.aliquotaIs("84713012", HOJE).isEmpty());
     }
 
     @Test
@@ -406,7 +433,7 @@ class TabelaFiscalJdbcTest {
     void aliquotaIss_itemProprioDoMunicipio_venceOGenericoEAReferencia() {
         // A linha de 10% pro mesmo par está vencida (vigente_ate no passado) — não pode ganhar da
         // vigente de 3%, mesmo sendo "mais específica" por ordem de inserção.
-        AliquotaIss aliq = tabela.aliquotaIss("3550308", "04.01").orElseThrow();
+        AliquotaIss aliq = tabela.aliquotaIss("3550308", "04.01", HOJE).orElseThrow();
         assertEquals(0, new BigDecimal("3.00").compareTo(aliq.aliquotaPct()));
         assertFalse(aliq.referenciaNacional());
     }
@@ -415,7 +442,7 @@ class TabelaFiscalJdbcTest {
     void aliquotaIss_municipioSemItemEspecifico_caiNoGenericoDoMunicipio() {
         // '9.99' não tem linha própria em SP, mas o município legislou o genérico (item NULL) —
         // isso ainda vence a referência nacional.
-        AliquotaIss aliq = tabela.aliquotaIss("3550308", "9.99").orElseThrow();
+        AliquotaIss aliq = tabela.aliquotaIss("3550308", "9.99", HOJE).orElseThrow();
         assertEquals(0, new BigDecimal("4.00").compareTo(aliq.aliquotaPct()));
         assertFalse(aliq.referenciaNacional());
     }
@@ -424,7 +451,7 @@ class TabelaFiscalJdbcTest {
     void aliquotaIss_municipioSemCadastroNenhum_caiNaReferencia() {
         // Rio não está no seed: cai no teto de 5% da LC 116 art. 8-A, e o motor precisa saber que
         // veio da referência para avisar (mesmo princípio do aviso de IBS).
-        AliquotaIss aliq = tabela.aliquotaIss("3304557", "04.01").orElseThrow();
+        AliquotaIss aliq = tabela.aliquotaIss("3304557", "04.01", HOJE).orElseThrow();
         assertEquals(0, new BigDecimal("5.00").compareTo(aliq.aliquotaPct()));
         assertTrue(aliq.referenciaNacional());
     }
@@ -433,14 +460,22 @@ class TabelaFiscalJdbcTest {
     void aliquotaIss_aceitaItemComOuSemZeroAEsquerda() {
         // Mesma normalização de cClassTribAdmitido: a nota traz o item como a LC 116 publica.
         assertEquals(0, new BigDecimal("3.00")
-                .compareTo(tabela.aliquotaIss("3550308", "4.01").orElseThrow().aliquotaPct()));
+                .compareTo(tabela.aliquotaIss("3550308", "4.01", HOJE).orElseThrow().aliquotaPct()));
+    }
+
+    @Test
+    void aliquotaIss_competenciaHistorica_pegaAAliquotaDaEpoca() {
+        // '3550308'/'04.01' era 10.00 até 2025-12-31, virou 3.00 em 2026-01-01 — reprocessar uma
+        // nota de 2024 não pode usar a alíquota nova (item 7.8).
+        AliquotaIss aliq = tabela.aliquotaIss("3550308", "04.01", LocalDate.of(2024, 6, 1)).orElseThrow();
+        assertEquals(0, new BigDecimal("10.00").compareTo(aliq.aliquotaPct()));
     }
 
     @Test
     void aliquotaIcms_tenantEspecifico_venceTudo() {
         // Nível 1 (tenant + ncm específico): mais específico que tudo, inclusive o próprio
         // fallback do mesmo tenant.
-        RegimeIcms icms = tabela.aliquotaIcms(TENANT, "20099999", "SP", "SP").orElseThrow();
+        RegimeIcms icms = tabela.aliquotaIcms(TENANT, "20099999", "SP", "SP", HOJE).orElseThrow();
         assertEquals(0, new BigDecimal("30.00").compareTo(icms.aliqNominal()));
         assertEquals(0, new BigDecimal("5.00").compareTo(icms.pReducaoBase()));
         assertFalse(icms.ncmGenerico());
@@ -451,7 +486,7 @@ class TabelaFiscalJdbcTest {
         // '10063021' tem linha nacional específica (12%), mas o tenant não tem override pra esse
         // NCM — cai no fallback DO TENANT (25%/10%), que vence a nacional específica: override de
         // tenant sempre manda sobre a base nacional, mesmo quando genérico contra específico.
-        RegimeIcms icms = tabela.aliquotaIcms(TENANT, "10063021", "SP", "SP").orElseThrow();
+        RegimeIcms icms = tabela.aliquotaIcms(TENANT, "10063021", "SP", "SP", HOJE).orElseThrow();
         assertEquals(0, new BigDecimal("25.00").compareTo(icms.aliqNominal()));
         assertEquals(0, new BigDecimal("10.00").compareTo(icms.pReducaoBase()));
         assertTrue(icms.ncmGenerico());
@@ -460,7 +495,7 @@ class TabelaFiscalJdbcTest {
     @Test
     void aliquotaIcms_semTenant_nacionalEspecificoVenceFallback() {
         // Sem tenant (base pura): NCM específico da tabela nacional vence o fallback '00000000'.
-        RegimeIcms icms = tabela.aliquotaIcms(null, "10063021", "SP", "SP").orElseThrow();
+        RegimeIcms icms = tabela.aliquotaIcms(null, "10063021", "SP", "SP", HOJE).orElseThrow();
         assertEquals(0, new BigDecimal("12.00").compareTo(icms.aliqNominal()));
         assertFalse(icms.ncmGenerico());
     }
@@ -468,7 +503,7 @@ class TabelaFiscalJdbcTest {
     @Test
     void aliquotaIcms_semTenantESemNcmEspecifico_caiNoFallbackNacional() {
         // NCM sem linha nenhuma (nacional ou tenant): cai no fallback geral da UF.
-        RegimeIcms icms = tabela.aliquotaIcms(null, "99999999", "SP", "SP").orElseThrow();
+        RegimeIcms icms = tabela.aliquotaIcms(null, "99999999", "SP", "SP", HOJE).orElseThrow();
         assertEquals(0, new BigDecimal("18.00").compareTo(icms.aliqNominal()));
         assertTrue(icms.ncmGenerico());
     }
@@ -476,15 +511,25 @@ class TabelaFiscalJdbcTest {
     @Test
     void aliquotaIcms_vigenciaVencidaIgnorada() {
         // RJ tem uma linha de 99% VENCIDA e outra de 22% vigente — a vencida não pode ganhar.
-        RegimeIcms icms = tabela.aliquotaIcms(null, Constants.FISCAL_NCM_NBS_FALLBACK, "RJ", "RJ").orElseThrow();
+        RegimeIcms icms = tabela.aliquotaIcms(null, Constants.FISCAL_NCM_NBS_FALLBACK, "RJ", "RJ", HOJE).orElseThrow();
         assertEquals(0, new BigDecimal("22.00").compareTo(icms.aliqNominal()));
+    }
+
+    @Test
+    void aliquotaIcms_competenciaHistorica_pegaAAliquotaDaEpoca() {
+        // A mesma linha de RJ que está "vencida" em HOJE valia 99% até 2025-12-31 — reprocessar uma
+        // nota daquela época não pode usar os 22% que só passaram a valer em 2026 (item 7.8).
+        RegimeIcms icms = tabela
+                .aliquotaIcms(null, Constants.FISCAL_NCM_NBS_FALLBACK, "RJ", "RJ", LocalDate.of(2024, 6, 1))
+                .orElseThrow();
+        assertEquals(0, new BigDecimal("99.00").compareTo(icms.aliqNominal()));
     }
 
     @Test
     void aliquotaIcms_semCobertura_vazio() {
         // Acre não está no seed deste teste: sem linha nenhuma, o motor devolve 400 em vez de
         // assumir alíquota zero — mesmo princípio de aliquotaIbs/transicao.
-        assertTrue(tabela.aliquotaIcms(null, Constants.FISCAL_NCM_NBS_FALLBACK, "AC", "AC").isEmpty());
+        assertTrue(tabela.aliquotaIcms(null, Constants.FISCAL_NCM_NBS_FALLBACK, "AC", "AC", HOJE).isEmpty());
     }
 
     @Test

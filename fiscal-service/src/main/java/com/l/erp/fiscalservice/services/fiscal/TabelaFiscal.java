@@ -1,6 +1,7 @@
 package com.l.erp.fiscalservice.services.fiscal;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -13,18 +14,24 @@ public interface TabelaFiscal {
 
     Optional<CfopInfo> cfop(String cfop);
 
-    /** Regime do NCM; PADRAO quando não cadastrado (warning, não bloqueia — MF-10). */
-    RegimeDiferenciado regimeNcm(String ncm);
+    /**
+     * Regime do NCM na {@code competencia}; PADRAO quando não cadastrado (warning, não bloqueia —
+     * MF-10) ou quando a linha existente não está vigente naquela data (item 7.8 — vigência é por
+     * data, não "a atual": reprocessar uma nota antiga tem que usar a regra que valia na época
+     * dela, não a de hoje).
+     */
+    RegimeDiferenciado regimeNcm(String ncm, LocalDate competencia);
 
     /**
-     * Regime do serviço pelo cClassTrib DECLARADO na nota; PADRAO quando não cadastrado.
+     * Regime do serviço pelo cClassTrib DECLARADO na nota, vigente na {@code competencia}; PADRAO
+     * quando não cadastrado ou fora de vigência (item 7.8).
      *
      * <p>Não recebe o código LC 116: o mesmo serviço tem cClassTrib diferente conforme o contexto
      * da operação (prestado à administração pública vira 200043), então a classificação é declarada
      * no documento, não deduzida do cadastro — igual à NF-e. Os cClassTrib admitidos por item
      * LC 116 estão em {@code fiscal.servico_cclasstrib} (Anexo VIII), para o cadastro escolher.
      */
-    RegimeDiferenciado regimeCClassTrib(String cClassTrib);
+    RegimeDiferenciado regimeCClassTrib(String cClassTrib, LocalDate competencia);
 
     /**
      * O Anexo VIII admite este cClassTrib para este item LC 116?
@@ -39,7 +46,8 @@ public interface TabelaFiscal {
 
     Optional<BigDecimal> aliquotaCbs(String regimeEmpresa, int ano);
 
-    Optional<BigDecimal> aliquotaIs(String ncm);
+    /** Vigente na {@code competencia} (item 7.8) — regra fora da janela vigente_de/vigente_ate volta vazia. */
+    Optional<BigDecimal> aliquotaIs(String ncm, LocalDate competencia);
 
     /**
      * Curva da transição no ano: quanto de ICMS/ISS ainda é devido e se PIS/COFINS ainda incidem.
@@ -50,23 +58,26 @@ public interface TabelaFiscal {
     Optional<TransicaoAno> transicao(int ano);
 
     /**
-     * Alíquota de ISS do município do local da prestação, pelo item LC 116. Vazio quando nem o
-     * município nem a referência têm linha para o item — hoje só a referência (teto de 5% da
-     * LC 116 art. 8-A) está carregada. Consumida pelo motor na fatia 3c.
+     * Alíquota de ISS do município do local da prestação, pelo item LC 116, vigente na
+     * {@code competencia} (item 7.8). Vazio quando nem o município nem a referência têm linha
+     * vigente para o item — hoje só a referência (teto de 5% da LC 116 art. 8-A) está carregada.
+     * Consumida pelo motor na fatia 3c.
      */
-    Optional<AliquotaIss> aliquotaIss(String ibgeMunicipio, String itemLc116);
+    Optional<AliquotaIss> aliquotaIss(String ibgeMunicipio, String itemLc116, LocalDate competencia);
 
     /**
      * Alíquota interna de ICMS pela matriz {@code fiscal.matriz_tributaria} (fatia 3b), busca em
      * 4 níveis — override do tenant vence base nacional, NCM/NBS específico vence o fallback
      * {@code Constants.FISCAL_NCM_NBS_FALLBACK}: (tenant, ncm) > (tenant, fallback) >
-     * (nacional, ncm) > (nacional, fallback). Vazio quando nenhum dos quatro casa — o motor
-     * devolve 400, nunca assume alíquota zero. Consumida pelo motor na fatia 3c.
+     * (nacional, ncm) > (nacional, fallback), dentre as linhas vigentes na {@code competencia}
+     * (item 7.8). Vazio quando nenhum dos quatro casa — o motor devolve 400, nunca assume
+     * alíquota zero. Consumida pelo motor na fatia 3c.
      *
      * <p>{@code tenantId} pode ser {@code null} (sem override, só a base nacional é elegível).
      * Hoje só a base nacional (27 linhas, uma por UF, sem override de NCM) está carregada.
      */
-    Optional<RegimeIcms> aliquotaIcms(String tenantId, String ncmNbs, String ufOrigem, String ufDestino);
+    Optional<RegimeIcms> aliquotaIcms(String tenantId, String ncmNbs, String ufOrigem, String ufDestino,
+                                       LocalDate competencia);
 
     /**
      * Alíquota e piso de dispensa de um tributo retido na fonte (fatia 3e — IRRF, CSRF, INSS;

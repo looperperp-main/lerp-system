@@ -1,9 +1,11 @@
 package com.l.erp.cadastroservice.services;
 
 import com.l.erp.cadastroservice.api.dto.ProdutoDTO;
+import com.l.erp.cadastroservice.api.dto.ProdutoPrecoDTO;
 import com.l.erp.cadastroservice.api.mappers.ProdutoMapper;
 import com.l.erp.cadastroservice.domain.Pessoa;
 import com.l.erp.cadastroservice.domain.Produto;
+import com.l.erp.cadastroservice.domain.enumerators.TipoProduto;
 import com.l.erp.cadastroservice.domain.ProdutoEstoqueConfig;
 import com.l.erp.cadastroservice.domain.ProdutoFornecedor;
 import com.l.erp.cadastroservice.domain.ProdutoPreco;
@@ -24,6 +26,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -71,6 +75,7 @@ public class ProdutoService {
     public Produto create(Long tenantId, UUID userId, ProdutoDTO dto) {
         UUID correlationID = getCorrelationIdFromRequest(logger);
         Produto produto = mapper.toEntity(dto);
+        validarTipo(produto);
         produto.setTenantId(tenantId);
         produto.setCreatedAt(Instant.now());
         produto.setCreatedBy(userId);
@@ -98,6 +103,7 @@ public class ProdutoService {
         Produto produto = produtoRepository.findByIdAndTenantId(id, tenantId).orElseThrow(() -> new BusinessException(Constants.PRODUTO_NOT_FOUND, HttpStatus.NOT_FOUND));
 
         mapper.updateEntityFromDto(dto, produto);
+        validarTipo(produto);
 
         produto.setUpdatedAt(Instant.now());
         produto.setLastUpdatedBy(userId);
@@ -136,6 +142,26 @@ public class ProdutoService {
         produto.setUpdatedAt(Instant.now());
         produtoRepository.save(produto);
         sendAuditEvent(Constants.PRODUTO_UPDATE, userId, id, Constants.SUCCESS, "{Status Alterado: " + produto.getAtivo() + "}", correlationId);
+    }
+
+    // Nulo = MERCADORIA (compatibilidade com clientes que ainda não enviam o campo).
+    private void validarTipo(Produto produto) {
+        if (produto.getTipo() == null) {
+            produto.setTipo(TipoProduto.MERCADORIA);
+        }
+        boolean temCodigoServico = produto.getCodigoServico() != null && !produto.getCodigoServico().isBlank();
+        if (produto.getTipo() == TipoProduto.MERCADORIA) {
+            if (produto.getNcm() == null || produto.getNcm().isBlank()) {
+                throw new BusinessException(Constants.PRODUTO_NCM_OBRIGATORIO_MERCADORIA, HttpStatus.BAD_REQUEST);
+            }
+            if (temCodigoServico) {
+                throw new BusinessException(Constants.PRODUTO_CODIGO_SERVICO_APENAS_SERVICO, HttpStatus.BAD_REQUEST);
+            }
+        } else if (!temCodigoServico) {
+            throw new BusinessException(Constants.PRODUTO_CODIGO_SERVICO_OBRIGATORIO, HttpStatus.BAD_REQUEST);
+        } else if (produto.getClassTrib() == null || produto.getClassTrib().isBlank()) {
+            throw new BusinessException(Constants.PRODUTO_CLASS_TRIB_OBRIGATORIO_SERVICO, HttpStatus.BAD_REQUEST);
+        }
     }
 
     private void processarSubEntidades(Produto produto, ProdutoDTO dto, Long tenantId, UUID userId, boolean isCreate) {
@@ -194,7 +220,8 @@ public class ProdutoService {
                 ProdutoFornecedor fornecedor = new ProdutoFornecedor();
                 fornecedor.setTenantId(tenantId);
                 fornecedor.setProduto(produto);
-                fornecedor.setFornecedor(fornecedorRepository.findByIdAndTenantId(fornDto.fornecedorId(), tenantId).orElse(null));
+                fornecedor.setFornecedor(fornecedorRepository.findByIdAndTenantId(fornDto.fornecedorId(), tenantId)
+                        .orElseThrow(() -> new BusinessException(Constants.FORNECEDORES_NOT_FOUND, HttpStatus.BAD_REQUEST)));
                 fornecedor.setCodigoProdutoFornecedor(fornDto.codigoProdutoFornecedor());
                 fornecedor.setPrecoCusto(fornDto.precoCusto());
                 fornecedor.setLeadTimeDias(fornDto.leadTimeDias());
@@ -215,11 +242,13 @@ public class ProdutoService {
 
     private void processProducts(Produto produto, ProdutoDTO dto, Long tenantId, UUID userId, boolean isCreate) {
         if (dto.precos() != null) {
+            validarVigenciaPrecos(dto.precos());
             produto.getProdutoPrecos().addAll(dto.precos().stream().map(precoDto -> {
                 ProdutoPreco preco = new ProdutoPreco();
                 preco.setTenantId(tenantId);
                 preco.setProduto(produto);
-                preco.setTabelaPreco(tabelaPrecoRepository.findByIdAndTenantId(precoDto.tabelaPrecoId(), tenantId).orElse(null));
+                preco.setTabelaPreco(tabelaPrecoRepository.findByIdAndTenantId(precoDto.tabelaPrecoId(), tenantId)
+                        .orElseThrow(() -> new BusinessException(Constants.TABELA_PRECO_NOT_FOUND, HttpStatus.BAD_REQUEST)));
                 preco.setPreco(precoDto.preco());
                 preco.setInicioVigencia(precoDto.inicioVigencia());
                 preco.setFimVigencia(precoDto.fimVigencia());
@@ -234,6 +263,29 @@ public class ProdutoService {
                 return preco;
             }).collect(Collectors.toSet()));
         }
+    }
+
+    private void validarVigenciaPrecos(List<ProdutoPrecoDTO> precos) {
+        for (ProdutoPrecoDTO p : precos) {
+            if (p.fimVigencia() != null && p.inicioVigencia().isAfter(p.fimVigencia())) {
+                throw new BusinessException(Constants.PRODUTO_PRECO_VIGENCIA_INVALIDA, HttpStatus.BAD_REQUEST);
+            }
+        }
+        for (List<ProdutoPrecoDTO> porTabela : precos.stream().collect(Collectors.groupingBy(ProdutoPrecoDTO::tabelaPrecoId)).values()) {
+            for (int i = 0; i < porTabela.size(); i++) {
+                for (int j = i + 1; j < porTabela.size(); j++) {
+                    if (seSobrepoe(porTabela.get(i), porTabela.get(j))) {
+                        throw new BusinessException(Constants.PRODUTO_PRECO_VIGENCIA_SOBREPOSTA, HttpStatus.BAD_REQUEST);
+                    }
+                }
+            }
+        }
+    }
+
+    private boolean seSobrepoe(ProdutoPrecoDTO a, ProdutoPrecoDTO b) {
+        LocalDate fimA = a.fimVigencia() != null ? a.fimVigencia() : LocalDate.MAX;
+        LocalDate fimB = b.fimVigencia() != null ? b.fimVigencia() : LocalDate.MAX;
+        return !a.inicioVigencia().isAfter(fimB) && !b.inicioVigencia().isAfter(fimA);
     }
 
     private void sendAuditEvent(String action, UUID actorId, UUID targetId, String result, String detailsJson, UUID correlationId) {

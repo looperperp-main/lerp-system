@@ -83,4 +83,11 @@ public class MotorFiscalRequest {
     @PositiveOrZero
     private BigDecimal percentualSaidaDesonerada; // 0-100: parcela da entrada destinada a saída
                                                    // desonerada — credita só o complemento
+    // Art. 57 §7º da LC 214/2025 (incluído pela LC 227/2026) — só do lado da SAÍDA: revenda de um
+    // bem que não gerou crédito na entrada (uso e consumo pessoal) pode excluir da base o valor de
+    // aquisição, até o limite do valor da venda. Declarado pelo chamador (AR/O2C, que sabe se
+    // aquele bem específico gerou crédito no item 4) — o motor não deduz isso sozinho.
+    private Boolean bemSemCreditoNaEntrada;
+    @PositiveOrZero
+    private BigDecimal valorAquisicaoSemCredito;
 }

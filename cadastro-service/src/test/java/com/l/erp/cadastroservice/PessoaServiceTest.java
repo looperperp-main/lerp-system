@@ -6,6 +6,7 @@ import com.l.erp.cadastroservice.domain.Pessoa;
 import com.l.erp.cadastroservice.domain.enumerators.TipoPessoa;
 import com.l.erp.cadastroservice.repository.PessoaRepository;
 import com.l.erp.cadastroservice.services.AuditProducerService;
+import com.l.erp.cadastroservice.services.EstabelecimentoService;
 import com.l.erp.cadastroservice.services.PessoaService;
 import com.l.erp.common.exception.custom.BusinessException;
 import org.junit.jupiter.api.Test;
@@ -35,6 +36,9 @@ class PessoaServiceTest {
     @Mock
     private AuditProducerService auditService;
 
+    @Mock
+    private EstabelecimentoService estabelecimentoService;
+
     @InjectMocks
     private PessoaService pessoaService;
 
@@ -52,7 +56,7 @@ class PessoaServiceTest {
         entity.setId(UUID.randomUUID());
 
         when(pessoaMapper.toEntityRequest(dto)).thenReturn(entity);
-        when(pessoaRepository.existsByDocumentoAndNomeRazaoAndTenantId(any(), any(), any())).thenReturn(false);
+        when(pessoaRepository.existsByCnpjRaizAndTenantId(any(), any())).thenReturn(false);
         when(pessoaRepository.save(any(Pessoa.class))).thenReturn(entity);
 
         Pessoa result = pessoaService.create(dto, TENANT_ID, USER_ID);
@@ -72,7 +76,7 @@ class PessoaServiceTest {
         entity.setId(UUID.randomUUID());
 
         when(pessoaMapper.toEntityRequest(dto)).thenReturn(entity);
-        when(pessoaRepository.existsByDocumentoAndNomeRazaoAndTenantId(any(), any(), any())).thenReturn(false);
+        when(pessoaRepository.existsByDocumentoAndTenantId(any(), any())).thenReturn(false);
         when(pessoaRepository.save(any(Pessoa.class))).thenReturn(entity);
 
         Pessoa result = pessoaService.create(dto, TENANT_ID, USER_ID);
@@ -123,7 +127,7 @@ class PessoaServiceTest {
                 null, null, null, null, true
         );
 
-        when(pessoaRepository.existsByDocumentoAndNomeRazaoAndTenantId(any(), any(), any())).thenReturn(true);
+        when(pessoaRepository.existsByCnpjRaizAndTenantId(any(), any())).thenReturn(true);
 
         assertThatThrownBy(() -> pessoaService.create(dto, TENANT_ID, USER_ID))
                 .isInstanceOf(Exception.class);
@@ -134,6 +138,7 @@ class PessoaServiceTest {
         UUID pessoaId = UUID.randomUUID();
         Pessoa pessoa = new Pessoa();
         pessoa.setId(pessoaId);
+        pessoa.setTipo(TipoPessoa.PF);
 
         when(pessoaRepository.findByIdAndTenantId(pessoaId, TENANT_ID)).thenReturn(Optional.of(pessoa));
 

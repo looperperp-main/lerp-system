@@ -1,8 +1,10 @@
 package com.l.erp.cadastroservice.api.controllers;
 
 import com.l.erp.cadastroservice.api.dto.ProdutoDTO;
+import com.l.erp.cadastroservice.api.dto.ProdutoPrecoDTO;
 import com.l.erp.cadastroservice.api.dto.ProdutoResponseDTO;
 import com.l.erp.cadastroservice.api.mappers.ProdutoAssembler;
+import com.l.erp.cadastroservice.api.mappers.ProdutoPrecoMapper;
 import com.l.erp.cadastroservice.domain.Produto;
 import com.l.erp.cadastroservice.services.ProdutoService;
 import com.l.erp.cadastroservice.util.SecurityUtils;
@@ -29,6 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -38,12 +41,14 @@ public class ProdutoController {
 
     private final ProdutoService service;
     private final ProdutoAssembler assembler;
+    private final ProdutoPrecoMapper produtoPrecoMapper;
     private final Logger logger = LoggerFactory.getLogger(ProdutoController.class);
 
 
-    public ProdutoController(ProdutoService service, ProdutoAssembler assembler) {
+    public ProdutoController(ProdutoService service, ProdutoAssembler assembler, ProdutoPrecoMapper produtoPrecoMapper) {
         this.service = service;
         this.assembler = assembler;
+        this.produtoPrecoMapper = produtoPrecoMapper;
     }
 
     @GetMapping
@@ -101,12 +106,15 @@ public class ProdutoController {
         return ResponseEntity.ok(assembler.toModel(updated));
     }
 
-    // Mocks para os links HATEOAS
     @GetMapping("/{id}/precos")
-    public ResponseEntity<Void> findPrecos(@PathVariable UUID id) {
-        return ResponseEntity.ok().build();
+    public ResponseEntity<List<ProdutoPrecoDTO>> findPrecos(@PathVariable UUID id) {
+        Long tenantId = SecurityUtils.getCurrentTenantId().orElseThrow(() -> new BusinessException(Constants.TENANT_NOT_FOUND, HttpStatus.UNAUTHORIZED));
+        Produto produto = service.findById(id, tenantId);
+        List<ProdutoPrecoDTO> precos = produto.getProdutoPrecos().stream().map(produtoPrecoMapper::toDto).toList();
+        return ResponseEntity.ok(precos);
     }
 
+    // Mocks para os links HATEOAS
     @GetMapping("/{id}/fornecedores")
     public ResponseEntity<Void> findFornecedores(@PathVariable UUID id) {
         return ResponseEntity.ok().build();

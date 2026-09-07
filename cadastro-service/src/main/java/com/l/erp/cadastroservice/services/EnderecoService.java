@@ -3,6 +3,7 @@ package com.l.erp.cadastroservice.services;
 import com.l.erp.cadastroservice.api.dto.EnderecoRequestDTO;
 import com.l.erp.cadastroservice.domain.Endereco;
 import com.l.erp.cadastroservice.domain.Pessoa;
+import com.l.erp.cadastroservice.domain.enumerators.TipoPessoa;
 import com.l.erp.cadastroservice.repository.EnderecoRepository;
 import com.l.erp.common.util.Constants;
 import com.l.erp.cadastroservice.util.Utils;
@@ -24,11 +25,13 @@ public class EnderecoService {
     private final Logger logger = LoggerFactory.getLogger(EnderecoService.class);
     private final EnderecoRepository enderecoRepository;
     private final PessoaService pessoaService;
+    private final EstabelecimentoService estabelecimentoService;
     private final Utils utils;
 
-    public EnderecoService(EnderecoRepository enderecoRepository, PessoaService pessoaService, Utils utils) {
+    public EnderecoService(EnderecoRepository enderecoRepository, PessoaService pessoaService, EstabelecimentoService estabelecimentoService, Utils utils) {
         this.enderecoRepository = enderecoRepository;
         this.pessoaService = pessoaService;
+        this.estabelecimentoService = estabelecimentoService;
         this.utils = utils;
     }
 
@@ -66,7 +69,11 @@ public class EnderecoService {
         }
 
         Endereco entity = new Endereco();
-        entity.setPessoa(pessoa);
+        if (pessoa.getTipo() == TipoPessoa.PJ) {
+            entity.setEstabelecimento(estabelecimentoService.buscarMatrizPorPessoa(pessoaId, tenantId));
+        } else {
+            entity.setPessoa(pessoa);
+        }
         entity.setTenantId(tenantId);
         createEndereco(dto, entity);
 

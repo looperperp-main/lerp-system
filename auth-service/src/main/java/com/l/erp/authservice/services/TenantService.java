@@ -6,6 +6,7 @@ import com.l.erp.authservice.api.dto.TenantProfileDTO;
 import com.l.erp.authservice.api.mappers.AuthMapper;
 import com.l.erp.authservice.dominio.Tenant;
 import com.l.erp.authservice.dominio.enumerators.EnumTenantStatus;
+import com.l.erp.authservice.infra.client.CadastroServiceClient;
 import com.l.erp.authservice.repositorios.TenantRepository;
 import com.l.erp.authservice.services.audit.AuditService;
 import com.l.erp.common.util.Constants;
@@ -41,12 +42,16 @@ public class TenantService {
 
     private final AuthMapper authMapper;
 
+    private final CadastroServiceClient cadastroServiceClient;
+
     public TenantService(TenantRepository tenantRepository,
                          AuditService auditService,
-                         AuthMapper authMapper) {
+                         AuthMapper authMapper,
+                         CadastroServiceClient cadastroServiceClient) {
         this.tenantRepository = tenantRepository;
         this.auditService = auditService;
         this.authMapper = authMapper;
+        this.cadastroServiceClient = cadastroServiceClient;
     }
 
     /**
@@ -63,6 +68,10 @@ public class TenantService {
         tenant.setCreationDate(Instant.now());
         tenant.setCreatedBy(currentUser.email());
         Tenant tenantSaved = tenantRepository.save(tenant);
+        // Fase 4 (spec/estabelecimentos-filiais.md §6): onboarding síncrono — cria a Pessoa
+        // própria do tenant + matriz proprio=true no cadastro-service. Falha aqui propaga
+        // (BusinessException) e reverte a criação do tenant pro chamador.
+        cadastroServiceClient.provisionarPessoaPropria(tenantSaved, currentUser.id());
         UUID correlationId = getCorrelationIdFromRequest(logger);
         auditService.logAuditEvent(Constants.TENANT_CREATION, Constants.TENANT, null, Constants.SUCCESS, "{}",correlationId);
         return sanitizeDto(authMapper.toTenantDTO(tenantSaved));

@@ -35,7 +35,6 @@ import { Breadcrumb } from '../../../components/breadcrumb/breadcrumb';
     PrimaryButtonComponent,
     Breadcrumb,
   ],
-  providers: [MessageService],
   templateUrl: './cond-pagamento.html',
   styleUrl: './cond-pagamento.scss',
 })

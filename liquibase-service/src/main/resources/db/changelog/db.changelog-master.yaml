@@ -56,6 +56,9 @@ databaseChangeLog:
       file: auth/auth-schema-017.yaml
       relativeToChangelogFile: true
   - include:
+      file: auth/auth-schema-018.yaml
+      relativeToChangelogFile: true
+  - include:
       file: audit/audit-schema-001.yaml
       relativeToChangelogFile: true
   - include:
@@ -80,6 +83,24 @@ databaseChangeLog:
       relativeToChangelogFile: true
   - include:
       file: cadastro/cadastro-schema-007.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: cadastro/cadastro-schema-009.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: cadastro/cadastro-schema-010.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: cadastro/cadastro-schema-011.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: cadastro/cadastro-schema-012.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: cadastro/cadastro-schema-013.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: cadastro/cadastro-schema-014.yaml
       relativeToChangelogFile: true
 
   # 3. Schema de Billing
@@ -212,4 +233,21 @@ databaseChangeLog:
       relativeToChangelogFile: true
   - include:
       file: fiscal/fiscal-schema-013.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: fiscal/fiscal-schema-014.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: fiscal/fiscal-schema-015.yaml
+      relativeToChangelogFile: true
+
+  # 7. Schema de Vendas — O2C (operacoes-service)
+  - include:
+      file: vendas/vendas-schema-001.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: vendas/vendas-schema-002.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: vendas/vendas-schema-003.yaml
       relativeToChangelogFile: true

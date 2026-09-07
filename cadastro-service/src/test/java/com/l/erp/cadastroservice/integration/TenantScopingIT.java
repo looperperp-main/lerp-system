@@ -6,6 +6,7 @@ import com.l.erp.cadastroservice.domain.Produto;
 import com.l.erp.cadastroservice.domain.TabelaPreco;
 import com.l.erp.cadastroservice.domain.Transportadora;
 import com.l.erp.cadastroservice.domain.enumerators.TipoPessoa;
+import com.l.erp.cadastroservice.domain.enumerators.TipoProduto;
 import com.l.erp.cadastroservice.repository.FornecedorRepository;
 import com.l.erp.cadastroservice.repository.PessoaRepository;
 import com.l.erp.cadastroservice.repository.ProdutoRepository;
@@ -114,6 +115,7 @@ class TenantScopingIT extends AbstractIntegrationTest {
         Produto p = new Produto();
         p.setSku(sku);
         p.setNome("Produto " + sku);
+        p.setTipo(TipoProduto.MERCADORIA);
         p.setUnidade("UN");
         p.setAtivo(true);
         p.setCreatedAt(Instant.now());

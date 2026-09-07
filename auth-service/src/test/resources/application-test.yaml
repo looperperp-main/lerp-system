@@ -38,3 +38,7 @@ management:
 api:
   security:
     jwt.secret: test-secret-32chars-minimum-xxxxxxxxxxx
+
+internal:
+  gateway:
+    secret: test-internal-gateway-secret
