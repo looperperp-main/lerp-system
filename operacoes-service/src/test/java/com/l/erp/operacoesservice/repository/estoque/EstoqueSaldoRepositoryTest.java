@@ -4,6 +4,8 @@ import com.l.erp.operacoesservice.domain.estoque.EstoqueSaldo;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.TestPropertySource;
 
@@ -85,5 +87,30 @@ class EstoqueSaldoRepositoryTest {
                 .findByProdutoIdAndDepositoIdForUpdate(TENANT_ID, UUID.randomUUID(), UUID.randomUUID());
 
         assertThat(resultado).isEmpty();
+    }
+
+    @Test
+    void buscarComFiltros_deveFiltrarPorProduto() {
+        UUID produtoId = UUID.randomUUID();
+        salvarSaldo(TENANT_ID, produtoId, UUID.randomUUID(), BigDecimal.TEN);
+        salvarSaldo(TENANT_ID, UUID.randomUUID(), UUID.randomUUID(), BigDecimal.ONE);
+
+        Page<EstoqueSaldo> resultado = estoqueSaldoRepository
+                .buscarComFiltros(TENANT_ID, produtoId, null, false, PageRequest.of(0, 10));
+
+        assertThat(resultado.getContent()).hasSize(1);
+        assertThat(resultado.getContent().get(0).getProdutoId()).isEqualTo(produtoId);
+    }
+
+    @Test
+    void buscarComFiltros_comSaldoVerdadeiroDeveExcluirQuantidadeZero() {
+        salvarSaldo(TENANT_ID, UUID.randomUUID(), UUID.randomUUID(), BigDecimal.ZERO);
+        UUID produtoComSaldo = UUID.randomUUID();
+        salvarSaldo(TENANT_ID, produtoComSaldo, UUID.randomUUID(), BigDecimal.TEN);
+
+        Page<EstoqueSaldo> resultado = estoqueSaldoRepository
+                .buscarComFiltros(TENANT_ID, null, null, true, PageRequest.of(0, 10));
+
+        assertThat(resultado.getContent()).extracting(EstoqueSaldo::getProdutoId).containsExactly(produtoComSaldo);
     }
 }

@@ -1,6 +1,8 @@
 package com.l.erp.operacoesservice.services.vendas;
 
 import com.l.erp.common.exception.custom.BusinessException;
+import com.l.erp.operacoesservice.domain.estoque.enumerators.OrigemMovimentoEstoque;
+import com.l.erp.operacoesservice.domain.estoque.enumerators.TipoMovimentoEstoque;
 import com.l.erp.operacoesservice.domain.vendas.Pedido;
 import com.l.erp.operacoesservice.domain.vendas.PedidoItem;
 import com.l.erp.operacoesservice.domain.vendas.enumerators.ModalidadeFrete;
@@ -10,8 +12,10 @@ import com.l.erp.operacoesservice.infra.client.CadastroServiceClient;
 import com.l.erp.operacoesservice.repository.vendas.PedidoItemRepository;
 import com.l.erp.operacoesservice.repository.vendas.PedidoRepository;
 import com.l.erp.operacoesservice.repository.vendas.PedidoStatusHistoricoRepository;
+import com.l.erp.operacoesservice.services.estoque.EstoqueService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -28,6 +32,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -46,6 +53,8 @@ class PedidoServiceTest {
     private ApplicationEventPublisher eventPublisher;
     @Mock
     private CadastroServiceClient cadastroServiceClient;
+    @Mock
+    private EstoqueService estoqueService;
 
     @InjectMocks
     private PedidoService pedidoService;
@@ -259,6 +268,53 @@ class PedidoServiceTest {
 
         assertThat(resultado.getStatus()).isEqualTo(StatusPedido.EXPEDIDO);
         assertThat(resultado.getValorTotal()).isEqualByComparingTo("100.00");
+        // spec/estoque.md §8.2: expedição de pedido só-mercadoria baixa estoque 1x (SAIDA_VENDA).
+        verify(estoqueService, times(1)).registrarMovimento(any());
+    }
+
+    @Test
+    void deveExpedirPedidoMistoEEnviarSoLinhasMercadoriaAoEstoque() {
+        Pedido pedido = pedidoComTenant(Pedido.builder().id(UUID.randomUUID())
+                .status(StatusPedido.CONFIRMADO).valorItens(new BigDecimal("110.00"))
+                .valorDesconto(BigDecimal.ZERO).build());
+        when(pedidoRepository.findByIdAndTenantId(pedido.getId(), TENANT_ID)).thenReturn(Optional.of(pedido));
+        PedidoItem mercadoria = item(BigDecimal.ONE, BigDecimal.TEN);
+        PedidoItem servico = PedidoItem.builder().produtoId(UUID.randomUUID())
+                .tipoItem(TipoItemPedido.SERVICO).quantidade(BigDecimal.ONE).precoUnitario(BigDecimal.TEN).build();
+        when(pedidoItemRepository.findAllByPedidoId(pedido.getId())).thenReturn(List.of(mercadoria, servico));
+        UUID depositoId = UUID.randomUUID();
+
+        pedidoService.expedir(pedido.getId(), TENANT_ID, USER_ID, depositoId, null, null, ModalidadeFrete.SEM_FRETE);
+
+        ArgumentCaptor<EstoqueService.MovimentoRequisicao> captor =
+                ArgumentCaptor.forClass(EstoqueService.MovimentoRequisicao.class);
+        verify(estoqueService).registrarMovimento(captor.capture());
+        EstoqueService.MovimentoRequisicao req = captor.getValue();
+        assertThat(req.tipo()).isEqualTo(TipoMovimentoEstoque.SAIDA_VENDA);
+        assertThat(req.origemTipo()).isEqualTo(OrigemMovimentoEstoque.PEDIDO_VENDA);
+        assertThat(req.origemId()).isEqualTo(pedido.getId());
+        assertThat(req.depositoId()).isEqualTo(depositoId);
+        // RN-EST-01: item SERVICO nunca entra na linha de movimento de estoque.
+        assertThat(req.linhas()).extracting(EstoqueService.MovimentoRequisicao.Linha::produtoId)
+                .containsExactly(mercadoria.getProdutoId());
+    }
+
+    @Test
+    void expedicaoDevePropagarExcecaoDoEstoqueQuandoRegistrarMovimentoFalha() {
+        Pedido pedido = pedidoComTenant(Pedido.builder().id(UUID.randomUUID())
+                .status(StatusPedido.CONFIRMADO).valorItens(new BigDecimal("100.00"))
+                .valorDesconto(BigDecimal.ZERO).build());
+        when(pedidoRepository.findByIdAndTenantId(pedido.getId(), TENANT_ID)).thenReturn(Optional.of(pedido));
+        when(pedidoItemRepository.findAllByPedidoId(pedido.getId()))
+                .thenReturn(List.of(item(BigDecimal.ONE, BigDecimal.TEN)));
+        doThrow(new BusinessException("saldo insuficiente")).when(estoqueService).registrarMovimento(any());
+
+        // ponytail: o rollback do UPDATE de status (pedido não fica EXPEDIDO no banco) é garantia do
+        // @Transactional/JPA, não observável num teste unitário com repositórios mockados — aqui só
+        // se prova que a exceção do EstoqueService propaga e interrompe o fluxo de expedir().
+        assertThatThrownBy(() -> pedidoService.expedir(pedido.getId(), TENANT_ID, USER_ID, UUID.randomUUID(), null,
+                null, ModalidadeFrete.SEM_FRETE))
+                .isInstanceOf(BusinessException.class);
     }
 
     @Test
@@ -272,6 +328,7 @@ class PedidoServiceTest {
         assertThatThrownBy(() -> pedidoService.expedir(pedido.getId(), TENANT_ID, USER_ID, null, null,
                 null, ModalidadeFrete.SEM_FRETE))
                 .isInstanceOf(BusinessException.class);
+        verifyNoInteractions(estoqueService);
     }
 
     @Test
@@ -285,6 +342,7 @@ class PedidoServiceTest {
         assertThatThrownBy(() -> pedidoService.expedir(pedido.getId(), TENANT_ID, USER_ID, UUID.randomUUID(), null,
                 BigDecimal.TEN, ModalidadeFrete.CIF))
                 .isInstanceOf(BusinessException.class);
+        verifyNoInteractions(estoqueService);
     }
 
     @Test
@@ -313,6 +371,56 @@ class PedidoServiceTest {
 
         assertThat(resultado.getStatus()).isEqualTo(StatusPedido.CANCELADO);
         assertThat(resultado.getMotivoCancelamento()).isEqualTo("desistência");
+        // spec/estoque.md §8.2: cancelamento de pedido que nunca expediu não mexe em estoque.
+        verifyNoInteractions(estoqueService);
+    }
+
+    @Test
+    void naoDeveChamarEstoqueAoCancelarPedidoConfirmado() {
+        Pedido pedido = pedidoComTenant(Pedido.builder().id(UUID.randomUUID())
+                .status(StatusPedido.CONFIRMADO).build());
+        when(pedidoRepository.findByIdAndTenantId(pedido.getId(), TENANT_ID)).thenReturn(Optional.of(pedido));
+
+        pedidoService.cancelar(pedido.getId(), TENANT_ID, USER_ID, "desistência");
+
+        // guarda é statusAnterior == EXPEDIDO; CONFIRMADO (como ORCAMENTO/BLOQUEADO_CREDITO) nunca dispara estorno.
+        verifyNoInteractions(estoqueService);
+    }
+
+    @Test
+    void deveEstornarEstoqueAoCancelarPedidoExpedido() {
+        UUID depositoId = UUID.randomUUID();
+        Pedido pedido = pedidoComTenant(Pedido.builder().id(UUID.randomUUID())
+                .status(StatusPedido.EXPEDIDO).depositoId(depositoId).build());
+        when(pedidoRepository.findByIdAndTenantId(pedido.getId(), TENANT_ID)).thenReturn(Optional.of(pedido));
+        PedidoItem mercadoria = item(BigDecimal.ONE, BigDecimal.TEN);
+        when(pedidoItemRepository.findAllByPedidoId(pedido.getId())).thenReturn(List.of(mercadoria));
+
+        pedidoService.cancelar(pedido.getId(), TENANT_ID, USER_ID, "desistência");
+
+        ArgumentCaptor<EstoqueService.MovimentoRequisicao> captor =
+                ArgumentCaptor.forClass(EstoqueService.MovimentoRequisicao.class);
+        verify(estoqueService).registrarMovimento(captor.capture());
+        EstoqueService.MovimentoRequisicao req = captor.getValue();
+        assertThat(req.tipo()).isEqualTo(TipoMovimentoEstoque.ESTORNO_SAIDA_VENDA);
+        assertThat(req.origemTipo()).isEqualTo(OrigemMovimentoEstoque.PEDIDO_VENDA);
+        assertThat(req.depositoId()).isEqualTo(depositoId);
+        assertThat(req.linhas()).extracting(EstoqueService.MovimentoRequisicao.Linha::produtoId)
+                .containsExactly(mercadoria.getProdutoId());
+    }
+
+    @Test
+    void naoDeveChamarEstoqueAoCancelarExpedidoSemItensMercadoria() {
+        Pedido pedido = pedidoComTenant(Pedido.builder().id(UUID.randomUUID())
+                .status(StatusPedido.EXPEDIDO).depositoId(UUID.randomUUID()).build());
+        when(pedidoRepository.findByIdAndTenantId(pedido.getId(), TENANT_ID)).thenReturn(Optional.of(pedido));
+        PedidoItem servico = PedidoItem.builder().produtoId(UUID.randomUUID())
+                .tipoItem(TipoItemPedido.SERVICO).quantidade(BigDecimal.ONE).precoUnitario(BigDecimal.TEN).build();
+        when(pedidoItemRepository.findAllByPedidoId(pedido.getId())).thenReturn(List.of(servico));
+
+        pedidoService.cancelar(pedido.getId(), TENANT_ID, USER_ID, "desistência");
+
+        verifyNoInteractions(estoqueService);
     }
 
     // ---------------------------------------------------------------- faturar (§8, parcelas)
@@ -400,6 +508,7 @@ class PedidoServiceTest {
         assertThatThrownBy(() -> pedidoService.expedir(pedido.getId(), TENANT_ID, USER_ID, UUID.randomUUID(), null,
                 null, ModalidadeFrete.SEM_FRETE))
                 .isInstanceOf(BusinessException.class);
+        verifyNoInteractions(estoqueService);
     }
 
     @Test

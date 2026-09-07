@@ -68,6 +68,11 @@ internal:
   gateway:
     secret: ${INTERNAL_GATEWAY_SECRET}
 
+# Flag do módulo Estoque (spec/estoque.md §6.1): default off — SAIDA_VENDA/AJUSTE_SAIDA que
+# levariam o saldo a negativo só viram erro 400 quando ligada; ESTORNO_* nunca é bloqueado.
+estoque:
+  bloquear-saida: ${ESTOQUE_BLOQUEAR_SAIDA:false}
+
 ---
 # Profile de produção: desabilita a documentação OpenAPI/Swagger
 spring:
