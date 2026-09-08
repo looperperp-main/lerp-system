@@ -259,3 +259,8 @@ databaseChangeLog:
   - include:
       file: estoque/estoque-schema-001.yaml
       relativeToChangelogFile: true
+
+  # 9. Schema de Compras — P2P, Fase 1a (operacoes-service)
+  - include:
+      file: compras/compras-schema-001.yaml
+      relativeToChangelogFile: true

@@ -1,0 +1,311 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # SCHEMA: compras
+  # P2P (Procure-to-Pay), operacoes-service. Não vem do init/000-initial-schemas.yaml
+  # porque nasceu depois — mesmo padrão de estoque-001-create-schema. spec/p2p-compras.md §"Modelagem de dados"
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: compras-001-create-schema
+      author: vitor-fernandes
+      changes:
+        - sql:
+            sql: CREATE SCHEMA IF NOT EXISTS compras;
+      rollback:
+        - sql:
+            sql: DROP SCHEMA IF EXISTS compras CASCADE;
+
+  # ──────────────────────────────────────────
+  # TABELA: compras.compra_numeracao
+  # Contador sequencial por tenant/tipo de documento (REQUISICAO | COTACAO | PEDIDO |
+  # RECEBIMENTO) — número "humano", id do documento continua UUID. Lido com
+  # SELECT ... FOR UPDATE e incrementado na mesma transação de criação do documento
+  # (serviço de numeração, Fase 1b). spec/p2p-compras.md §"compra_numeracao"
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: compras-002-create-compra-numeracao
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: compras
+            tableName: compra_numeracao
+            columns:
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: tipo_documento
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+                  remarks: "TipoDocumentoCompra: REQUISICAO | COTACAO | PEDIDO | RECEBIMENTO"
+              - column:
+                  name: proximo_numero
+                  type: bigint
+                  defaultValueNumeric: 1
+                  constraints:
+                    nullable: false
+        - addPrimaryKey:
+            schemaName: compras
+            tableName: compra_numeracao
+            columnNames: tenant_id, tipo_documento
+            constraintName: pk_compra_numeracao
+      rollback:
+        - dropTable:
+            schemaName: compras
+            tableName: compra_numeracao
+
+  # ──────────────────────────────────────────
+  # TABELA: compras.requisicao_compra
+  # Documento inicial do P2P. Máquina de estados: RASCUNHO → PENDENTE_APROVACAO →
+  # APROVADA → [EM_COTACAO] → ATENDIDA, com REPROVADA/CANCELADA como saídas.
+  # spec/p2p-compras.md §"requisicao_compra" + §"Máquinas de estado"
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: compras-003-create-requisicao-compra
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: compras
+            tableName: requisicao_compra
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: numero
+                  type: bigint
+                  constraints:
+                    nullable: false
+                  remarks: "Sequencial por tenant/tipo REQUISICAO — ver compras.compra_numeracao"
+              - column:
+                  name: solicitante_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                  remarks: "userId do JWT (SecurityUtils) — sem FK física, usuário mora no auth-service"
+              - column:
+                  name: deposito_id
+                  type: uuid
+                  remarks: "Ref. cadastro-service (cadastros.deposito) — sem FK física; obrigatório só se houver item de mercadoria"
+              - column:
+                  name: status
+                  type: varchar(25)
+                  constraints:
+                    nullable: false
+                  remarks: "StatusRequisicaoCompra: RASCUNHO | PENDENTE_APROVACAO | APROVADA | REPROVADA | EM_COTACAO | ATENDIDA | CANCELADA"
+              - column:
+                  name: justificativa
+                  type: varchar(500)
+              - column:
+                  name: data_necessidade
+                  type: date
+              - column:
+                  name: aprovador_id
+                  type: uuid
+              - column:
+                  name: aprovado_em
+                  type: timestamp
+              - column:
+                  name: motivo_reprovacao
+                  type: varchar(500)
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: created_by
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_updated_by
+                  type: uuid
+        - addUniqueConstraint:
+            schemaName: compras
+            tableName: requisicao_compra
+            columnNames: tenant_id, numero
+            constraintName: uq_requisicao_compra_tenant_numero
+        - createIndex:
+            schemaName: compras
+            tableName: requisicao_compra
+            indexName: idx_requisicao_compra_tenant_status
+            columns:
+              - column:
+                  name: tenant_id
+              - column:
+                  name: status
+      rollback:
+        - dropTable:
+            schemaName: compras
+            tableName: requisicao_compra
+
+  # ──────────────────────────────────────────
+  # TABELA: compras.requisicao_compra_item
+  # Itens só editáveis enquanto a requisição está em RASCUNHO (regra de serviço, Fase 1b).
+  # spec/p2p-compras.md §"requisicao_compra_item"
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: compras-004-create-requisicao-compra-item
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: compras
+            tableName: requisicao_compra_item
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: requisicao_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_requisicao_compra_item_requisicao_id
+                    referencedTableSchemaName: compras
+                    references: compras.requisicao_compra(id)
+              - column:
+                  name: produto_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                  remarks: "Ref. cadastro-service (cadastros.produto) — sem FK física, valida via API"
+              - column:
+                  name: quantidade
+                  type: decimal(15,4)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: observacao
+                  type: varchar(255)
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: created_by
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_updated_by
+                  type: uuid
+        - createIndex:
+            schemaName: compras
+            tableName: requisicao_compra_item
+            indexName: idx_requisicao_compra_item_requisicao_id
+            columns:
+              - column:
+                  name: requisicao_id
+        # CHECK entre colunas/valor (createTable não expressa bem): spec/p2p-compras.md §"requisicao_compra_item"
+        - sql:
+            sql: >
+              ALTER TABLE compras.requisicao_compra_item
+              ADD CONSTRAINT chk_requisicao_compra_item_quantidade
+              CHECK (quantidade > 0);
+      rollback:
+        - dropTable:
+            schemaName: compras
+            tableName: requisicao_compra_item
+
+  # ──────────────────────────────────────────
+  # TABELA: compras.compra_status_historico
+  # Histórico único pra requisição, cotação, pedido e recebimento (evita 3-4 tabelas
+  # iguais) — sem FK física pro documento (documento_tipo + documento_id genéricos, o
+  # documento pode ser de qualquer uma dessas 4 tabelas). Append-only, gravado pelo
+  # service em toda transição de estado, na mesma transação. spec/p2p-compras.md
+  # §"compra_status_historico"
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: compras-005-create-compra-status-historico
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: compras
+            tableName: compra_status_historico
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: documento_tipo
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+                  remarks: "TipoDocumentoCompra: REQUISICAO | COTACAO | PEDIDO | RECEBIMENTO"
+              - column:
+                  name: documento_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status_anterior
+                  type: varchar(25)
+                  remarks: "Null na criação do documento (primeira linha do histórico)"
+              - column:
+                  name: status_novo
+                  type: varchar(25)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: usuario_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: motivo
+                  type: varchar(500)
+              - column:
+                  name: ocorrido_em
+                  type: timestamp
+                  constraints:
+                    nullable: false
+        - createIndex:
+            schemaName: compras
+            tableName: compra_status_historico
+            indexName: idx_compra_status_historico_documento
+            columns:
+              - column:
+                  name: tenant_id
+              - column:
+                  name: documento_tipo
+              - column:
+                  name: documento_id
+      rollback:
+        - dropTable:
+            schemaName: compras
+            tableName: compra_status_historico
