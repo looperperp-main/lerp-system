@@ -1,24 +1,36 @@
-import {Component, EventEmitter, inject, Input, OnInit, Output, signal} from '@angular/core';
-import {InputNumber} from 'primeng/inputnumber';
-import {Checkbox} from 'primeng/checkbox';
-import {FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators} from '@angular/forms';
-import {Select} from 'primeng/select';
-import {ButtonDirective} from 'primeng/button';
-import {InputText} from 'primeng/inputtext';
-import {ClientesService} from '../clientes.service';
-import {MessageService} from 'primeng/api';
-import {Cliente} from '../clientes.model';
-import {HttpErrorResponse} from '@angular/common/http';
+import { Component, EventEmitter, inject, Input, OnInit, Output, signal } from '@angular/core';
+import { InputNumber } from 'primeng/inputnumber';
+import { Checkbox } from 'primeng/checkbox';
+import {
+  FormBuilder,
+  FormGroup,
+  FormsModule,
+  ReactiveFormsModule,
+  Validators,
+} from '@angular/forms';
+import { Select } from 'primeng/select';
+import { ButtonDirective } from 'primeng/button';
+import { InputText } from 'primeng/inputtext';
+import { ClientesService } from '../clientes.service';
+import { MessageService } from 'primeng/api';
+import { Cliente } from '../clientes.model';
+import { HttpErrorResponse } from '@angular/common/http';
 
 @Component({
   selector: 'app-cliente-form',
   imports: [
-    InputNumber, Checkbox, FormsModule, ReactiveFormsModule, Select, ButtonDirective, InputText
+    InputNumber,
+    Checkbox,
+    FormsModule,
+    ReactiveFormsModule,
+    Select,
+    ButtonDirective,
+    InputText,
   ],
   templateUrl: './cliente-form.html',
   styleUrl: './cliente-form.scss',
 })
-export class ClienteForm implements OnInit{
+export class ClienteForm implements OnInit {
   @Input() clienteData: Cliente | null = null;
   @Output() saved = new EventEmitter<void>();
   @Output() canceled = new EventEmitter<void>();
@@ -39,7 +51,7 @@ export class ClienteForm implements OnInit{
   riscoOptions = [
     { label: 'BAIXO', value: 'BAIXO' },
     { label: 'MEDIO', value: 'MEDIO' },
-    { label: 'ALTO', value: 'ALTO' }
+    { label: 'ALTO', value: 'ALTO' },
   ];
 
   constructor() {
@@ -54,7 +66,7 @@ export class ClienteForm implements OnInit{
       limiteCredito: [0, [Validators.min(0)]],
       classificacaoRisco: ['BAIXO'],
       prazoMedioPagamentoDias: [0, [Validators.min(0)]],
-      ativo: [true]
+      ativo: [true],
     });
   }
 
@@ -73,36 +85,36 @@ export class ClienteForm implements OnInit{
         limiteCredito: this.clienteData.limiteCredito,
         classificacaoRisco: this.clienteData.classificacaoRisco || 'BAIXO',
         prazoMedioPagamentoDias: this.clienteData.prazoMedioPagamentoDias,
-        ativo: this.clienteData.ativo
+        ativo: this.clienteData.ativo,
       });
     }
   }
 
   loadDropdowns() {
-    this.clienteService.getPessoasDropdown().subscribe(res => {
-      const content = res._embedded ? res._embedded.pessoas : (res.content || []);
+    this.clienteService.getPessoasDropdown().subscribe((res) => {
+      const content = res._embedded ? res._embedded.pessoas : res.content || [];
       this.pessoasOptions.set(content.map((p: any) => ({ label: p.nomeRazao, value: p.id })));
     });
 
-    this.clienteService.getCondicoesPagamentoDropdown().subscribe(res => {
-      const content = res._embedded ? res._embedded.condicaopagamento : (res.content || []);
+    this.clienteService.getCondicoesPagamentoDropdown().subscribe((res) => {
+      const content = res._embedded ? res._embedded.condicaopagamento : res.content || [];
       this.condicoesOptions.set(content.map((c: any) => ({ label: c.nome, value: c.id })));
     });
 
-    this.clienteService.getGruposClienteDropdown().subscribe(res => {
-      const content = res._embedded ? res._embedded.grupocliente : (res.content || []);
+    this.clienteService.getGruposClienteDropdown().subscribe((res) => {
+      const content = res._embedded ? res._embedded.grupocliente : res.content || [];
       this.gruposOptions.set(content.map((g: any) => ({ label: g.nome, value: g.id })));
     });
 
-    this.clienteService.getVendedoresDropdown().subscribe(res => {
-      const content = res._embedded ? res._embedded.vendedor : (res.content || []);
+    this.clienteService.getVendedoresDropdown().subscribe((res) => {
+      const content = res._embedded ? res._embedded.vendedor : res.content || [];
       this.vendedoresOptions.set(content.map((v: any) => ({ label: v.nome, value: v.id })));
     });
 
-    this.clienteService.getTabelasPrecoDropdown().subscribe(res => {
+    this.clienteService.getTabelasPrecoDropdown().subscribe((res) => {
       const content = res._embedded
-        ? (res._embedded.tabelaPrecoResponseDTOList || res._embedded.tabelasPreco || [])
-        : (res.content || []);
+        ? res._embedded.tabelaPrecoResponseDTOList || res._embedded.tabelasPreco || []
+        : res.content || [];
       this.tabelasPrecoOptions.set(
         content.filter((t: any) => t.ativa).map((t: any) => ({ label: t.nome, value: t.id })),
       );
@@ -120,18 +132,36 @@ export class ClienteForm implements OnInit{
     if (this.clienteData && this.clienteData.id) {
       this.clienteService.update(this.clienteData.id, payload).subscribe({
         next: () => {
-          this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Cliente atualizado com sucesso' });
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Sucesso',
+            detail: 'Cliente atualizado com sucesso',
+          });
           this.saved.emit();
         },
-        error: (err: HttpErrorResponse) => this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao atualizar cliente: ' + err.error.message })
+        error: (err: HttpErrorResponse) =>
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Erro',
+            detail: 'Erro ao atualizar cliente: ' + err.error.message,
+          }),
       });
     } else {
       this.clienteService.create(payload).subscribe({
         next: () => {
-          this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Cliente criado com sucesso' });
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Sucesso',
+            detail: 'Cliente criado com sucesso',
+          });
           this.saved.emit();
         },
-        error: (err: HttpErrorResponse) => this.messageService.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao criar cliente: ' + err.error.message })
+        error: (err: HttpErrorResponse) =>
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Erro',
+            detail: 'Erro ao criar cliente: ' + err.error.message,
+          }),
       });
     }
   }
