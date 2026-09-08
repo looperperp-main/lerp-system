@@ -17,7 +17,7 @@
     <properties>
         <java.version>25</java.version>
         <jacoco.version>0.8.14</jacoco.version>
-        <coverage.minimum>0.60</coverage.minimum>
+        <coverage.minimum>0.70</coverage.minimum>
         <spring-cloud.version>2025.1.1</spring-cloud.version>
     </properties>
 
