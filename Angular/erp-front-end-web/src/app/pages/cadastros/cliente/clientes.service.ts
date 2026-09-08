@@ -52,6 +52,10 @@ export class ClientesService {
     return this.http.get<any>(`${environment.apiUrl}/api/v1/vendedores?size=1000`);
   }
 
+  getTabelasPrecoDropdown(): Observable<any> {
+    return this.http.get<any>(`${environment.apiUrl}/api/v1/tabelas-preco?size=1000`);
+  }
+
   updateStatus(id: string): Observable<void> {
     return this.http.patch<void>(`${this.apiUrl}/${id}/status`, {});
   }

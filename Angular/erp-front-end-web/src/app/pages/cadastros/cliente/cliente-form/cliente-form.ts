@@ -32,6 +32,7 @@ export class ClienteForm implements OnInit{
   condicoesOptions = signal<any[]>([]);
   gruposOptions = signal<any[]>([]);
   vendedoresOptions = signal<any[]>([]);
+  tabelasPrecoOptions = signal<any[]>([]);
 
   form!: FormGroup;
 
@@ -49,6 +50,7 @@ export class ClienteForm implements OnInit{
       condicaoPagamentoId: [null],
       grupoClienteId: [null],
       vendedorId: [null],
+      tabelaPrecoId: [null],
       limiteCredito: [0, [Validators.min(0)]],
       classificacaoRisco: ['BAIXO'],
       prazoMedioPagamentoDias: [0, [Validators.min(0)]],
@@ -67,6 +69,7 @@ export class ClienteForm implements OnInit{
         condicaoPagamentoId: this.clienteData.condicaoPagamentoId,
         grupoClienteId: this.clienteData.grupoClienteId,
         vendedorId: this.clienteData.vendedorId,
+        tabelaPrecoId: this.clienteData.tabelaPrecoId,
         limiteCredito: this.clienteData.limiteCredito,
         classificacaoRisco: this.clienteData.classificacaoRisco || 'BAIXO',
         prazoMedioPagamentoDias: this.clienteData.prazoMedioPagamentoDias,
@@ -94,6 +97,15 @@ export class ClienteForm implements OnInit{
     this.clienteService.getVendedoresDropdown().subscribe(res => {
       const content = res._embedded ? res._embedded.vendedor : (res.content || []);
       this.vendedoresOptions.set(content.map((v: any) => ({ label: v.nome, value: v.id })));
+    });
+
+    this.clienteService.getTabelasPrecoDropdown().subscribe(res => {
+      const content = res._embedded
+        ? (res._embedded.tabelaPrecoResponseDTOList || res._embedded.tabelasPreco || [])
+        : (res.content || []);
+      this.tabelasPrecoOptions.set(
+        content.filter((t: any) => t.ativa).map((t: any) => ({ label: t.nome, value: t.id })),
+      );
     });
   }
 
