@@ -607,4 +607,26 @@ public class Constants {
             "Quantidade contada não pode ser negativa";
     public static final String ESTOQUE_ORIGEM_AJUSTE_INVALIDA =
             "Origem do ajuste deve ser AJUSTE ou INVENTARIO";
+
+    // P2P — Requisição de compra (operacoes-service, schema compras — spec/p2p-compras.md, Fase 1b)
+    public static final String REQUISICAO_COMPRA_NOT_FOUND = "Requisição de compra não encontrada";
+    // Placeholders: status atual, status destino (RN-P2P-09).
+    public static final String REQUISICAO_COMPRA_TRANSICAO_INVALIDA =
+            "Transição de status inválida: %s -> %s";
+    public static final String REQUISICAO_COMPRA_SEM_ITENS =
+            "Requisição de compra deve ter ao menos um item";
+    public static final String REQUISICAO_COMPRA_UPDATE_SO_RASCUNHO =
+            "Requisição de compra só pode ser editada enquanto estiver em RASCUNHO";
+    public static final String REQUISICAO_COMPRA_DEPOSITO_OBRIGATORIO =
+            "Depósito é obrigatório quando a requisição tem item de mercadoria";
+    public static final String REQUISICAO_COMPRA_MOTIVO_REPROVACAO_OBRIGATORIO =
+            "Motivo é obrigatório para reprovar a requisição";
+    public static final String REQUISICAO_COMPRA_MOTIVO_CANCELAMENTO_OBRIGATORIO =
+            "Motivo é obrigatório para cancelar a requisição";
+    // Placeholder: tenantId.
+    public static final String REQUISICAO_COMPRA_NUMERACAO_FALHA =
+            "Falha ao gerar numeração de requisição de compra para o tenant %s";
+    // RN-P2P-10: dataNecessidade não pode ser anterior a hoje na criação.
+    public static final String REQUISICAO_COMPRA_DATA_NECESSIDADE_INVALIDA =
+            "Data de necessidade não pode ser anterior a hoje";
 }

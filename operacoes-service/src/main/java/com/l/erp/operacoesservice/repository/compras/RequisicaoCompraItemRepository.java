@@ -10,4 +10,8 @@ import java.util.UUID;
 @Repository
 public interface RequisicaoCompraItemRepository extends JpaRepository<RequisicaoCompraItem, UUID> {
     List<RequisicaoCompraItem> findAllByRequisicaoId(UUID requisicaoId);
+
+    // Substituição em lote dos itens no update da requisição (só RASCUNHO) — mesmo padrão de
+    // PedidoItemRepository.deleteAllByPedidoId.
+    void deleteAllByRequisicaoId(UUID requisicaoId);
 }
