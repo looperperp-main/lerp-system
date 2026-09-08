@@ -1,6 +1,6 @@
 # O2C — Vendas: visão funcional
 
-**Status:** decisões fechadas · **Data:** 2026-07-11 · **Rev.:** 3 de setembro de 2026 (crédito estourado ganha reabertura/cancelamento explícitos como alternativa à liberação; base do cálculo de crédito precisada para pedidos confirmados/expedidos ainda não faturados; nota sobre o `fiscal-service` já existir para cálculo fiscal, ainda não para emissão de NF-e) · **Rev.:** 3 de setembro de 2026 (venda de serviços: sem expedição nem estoque, nota fiscal de serviço no faturamento, impostos calculados no faturamento) · **Módulo:** `operacoes-service` (microsserviço único, também dono de compras e estoque)
+**Status:** decisões fechadas · **Data:** 2026-07-11 · **Rev.:** 3 de setembro de 2026 (crédito estourado ganha reabertura/cancelamento explícitos como alternativa à liberação; base do cálculo de crédito precisada para pedidos confirmados/expedidos ainda não faturados; nota sobre o `fiscal-service` já existir para cálculo fiscal, ainda não para emissão de NF-e) · **Rev.:** 3 de setembro de 2026 (venda de serviços: sem expedição nem estoque, nota fiscal de serviço no faturamento, impostos calculados no faturamento) · **Rev.:** 8 de setembro de 2026 (expedição já baixa/estorna saldo de verdade via módulo de Estoque; só o bloqueio por saldo insuficiente segue desligado) · **Módulo:** `operacoes-service` (microsserviço único, também dono de compras e estoque)
 
 > Este documento descreve o processo de venda em linguagem de negócio — sem schema de banco, endpoint ou detalhe técnico. Para a implementação, ver `spec/o2c-vendas.md`.
 
@@ -45,7 +45,7 @@ Só existe para mercadoria. Pedido só de serviço vai da confirmação direto a
 
 O pedido confirmado (com pelo menos um item de mercadoria) é expedido: informa-se o depósito de saída e, se houver frete, a transportadora. Num pedido misto (mercadoria + serviço), a expedição baixa estoque só da parte de mercadoria; o serviço segue no pedido até o faturamento.
 
-**O sistema não verifica saldo de estoque nesta etapa.** Hoje o ERP não controla saldo real de estoque — a expedição é só um registro de que a mercadoria saiu. Fica a cargo da operação garantir fisicamente que o produto existe no depósito. **Essa ausência de verificação é temporária:** assim que o controle real de saldo estiver pronto (mesmo módulo de operações), a checagem é ligada automaticamente e a expedição passa a bloquear se não houver saldo — não é preciso trocar de sistema nem esperar um módulo novo, é a mesma funcionalidade sendo ativada.
+A expedição já baixa o saldo de verdade (módulo de Estoque, `spec/estoque.md`) e, se o pedido for cancelado depois de expedido, o estorno devolve a mesma quantidade automaticamente. **O bloqueio por saldo insuficiente ainda não está ligado**: hoje vender mais do que o saldo mostra não impede a expedição — o saldo só fica negativo, sinalizando a inconsistência. A checagem em si já existe pronta no sistema, atrás da chave `estoque.bloquear-saida` (default desligada); assim que o saldo inicial de todos os produtos estiver carregado e a operação tiver a tela de consulta/extrato para acompanhar, a chave é ligada e a expedição passa a bloquear pedidos que deixariam algum produto negativo — sem trocar de sistema nem esperar módulo novo.
 
 **Atenção legal:** mercadoria não pode fisicamente sair da doca sem nota fiscal (XML/DANFE). **Hoje o `fiscal-service` já existe e já calcula os impostos da venda** (IBS/CBS/IS/ISS), mas ainda **não emite NF-e/NFC-e/NFS-e** — enquanto essa emissão não existir dentro do ERP, a empresa continua gerando a nota fiscal por fora (sistema emissor externo/SEFAZ) e anexando ao transporte. A regra vale **por tipo de item**, não é uma nota única para o pedido: a **NF-e acompanha a mercadoria na expedição** (é aqui que ela precisa estar pronta, porque é daqui que a mercadoria sai), e o **serviço tem NFS-e emitida no faturamento** (não há transporte a amarrar, a nota de serviço é por competência). Um **pedido misto emite as duas notas**, cada uma no seu momento. O sistema permite o fluxo interno avançar (confirmar, expedir, faturar) de forma desacoplada da emissão real das notas, mas elas têm que existir fisicamente antes do caminhão sair (mercadoria) ou até o faturamento (serviço).
 
@@ -68,7 +68,7 @@ Pode ser feito em qualquer etapa antes do faturamento, sempre com um motivo obri
 | Preço sem cadastro no motor de preço | Vendedor digita manualmente; fica marcado como preço manual |
 | Desconto do vendedor | Livre, sem teto, auditado em relatório |
 | Limite de crédito estourado | Bloqueio "soft" — pedido fica pendente, liberável por permissão especial |
-| Saldo de estoque | Não verificado no MVP — expedição é só registro |
+| Saldo de estoque | Baixa/estorno automáticos já funcionam; bloqueio por saldo insuficiente existe mas está desligado (chave `estoque.bloquear-saida`) |
 | Item de serviço | Não passa por expedição/estoque; vai direto da confirmação ao faturamento |
 | Impostos | Calculados no faturamento (IBS/CBS/IS/ISS + retenções); título a receber é sobre o valor da nota, não do orçamento |
 | Nota fiscal (NF-e/NFS-e) | Emitida por fora do sistema por enquanto; faturamento sistêmico não depende dela |
@@ -77,7 +77,7 @@ Pode ser feito em qualquer etapa antes do faturamento, sempre com um motivo obri
 ## O que fica de fora por enquanto
 
 - Emissão de NF-e/NFC-e/NFS-e dentro do sistema (o `fiscal-service` já existe e já calcula os impostos da venda; falta só a emissão — NF-e entra na expedição, NFS-e entra no faturamento).
-- Controle real de saldo de estoque (mesmo módulo de operações — hoje desligado, liga quando ficar pronto).
+- Bloqueio de expedição por saldo insuficiente (o controle de saldo já existe e já é alimentado pela expedição; falta só ligar a chave depois da carga do saldo inicial).
 - Teto/alçada de desconto por perfil de vendedor.
 - Devolução de mercadoria (RMA).
 - Comissão de vendedor (spec própria, futura).

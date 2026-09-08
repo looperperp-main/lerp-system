@@ -4,7 +4,7 @@
 **Versão:** 12.0 — revisão fiscal/AP-AR (crédito Simples, IS na base, redução de alíquota, split; retenções, estorno, alçada, dunning, PIX, estabelecimento)
 **Stack:** Spring Boot (Java) · PostgreSQL · Angular
 **Schema financeiro:** `financeiro` · `fiscal` · `contabil`
-**Última atualização:** 27 de agosto de 2026
+**Última atualização:** 8 de setembro de 2026 (nota de implementação: status do Motor Fiscal em §1.1 corrigido de "início especificado" para "codificado e rodando" — `fiscal-service`)
 
 ---
 
@@ -32,6 +32,14 @@
 
 ### 1.1 Escopo do Módulo Financeiro
 
+> **Nota de implementação (8 de setembro de 2026):** "Especificado" nesta tabela significa
+> spec fechada com o usuário, **não** código rodando. Hoje só a linha "Módulo Fiscal (IBS/CBS)"
+> tem código real — como microsserviço separado `fiscal-service` (`POST /fiscal/calcular`,
+> saída + crédito de entrada, sem persistência; detalhe em §1.4.3/§1.4.10). Todas as outras
+> linhas (Fundação Transversal, Contas a Pagar/Receber, Fluxo de Caixa, Tesouraria,
+> Contabilidade, Análises) seguem 100% spec, sem nenhuma linha de código — inclusive o schema
+> `financeiro` no banco é hoje só um placeholder vazio.
+
 | Sub-módulo | Status |
 |---|---|
 | RBAC / Permissões | ✅ No auth service (externo) |
@@ -39,7 +47,7 @@
 | Audit Log | ✅ Especificado |
 | Centro de Custo | ✅ Especificado |
 | Contrato NF-e → Financeiro | ✅ Especificado |
-| Módulo Fiscal (IBS/CBS) | ✅ Início especificado |
+| Módulo Fiscal (IBS/CBS) | ✅ **Codificado e rodando** — `fiscal-service`, cálculo de saída + crédito de entrada, sem persistência (ver §1.4.3/§1.4.10) |
 | Contabilidade / GL | ✅ Início especificado |
 | Contas a Pagar | ✅ Especificado |
 | Contas a Receber | ✅ Especificado |

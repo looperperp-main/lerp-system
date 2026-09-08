@@ -1,6 +1,8 @@
 # P2P — Compras: visão funcional
 
-**Status:** decisões fechadas · **Data:** 2026-07-11 · **Módulo:** `operacoes-service` (microsserviço único, também dono de vendas e estoque)
+**Status:** decisões fechadas · **Data:** 2026-07-11 · **Rev.:** 8 de setembro de 2026 (nota de implementação: módulo ainda não codificado; correção da frase sobre motor fiscal) · **Módulo:** `operacoes-service` (microsserviço único, também dono de vendas e estoque)
+
+> **Implementação:** diferente de O2C (vendas) e Estoque, que já estão codificados e testados, o P2P **ainda não tem nenhuma linha de código** em `operacoes-service` — só a fase 0 de infraestrutura genérica do serviço existe. O texto abaixo descreve o desenho de negócio já fechado com o usuário (o alvo a construir), não o comportamento atual do sistema.
 
 > Este documento descreve o processo de compra em linguagem de negócio — sem schema de banco, endpoint ou detalhe técnico. Para a implementação, ver `spec/p2p-compras.md`.
 
@@ -19,8 +21,8 @@ flowchart LR
     Q -->|fornecedor vencedor| P
     P --> M[Recebimento de mercadoria]
     M --> F[Faturamento / título a pagar]
-    R -.cancelar.-> X[Cancelado]
-    P -.cancelar.-> X
+    R -.-> X[Cancelado]
+    P -.-> X
 ```
 
 ### 1. Requisição de compra (opcional)
@@ -49,7 +51,7 @@ Quando a mercadoria chega, registra-se o recebimento com os dados da nota fiscal
 
 **Quantidade recebida a maior que o pedido:** aceita até **5% a mais** do que foi pedido (cobre diferenças normais de pesagem/conversão de unidade). Acima disso, o sistema **recusa o excesso** — o pedido já enviado não pode ser editado (só pedidos em rascunho são editáveis), então o ajuste do que sobrou é tratado fora do sistema: devolução ao fornecedor, ou abertura de um pedido novo/complementar para o excedente.
 
-**Impostos da nota (IBS/CBS/IS):** por enquanto ficam **zerados/informativos** — não é exigida digitação manual precisa desses valores, só o valor total da nota e dos produtos. Isso evita erro de digitação quebrar a integração com o financeiro; quando o motor fiscal (`fiscal-service`) existir, o cálculo passa a ser automático.
+**Impostos da nota (IBS/CBS/IS):** no lançamento inicial do recebimento ficam **zerados/informativos** — não é exigida digitação manual precisa desses valores, só o valor total da nota e dos produtos. Isso evita erro de digitação quebrar a integração com o financeiro. O `fiscal-service` **já existe e já calcula crédito de entrada** (IBS/CBS a recuperar, a partir do CFOP e do regime do fornecedor) — o que falta é o recebimento do P2P chamar esse cálculo e persistir o crédito; quando essa integração for feita, o valor passa a ser automático em vez de zerado.
 
 **Depósito:** cada recebimento vai para **um único depósito** (sem dividir a mesma nota entre vários depósitos no lançamento inicial). Distribuir entre depósitos depois de recebido fica fora de escopo por ora — não existe hoje um fluxo de transferência interna no sistema; a movimentação teria que ser feita fora dele.
 
@@ -73,13 +75,13 @@ Pode ser feito até o primeiro recebimento confirmado. Depois disso, só é poss
 | Recebimento acima da quantidade pedida | Tolera até +5%; acima disso, bloqueia |
 | Escolha do vencedor da cotação | Critério automático de desempate existe, mas escolha é manual no lançamento inicial |
 | Aprovação do pedido | Permissão única; o próprio solicitante pode aprovar |
-| Impostos da nota de entrada | Zerados/informativos até existir motor fiscal |
+| Impostos da nota de entrada | Zerados/informativos até o recebimento chamar o `fiscal-service` (o motor de cálculo de crédito já existe, só falta a integração) |
 | Atualização do preço de custo do produto | Não é automática — fica um campo separado só informativo |
 | Depósito por recebimento | Um único depósito por recebimento |
 
 ## O que fica de fora por enquanto
 
-- Cálculo automático de impostos (IBS/CBS/IS) — entra com o `fiscal-service`.
+- Cálculo automático de impostos/crédito (IBS/CBS/IS) no recebimento — o `fiscal-service` já calcula, falta o P2P chamá-lo e persistir o resultado.
 - Alçada de aprovação por faixa de valor / segregação solicitante ≠ aprovador.
 - Portal do fornecedor (resposta de cotação online, sem depender do comprador digitar).
 - Sugestão automática de compra por ponto de reposição de estoque.

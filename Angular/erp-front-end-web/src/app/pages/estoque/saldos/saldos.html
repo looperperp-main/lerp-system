@@ -1,0 +1,136 @@
+<div>
+
+  <div class="jb-page-head">
+    <div>
+      <app-breadcrumb></app-breadcrumb>
+      <h1>Saldos de Estoque</h1>
+      <p class="sub">Consulta de saldo por produto/depósito e ajuste por saldo contado</p>
+    </div>
+  </div>
+
+  <div class="jb-panel">
+    <div class="jb-panel-head">
+      <h3><i class="pi pi-warehouse"></i> Saldos</h3>
+    </div>
+
+    <form [formGroup]="filtroForm" class="jb-filtros" (ngSubmit)="aplicarFiltro()">
+      <div class="jb-filtro-campo">
+        <label class="jb-label-sm">Produto</label>
+        <p-select
+          [options]="produtoOptions"
+          formControlName="produtoId"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Todos"
+          [filter]="true"
+          [showClear]="true"
+          appendTo="body">
+        </p-select>
+      </div>
+      <div class="jb-filtro-campo">
+        <label class="jb-label-sm">Depósito</label>
+        <p-select
+          [options]="depositoOptions"
+          formControlName="depositoId"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Todos"
+          [showClear]="true"
+          appendTo="body">
+        </p-select>
+      </div>
+      <div class="jb-filtro-acoes">
+        <button pButton type="submit" icon="pi pi-search" label="Filtrar" class="p-button-sm"></button>
+        <button pButton type="button" icon="pi pi-times" label="Limpar" class="p-button-sm p-button-text" (click)="limparFiltro()"></button>
+      </div>
+    </form>
+
+    <div class="table-container">
+      <p-table
+        [value]="saldos()"
+        [loading]="loading()"
+        [lazy]="true"
+        (onLazyLoad)="loadSaldos($event)"
+        [totalRecords]="totalRecords()"
+        [paginator]="true"
+        [rows]="10"
+        [rowsPerPageOptions]="[10, 20, 50]"
+        [tableStyle]="{ 'min-width': '60rem' }"
+        styleClass="p-datatable-sm text-sm"
+        [paginatorDropdownAppendTo]="'body'"
+      >
+        <ng-template pTemplate="header">
+          <tr>
+            <th>Produto</th>
+            <th>Depósito</th>
+            <th>Quantidade</th>
+            <th>Situação</th>
+            <th>Atualizado em</th>
+            <th>Ações</th>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="body" let-rowData>
+          <tr>
+            <td class="jb-strong">{{ nomeProduto(rowData.produtoId) }}</td>
+            <td>{{ nomeDeposito(rowData.depositoId) }}</td>
+            <td>{{ rowData.quantidade }}</td>
+            <td>
+              <span *ngIf="rowData.abaixoMinimo" class="jb-status bad">
+                Abaixo do mínimo
+              </span>
+              <span *ngIf="!rowData.abaixoMinimo" class="jb-status ok">
+                OK
+              </span>
+            </td>
+            <td>{{ rowData.atualizadoEm | date:'dd/MM/yyyy HH:mm' }}</td>
+            <td>
+              <button
+                pButton
+                pRipple
+                icon="pi pi-pencil"
+                class="p-button-rounded p-button-text p-button-sm w-8 h-8"
+                pTooltip="Ajustar"
+                (click)="abrirAjuste(rowData)"
+                tooltipPosition="top">
+              </button>
+            </td>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td colspan="6" style="text-align: center; padding: 24px; color: var(--muted);">
+              Nenhum saldo encontrado.
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </div>
+  </div>
+
+  <footer class="jb-list-footer">
+    <span>© 2026 SYAX TECNOLOGIA · BUILD 26.04.01</span>
+    <span>{{ totalRecords() }} {{ totalRecords() === 1 ? 'SALDO ENCONTRADO' : 'SALDOS ENCONTRADOS' }}</span>
+  </footer>
+
+</div>
+
+<p-dialog [(visible)]="displayAjuste" [style]="{width: '520px', maxWidth: '95vw'}" [modal]="true">
+  <ng-template pTemplate="header">
+    <div class="jb-dialog-head">
+      <span class="eyebrow">ESTOQUE · AJUSTE</span>
+      <h2>Ajustar Saldo</h2>
+    </div>
+  </ng-template>
+
+  <app-ajuste-form
+    *ngIf="displayAjuste"
+    [saldo]="selectedSaldo"
+    [nomeProduto]="nomeProduto(selectedSaldo?.produtoId)"
+    [nomeDeposito]="nomeDeposito(selectedSaldo?.depositoId)"
+    (saved)="onAjusteSaved()"
+    (canceled)="onAjusteCanceled()">
+  </app-ajuste-form>
+
+</p-dialog>

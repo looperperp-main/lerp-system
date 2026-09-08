@@ -1,0 +1,85 @@
+<form [formGroup]="form" (ngSubmit)="onSubmit()" class="flex flex-col gap-4 mt-2">
+
+  <div class="jb-info-grid">
+    <div>
+      <label class="jb-label-sm">Produto</label>
+      <p class="jb-strong">{{ nomeProduto || '-' }}</p>
+    </div>
+    <div>
+      <label class="jb-label-sm">Depósito</label>
+      <p class="jb-strong">{{ nomeDeposito || '-' }}</p>
+    </div>
+    <div>
+      <label class="jb-label-sm">Saldo atual</label>
+      <p class="jb-strong">{{ saldo?.quantidade ?? 0 }}</p>
+    </div>
+  </div>
+
+  <div class="flex flex-col gap-2">
+    <label for="quantidadeContada" class="jb-label">Saldo contado <span class="text-red-500">*</span></label>
+    <p-inputNumber
+      inputId="quantidadeContada"
+      formControlName="quantidadeContada"
+      [minFractionDigits]="0"
+      [maxFractionDigits]="4"
+      [min]="0"
+      styleClass="w-full"
+      class="w-full">
+    </p-inputNumber>
+    <small *ngIf="isFieldInvalid('quantidadeContada')" class="text-red-500">Informe o saldo contado (>= 0).</small>
+  </div>
+
+  <div class="flex flex-col gap-2">
+    <label for="origem" class="jb-label">Origem <span class="text-red-500">*</span></label>
+    <p-select
+      inputId="origem"
+      [options]="origemOptions"
+      formControlName="origem"
+      optionLabel="label"
+      optionValue="value"
+      styleClass="w-full"
+      appendTo="body">
+    </p-select>
+  </div>
+
+  <div class="flex flex-col gap-2">
+    <label for="motivo" class="jb-label">Motivo <span class="text-red-500">*</span></label>
+    <textarea
+      id="motivo"
+      rows="3"
+      pTextarea
+      formControlName="motivo"
+      class="w-full"
+      maxlength="500"
+      placeholder="Ex: contagem de inventário do dia..."></textarea>
+    <small *ngIf="isFieldInvalid('motivo')" class="text-red-500">O motivo é obrigatório.</small>
+  </div>
+
+  <div class="flex flex-col gap-2">
+    <label for="valorUnitario" class="jb-label">Valor unitário (opcional)</label>
+    <p-inputNumber
+      inputId="valorUnitario"
+      formControlName="valorUnitario"
+      mode="currency"
+      currency="BRL"
+      locale="pt-BR"
+      styleClass="w-full"
+      class="w-full">
+    </p-inputNumber>
+  </div>
+
+  <div class="flex justify-end gap-2 mt-6 pt-4 border-t border-gray-200">
+    <p-button
+      label="Cancelar"
+      icon="pi pi-times"
+      styleClass="p-button-text p-button-secondary"
+      (onClick)="onCancel()"
+      [disabled]="isSaving"></p-button>
+    <p-button
+      label="Registrar Ajuste"
+      icon="pi pi-check"
+      type="submit"
+      [loading]="isSaving"
+      [disabled]="form.invalid"></p-button>
+  </div>
+</form>

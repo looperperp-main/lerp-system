@@ -1,0 +1,145 @@
+<div>
+
+  <div class="jb-page-head">
+    <div>
+      <app-breadcrumb></app-breadcrumb>
+      <h1>Movimentos de Estoque</h1>
+      <p class="sub">Extrato de entradas, saídas e ajustes por produto/depósito</p>
+    </div>
+  </div>
+
+  <div class="jb-panel">
+    <div class="jb-panel-head">
+      <h3><i class="pi pi-list"></i> Movimentos</h3>
+    </div>
+
+    <form [formGroup]="filtroForm" class="jb-filtros" (ngSubmit)="aplicarFiltro()">
+      <div class="jb-filtro-campo">
+        <label class="jb-label-sm">Produto</label>
+        <p-select
+          [options]="produtoOptions"
+          formControlName="produtoId"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Todos"
+          [filter]="true"
+          [showClear]="true"
+          appendTo="body">
+        </p-select>
+      </div>
+      <div class="jb-filtro-campo">
+        <label class="jb-label-sm">Depósito</label>
+        <p-select
+          [options]="depositoOptions"
+          formControlName="depositoId"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Todos"
+          [showClear]="true"
+          appendTo="body">
+        </p-select>
+      </div>
+      <div class="jb-filtro-campo">
+        <label class="jb-label-sm">De</label>
+        <p-datepicker formControlName="de" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body"></p-datepicker>
+      </div>
+      <div class="jb-filtro-campo">
+        <label class="jb-label-sm">Até</label>
+        <p-datepicker formControlName="ate" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body"></p-datepicker>
+      </div>
+      <div class="jb-filtro-campo">
+        <label class="jb-label-sm">Tipo</label>
+        <p-select
+          [options]="tipoOptions"
+          formControlName="tipo"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Todos"
+          [showClear]="true"
+          appendTo="body">
+        </p-select>
+      </div>
+      <div class="jb-filtro-campo">
+        <label class="jb-label-sm">Origem</label>
+        <p-select
+          [options]="origemOptions"
+          formControlName="origemTipo"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Todas"
+          [showClear]="true"
+          appendTo="body">
+        </p-select>
+      </div>
+      <div class="jb-filtro-acoes">
+        <button pButton type="submit" icon="pi pi-search" label="Filtrar" class="p-button-sm"></button>
+        <button pButton type="button" icon="pi pi-times" label="Limpar" class="p-button-sm p-button-text" (click)="limparFiltro()"></button>
+      </div>
+    </form>
+
+    <div class="table-container">
+      <p-table
+        [value]="movimentos()"
+        [loading]="loading()"
+        [lazy]="true"
+        (onLazyLoad)="loadMovimentos($event)"
+        [totalRecords]="totalRecords()"
+        [paginator]="true"
+        [rows]="10"
+        [rowsPerPageOptions]="[10, 20, 50]"
+        [tableStyle]="{ 'min-width': '70rem' }"
+        styleClass="p-datatable-sm text-sm"
+        [paginatorDropdownAppendTo]="'body'"
+      >
+        <ng-template pTemplate="header">
+          <tr>
+            <th>Data</th>
+            <th>Produto</th>
+            <th>Depósito</th>
+            <th>Tipo</th>
+            <th>Quantidade</th>
+            <th>Valor Unitário</th>
+            <th>Origem</th>
+            <th>Motivo</th>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="body" let-rowData>
+          <tr>
+            <td>{{ rowData.ocorridoEm | date:'dd/MM/yyyy HH:mm' }}</td>
+            <td class="jb-strong">{{ nomeProduto(rowData.produtoId) }}</td>
+            <td>{{ nomeDeposito(rowData.depositoId) }}</td>
+            <td>{{ labelTipo(rowData.tipo) }}</td>
+            <td>{{ rowData.quantidade }}</td>
+            <td>{{ rowData.valorUnitario ? (rowData.valorUnitario | currency:'BRL':'symbol':'1.2-2':'pt-BR') : '-' }}</td>
+            <td>
+              <a *ngIf="rowData.origemTipo === 'PEDIDO_VENDA' && rowData.origemId"
+                 [routerLink]="['/web/vendas/pedidos', rowData.origemId]"
+                 class="jb-link">
+                {{ labelOrigem(rowData.origemTipo) }}
+              </a>
+              <span *ngIf="!(rowData.origemTipo === 'PEDIDO_VENDA' && rowData.origemId)">
+                {{ labelOrigem(rowData.origemTipo) }}
+              </span>
+            </td>
+            <td>{{ rowData.motivo || '-' }}</td>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td colspan="8" style="text-align: center; padding: 24px; color: var(--muted);">
+              Nenhum movimento encontrado.
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </div>
+  </div>
+
+  <footer class="jb-list-footer">
+    <span>© 2026 SYAX TECNOLOGIA · BUILD 26.04.01</span>
+    <span>{{ totalRecords() }} {{ totalRecords() === 1 ? 'MOVIMENTO ENCONTRADO' : 'MOVIMENTOS ENCONTRADOS' }}</span>
+  </footer>
+
+</div>

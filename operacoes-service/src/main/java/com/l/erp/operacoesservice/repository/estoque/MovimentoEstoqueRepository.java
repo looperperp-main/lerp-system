@@ -18,12 +18,18 @@ import java.util.UUID;
 public interface MovimentoEstoqueRepository extends JpaRepository<MovimentoEstoque, UUID> {
     Optional<MovimentoEstoque> findByIdAndTenantId(UUID id, Long tenantId);
 
-    /** Extrato paginado com filtros opcionais, ordenado por ocorrido_em DESC (spec/estoque.md §5.2). */
+    /**
+     * Extrato paginado com filtros opcionais, ordenado por ocorrido_em DESC (spec/estoque.md §5.2).
+     * O "cast(:de as timestamp)"/"cast(:ate as timestamp)" na checagem de nulo é necessário porque,
+     * no Postgres, um parâmetro Instant que só aparece isolado num "? is null" (sem coluna do lado)
+     * não tem tipo inferível e a query falha com "could not determine data type of parameter" — o
+     * cast fixa o tipo sem mudar o resultado do filtro.
+     */
     @Query("select m from MovimentoEstoque m where m.tenantId = :tenantId "
             + "and (:produtoId is null or m.produtoId = :produtoId) "
             + "and (:depositoId is null or m.depositoId = :depositoId) "
-            + "and (:de is null or m.ocorridoEm >= :de) "
-            + "and (:ate is null or m.ocorridoEm <= :ate) "
+            + "and (cast(:de as timestamp) is null or m.ocorridoEm >= :de) "
+            + "and (cast(:ate as timestamp) is null or m.ocorridoEm <= :ate) "
             + "and (:tipo is null or m.tipo = :tipo) "
             + "and (:origemTipo is null or m.origemTipo = :origemTipo) "
             + "order by m.ocorridoEm desc")

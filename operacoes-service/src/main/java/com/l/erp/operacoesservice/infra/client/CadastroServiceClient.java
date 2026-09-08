@@ -4,10 +4,13 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.l.erp.common.exception.custom.BusinessException;
 import com.l.erp.common.util.Constants;
 import com.l.erp.operacoesservice.services.vendas.PedidoService.ParcelaDefinicao;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.client.loadbalancer.LoadBalanced;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
@@ -15,7 +18,9 @@ import org.springframework.web.client.RestClient;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Client HTTP pro cadastro-service via Eureka (RestClientConfig, spec/o2c-vendas.md §2/§6):
@@ -24,6 +29,8 @@ import java.util.UUID;
  */
 @Component
 public class CadastroServiceClient {
+
+    private static final Logger log = LoggerFactory.getLogger(CadastroServiceClient.class);
 
     private final RestClient restClient;
 
@@ -200,5 +207,33 @@ public class CadastroServiceClient {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     private record EstabelecimentoProprioRef(UUID pessoaId) {
+    }
+
+    // E6 (spec/estoque.md §5.1) — estoqueMinimo em lote pro badge "abaixo do mínimo" do GET
+    // /estoque/saldos. Best-effort: se o cadastro-service falhar, loga warn e devolve vazio — o
+    // badge simplesmente não aparece, não trava a consulta de saldos.
+    public Map<UUID, BigDecimal> buscarEstoqueConfig(List<UUID> produtoIds, UUID depositoId, Long tenantId, UUID userId) {
+        if (produtoIds.isEmpty()) {
+            return Map.of();
+        }
+        try {
+            List<EstoqueConfigRef> configs = restClient.get()
+                    .uri(uriBuilder -> uriBuilder.path("/api/v1/interno/estoque-config")
+                            .queryParam("produtoIds", produtoIds)
+                            .queryParam("depositoId", depositoId)
+                            .build())
+                    .headers(headers -> headersInternos(headers, tenantId, userId))
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<List<EstoqueConfigRef>>() { });
+            return configs == null ? Map.of() : configs.stream()
+                    .collect(Collectors.toMap(EstoqueConfigRef::produtoId, EstoqueConfigRef::estoqueMinimo));
+        } catch (Exception e) {
+            log.warn("Falha ao buscar estoqueMinimo no cadastro-service para depositoId={}: {}", depositoId, e.getMessage());
+            return Map.of();
+        }
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record EstoqueConfigRef(UUID produtoId, BigDecimal estoqueMinimo) {
     }
 }
