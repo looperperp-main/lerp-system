@@ -59,6 +59,9 @@ databaseChangeLog:
       file: auth/auth-schema-018.yaml
       relativeToChangelogFile: true
   - include:
+      file: auth/auth-schema-019.yaml
+      relativeToChangelogFile: true
+  - include:
       file: audit/audit-schema-001.yaml
       relativeToChangelogFile: true
   - include:
@@ -250,4 +253,9 @@ databaseChangeLog:
       relativeToChangelogFile: true
   - include:
       file: vendas/vendas-schema-003.yaml
+      relativeToChangelogFile: true
+
+  # 8. Schema de Estoque — saldo e movimento (operacoes-service)
+  - include:
+      file: estoque/estoque-schema-001.yaml
       relativeToChangelogFile: true

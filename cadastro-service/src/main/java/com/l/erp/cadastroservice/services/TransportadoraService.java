@@ -58,7 +58,7 @@ public class TransportadoraService {
         Long tenantId = TenantContext.getTenantId();
 
         if (transportadoraRepository.existsByPessoaId(dto.pessoaId())) {
-            sendAuditEvent(Constants.TRANSPORTADORA_CREATION, userId, null, Constants.ERROR, "{ERROR: "+Constants.TRANSPORTADORA_ALREADY_EXISTS+"}", correlationID);
+            sendAuditEvent(Constants.TRANSPORTADORA_CREATION, userId, null, Constants.ERROR, "{"+Constants.ERROR+": "+Constants.TRANSPORTADORA_ALREADY_EXISTS+"}", correlationID);
             throw new BusinessException("Transportadora já cadastrada para esta pessoa - pessoaId: " + dto.pessoaId(), HttpStatus.BAD_REQUEST);
         }
 
@@ -90,13 +90,13 @@ public class TransportadoraService {
 
         Transportadora transportadora = transportadoraRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> {
-                    sendAuditEvent(Constants.TRANSPORTADORA_UPDATE, userId, null, Constants.ERROR, "{ERROR: "+Constants.TRANSPORTADORA_NOT_FOUND+"}", correlationID);
+                    sendAuditEvent(Constants.TRANSPORTADORA_UPDATE, userId, null, Constants.ERROR, "{"+Constants.ERROR+": "+Constants.TRANSPORTADORA_NOT_FOUND+"}", correlationID);
                     return new BusinessException("Transportadora não encontrada - id: " + id, HttpStatus.NOT_FOUND);
                 });
 
         if (!transportadora.getPessoa().getId().equals(dto.pessoaId())) {
             if (transportadoraRepository.existsByPessoaId(dto.pessoaId())) {
-                sendAuditEvent(Constants.TRANSPORTADORA_UPDATE, userId, null, Constants.ERROR, "{ERROR: A nova Pessoa já possui cadastro de Transportadora}", correlationID);
+                sendAuditEvent(Constants.TRANSPORTADORA_UPDATE, userId, null, Constants.ERROR, "{"+Constants.ERROR+": "+"A nova Pessoa já possui cadastro de Transportadora}", correlationID);
                 throw new BusinessException("A nova Pessoa já possui cadastro de Transportadora", HttpStatus.BAD_REQUEST);
             }
             Pessoa novaPessoa = pessoaRepository.findByIdAndTenantId(dto.pessoaId(), tenantId)
@@ -124,7 +124,7 @@ public class TransportadoraService {
 
         Transportadora transportadora = transportadoraRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> {
-                    sendAuditEvent(Constants.TRANSPORTADORA_UPDATE, userId, null, Constants.ERROR, "{ERROR: "+Constants.TRANSPORTADORA_NOT_FOUND+"}", correlationID);
+                    sendAuditEvent(Constants.TRANSPORTADORA_UPDATE, userId, null, Constants.ERROR, "{"+Constants.ERROR+": "+Constants.TRANSPORTADORA_NOT_FOUND+"}", correlationID);
                     return new BusinessException("Transportadora não encontrada - id: " + id, HttpStatus.NOT_FOUND);
                 });
 

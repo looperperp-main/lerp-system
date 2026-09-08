@@ -5,6 +5,8 @@ import com.l.erp.common.util.Constants;
 import com.l.erp.operacoesservice.domain.vendas.Pedido;
 import com.l.erp.operacoesservice.domain.vendas.PedidoItem;
 import com.l.erp.operacoesservice.domain.vendas.PedidoStatusHistorico;
+import com.l.erp.operacoesservice.domain.estoque.enumerators.OrigemMovimentoEstoque;
+import com.l.erp.operacoesservice.domain.estoque.enumerators.TipoMovimentoEstoque;
 import com.l.erp.operacoesservice.domain.vendas.enumerators.ModalidadeFrete;
 import com.l.erp.operacoesservice.domain.vendas.enumerators.StatusPedido;
 import com.l.erp.operacoesservice.domain.vendas.enumerators.TipoItemPedido;
@@ -12,6 +14,7 @@ import com.l.erp.operacoesservice.infra.client.CadastroServiceClient;
 import com.l.erp.operacoesservice.repository.vendas.PedidoItemRepository;
 import com.l.erp.operacoesservice.repository.vendas.PedidoRepository;
 import com.l.erp.operacoesservice.repository.vendas.PedidoStatusHistoricoRepository;
+import com.l.erp.operacoesservice.services.estoque.EstoqueService;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -61,19 +64,22 @@ public class PedidoService {
     private final PedidoNumeroService pedidoNumeroService;
     private final ApplicationEventPublisher eventPublisher;
     private final CadastroServiceClient cadastroServiceClient;
+    private final EstoqueService estoqueService;
 
     public PedidoService(PedidoRepository pedidoRepository,
                           PedidoItemRepository pedidoItemRepository,
                           PedidoStatusHistoricoRepository pedidoStatusHistoricoRepository,
                           PedidoNumeroService pedidoNumeroService,
                           ApplicationEventPublisher eventPublisher,
-                          CadastroServiceClient cadastroServiceClient) {
+                          CadastroServiceClient cadastroServiceClient,
+                          EstoqueService estoqueService) {
         this.pedidoRepository = pedidoRepository;
         this.pedidoItemRepository = pedidoItemRepository;
         this.pedidoStatusHistoricoRepository = pedidoStatusHistoricoRepository;
         this.pedidoNumeroService = pedidoNumeroService;
         this.eventPublisher = eventPublisher;
         this.cadastroServiceClient = cadastroServiceClient;
+        this.estoqueService = estoqueService;
     }
 
     // ---------------------------------------------------------------- criação do orçamento (§7)
@@ -281,9 +287,15 @@ public class PedidoService {
         pedido.setLastUpdatedBy(userId);
         pedidoRepository.save(pedido);
         registrarHistorico(pedido, statusAnterior, StatusPedido.EXPEDIDO, null, userId, agora);
-        // ponytail: baixa de estoque in-process (SAIDA_VENDA) só pros itens MERCADORIA (item SERVICO
-        // nunca movimenta estoque, D2), mesma transação — pendente do módulo de estoque, ainda não
-        // escrito neste serviço (spec §7-expedição). Liga aqui quando existir.
+
+        // baixa de estoque in-process (SAIDA_VENDA), só pros itens MERCADORIA (item SERVICO nunca
+        // movimenta estoque, D2/RN-EST-01); mesma transação (§7-expedição).
+        List<PedidoItem> itensMercadoria = itensMercadoria(pedido.getId());
+        if (!itensMercadoria.isEmpty()) {
+            estoqueService.registrarMovimento(new EstoqueService.MovimentoRequisicao(tenantId, userId,
+                    TipoMovimentoEstoque.SAIDA_VENDA, OrigemMovimentoEstoque.PEDIDO_VENDA, pedido.getId(),
+                    depositoId, agora, null, linhasDoEstoque(itensMercadoria)));
+        }
         return pedido;
     }
 
@@ -352,10 +364,21 @@ public class PedidoService {
         pedido.setLastUpdatedBy(userId);
         pedidoRepository.save(pedido);
         registrarHistorico(pedido, statusAnterior, StatusPedido.CANCELADO, motivo, userId, agora);
-        eventPublisher.publishEvent(new PedidoCanceladoEvent(pedido, pedidoItemRepository.findAllByPedidoId(pedido.getId())));
-        // ponytail: estorno de estoque (ESTORNO_SAIDA_VENDA) quando statusAnterior == EXPEDIDO, só
-        // pros itens MERCADORIA (D2), fica pendente do módulo de estoque, mesma ressalva do expedir()
-        // acima (spec §7-cancelamento).
+        List<PedidoItem> itens = pedidoItemRepository.findAllByPedidoId(pedido.getId());
+        eventPublisher.publishEvent(new PedidoCanceladoEvent(pedido, itens));
+
+        // estorno de estoque (ESTORNO_SAIDA_VENDA) só quando o pedido já tinha baixado estoque
+        // (estava EXPEDIDO), e só pros itens MERCADORIA — mesma ressalva do expedir() (§7-cancelamento).
+        if (statusAnterior == StatusPedido.EXPEDIDO) {
+            List<PedidoItem> itensMercadoria = itens.stream()
+                    .filter(item -> item.getTipoItem() == TipoItemPedido.MERCADORIA)
+                    .toList();
+            if (!itensMercadoria.isEmpty()) {
+                estoqueService.registrarMovimento(new EstoqueService.MovimentoRequisicao(tenantId, userId,
+                        TipoMovimentoEstoque.ESTORNO_SAIDA_VENDA, OrigemMovimentoEstoque.PEDIDO_VENDA,
+                        pedido.getId(), pedido.getDepositoId(), agora, null, linhasDoEstoque(itensMercadoria)));
+            }
+        }
         return pedido;
     }
 
@@ -509,6 +532,20 @@ public class PedidoService {
     private boolean somenteServicos(Pedido pedido) {
         return pedidoItemRepository.findAllByPedidoId(pedido.getId()).stream()
                 .noneMatch(item -> item.getTipoItem() == TipoItemPedido.MERCADORIA);
+    }
+
+    private List<PedidoItem> itensMercadoria(UUID pedidoId) {
+        return pedidoItemRepository.findAllByPedidoId(pedidoId).stream()
+                .filter(item -> item.getTipoItem() == TipoItemPedido.MERCADORIA)
+                .toList();
+    }
+
+    /** RN-EST-01: só MERCADORIA movimenta estoque; SERVICO nunca entra numa linha de movimento. */
+    private List<EstoqueService.MovimentoRequisicao.Linha> linhasDoEstoque(List<PedidoItem> itensMercadoria) {
+        return itensMercadoria.stream()
+                .map(item -> new EstoqueService.MovimentoRequisicao.Linha(
+                        item.getProdutoId(), item.getQuantidade(), item.getPrecoUnitario()))
+                .toList();
     }
 
     private void validarTransicao(StatusPedido origem, StatusPedido destino) {

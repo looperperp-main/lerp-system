@@ -21,6 +21,7 @@ import com.l.erp.authservice.util.SecurityUtils;
 import com.l.erp.common.exception.custom.BusinessException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -43,6 +44,7 @@ public class RolesService {
     private final RoleMapper roleMapper;
     private final AuditService auditService;
     private final UserRoleRepository userRoleRepository;
+    private final RolesService self;
 
     public RolesService(
             RoleRepository roleRepository,
@@ -51,7 +53,8 @@ public class RolesService {
             TenantRepository tenantRepository,
             RoleMapper roleMapper,
             AuditService auditService,
-            UserRoleRepository userRoleRepository
+            UserRoleRepository userRoleRepository,
+            @Lazy RolesService self
             ) {
         this.roleRepository = roleRepository;
         this.permissionRepository = permissionRepository;
@@ -60,6 +63,7 @@ public class RolesService {
         this.roleMapper = roleMapper;
         this.auditService = auditService;
         this.userRoleRepository = userRoleRepository;
+        this.self = self;
     }
 
     /**
@@ -391,21 +395,21 @@ public class RolesService {
     @Transactional
     public RoleDTO createRoleForTenant(RoleDTO roleDTO, Long tenantId) {
         RoleDTO scoped = new RoleDTO(null, roleDTO.name(), tenantId, null, null, null, null, roleDTO.descricao());
-        return createRole(scoped);
+        return self.createRole(scoped);
     }
 
     /** Deleta role garantindo que ela é do tenant. */
     @Transactional
     public void deleteRoleForTenant(UUID roleId, Long tenantId) {
         assertRoleInTenant(roleId, tenantId);
-        deleteRole(roleId);
+        self.deleteRole(roleId);
     }
 
     /** Atualiza role garantindo que ela é do tenant. */
     @Transactional
     public RoleDTO updateRoleForTenant(UUID roleId, RoleDTO roleDTO, Long tenantId) {
         assertRoleInTenant(roleId, tenantId);
-        return updateRole(roleId, roleDTO);
+        return self.updateRole(roleId, roleDTO);
     }
 
     public List<PermissionDTO> getPermissionsByRoleForTenant(UUID roleId, Long tenantId) {
@@ -424,13 +428,13 @@ public class RolesService {
                 throw new BusinessException("Permissão de escopo PLATFORM não pode ser atribuída neste portal", HttpStatus.FORBIDDEN);
             }
         }
-        assignPermissionsToRole(roleId, permissionIds);
+        self.assignPermissionsToRole(roleId, permissionIds);
     }
 
     @Transactional
     public void removePermissionFromRoleForTenant(UUID roleId, UUID permissionId, Long tenantId) {
         assertRoleInTenant(roleId, tenantId);
-        removePermissionFromRole(roleId, permissionId);
+        self.removePermissionFromRole(roleId, permissionId);
     }
 
     /** Garante que a role existe e pertence ao tenant; 404 caso contrário (não vaza existência cross-tenant). */

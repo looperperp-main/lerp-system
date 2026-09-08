@@ -1,6 +1,7 @@
 package com.l.erp.cadastroservice.services;
 
 import com.l.erp.cadastroservice.api.dto.ProdutoDTO;
+import com.l.erp.cadastroservice.api.dto.ProdutoEstoqueConfigDTO;
 import com.l.erp.cadastroservice.api.dto.ProdutoPrecoDTO;
 import com.l.erp.cadastroservice.api.mappers.ProdutoMapper;
 import com.l.erp.cadastroservice.domain.Pessoa;
@@ -71,6 +72,16 @@ public class ProdutoService {
                 .orElseThrow(() -> new BusinessException(Constants.PRODUTO_NOT_FOUND, HttpStatus.NOT_FOUND));
     }
 
+    /**
+     * Creates a new Produto entity for the specified tenant and user, using the provided DTO data.
+     * This method handles the mapping of the DTO to an entity, validation, and persistence.
+     * Collections and relationships are processed and saved in a safe transactional manner.
+     *
+     * @param tenantId the identifier of the tenant creating the Produto
+     * @param userId the identifier of the user performing the creation
+     * @param dto the ProdutoDTO containing the data to create the Produto entity
+     * @return the created and persisted Produto entity
+     */
     @Transactional
     public Produto create(Long tenantId, UUID userId, ProdutoDTO dto) {
         UUID correlationID = getCorrelationIdFromRequest(logger);
@@ -179,11 +190,7 @@ public class ProdutoService {
                 config.setTenantId(tenantId);
                 config.setProduto(produto);
                 // VINCULA O DEPÓSITO (Obrigatório)
-                if(configDto.depositoId() != null) {
-                    config.setDeposito(depositoRepository.findByTenantIdAndId(tenantId, configDto.depositoId()).orElseThrow(() -> new BusinessException("Depósito não encontrado", HttpStatus.BAD_REQUEST)));
-                } else {
-                    throw new BusinessException("Depósito é obrigatório na configuração de estoque", HttpStatus.BAD_REQUEST);
-                }
+                vinculaDeposito(tenantId, configDto, config);
                 // Precedência: fornecedorPreferencial explícito no config > flag preferencial no ProdutoFornecedor
                 if (configDto.fornecedorPreferencialId() != null) {
                     config.setFornecedorPreferencial(produto.getProdutoFornecedors().stream()
@@ -211,6 +218,14 @@ public class ProdutoService {
                 }
                 return config;
             }).collect(Collectors.toSet()));
+        }
+    }
+
+    private void vinculaDeposito(Long tenantId, ProdutoEstoqueConfigDTO configDto, ProdutoEstoqueConfig config) {
+        if(configDto.depositoId() != null) {
+            config.setDeposito(depositoRepository.findByTenantIdAndId(tenantId, configDto.depositoId()).orElseThrow(() -> new BusinessException("Depósito não encontrado", HttpStatus.BAD_REQUEST)));
+        } else {
+            throw new BusinessException("Depósito é obrigatório na configuração de estoque", HttpStatus.BAD_REQUEST);
         }
     }
 

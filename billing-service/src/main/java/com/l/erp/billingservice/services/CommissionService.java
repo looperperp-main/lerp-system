@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.context.annotation.Lazy;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -36,11 +37,14 @@ public class CommissionService {
 
     private final CommissionRepository commissionRepository;
     private final CommissionPayoutService payoutService;
+    private final CommissionService self;
 
     public CommissionService(CommissionRepository commissionRepository,
-                             CommissionPayoutService payoutService) {
+                             CommissionPayoutService payoutService,
+                             @Lazy CommissionService self) {
         this.commissionRepository = commissionRepository;
         this.payoutService = payoutService;
+        this.self = self;
     }
 
     /**
@@ -113,18 +117,18 @@ public class CommissionService {
     /** Extrato completo do parceiro (histórico enriquecido + resumo do próximo/último repasse). */
     @Transactional(readOnly = true)
     public ExtratoComissoesDTO getExtrato(UUID partnerId) {
-        List<ComissaoItemDTO> historico = findByPartner(partnerId).stream()
+        List<ComissaoItemDTO> historico = self.findByPartner(partnerId).stream()
                 .map(CommissionService::toItem)
                 .toList();
 
-        Commission ultimoPago = findByPartner(partnerId).stream()
+        Commission ultimoPago = self.findByPartner(partnerId).stream()
                 .filter(c -> "PAGO".equals(c.getStatus()) && c.getPaidAt() != null)
                 .max(Comparator.comparing(Commission::getPaidAt))
                 .orElse(null);
 
         return new ExtratoComissoesDTO(
-                nz(getComissaoMesAtual(partnerId)),
-                nz(getTotalPago(partnerId)),
+                nz(self.getComissaoMesAtual(partnerId)),
+                nz(self.getTotalPago(partnerId)),
                 ultimoPago != null ? ultimoPago.getAmount() : null,
                 ultimoPago != null ? ultimoPago.getPeriod() : null,
                 ultimoPago != null ? ultimoPago.getPaidAt() : null,
@@ -153,6 +157,12 @@ public class CommissionService {
         return (int) ChronoUnit.DAYS.between(hoje, proximo);
     }
 
+    /**
+     * Returns the given BigDecimal value if it is not null; otherwise, returns BigDecimal.ZERO.
+     *
+     * @param v the BigDecimal value to check for null
+     * @return the original value if it is not null, or BigDecimal.ZERO if it is null
+     */
     private static BigDecimal nz(BigDecimal v) {
         return v != null ? v : BigDecimal.ZERO;
     }

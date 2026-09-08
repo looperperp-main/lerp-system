@@ -7,6 +7,7 @@ export interface Cliente {
   condicaoPagamentoId?: string;
   grupoClienteId?: string;
   vendedorId?: string;
+  tabelaPrecoId?: string;
   limiteCredito?: number;
   classificacaoRisco?: string;
   prazoMedioPagamentoDias?: number;

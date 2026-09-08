@@ -11,6 +11,7 @@ import com.l.erp.cadastroservice.repository.TabelaPrecoGrupoClienteRepository;
 import com.l.erp.cadastroservice.repository.TabelaPrecoRepository;
 import com.l.erp.common.exception.custom.BusinessException;
 import com.l.erp.common.util.Constants;
+import org.jspecify.annotations.Nullable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -52,6 +53,22 @@ public class PrecoResolverService {
                         .orElseThrow(() -> new BusinessException(Constants.CLIENTE_NOT_FOUND, HttpStatus.BAD_REQUEST))
                 : null;
 
+        PrecoResolvidoDTO produto1 = getPrecoResolvidoDTO(clienteId, tenantId, cliente, produto, dataResolucao);
+        if (produto1 != null) return produto1;
+
+        // Nível PADRAO
+        Optional<UUID> tabelaPadraoId = tabelaPrecoRepository.findByPadraoIsTrueAndTenantId(tenantId).map(tabela -> tabela.getId());
+        if (tabelaPadraoId.isPresent()) {
+            Optional<ProdutoPreco> preco = buscarPrecoVigente(tenantId, produto.getId(), List.of(tabelaPadraoId.get()), dataResolucao);
+            if (preco.isPresent()) {
+                return toDto(produto.getId(), clienteId, preco.get(), OrigemPreco.PADRAO, dataResolucao);
+            }
+        }
+
+        throw new BusinessException(Constants.PRECO_NAO_RESOLVIDO, HttpStatus.NOT_FOUND);
+    }
+
+    private @Nullable PrecoResolvidoDTO getPrecoResolvidoDTO(UUID clienteId, Long tenantId, Cliente cliente, Produto produto, LocalDate dataResolucao) {
         // Nível CLIENTE
         if (cliente != null && cliente.getTabelaPreco() != null) {
             Optional<ProdutoPreco> preco = buscarPrecoVigente(tenantId, produto.getId(), List.of(cliente.getTabelaPreco().getId()), dataResolucao);
@@ -74,17 +91,7 @@ public class PrecoResolverService {
                 }
             }
         }
-
-        // Nível PADRAO
-        Optional<UUID> tabelaPadraoId = tabelaPrecoRepository.findByPadraoIsTrueAndTenantId(tenantId).map(tabela -> tabela.getId());
-        if (tabelaPadraoId.isPresent()) {
-            Optional<ProdutoPreco> preco = buscarPrecoVigente(tenantId, produto.getId(), List.of(tabelaPadraoId.get()), dataResolucao);
-            if (preco.isPresent()) {
-                return toDto(produto.getId(), clienteId, preco.get(), OrigemPreco.PADRAO, dataResolucao);
-            }
-        }
-
-        throw new BusinessException(Constants.PRECO_NAO_RESOLVIDO, HttpStatus.NOT_FOUND);
+        return null;
     }
 
     private Optional<ProdutoPreco> buscarPrecoVigente(Long tenantId, UUID produtoId, List<UUID> tabelaPrecoIds, LocalDate data) {

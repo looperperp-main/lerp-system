@@ -1,7 +1,9 @@
 # Spec Funcional — Módulo Financeiro do ERP
 
 **Spec Funcional v1 — derivada da Fin.md v12**
-**Data:** 2026-07-05
+**Data:** 2026-07-05 · **Rev.:** 8 de setembro de 2026 (nota de implementação: Motor Fiscal já
+codificado e rodando como `fiscal-service`; o restante do módulo — Fundação Transversal, AP/AR,
+Fluxo de Caixa, Tesouraria, Contabilidade, Análises — segue só como spec)
 **Idioma:** Português (Brasil)
 
 > **Nota para o revisor:** este documento descreve exclusivamente as **regras de negócio** do
@@ -10,6 +12,17 @@
 > revisor de negócio (contador/analista financeiro) validar se as regras fiscais, contábeis e
 > operacionais descritas correspondem à prática e à legislação. Cada regra é numerada (ex.
 > **RN-AP-001**) para facilitar comentários e referências durante a revisão.
+
+> **Implementação:** do módulo Financeiro descrito abaixo, só o **Motor Fiscal** (§3) tem código
+> rodando — como microsserviço separado, `fiscal-service` (`POST /fiscal/calcular`), cobrindo
+> cálculo de saída (IBS/CBS/IS) e crédito de entrada, sempre **cálculo puro, sem persistir nada**
+> (sem título, sem apuração mensal gravada, sem emissão de NF-e/NFC-e/NFS-e). Fundação
+> Transversal (§2), Contas a Pagar/Receber (§4), Fluxo de Caixa (§5), Tesouraria (§6),
+> Contabilidade (§7) e Análises Gerenciais (§8) **não têm nenhuma linha de código** — nem a
+> entidade título existe ainda em nenhum serviço, e o schema `financeiro` no banco é só um
+> placeholder vazio (`CREATE SCHEMA financeiro`, sem tabela). O texto abaixo descreve o desenho
+> de negócio já fechado com o usuário (o alvo a construir), não o comportamento atual do sistema
+> — exceto onde uma nota específica (como em §3.7) diz o contrário.
 
 ---
 
@@ -323,6 +336,16 @@ usado para: (1) criar o(s) título(s) a pagar correspondente(s) com os valores d
 identificados, e (2) somar os créditos de IBS/CBS na apuração mensal do tenant. Quando uma
 nota de saída é emitida, o mesmo cálculo cria o(s) título(s) a receber e soma os débitos na
 apuração mensal.
+
+> **Implementação:** hoje só a metade do cálculo existe. O `fiscal-service` já calcula saída
+> (IBS/CBS/IS) e crédito de entrada (`POST /fiscal/calcular`), mas devolve o resultado numa
+> resposta — não cria título, não soma nada em apuração mensal, porque nenhuma dessas duas
+> coisas existe ainda (não há entidade título nem apuração persistida em serviço nenhum). Em
+> `operacoes-service`, o O2C (vendas) já calcula os impostos no faturamento (ver
+> `spec/o2c-vendas-funcional.md`) e o P2P (compras) está com os impostos da nota de entrada
+> zerados/informativos até essa chamada ao `fiscal-service` ser feita (ver
+> `spec/p2p-compras-funcional.md`) — em ambos os casos o "título pronto para o financeiro" citado
+> é hoje só um aviso enviado a um sistema financeiro que ainda não existe para recebê-lo.
 
 **Conciliação do split payment (a partir de 2027):** quando a adquirente/Banco Central retém
 IBS/CBS já na liquidação do pagamento (RN-MF-005), o título é baixado pelo valor **bruto**

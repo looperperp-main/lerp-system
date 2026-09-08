@@ -36,6 +36,7 @@ public class Constants {
 
     public static final String SUCCESS = "SUCCESS";
     public static final String ERROR   = "ERROR";
+    public static final String VALIDATION_ERROR   = "Erro de validação";
     public static final String FAILED  = "FAILED";
 
     public static final String TENANT = "TENANT";
@@ -586,4 +587,24 @@ public class Constants {
     public static final String AUDIT_ACAO_PEDIDO_CONFIRMADO = "PEDIDO_CONFIRMADO";
     public static final String AUDIT_ACAO_PEDIDO_FATURADO = "PEDIDO_FATURADO";
     public static final String AUDIT_ACAO_PEDIDO_CANCELADO = "PEDIDO_CANCELADO";
+
+    // Estoque — saldo e movimento (operacoes-service, schema estoque — spec/estoque.md §4/§6, Fase E3)
+    public static final String ESTOQUE_DEPOSITO_OBRIGATORIO =
+            "Depósito é obrigatório para registrar movimento de estoque";
+    public static final String ESTOQUE_SEM_LINHAS = "Movimento de estoque deve ter ao menos uma linha";
+    public static final String ESTOQUE_QUANTIDADE_INVALIDA = "Quantidade do movimento deve ser maior que zero";
+    public static final String ESTOQUE_MOTIVO_OBRIGATORIO = "Motivo é obrigatório para ajuste ou inventário";
+    public static final String ESTOQUE_MOTIVO_TAMANHO_INVALIDO = "Motivo deve ter no máximo 500 caracteres";
+    public static final String ESTOQUE_ORIGEM_ID_OBRIGATORIO =
+            "Documento de origem é obrigatório para este tipo de movimento";
+    // Placeholders: produtoId, depositoId, saldo atual, origemId do documento (RN-EST-05).
+    public static final String ESTOQUE_SALDO_INSUFICIENTE =
+            "Saldo insuficiente do produto %s no depósito %s (saldo atual: %s) para o documento %s";
+    // RN-EST-07: violação do índice único parcial (mesmo documento já gerou este movimento).
+    public static final String ESTOQUE_MOVIMENTO_DUPLICADO =
+            "Este documento já teve este movimento de estoque registrado";
+    public static final String ESTOQUE_QUANTIDADE_CONTADA_INVALIDA =
+            "Quantidade contada não pode ser negativa";
+    public static final String ESTOQUE_ORIGEM_AJUSTE_INVALIDA =
+            "Origem do ajuste deve ser AJUSTE ou INVENTARIO";
 }

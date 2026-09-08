@@ -95,3 +95,4 @@ package-lock.json
 /docs/security-audit/.venv/
 **/__pycache__/
 *.pyc
+/spec/specs-funcionais.zip

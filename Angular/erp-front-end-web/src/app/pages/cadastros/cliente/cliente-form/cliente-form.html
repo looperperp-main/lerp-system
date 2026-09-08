@@ -51,6 +51,16 @@
       </p-select>
     </div>
 
+    <!-- Tabela de Preço Individual -->
+    <div class="flex flex-col gap-2">
+      <label for="tabelaPrecoId" class="jb-label">Tabela de Preço Individual</label>
+      <p-select id="tabelaPrecoId" [options]="tabelasPrecoOptions()" formControlName="tabelaPrecoId"
+                placeholder="Usar preço do grupo/padrão" optionLabel="label" optionValue="value"
+                [showClear]="true" [filter]="true" appendTo="body" class="w-full">
+      </p-select>
+      <small class="text-color-secondary">Opcional. Se vazio, o preço é resolvido pelo grupo do cliente e, na falta dele, pela tabela padrão.</small>
+    </div>
+
     <!-- Limite Crédito -->
     <div class="flex flex-col gap-2">
       <label for="limiteCredito" class="jb-label">Limite Crédito</label>

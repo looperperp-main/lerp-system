@@ -54,6 +54,12 @@ export class WebLayout {
         { label: 'Produtos', icon: 'pi pi-tags', routerLink: '/web/cadastros/produtos' },
         { label: 'Categorias', icon: 'pi pi-bookmark', routerLink: '/web/cadastros/categorias' },
         { label: 'Depósitos', icon: 'pi pi-building', routerLink: '/web/cadastros/depositos' },
+        { label: 'Saldos de Estoque', icon: 'pi pi-warehouse', routerLink: '/web/estoque/saldos' },
+        {
+          label: 'Movimentos de Estoque',
+          icon: 'pi pi-arrow-right-arrow-left',
+          routerLink: '/web/estoque/movimentos',
+        },
         {
           label: 'Tabelas de Preço',
           icon: 'pi pi-dollar',

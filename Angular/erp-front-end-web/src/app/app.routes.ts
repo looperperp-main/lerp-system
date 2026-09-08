@@ -73,6 +73,29 @@ export const routes: Routes = [
         },
       },
       {
+        path: 'estoque/saldos',
+        loadComponent: () => import('./pages/estoque/saldos/saldos').then((m) => m.Saldos),
+        data: {
+          breadcrumb: [
+            { label: 'Home', link: '/web/home' },
+            { label: 'Estoque & Produtos' },
+            { label: 'Saldos de Estoque' },
+          ],
+        },
+      },
+      {
+        path: 'estoque/movimentos',
+        loadComponent: () =>
+          import('./pages/estoque/movimentos/movimentos').then((m) => m.Movimentos),
+        data: {
+          breadcrumb: [
+            { label: 'Home', link: '/web/home' },
+            { label: 'Estoque & Produtos' },
+            { label: 'Movimentos de Estoque' },
+          ],
+        },
+      },
+      {
         path: 'cadastros/cond-pagamento',
         loadComponent: () =>
           import('./pages/cadastros/cond-pagamento/cond-pagamentos').then((m) => m.CondPagamentos),
