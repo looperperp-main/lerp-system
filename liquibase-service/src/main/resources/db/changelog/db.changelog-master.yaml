@@ -108,6 +108,9 @@ databaseChangeLog:
   - include:
       file: cadastro/cadastro-schema-014.yaml
       relativeToChangelogFile: true
+  - include:
+      file: cadastro/cadastro-schema-015.yaml
+      relativeToChangelogFile: true
 
   # 3. Schema de Billing
   - include:
@@ -266,4 +269,19 @@ databaseChangeLog:
   # 9. Schema de Compras — P2P, Fase 1a (operacoes-service)
   - include:
       file: compras/compras-schema-001.yaml
+      relativeToChangelogFile: true
+
+  # 10. Schema de Compras — P2P, Fase 2: pedido de compra (operacoes-service)
+  - include:
+      file: compras/compras-schema-002.yaml
+      relativeToChangelogFile: true
+
+  # 11. Schema de Compras — P2P, Fase 5: cotação multi-fornecedor (operacoes-service)
+  - include:
+      file: compras/compras-schema-004.yaml
+      relativeToChangelogFile: true
+
+  # 12. Schema de Compras — P2P, Fase 3: recebimento de mercadoria (operacoes-service)
+  - include:
+      file: compras/compras-schema-003.yaml
       relativeToChangelogFile: true

@@ -1,4 +1,4 @@
-# Kafka — Tópicos do Syax (verificado no código, 2026-09-03)
+# Kafka — Tópicos do Syax (verificado no código, 12 de setembro de 2026)
 
 Levantamento direto dos `@KafkaListener` e `kafkaTemplate.send(...)` nos serviços
 (`auth`, `partner`, `billing`, `cadastro`, `operacoes`). Acompanha o diagrama `onboarding-payment-state-machine.svg`.
@@ -32,6 +32,8 @@ Levantamento direto dos `@KafkaListener` e `kafkaTemplate.send(...)` nos serviç
 | `venda.pedido.confirmado` | pedidoId | operacoes · `PedidoEventProducer` | — (nenhum consumidor ainda) | — |
 | `venda.pedido.faturado` | pedidoId | operacoes · `PedidoEventProducer` | — (nenhum consumidor ainda) | — |
 | `venda.pedido.cancelado` | pedidoId | operacoes · `PedidoEventProducer` | — (nenhum consumidor ainda) | — |
+| `compra.recebimento.confirmado` | recebimentoId | operacoes · `RecebimentoEventProducer` | cadastro · `RecebimentoCompraConfirmadoConsumer` (atualiza `ProdutoFornecedor.ultimoPrecoCompra`) | `cadastro-service-group` |
+| `compra.recebimento.cancelado` | recebimentoId | operacoes · `RecebimentoEventProducer` | — (só notificação externa, sem consumidor) | — |
 | `audit.events` | actorId (billing.sendAuditEvent usa targetId; operacoes usa pedidoId) | partner/billing · `AuditProducerService`, billing · `KafkaBillingProducerService`, operacoes · `PedidoEventProducer` | auth · `AuditConsumer` | auth-service-group |
 | `<topic>.DLT` | herda | `DeadLetterPublishingRecoverer` (auth/partner/billing) | — (inspeção manual) | — |
 

@@ -25,9 +25,9 @@ import java.util.UUID;
 
 /**
  * CRUD da requisição de compra, máquina de estados e histórico (spec/p2p-compras.md §"requisicao_compra",
- * Fase 1b) — mesmo padrão de PedidoService (vendas). EM_COTACAO/ATENDIDA entram na máquina de estados
- * (transições completas do spec) mas ainda não têm método de serviço/endpoint: isso é a Fase 1c
- * (cotação/pedido), que vai chamar validarTransicao a partir daqui quando existir.
+ * Fase 1b) — mesmo padrão de PedidoService (vendas). iniciarCotacao/voltarParaAprovada/atender
+ * (EM_COTACAO/ATENDIDA) são chamados por CotacaoCompraService (Fase 5) ao abrir, cancelar e encerrar
+ * uma cotação originada desta requisição.
  */
 @Service
 public class RequisicaoCompraService {
@@ -160,6 +160,26 @@ public class RequisicaoCompraService {
     @Transactional
     public RequisicaoCompra reabrir(UUID requisicaoId, Long tenantId, UUID userId) {
         return transicionar(requisicaoId, tenantId, userId, StatusRequisicaoCompra.RASCUNHO, null, req -> { });
+    }
+
+    // As três abaixo são chamadas por CotacaoCompraService (Fase 5), não por endpoint próprio.
+
+    /** APROVADA -> EM_COTACAO, ao criar uma cotação a partir desta requisição. */
+    @Transactional
+    public RequisicaoCompra iniciarCotacao(UUID requisicaoId, Long tenantId, UUID userId) {
+        return transicionar(requisicaoId, tenantId, userId, StatusRequisicaoCompra.EM_COTACAO, null, req -> { });
+    }
+
+    /** EM_COTACAO -> APROVADA, ao cancelar a cotação em aberto originada desta requisição. */
+    @Transactional
+    public RequisicaoCompra voltarParaAprovada(UUID requisicaoId, Long tenantId, UUID userId) {
+        return transicionar(requisicaoId, tenantId, userId, StatusRequisicaoCompra.APROVADA, null, req -> { });
+    }
+
+    /** EM_COTACAO -> ATENDIDA, ao encerrar a cotação e gerar o pedido de compra vencedor. */
+    @Transactional
+    public RequisicaoCompra atender(UUID requisicaoId, Long tenantId, UUID userId) {
+        return transicionar(requisicaoId, tenantId, userId, StatusRequisicaoCompra.ATENDIDA, null, req -> { });
     }
 
     /** Aplica a transição validada contra TRANSICOES_VALIDAS, grava o histórico e persiste, mesma transação. */

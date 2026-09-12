@@ -629,4 +629,98 @@ public class Constants {
     // RN-P2P-10: dataNecessidade não pode ser anterior a hoje na criação.
     public static final String REQUISICAO_COMPRA_DATA_NECESSIDADE_INVALIDA =
             "Data de necessidade não pode ser anterior a hoje";
+
+    // P2P — Pedido de compra (operacoes-service, schema compras — spec/p2p-compras.md, Fase 2)
+    public static final String PEDIDO_COMPRA_NOT_FOUND = "Pedido de compra não encontrado";
+    // Placeholders: status atual, status destino (RN-P2P-09).
+    public static final String PEDIDO_COMPRA_TRANSICAO_INVALIDA =
+            "Transição de status inválida: %s -> %s";
+    public static final String PEDIDO_COMPRA_SEM_ITENS =
+            "Pedido de compra deve ter ao menos um item";
+    public static final String PEDIDO_COMPRA_UPDATE_SO_RASCUNHO =
+            "Pedido de compra só pode ser editado enquanto estiver em RASCUNHO";
+    // RN-P2P-02: fornecedor precisa estar ativo na emissão. Placeholder: nome do fornecedor.
+    public static final String PEDIDO_COMPRA_FORNECEDOR_INATIVO =
+            "Fornecedor %s está inativo e não pode receber pedidos de compra";
+    // RN-P2P-03: condição de pagamento é obrigatória.
+    public static final String PEDIDO_COMPRA_CONDICAO_PAGAMENTO_OBRIGATORIA =
+            "Condição de pagamento é obrigatória para o pedido de compra";
+    public static final String PEDIDO_COMPRA_MOTIVO_REPROVACAO_OBRIGATORIO =
+            "Motivo é obrigatório para reprovar o pedido de compra";
+    public static final String PEDIDO_COMPRA_MOTIVO_CANCELAMENTO_OBRIGATORIO =
+            "Motivo é obrigatório para cancelar o pedido de compra";
+    public static final String PEDIDO_COMPRA_MOTIVO_ENCERRAMENTO_OBRIGATORIO =
+            "Motivo é obrigatório para encerrar o saldo do pedido de compra";
+    // Placeholder: tenantId.
+    public static final String PEDIDO_COMPRA_NUMERACAO_FALHA =
+            "Falha ao gerar numeração de pedido de compra para o tenant %s";
+    // RN-P2P-10: datas não podem ser anteriores a hoje.
+    public static final String PEDIDO_COMPRA_DATA_PREVISAO_INVALIDA =
+            "Data de previsão de entrega não pode ser anterior a hoje";
+    // RN-P2P-04: alerta (não bloqueia) quando preco_unitario > preco_custo × tolerância.
+    public static final BigDecimal PEDIDO_COMPRA_TOLERANCIA_PRECO_ALERTA = new BigDecimal("1.30");
+
+    // P2P — Cotação multi-fornecedor (operacoes-service, schema compras — spec/p2p-compras.md, Fase 5)
+    public static final String COTACAO_COMPRA_NOT_FOUND = "Cotação de compra não encontrada";
+    public static final String COTACAO_COMPRA_FORNECEDOR_NOT_FOUND = "Fornecedor não convidado nesta cotação";
+    // Placeholders: status atual, status destino (RN-P2P-09).
+    public static final String COTACAO_COMPRA_TRANSICAO_INVALIDA =
+            "Transição de status inválida: %s -> %s";
+    public static final String COTACAO_COMPRA_SEM_ITENS =
+            "Cotação de compra deve ter ao menos um item";
+    public static final String COTACAO_COMPRA_SEM_FORNECEDORES =
+            "Cotação de compra deve ter ao menos um fornecedor convidado";
+    // RN-P2P-02: fornecedor precisa estar ativo no convite. Placeholder: nome do fornecedor.
+    public static final String COTACAO_COMPRA_FORNECEDOR_INATIVO =
+            "Fornecedor %s está inativo e não pode ser convidado para cotação";
+    // RN-P2P-03: condição de pagamento é obrigatória na resposta do fornecedor.
+    public static final String COTACAO_COMPRA_CONDICAO_PAGAMENTO_OBRIGATORIA =
+            "Condição de pagamento é obrigatória na resposta da cotação";
+    public static final String COTACAO_COMPRA_RESPOSTA_ITENS_INCOMPLETA =
+            "A resposta deve informar o preço de todos os itens da cotação";
+    public static final String COTACAO_COMPRA_VENCEDOR_OBRIGATORIO =
+            "É obrigatório selecionar o fornecedor vencedor para encerrar a cotação";
+    public static final String COTACAO_COMPRA_MOTIVO_CANCELAMENTO_OBRIGATORIO =
+            "Motivo é obrigatório para cancelar a cotação";
+    // Placeholder: tenantId.
+    public static final String COTACAO_COMPRA_NUMERACAO_FALHA =
+            "Falha ao gerar numeração de cotação de compra para o tenant %s";
+
+    // P2P — Recebimento de mercadoria (operacoes-service, spec/p2p-compras.md, Fase 3)
+    public static final String RECEBIMENTO_COMPRA_NOT_FOUND = "Recebimento de mercadoria não encontrado";
+    // Placeholders: status atual, status destino (RN-P2P-09).
+    public static final String RECEBIMENTO_COMPRA_TRANSICAO_INVALIDA = "Transição de status inválida: %s -> %s";
+    public static final String RECEBIMENTO_COMPRA_SEM_ITENS = "Recebimento de mercadoria deve ter ao menos um item";
+    public static final String RECEBIMENTO_COMPRA_UPDATE_SO_EM_CONFERENCIA =
+            "Recebimento de mercadoria só pode ser editado enquanto estiver em EM_CONFERENCIA";
+    public static final String RECEBIMENTO_COMPRA_PEDIDO_STATUS_INVALIDO =
+            "Só é possível registrar recebimento para pedido ENVIADO ou RECEBIDO_PARCIAL";
+    public static final String RECEBIMENTO_COMPRA_ITEM_PEDIDO_INVALIDO =
+            "Item do pedido informado não pertence a este pedido de compra";
+    // Obrigatório só se houver item de mercadoria no recebimento (Rev. 5).
+    public static final String RECEBIMENTO_COMPRA_DEPOSITO_OBRIGATORIO =
+            "Depósito é obrigatório quando o recebimento tem item de mercadoria";
+    // RN-P2P-05: quantidade recebida (acumulada) não pode exceder o pedido em mais de 5%.
+    // Placeholders: produtoId, quantidade acumulada tentada, limite (pedido x tolerância).
+    public static final String RECEBIMENTO_COMPRA_QUANTIDADE_EXCEDE_TOLERANCIA =
+            "Quantidade recebida do produto %s excede a tolerância permitida (%s > limite de %s)";
+    // RN-P2P-11: item cujo Produto.tipo = SERVICO exige Produto.codigoServico preenchido.
+    public static final String RECEBIMENTO_COMPRA_ITEM_SERVICO_SEM_CODIGO =
+            "Produto %s é um serviço e precisa ter código de serviço cadastrado para ser recebido";
+    // RN-P2P-07: nfeSerie/nfeChave obrigatórios se NFE; nfseCodigoVerificacao obrigatório se NFSE.
+    public static final String RECEBIMENTO_COMPRA_DADOS_FISCAIS_INCONSISTENTES =
+            "Dados fiscais inconsistentes com o tipo de documento informado (%s)";
+    // Placeholder: tenantId.
+    public static final String RECEBIMENTO_COMPRA_NUMERACAO_FALHA =
+            "Falha ao gerar numeração de recebimento de mercadoria para o tenant %s";
+    // RN-P2P-05: tolerância de +5% sobre a quantidade pedida (decisão do usuário).
+    public static final BigDecimal RECEBIMENTO_COMPRA_TOLERANCIA_QUANTIDADE = new BigDecimal("1.05");
+
+    // Tópicos Kafka do recebimento (spec/p2p-compras.md §"Integração com estoque", Fase 3) —
+    // só notificação externa (BI, ultimo_preco_compra); a baixa de estoque em si é in-process.
+    public static final String RECEBIMENTO_CONFIRMADO_TOPIC = "compra.recebimento.confirmado";
+    public static final String RECEBIMENTO_CANCELADO_TOPIC = "compra.recebimento.cancelado";
+    public static final String RECEBIMENTO_COMPRA = "RECEBIMENTO_COMPRA";
+    public static final String AUDIT_ACAO_RECEBIMENTO_CONFIRMADO = "RECEBIMENTO_CONFIRMADO";
+    public static final String AUDIT_ACAO_RECEBIMENTO_CANCELADO = "RECEBIMENTO_CANCELADO";
 }

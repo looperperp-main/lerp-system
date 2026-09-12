@@ -1,0 +1,231 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # TABELA: compras.pedido_compra
+  # Documento de compra ao fornecedor. Máquina de estados: RASCUNHO → PENDENTE_APROVACAO →
+  # APROVADO → ENVIADO → RECEBIDO_PARCIAL/RECEBIDO_TOTAL → ENCERRADO, com
+  # REPROVADO/CANCELADO nos pontos previstos. Avulso ou originado de requisicao_compra
+  # (requisicao_id) e/ou de uma cotação vencedora (cotacao_fornecedor_id, coluna
+  # adicionada via ALTER em compras-schema-004 — cotacao_compra_fornecedor só existe a
+  # partir daquele changelog). spec/p2p-compras.md §"pedido_compra" + §"Máquinas de estado"
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: compras-006-create-pedido-compra
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: compras
+            tableName: pedido_compra
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: numero
+                  type: bigint
+                  constraints:
+                    nullable: false
+                  remarks: "Sequencial por tenant/tipo PEDIDO — ver compras.compra_numeracao"
+              - column:
+                  name: fornecedor_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                  remarks: "Ref. cadastro-service (cadastros.fornecedor) — sem FK física; precisa estar ativo (RN-P2P-02)"
+              - column:
+                  name: condicao_pagamento_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                  remarks: "Ref. cadastro-service (cadastros.condicao_pagamento) — sem FK física; obrigatória (RN-P2P-03)"
+              - column:
+                  name: deposito_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                  remarks: "Ref. cadastro-service (cadastros.deposito) — sem FK física"
+              - column:
+                  name: requisicao_id
+                  type: uuid
+                  constraints:
+                    foreignKeyName: fk_pedido_compra_requisicao_id
+                    referencedTableSchemaName: compras
+                    references: compras.requisicao_compra(id)
+              - column:
+                  name: status
+                  type: varchar(25)
+                  constraints:
+                    nullable: false
+                  remarks: "StatusPedidoCompra: RASCUNHO | PENDENTE_APROVACAO | APROVADO | REPROVADO | ENVIADO | RECEBIDO_PARCIAL | RECEBIDO_TOTAL | ENCERRADO | CANCELADO"
+              - column:
+                  name: data_emissao
+                  type: date
+                  remarks: "Preenchida na transição enviar() (APROVADO → ENVIADO)"
+              - column:
+                  name: data_previsao_entrega
+                  type: date
+              - column:
+                  name: valor_frete
+                  type: decimal(15,2)
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: valor_total
+                  type: decimal(15,2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: aprovador_id
+                  type: uuid
+              - column:
+                  name: aprovado_em
+                  type: timestamp
+              - column:
+                  name: motivo_cancelamento
+                  type: varchar(500)
+              - column:
+                  name: observacao
+                  type: varchar(500)
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: created_by
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_updated_by
+                  type: uuid
+        - addUniqueConstraint:
+            schemaName: compras
+            tableName: pedido_compra
+            columnNames: tenant_id, numero
+            constraintName: uq_pedido_compra_tenant_numero
+        - createIndex:
+            schemaName: compras
+            tableName: pedido_compra
+            indexName: idx_pedido_compra_tenant_status
+            columns:
+              - column:
+                  name: tenant_id
+              - column:
+                  name: status
+      rollback:
+        - dropTable:
+            schemaName: compras
+            tableName: pedido_compra
+
+  # ──────────────────────────────────────────
+  # TABELA: compras.pedido_compra_item
+  # Itens só editáveis enquanto o pedido está em RASCUNHO (regra de serviço, Fase 2).
+  # quantidade_recebida é acumulada pelos recebimentos CONFIRMADOS na Fase 3 — coluna já
+  # nasce aqui pra não exigir outro ALTER depois. spec/p2p-compras.md §"pedido_compra_item"
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: compras-007-create-pedido-compra-item
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: compras
+            tableName: pedido_compra_item
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: pedido_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_pedido_compra_item_pedido_id
+                    referencedTableSchemaName: compras
+                    references: compras.pedido_compra(id)
+              - column:
+                  name: produto_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                  remarks: "Ref. cadastro-service (cadastros.produto) — sem FK física, valida via API"
+              - column:
+                  name: quantidade
+                  type: decimal(15,4)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: preco_unitario
+                  type: decimal(15,4)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: quantidade_recebida
+                  type: decimal(15,4)
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+                  remarks: "Acumulada pelos recebimentos CONFIRMADOS — Fase 3"
+              - column:
+                  name: valor_total
+                  type: decimal(15,2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: created_by
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_updated_by
+                  type: uuid
+        - createIndex:
+            schemaName: compras
+            tableName: pedido_compra_item
+            indexName: idx_pedido_compra_item_pedido_id
+            columns:
+              - column:
+                  name: pedido_id
+        # CHECK entre colunas/valor (createTable não expressa bem): spec/p2p-compras.md §"pedido_compra_item"
+        - sql:
+            sql: >
+              ALTER TABLE compras.pedido_compra_item
+              ADD CONSTRAINT chk_pedido_compra_item_quantidade
+              CHECK (quantidade > 0);
+        - sql:
+            sql: >
+              ALTER TABLE compras.pedido_compra_item
+              ADD CONSTRAINT chk_pedido_compra_item_preco_unitario
+              CHECK (preco_unitario >= 0);
+      rollback:
+        - dropTable:
+            schemaName: compras
+            tableName: pedido_compra_item

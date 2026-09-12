@@ -50,6 +50,12 @@ public class ProdutoFornecedor extends BaseTenantEntity {
     @Column(name = "preco_custo", precision = 15, scale = 4)
     private BigDecimal precoCusto;
 
+    // Informativo, sem impacto contábil/DRE — nunca atualizado pelo P2P automaticamente com o
+    // preco_unitario_nf do recebimento. Atualizado pelo consumer Kafka ao processar
+    // compra.recebimento.confirmado (spec/p2p-compras.md §"Preço de compra", Fase 3).
+    @Column(name = "ultimo_preco_compra", precision = 15, scale = 4)
+    private BigDecimal ultimoPrecoCompra;
+
     @Column(name = "lead_time_dias")
     private Integer leadTimeDias;
 

@@ -258,4 +258,59 @@ class RequisicaoCompraServiceTest {
         assertThatThrownBy(() -> requisicaoCompraService.buscarPorId(id, TENANT_ID))
                 .isInstanceOf(BusinessException.class);
     }
+
+    // -------------------------------------------------- chamadas pelo CotacaoCompraService (Fase 5)
+
+    @Test
+    void deveIniciarCotacaoDeAprovada() {
+        RequisicaoCompra requisicao = requisicaoComStatus(StatusRequisicaoCompra.APROVADA);
+        when(requisicaoCompraRepository.findByIdAndTenantId(requisicao.getId(), TENANT_ID))
+                .thenReturn(Optional.of(requisicao));
+
+        RequisicaoCompra resultado = requisicaoCompraService.iniciarCotacao(requisicao.getId(), TENANT_ID, USER_ID);
+
+        assertThat(resultado.getStatus()).isEqualTo(StatusRequisicaoCompra.EM_COTACAO);
+    }
+
+    @Test
+    void deveLancarAoIniciarCotacaoDeStatusInvalido() {
+        RequisicaoCompra requisicao = requisicaoComStatus(StatusRequisicaoCompra.RASCUNHO);
+        when(requisicaoCompraRepository.findByIdAndTenantId(requisicao.getId(), TENANT_ID))
+                .thenReturn(Optional.of(requisicao));
+
+        assertThatThrownBy(() -> requisicaoCompraService.iniciarCotacao(requisicao.getId(), TENANT_ID, USER_ID))
+                .isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    void deveVoltarParaAprovadaDeEmCotacao() {
+        RequisicaoCompra requisicao = requisicaoComStatus(StatusRequisicaoCompra.EM_COTACAO);
+        when(requisicaoCompraRepository.findByIdAndTenantId(requisicao.getId(), TENANT_ID))
+                .thenReturn(Optional.of(requisicao));
+
+        RequisicaoCompra resultado = requisicaoCompraService.voltarParaAprovada(requisicao.getId(), TENANT_ID, USER_ID);
+
+        assertThat(resultado.getStatus()).isEqualTo(StatusRequisicaoCompra.APROVADA);
+    }
+
+    @Test
+    void deveAtenderDeEmCotacao() {
+        RequisicaoCompra requisicao = requisicaoComStatus(StatusRequisicaoCompra.EM_COTACAO);
+        when(requisicaoCompraRepository.findByIdAndTenantId(requisicao.getId(), TENANT_ID))
+                .thenReturn(Optional.of(requisicao));
+
+        RequisicaoCompra resultado = requisicaoCompraService.atender(requisicao.getId(), TENANT_ID, USER_ID);
+
+        assertThat(resultado.getStatus()).isEqualTo(StatusRequisicaoCompra.ATENDIDA);
+    }
+
+    @Test
+    void deveLancarAoAtenderDeStatusInvalido() {
+        RequisicaoCompra requisicao = requisicaoComStatus(StatusRequisicaoCompra.APROVADA);
+        when(requisicaoCompraRepository.findByIdAndTenantId(requisicao.getId(), TENANT_ID))
+                .thenReturn(Optional.of(requisicao));
+
+        assertThatThrownBy(() -> requisicaoCompraService.atender(requisicao.getId(), TENANT_ID, USER_ID))
+                .isInstanceOf(BusinessException.class);
+    }
 }

@@ -120,6 +120,54 @@ public class CadastroServiceClient {
         }
     }
 
+    // P2P (spec/p2p-compras.md, Fase 2) — fornecedor ativo na emissão do pedido (RN-P2P-02).
+    public FornecedorRef buscarFornecedor(UUID fornecedorId, Long tenantId, UUID userId) {
+        try {
+            return restClient.get()
+                    .uri("/api/v1/fornecedores/{id}", fornecedorId)
+                    .headers(headers -> headersInternos(headers, tenantId, userId))
+                    .retrieve()
+                    .body(FornecedorRef.class);
+        } catch (HttpClientErrorException.NotFound e) {
+            throw new BusinessException(Constants.FORNECEDORES_NOT_FOUND, HttpStatus.BAD_REQUEST);
+        } catch (HttpServerErrorException e) {
+            throw new BusinessException(Constants.CADASTRO_SERVICE_INDISPONIVEL, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record FornecedorRef(UUID pessoaId, String pessoaNomeRazao, Boolean ativo) {
+    }
+
+    // P2P (spec/p2p-compras.md, Fase 2) — preco_custo do ProdutoFornecedor em lote, pro alerta de
+    // preço fora da faixa (RN-P2P-04). Best-effort: se o cadastro-service falhar ou o vínculo não
+    // existir, o alerta simplesmente não dispara pro item — não bloqueia a emissão do pedido.
+    public Map<UUID, BigDecimal> buscarPrecosCusto(List<UUID> produtoIds, UUID fornecedorId, Long tenantId, UUID userId) {
+        if (produtoIds.isEmpty()) {
+            return Map.of();
+        }
+        try {
+            List<ProdutoFornecedorRef> vinculos = restClient.get()
+                    .uri(uriBuilder -> uriBuilder.path("/api/v1/interno/produto-fornecedor")
+                            .queryParam("produtoIds", produtoIds)
+                            .queryParam("fornecedorId", fornecedorId)
+                            .build())
+                    .headers(headers -> headersInternos(headers, tenantId, userId))
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<List<ProdutoFornecedorRef>>() { });
+            return vinculos == null ? Map.of() : vinculos.stream()
+                    .filter(v -> v.precoCusto() != null)
+                    .collect(Collectors.toMap(ProdutoFornecedorRef::produtoId, ProdutoFornecedorRef::precoCusto));
+        } catch (Exception e) {
+            log.warn("Falha ao buscar preço de custo no cadastro-service para fornecedorId={}: {}", fornecedorId, e.getMessage());
+            return Map.of();
+        }
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record ProdutoFornecedorRef(UUID produtoId, BigDecimal precoCusto) {
+    }
+
     private void headersInternos(HttpHeaders headers, Long tenantId, UUID userId) {
         headers.add(Constants.HEADER_INTERNAL_SECRET, internalSecret);
         headers.add(Constants.HEADER_TENANT_ID, String.valueOf(tenantId));

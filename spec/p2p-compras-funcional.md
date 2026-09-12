@@ -1,8 +1,8 @@
 # P2P — Compras: visão funcional
 
-**Status:** decisões fechadas · **Data:** 2026-07-11 · **Rev.:** 8 de setembro de 2026 (nota de implementação: módulo ainda não codificado; correção da frase sobre motor fiscal) · **Módulo:** `operacoes-service` (microsserviço único, também dono de vendas e estoque)
+**Status:** decisões fechadas · **Data:** 2026-07-11 · **Rev.:** 8 de setembro de 2026 (nota de implementação: módulo ainda não codificado; correção da frase sobre motor fiscal) · **Rev. 2:** 8 de setembro de 2026 (nota de implementação atualizada: requisição, pedido e cotação já codificados) · **Rev. 3:** 9 de setembro de 2026 (cotação confirmada testada e verde; migrações de pedido e cotação aplicadas) · **Módulo:** `operacoes-service` (microsserviço único, também dono de vendas e estoque)
 
-> **Implementação:** diferente de O2C (vendas) e Estoque, que já estão codificados e testados, o P2P **ainda não tem nenhuma linha de código** em `operacoes-service` — só a fase 0 de infraestrutura genérica do serviço existe. O texto abaixo descreve o desenho de negócio já fechado com o usuário (o alvo a construir), não o comportamento atual do sistema.
+> **Implementação:** diferente de O2C (vendas) e Estoque, que já estão codificados e testados, o P2P está parcialmente codificado em `operacoes-service`: requisição de compra (passo 1) e cotação com fornecedores (passo 2) estão **testadas** (`mvn test` verde nas duas, migrações Liquibase aplicadas); pedido de compra (passo 3) está **codificado e com migração aplicada**, mas os testes próprios de service/controller ainda não foram executados isoladamente. Recebimento de mercadoria (passo 4) e faturamento (passo 5) ainda não têm nenhuma linha de código. O texto abaixo descreve o desenho de negócio já fechado com o usuário (o alvo a construir), não necessariamente o comportamento já verificado do sistema.
 
 > Este documento descreve o processo de compra em linguagem de negócio — sem schema de banco, endpoint ou detalhe técnico. Para a implementação, ver `spec/p2p-compras.md`.
 
