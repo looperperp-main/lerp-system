@@ -3,7 +3,7 @@ databaseChangeLog:
   # ──────────────────────────────────────────
   # SCHEMA: estoque
   # Saldo e movimento de estoque (operacoes-service). Não vem do init/000-initial-schemas.yaml
-  # porque nasceu depois — mesmo padrão de fiscal-001-create-schema. spec/estoque.md §3.4
+  # porque nasceu depois — mesmo padrão de fiscal-001-create-schema. spec/modulos/estoque/estoque.md §3.4
   # ──────────────────────────────────────────
   - changeSet:
       id: estoque-001-create-schema
@@ -19,7 +19,7 @@ databaseChangeLog:
   # TABELA: estoque.movimento_estoque
   # Livro-razão append-only do estoque: nunca sofre UPDATE/DELETE, correção é sempre um
   # movimento novo (estorno ou ajuste). estoque_saldo pode ser reconstruído inteiro a partir
-  # daqui. spec/estoque.md §3.1
+  # daqui. spec/modulos/estoque/estoque.md §3.1
   #
   # `quantidade` é sempre positiva — o sinal do movimento vem do `tipo` (enum
   # TipoMovimentoEstoque). `origem_id` é obrigatório para movimentos documentais
@@ -115,7 +115,7 @@ databaseChangeLog:
               - column:
                   name: last_updated_by
                   type: uuid
-        # CHECKs entre colunas/valor (createTable não expressa bem): spec/estoque.md §3.1
+        # CHECKs entre colunas/valor (createTable não expressa bem): spec/modulos/estoque/estoque.md §3.1
         - sql:
             sql: >
               ALTER TABLE estoque.movimento_estoque
@@ -134,7 +134,7 @@ databaseChangeLog:
   # ──────────────────────────────────────────
   # TABELA: estoque.estoque_saldo
   # Saldo materializado por produto+depósito, atualizado via upsert com SELECT ... FOR UPDATE
-  # na mesma transação do movimento (spec/estoque.md §3.3, §4.1).
+  # na mesma transação do movimento (spec/modulos/estoque/estoque.md §3.3, §4.1).
   #
   # Sem CHECK quantidade >= 0 (decisão D2): saldo negativo sistêmico é aceitável no MVP; um
   # CHECK aqui seria bloqueio disfarçado de constraint e devolveria erro de banco em vez da
@@ -205,7 +205,7 @@ databaseChangeLog:
 
   # ──────────────────────────────────────────
   # ÍNDICES: estoque.movimento_estoque
-  # spec/estoque.md §3.1. O índice único de idempotência usa WHERE (índice parcial) — Liquibase
+  # spec/modulos/estoque/estoque.md §3.1. O índice único de idempotência usa WHERE (índice parcial) — Liquibase
   # createIndex não expressa isso de forma portável, por isso vai via sql: cru, como o padrão já
   # usado para CHECK multi-coluna (fiscal-schema-001.yaml).
   # ──────────────────────────────────────────

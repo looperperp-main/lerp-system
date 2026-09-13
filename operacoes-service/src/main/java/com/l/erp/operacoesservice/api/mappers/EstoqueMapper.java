@@ -7,7 +7,7 @@ import com.l.erp.operacoesservice.domain.estoque.MovimentoEstoque;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
-/** Cópia de campos entidade -> DTO (spec/estoque.md §5). Sem toEntity: os 3 endpoints só leem ou passam pelo EstoqueService. */
+/** Cópia de campos entidade -> DTO (spec/modulos/estoque/estoque.md §5). Sem toEntity: os 3 endpoints só leem ou passam pelo EstoqueService. */
 @Mapper(componentModel = "spring")
 public interface EstoqueMapper {
 

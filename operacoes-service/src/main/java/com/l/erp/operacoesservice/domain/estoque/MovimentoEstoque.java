@@ -24,7 +24,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Livro-razão append-only do estoque (spec/estoque.md §3.1) — nunca sofre UPDATE/DELETE;
+ * Livro-razão append-only do estoque (spec/modulos/estoque/estoque.md §3.1) — nunca sofre UPDATE/DELETE;
  * correção é sempre um movimento novo (estorno ou ajuste).
  */
 @Getter

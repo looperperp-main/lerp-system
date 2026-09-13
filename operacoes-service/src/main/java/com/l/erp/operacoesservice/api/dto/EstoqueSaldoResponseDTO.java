@@ -10,7 +10,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Resposta de GET /api/v1/estoque/saldos (spec/estoque.md §5.1). {@code estoqueMinimo}/
+ * Resposta de GET /api/v1/estoque/saldos (spec/modulos/estoque/estoque.md §5.1). {@code estoqueMinimo}/
  * {@code abaixoMinimo} ficam null até a Fase E6 (badge, cadastro-service) — os campos já existem
  * no contrato pra o frontend não precisar mudar depois.
  */

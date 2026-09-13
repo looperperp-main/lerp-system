@@ -36,7 +36,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/** Slice test de EstoqueController (spec/estoque.md §5/§8.3, Fases E5-E6). */
+/** Slice test de EstoqueController (spec/modulos/estoque/estoque.md §5/§8.3, Fases E5-E6). */
 @WebMvcTest(controllers = EstoqueController.class)
 @AutoConfigureMockMvc(addFilters = false)
 class EstoqueControllerTest {
@@ -78,7 +78,7 @@ class EstoqueControllerTest {
     @Test
     @WithMockUser(authorities = "ESTOQUE_VISUALIZAR")
     void saldosDevePreencherBadgeAbaixoDoMinimo() throws Exception {
-        // E6 (spec/estoque.md §5.1) — CadastroServiceClient devolve o mínimo, controller calcula o badge.
+        // E6 (spec/modulos/estoque/estoque.md §5.1) — CadastroServiceClient devolve o mínimo, controller calcula o badge.
         UUID produtoId = UUID.randomUUID();
         UUID depositoId = UUID.randomUUID();
         EstoqueSaldo saldo = EstoqueSaldo.builder().id(UUID.randomUUID()).produtoId(produtoId)

@@ -40,7 +40,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-/** Saldo e extrato de estoque + ajuste por saldo contado (spec/estoque.md §5, Fases E5-E6). */
+/** Saldo e extrato de estoque + ajuste por saldo contado (spec/modulos/estoque/estoque.md §5, Fases E5-E6). */
 @RestController
 @RequestMapping("/api/v1/estoque")
 @Tag(name = "Estoque", description = "Saldo, extrato de movimentos e ajuste por saldo contado")
@@ -72,7 +72,7 @@ public class EstoqueController {
         return ResponseEntity.ok(resposta);
     }
 
-    // E6 (spec/estoque.md §5.1) — agrupa por depositoId (pouca variação por página) e chama o
+    // E6 (spec/modulos/estoque/estoque.md §5.1) — agrupa por depositoId (pouca variação por página) e chama o
     // cadastro-service uma vez por grupo; best-effort, CadastroServiceClient já engole falha e
     // devolve mapa vazio, então o restante da página segue com estoqueMinimo/abaixoMinimo null.
     private void enriquecerComEstoqueMinimo(Collection<EstoqueSaldoResponseDTO> saldos) {

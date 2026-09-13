@@ -16,7 +16,7 @@ import { AjusteForm } from './ajuste-form/ajuste-form';
 import { ProdutoService } from '../../cadastros/produtos/produto.service';
 import { DepositoService } from '../../cadastros/deposito/deposito.service';
 
-/** Saldos de estoque por produto/depósito, com badge "abaixo do mínimo" (spec/estoque.md §5.1/E7). */
+/** Saldos de estoque por produto/depósito, com badge "abaixo do mínimo" (spec/modulos/estoque/estoque.md §5.1/E7). */
 @Component({
   selector: 'app-saldos',
   imports: [

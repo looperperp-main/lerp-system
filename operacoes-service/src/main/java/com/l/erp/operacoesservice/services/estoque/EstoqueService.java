@@ -27,7 +27,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * Caminho único de escrita do estoque (spec/estoque.md §4) — expedição, cancelamento, recebimento
+ * Caminho único de escrita do estoque (spec/modulos/estoque/estoque.md §4) — expedição, cancelamento, recebimento
  * e ajuste passam todos por {@link #registrarMovimento}, na mesma transação do chamador
  * ({@code @Transactional} sem {@code REQUIRES_NEW}).
  *
@@ -58,7 +58,7 @@ public class EstoqueService {
         this.estoqueSaldoRepository = estoqueSaldoRepository;
     }
 
-    /** A API in-process inteira do lado da escrita (spec/estoque.md §2.2/§4.1). */
+    /** A API in-process inteira do lado da escrita (spec/modulos/estoque/estoque.md §2.2/§4.1). */
     @Transactional
     public void registrarMovimento(MovimentoRequisicao req) {
         validar(req);
@@ -95,7 +95,7 @@ public class EstoqueService {
     }
 
     /**
-     * Ajuste/inventário por saldo contado (spec/estoque.md §5.3, D5): o operador informa o saldo
+     * Ajuste/inventário por saldo contado (spec/modulos/estoque/estoque.md §5.3, D5): o operador informa o saldo
      * que de fato existe, não a diferença — elimina erro de sinal invertido.
      */
     @Transactional
@@ -219,7 +219,7 @@ public class EstoqueService {
         return soma.divide(quantidadeTotal, 4, RoundingMode.HALF_UP);
     }
 
-    /** spec/estoque.md §2.2 — record base não traz {@code motivo}; adicionado aqui porque §4.1
+    /** spec/modulos/estoque/estoque.md §2.2 — record base não traz {@code motivo}; adicionado aqui porque §4.1
      * passo 1 e RN-EST-06 exigem validá-lo e a coluna {@code movimento_estoque.motivo} precisa
      * dele para ajuste/inventário. */
     public record MovimentoRequisicao(

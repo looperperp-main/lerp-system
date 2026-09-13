@@ -18,7 +18,7 @@ import java.util.UUID;
 import static com.l.erp.cadastroservice.util.SecurityUtils.getCurrentTenantId;
 
 /**
- * Endpoint interno pro operacoes-service ler {@code estoque_minimo} em lote (spec/estoque.md
+ * Endpoint interno pro operacoes-service ler {@code estoque_minimo} em lote (spec/modulos/estoque/estoque.md
  * §5.1/E6 — badge "abaixo do mínimo" do GET /saldos). Protegido pelo {@code InternalRequestFilter}
  * como qualquer outro endpoint do cadastro-service (segredo interno + X-User-Id), sem RBAC próprio
  * — é leitura pura, não há ação a autorizar.
