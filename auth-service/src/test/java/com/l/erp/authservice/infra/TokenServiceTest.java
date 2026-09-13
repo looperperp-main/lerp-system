@@ -8,7 +8,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 
 /**
  * Cobre o check de tamanho mínimo do JWT_SECRET no startup (@PostConstruct), reativado após
- * ficar comentado em produção — spec/auditoria.md §2.2.
+ * ficar comentado em produção — spec/auditoria/auditoria.md §2.2.
  */
 class TokenServiceTest {
 

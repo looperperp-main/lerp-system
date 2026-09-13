@@ -9,7 +9,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 
 /**
  * Publica os eventos Kafka do pedido só depois do commit da transação (Fase 5,
- * spec/o2c-vendas.md §8) — evita publicar confirmação/faturamento/cancelamento de uma transação
+ * spec/modulos/o2c-vendas/o2c-vendas.md §8) — evita publicar confirmação/faturamento/cancelamento de uma transação
  * que ainda pode dar rollback.
  */
 @Component

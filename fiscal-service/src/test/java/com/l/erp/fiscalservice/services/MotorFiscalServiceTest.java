@@ -116,7 +116,7 @@ class MotorFiscalServiceTest {
     }
 
     /**
-     * D3 do spec/casos-teste-motor-fiscal.md — cClassTrib 000001 (tributação integral): par admitido
+     * D3 do spec/fiscal/casos-teste-motor-fiscal.md — cClassTrib 000001 (tributação integral): par admitido
      * pelo Anexo VIII e COM linha em regime_cclasstrib (redução 0), então sai INTEGRAL com alíquota
      * cheia. Guarda a diferença entre "integral por classificação" e PADRAO (cClassTrib sem linha).
      */

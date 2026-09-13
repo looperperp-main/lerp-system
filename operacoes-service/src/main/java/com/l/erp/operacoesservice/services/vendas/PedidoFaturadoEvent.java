@@ -9,7 +9,7 @@ import java.util.List;
 /**
  * Evento de domínio publicado por PedidoService.faturar() — consumido por PedidoEventListener
  * (AFTER_COMMIT) que delega pro PedidoEventProducer, tópico Constants.PEDIDO_FATURADO_TOPIC
- * (spec/o2c-vendas.md §8, Fase 5). Carrega parcelas pois o payload do evento inclui o
+ * (spec/modulos/o2c-vendas/o2c-vendas.md §8, Fase 5). Carrega parcelas pois o payload do evento inclui o
  * parcelamento gerado no faturamento.
  */
 public record PedidoFaturadoEvent(Pedido pedido, List<PedidoItem> itens, List<ParcelaFaturamento> parcelas) {

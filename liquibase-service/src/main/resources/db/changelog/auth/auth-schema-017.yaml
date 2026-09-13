@@ -2,7 +2,7 @@ databaseChangeLog:
   - changeSet:
       id: "auth-017-permission-assinatura-comissao-manage"
       author: vitor fernandes ferreira
-      comment: "Permissões de plataforma ASSINATURA_MANAGE e COMISSAO_MANAGE — gate para o drill-down admin de assinaturas/comissões do billing-service (spec/auditoria.md §7.4/§7.5). Scope PLATFORM: não atribuível pelo portal de tenant, só admin Syax."
+      comment: "Permissões de plataforma ASSINATURA_MANAGE e COMISSAO_MANAGE — gate para o drill-down admin de assinaturas/comissões do billing-service (spec/auditoria/auditoria.md §7.4/§7.5). Scope PLATFORM: não atribuível pelo portal de tenant, só admin Syax."
       changes:
         - sql:
             dbms: postgresql

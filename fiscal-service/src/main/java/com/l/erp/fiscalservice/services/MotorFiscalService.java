@@ -233,7 +233,7 @@ public class MotorFiscalService {
         BigDecimal valorSplitCbs = split(splitLigado, aplicavel ? valorCbs : null);
 
         // PASSO 9 — retenção na fonte (fatia 3e): valores retidos, dentro do próprio motor
-        // (decisão de 30/07/2026, spec/motor-fiscal-proximos-passos.md §3) — persistir título e
+        // (decisão de 30/07/2026, spec/fiscal/motor-fiscal-proximos-passos.md §3) — persistir título e
         // gerar guia é responsabilidade do futuro AR/contas-a-receber, não deste serviço.
         Retencao retencao = calcularRetencao(req, valorTributavel, legado.iss(), tenantId, memoria);
 

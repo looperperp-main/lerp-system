@@ -20,7 +20,7 @@ databaseChangeLog:
 
   # Carga da tabela CFOP completa (Fatia A1).
   #
-  # Fonte: spec/cfop_cvsn_70_vigente.md — Convênio SINIEF s/nº de 15/12/1970, Anexo II, com as
+  # Fonte: spec/fiscal/cfop_cvsn_70_vigente.md — Convênio SINIEF s/nº de 15/12/1970, Anexo II, com as
   # alterações até o Ajuste SINIEF 03/22. O arquivo é o texto corrido do convênio: traz também as
   # redações revogadas ("Redação anterior dada ao CFOP ..."), então a extração fica com a PRIMEIRA
   # ocorrência de cada código, que é a vigente. Cabeçalhos de grupo (x.000/x.y00, escritos em

@@ -268,7 +268,7 @@ class PedidoServiceTest {
 
         assertThat(resultado.getStatus()).isEqualTo(StatusPedido.EXPEDIDO);
         assertThat(resultado.getValorTotal()).isEqualByComparingTo("100.00");
-        // spec/estoque.md §8.2: expedição de pedido só-mercadoria baixa estoque 1x (SAIDA_VENDA).
+        // spec/modulos/estoque/estoque.md §8.2: expedição de pedido só-mercadoria baixa estoque 1x (SAIDA_VENDA).
         verify(estoqueService, times(1)).registrarMovimento(any());
     }
 
@@ -371,7 +371,7 @@ class PedidoServiceTest {
 
         assertThat(resultado.getStatus()).isEqualTo(StatusPedido.CANCELADO);
         assertThat(resultado.getMotivoCancelamento()).isEqualTo("desistência");
-        // spec/estoque.md §8.2: cancelamento de pedido que nunca expediu não mexe em estoque.
+        // spec/modulos/estoque/estoque.md §8.2: cancelamento de pedido que nunca expediu não mexe em estoque.
         verifyNoInteractions(estoqueService);
     }
 
@@ -475,7 +475,7 @@ class PedidoServiceTest {
         assertThat(soma).isEqualByComparingTo("10.00");
     }
 
-    // ---------------------------------------------------------------- venda de serviço (D3, spec/o2c-vendas.md)
+    // ---------------------------------------------------------------- venda de serviço (D3, spec/modulos/o2c-vendas/o2c-vendas.md)
 
     @Test
     void deveFaturarDiretoQuandoPedidoSoServicoEstaConfirmado() {

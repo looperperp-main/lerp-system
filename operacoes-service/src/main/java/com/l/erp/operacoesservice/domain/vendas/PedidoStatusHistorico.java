@@ -26,7 +26,7 @@ import java.util.UUID;
 
 /**
  * Append-only — uma linha por transição (inclusive na criação do orçamento,
- * onde statusDe é null). Sem update/delete. spec/o2c-vendas.md §3.3
+ * onde statusDe é null). Sem update/delete. spec/modulos/o2c-vendas/o2c-vendas.md §3.3
  */
 @Getter
 @Setter

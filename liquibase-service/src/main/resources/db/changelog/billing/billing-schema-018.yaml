@@ -2,7 +2,7 @@ databaseChangeLog:
   - changeSet:
       id: "018-subscription-one-active-per-tenant"
       author: vitor fernandes ferreira
-      comment: "Índice único parcial: no máximo 1 assinatura ATIVA ou AGUARDANDO_PAGAMENTO por tenant. Fecha a corrida de checkouts concorrentes/duplicados na origem — o guard em CheckoutService (7.8, spec/auditoria.md) faz o fail-fast, isso garante mesmo sob concorrência."
+      comment: "Índice único parcial: no máximo 1 assinatura ATIVA ou AGUARDANDO_PAGAMENTO por tenant. Fecha a corrida de checkouts concorrentes/duplicados na origem — o guard em CheckoutService (7.8, spec/auditoria/auditoria.md) faz o fail-fast, isso garante mesmo sob concorrência."
       changes:
         - sql:
             dbms: postgresql

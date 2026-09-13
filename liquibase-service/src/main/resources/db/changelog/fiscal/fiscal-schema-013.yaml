@@ -1,7 +1,7 @@
 databaseChangeLog:
 
   # ──────────────────────────────────────────
-  # OVERRIDE DE ALÍQUOTA POR TRIBUTO — item 7.7 de spec/motor-fiscal-proximos-passos.md §7.
+  # OVERRIDE DE ALÍQUOTA POR TRIBUTO — item 7.7 de spec/fiscal/motor-fiscal-proximos-passos.md §7.
   #
   # fiscal.regime_dif_ncm/regime_cclasstrib guardam UM percentual_reducao aplicado igual a IBS e
   # CBS — não expressa (a) redução isolada por tributo (Prouni, art. 308: zera só a CBS, IBS segue

@@ -26,7 +26,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Publica os eventos de transição do pedido (Fase 5, spec/o2c-vendas.md §8) + o AuditEventDTO
+ * Publica os eventos de transição do pedido (Fase 5, spec/modulos/o2c-vendas/o2c-vendas.md §8) + o AuditEventDTO
  * correspondente. Chamado só por PedidoEventListener (AFTER_COMMIT) — nunca a partir do
  * PedidoService, pra não publicar um evento de uma transação que ainda pode dar rollback.
  *
@@ -107,7 +107,7 @@ public class PedidoEventProducer {
         }
     }
 
-    // P4 (spec/o2c-vendas.md §8): enriquece cada item com ncm/codigoServico do Produto
+    // P4 (spec/modulos/o2c-vendas/o2c-vendas.md §8): enriquece cada item com ncm/codigoServico do Produto
     // (cadastro-service). ponytail: busca síncrona por item dentro do listener AFTER_COMMIT (mesmo
     // padrão do clientePessoaId em publicarFaturado) — fail-soft: se o cadastro-service falhar pra
     // um produto, o item vai sem ncm/codigoServico mas o evento ainda publica.
@@ -132,7 +132,7 @@ public class PedidoEventProducer {
 
     private List<DocumentoFiscal> documentosFiscais(List<PedidoItem> itens) {
         // ponytail: emissão de NF-e/NFS-e ainda não existe — referência fica um placeholder fixo,
-        // igual ao exemplo do spec/o2c-vendas.md §8. Sobe pra referência real quando a emissão existir.
+        // igual ao exemplo do spec/modulos/o2c-vendas/o2c-vendas.md §8. Sobe pra referência real quando a emissão existir.
         boolean temMercadoria = itens.stream().anyMatch(i -> i.getTipoItem() == TipoItemPedido.MERCADORIA);
         boolean temServico = itens.stream().anyMatch(i -> i.getTipoItem() == TipoItemPedido.SERVICO);
         List<DocumentoFiscal> docs = new ArrayList<>();
@@ -175,7 +175,7 @@ public class PedidoEventProducer {
                                      @JsonProperty("itens") List<ItemLeve> itens) {
     }
 
-    // Payload exato do spec/o2c-vendas.md §8.
+    // Payload exato do spec/modulos/o2c-vendas/o2c-vendas.md §8.
     private record PayloadFaturado(@JsonProperty("event_id") UUID eventId,
                                     @JsonProperty("tenant_id") Long tenantId,
                                     @JsonProperty("pedido_id") UUID pedidoId,

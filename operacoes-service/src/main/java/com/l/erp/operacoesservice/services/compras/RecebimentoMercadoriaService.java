@@ -260,7 +260,7 @@ public class RecebimentoMercadoriaService {
         return recebimento;
     }
 
-    // Mesmo algoritmo de PedidoService.calcularParcelas (vendas, spec/o2c-vendas.md §8): valor de
+    // Mesmo algoritmo de PedidoService.calcularParcelas (vendas, spec/modulos/o2c-vendas/o2c-vendas.md §8): valor de
     // cada parcela = percentual sobre valorTotal, arredondado (HALF_UP); a última absorve o
     // resto do arredondamento, garantindo soma exata (RN-P2P-06). Duplicado em vez de exposto como
     // util compartilhado — é a única outra chamada e os dois módulos evoluem independentes.

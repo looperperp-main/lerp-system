@@ -17,7 +17,7 @@ import org.hibernate.annotations.ColumnDefault;
  * (não estende BaseTenantEntity: não há filtro Hibernate a aplicar aqui,
  * a busca já é direta pela PK). Linha criada on-demand (upsert) no primeiro
  * pedido do tenant, atualizada via SELECT ... FOR UPDATE pelo
- * PedidoNumeroService (Fase 3). spec/o2c-vendas.md §3.4
+ * PedidoNumeroService (Fase 3). spec/modulos/o2c-vendas/o2c-vendas.md §3.4
  */
 @Getter
 @Setter

@@ -239,7 +239,7 @@ databaseChangeLog:
 
   # Fecha a carga que o fiscal-019 deixou pela metade: os 18 dos 20 cClassTrib pendentes cujo
   # percentual dá para fundamentar num artigo da LC 214. Texto conferido em
-  # spec/leicomplementar-214-16-janeiro-2025-796905-normaatualizada-pl.pdf (redação atualizada pela
+  # spec/fiscal/leicomplementar-214-16-janeiro-2025-796905-normaatualizada-pl.pdf (redação atualizada pela
   # LC 227, de 13/1/2026). O fiscal-019 NÃO foi tocado — já rodou, e editar changeset aplicado
   # quebra o checksum.
   #

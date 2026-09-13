@@ -34,10 +34,10 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * CRUD do orçamento, máquina de estados e validações de negócio do O2C (spec/o2c-vendas.md §4/§7/§8, Fase 3).
+ * CRUD do orçamento, máquina de estados e validações de negócio do O2C (spec/modulos/o2c-vendas/o2c-vendas.md §4/§7/§8, Fase 3).
  *
  * <p>ponytail: item sem {@code precoUnitario} informado é resolvido via motor de preço
- * (spec/motor-resolucao-preco.md, {@link CadastroServiceClient#resolverPreco}); a validação em lote de
+ * (spec/modulos/precos/motor-resolucao-preco.md, {@link CadastroServiceClient#resolverPreco}); a validação em lote de
  * referências no cadastro-service (§2: endpoint {@code /interno/referencias/validar} ainda não existe,
  * pendência registrada na Fase 0 do spec) continua pendente. Dados que viriam do cadastro-service por
  * HTTP (limite de crédito do cliente, parcelas da condição de pagamento) entram como parâmetro —
@@ -126,7 +126,7 @@ public class PedidoService {
     }
 
     /**
-     * Motor de preço (spec/motor-resolucao-preco.md) — item sem {@code precoUnitario} informado é
+     * Motor de preço (spec/modulos/precos/motor-resolucao-preco.md) — item sem {@code precoUnitario} informado é
      * resolvido via {@link CadastroServiceClient#resolverPreco} (cascata CLIENTE→GRUPO→PADRAO); sem
      * preço vigente em nenhum nível, mesmo erro de antes ("sem preço vigente"). precoUnitario
      * informado continua sendo tratado como override manual — resolver nunca é chamado nesse caso.
@@ -304,7 +304,7 @@ public class PedidoService {
                                          List<ParcelaDefinicao> parcelasDefinicao,
                                          ResultadoFiscalAgregado fiscal) {
         Pedido pedido = buscarPedido(pedidoId, tenantId);
-        // Pedido só-serviço fatura direto de CONFIRMADO (D3, spec/o2c-vendas.md) — não passa por
+        // Pedido só-serviço fatura direto de CONFIRMADO (D3, spec/modulos/o2c-vendas/o2c-vendas.md) — não passa por
         // EXPEDIDO porque não existe estoque pra dar baixa. Pedido com mercadoria segue a tabela normal.
         boolean faturamentoDiretoDeServico = pedido.getStatus() == StatusPedido.CONFIRMADO && somenteServicos(pedido);
         if (!faturamentoDiretoDeServico) {
@@ -328,7 +328,7 @@ public class PedidoService {
         pedido.setUpdatedAt(agora);
         pedido.setLastUpdatedBy(userId);
         // D4: agregado de POST /fiscal/calcular por item (fiscal-service), montado pelo controller
-        // antes de chamar faturar() — valorTotalNf é a base da nota fiscal (spec/o2c-vendas.md §8).
+        // antes de chamar faturar() — valorTotalNf é a base da nota fiscal (spec/modulos/o2c-vendas/o2c-vendas.md §8).
         BigDecimal valorTotalNf = pedido.getValorTotal()
                 .add(fiscal.valorIbs()).add(fiscal.valorCbs()).add(fiscal.valorIs()).add(fiscal.valorIss());
         pedido.setValorTotalNf(valorTotalNf);

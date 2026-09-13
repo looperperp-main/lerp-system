@@ -9,7 +9,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
-/** Corpo de criação (POST) e edição (PUT) do orçamento (spec/o2c-vendas.md §5/§10, Fase 4). */
+/** Corpo de criação (POST) e edição (PUT) do orçamento (spec/modulos/o2c-vendas/o2c-vendas.md §5/§10, Fase 4). */
 public record PedidoRequestDTO(
         @NotNull UUID clienteId,
         LocalDate dataEmissao,

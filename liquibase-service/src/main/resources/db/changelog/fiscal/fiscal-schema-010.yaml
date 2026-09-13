@@ -1,7 +1,7 @@
 databaseChangeLog:
 
   # ──────────────────────────────────────────
-  # ISS POR MUNICÍPIO — fatia 3d de spec/motor-fiscal-proximos-passos.md §3.
+  # ISS POR MUNICÍPIO — fatia 3d de spec/fiscal/motor-fiscal-proximos-passos.md §3.
   #
   # Mesmo desenho de fiscal.aliq_ibs_municipio (fiscal-023): uma linha de REFERÊNCIA sentinela
   # ('0000000', fiscal.FISCAL_IBGE_REFERENCIA_NACIONAL) cobre todo município que não legislou

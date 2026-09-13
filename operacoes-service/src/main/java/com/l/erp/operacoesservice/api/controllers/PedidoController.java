@@ -43,7 +43,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
-/** O2C — orçamento → pedido → expedição → faturamento (spec/o2c-vendas.md §5/§10, Fase 4). */
+/** O2C — orçamento → pedido → expedição → faturamento (spec/modulos/o2c-vendas/o2c-vendas.md §5/§10, Fase 4). */
 @RestController
 @RequestMapping("/api/v1/pedidos")
 @Tag(name = "Pedidos", description = "O2C — orçamento → pedido → expedição → faturamento")

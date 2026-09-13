@@ -55,7 +55,7 @@ public class CommissionController {
 
     // Não é chamado pelo partner-service (esse fluxo usa Kafka — BillingClient.getExtrato via
     // tópico partner.extrato.request, ver ExtratoRequestConsumer). Sem consumidor conhecido,
-    // fica como drill-down admin mesmo, por partnerId livre (7.5, spec/auditoria.md).
+    // fica como drill-down admin mesmo, por partnerId livre (7.5, spec/auditoria/auditoria.md).
     @GetMapping("/extrato")
     @PreAuthorize("hasAuthority('COMISSAO_MANAGE')")
     public ResponseEntity<ExtratoComissoesDTO> getExtrato(@RequestParam UUID partnerId) {

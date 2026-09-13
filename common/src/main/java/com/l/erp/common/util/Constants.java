@@ -231,7 +231,7 @@ public class Constants {
             "Código de serviço é obrigatório para produto do tipo SERVICO";
     public static final String PRODUTO_CODIGO_SERVICO_APENAS_SERVICO =
             "Código de serviço só é permitido para produto do tipo SERVICO";
-    // D4 (spec/o2c-vendas.md §8) — classificação tributária IBS/CBS do serviço (Anexo VIII),
+    // D4 (spec/modulos/o2c-vendas/o2c-vendas.md §8) — classificação tributária IBS/CBS do serviço (Anexo VIII),
     // exigida pelo fiscal-service (MotorFiscalService) sempre que codigoServico vem preenchido.
     public static final String PRODUTO_CLASS_TRIB_OBRIGATORIO_SERVICO =
             "Classificação tributária (cClassTrib) é obrigatória para produto do tipo SERVICO";
@@ -463,7 +463,7 @@ public class Constants {
             "AVISO: origem 'ZFM' informada — tratamento da Zona Franca de Manaus não implementado; "
                     + "item tributado como NACIONAL";
 
-    // Fatia 3c — legado (ICMS/ISS) durante a transição 2026-2033 (spec/motor-fiscal-proximos-passos.md §3)
+    // Fatia 3c — legado (ICMS/ISS) durante a transição 2026-2033 (spec/fiscal/motor-fiscal-proximos-passos.md §3)
     // Produto sem UF de origem/destino DURANTE A TRANSICAO: sem elas a matriz de ICMS nao tem como
     // resolver a aliquota interna. So exigido quando ha ICMS remanescente (pctRemanescente > 0) —
     // em 2033 (regime permanente) a checagem nem roda.
@@ -517,7 +517,7 @@ public class Constants {
             "Art. 57 §7º LC 214/2025: exclusão de %s da base de cálculo (bem sem crédito na "
                     + "entrada, valor de aquisição %s)";
 
-    // O2C — Pedido de venda (operacoes-service, schema vendas — spec/o2c-vendas.md §4/§7/§8, Fase 3)
+    // O2C — Pedido de venda (operacoes-service, schema vendas — spec/modulos/o2c-vendas/o2c-vendas.md §4/§7/§8, Fase 3)
     public static final String PEDIDO = "PEDIDO";
     public static final String PEDIDO_NOT_FOUND = "Pedido não encontrado!";
     public static final String PEDIDO_SEM_ITENS = "Pedido deve ter ao menos um item";
@@ -527,7 +527,7 @@ public class Constants {
     // Placeholder: produtoId duplicado.
     public static final String PEDIDO_ITEM_PRODUTO_DUPLICADO = "Produto duplicado no pedido: %s";
     // Placeholder: produtoId sem preço. Item sem precoUnitario informado cai aqui quando o motor de
-    // preço (spec/motor-resolucao-preco.md) não resolve preço em nenhum nível da cascata.
+    // preço (spec/modulos/precos/motor-resolucao-preco.md) não resolve preço em nenhum nível da cascata.
     public static final String PEDIDO_ITEM_SEM_PRECO =
             "Produto %s não possui preço vigente; informe o preço manualmente.";
     public static final String PEDIDO_DATA_VALIDADE_INVALIDA =
@@ -553,12 +553,12 @@ public class Constants {
             "Soma dos percentuais das parcelas da condição de pagamento deve ser 100 (atual: %s)";
     // Placeholder: tenantId.
     public static final String PEDIDO_NUMERACAO_FALHA = "Falha ao obter numeração do pedido para o tenant %s";
-    // O2C — Fase 4 (API/controllers, spec/o2c-vendas.md §5/§10)
+    // O2C — Fase 4 (API/controllers, spec/modulos/o2c-vendas/o2c-vendas.md §5/§10)
     public static final String PEDIDO_UPDATE_SO_ORCAMENTO = "Só é possível editar pedido em status ORCAMENTO";
     public static final String PEDIDO_RECALCULO_SO_ORCAMENTO =
             "Só é possível recalcular preços de pedido em status ORCAMENTO";
 
-    // O2C — Suporte a serviço no item do pedido (spec/o2c-vendas.md, Rev. 8)
+    // O2C — Suporte a serviço no item do pedido (spec/modulos/o2c-vendas/o2c-vendas.md, Rev. 8)
     public static final String PEDIDO_EXPEDICAO_SO_MERCADORIA =
             "Pedido só com serviços não passa por expedição; fature diretamente";
     // Placeholder: produtoId.
@@ -570,7 +570,7 @@ public class Constants {
     public static final String PEDIDO_ITEM_SEM_TIPO = "Tipo do item não resolvido para o produto %s";
     public static final String CADASTRO_SERVICE_INDISPONIVEL = "Serviço de cadastros indisponível";
 
-    // O2C — D4: integração fiscal no faturamento (spec/o2c-vendas.md §8, Rev. 8)
+    // O2C — D4: integração fiscal no faturamento (spec/modulos/o2c-vendas/o2c-vendas.md §8, Rev. 8)
     public static final String FISCAL_SERVICE_INDISPONIVEL = "Serviço fiscal indisponível, tente novamente";
     // Placeholders: produtoId, motivo devolvido pelo fiscal-service (ex.: FISCAL_CCLASSTRIB_OBRIGATORIO).
     public static final String PEDIDO_FISCAL_CALCULO_REJEITADO = "Cálculo fiscal rejeitado para o produto %s: %s";
@@ -580,7 +580,7 @@ public class Constants {
     public static final String PEDIDO_FISCAL_CFOP_MERCADORIA_DEFAULT = "5102";
     public static final String PEDIDO_FISCAL_CFOP_SERVICO_DEFAULT = "5933";
 
-    // O2C — Fase 5: eventos Kafka das transições de pedido (spec/o2c-vendas.md §8)
+    // O2C — Fase 5: eventos Kafka das transições de pedido (spec/modulos/o2c-vendas/o2c-vendas.md §8)
     public static final String PEDIDO_CONFIRMADO_TOPIC = "venda.pedido.confirmado";
     public static final String PEDIDO_FATURADO_TOPIC = "venda.pedido.faturado";
     public static final String PEDIDO_CANCELADO_TOPIC = "venda.pedido.cancelado";
@@ -588,7 +588,7 @@ public class Constants {
     public static final String AUDIT_ACAO_PEDIDO_FATURADO = "PEDIDO_FATURADO";
     public static final String AUDIT_ACAO_PEDIDO_CANCELADO = "PEDIDO_CANCELADO";
 
-    // Estoque — saldo e movimento (operacoes-service, schema estoque — spec/estoque.md §4/§6, Fase E3)
+    // Estoque — saldo e movimento (operacoes-service, schema estoque — spec/modulos/estoque/estoque.md §4/§6, Fase E3)
     public static final String ESTOQUE_DEPOSITO_OBRIGATORIO =
             "Depósito é obrigatório para registrar movimento de estoque";
     public static final String ESTOQUE_SEM_LINHAS = "Movimento de estoque deve ter ao menos uma linha";

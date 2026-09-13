@@ -23,7 +23,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * Client HTTP pro cadastro-service via Eureka (RestClientConfig, spec/o2c-vendas.md §2/§6):
+ * Client HTTP pro cadastro-service via Eureka (RestClientConfig, spec/modulos/o2c-vendas/o2c-vendas.md §2/§6):
  * limite de crédito do cliente (usado em confirmar()) e parcelas da condição de pagamento
  * (usadas em faturar()). Repassa os mesmos headers internos que o gateway injeta.
  */
@@ -47,7 +47,7 @@ public class CadastroServiceClient {
         return cliente != null && cliente.limiteCredito() != null ? cliente.limiteCredito() : BigDecimal.ZERO;
     }
 
-    // Fase 5: cliente_pessoa_id do payload do evento venda.pedido.faturado (spec/o2c-vendas.md §8).
+    // Fase 5: cliente_pessoa_id do payload do evento venda.pedido.faturado (spec/modulos/o2c-vendas/o2c-vendas.md §8).
     public UUID buscarClientePessoaId(UUID clienteId, Long tenantId, UUID userId) {
         ClienteRef cliente = buscarCliente(clienteId, tenantId, userId);
         return cliente != null ? cliente.pessoaId() : null;
@@ -82,7 +82,7 @@ public class CadastroServiceClient {
         }
     }
 
-    // Motor de preço (spec/motor-resolucao-preco.md) — cascata CLIENTE→GRUPO→PADRAO. clienteId nulo
+    // Motor de preço (spec/modulos/precos/motor-resolucao-preco.md) — cascata CLIENTE→GRUPO→PADRAO. clienteId nulo
     // é válido (pedido sem cliente ainda não deveria chegar aqui, mas a cascata cai direto pro PADRAO).
     public PrecoResolvidoRef resolverPreco(UUID produtoId, UUID clienteId, Long tenantId, UUID userId) {
         try {
@@ -217,7 +217,7 @@ public class CadastroServiceClient {
     public record ProdutoRef(String tipo, String codigoServico, Boolean ativo, String ncm, String classTrib, String nome) {
     }
 
-    // P2 (spec/o2c-vendas.md, gaps do D4) — UF/IBGE do cliente pro MotorFiscalRequest.
+    // P2 (spec/modulos/o2c-vendas/o2c-vendas.md, gaps do D4) — UF/IBGE do cliente pro MotorFiscalRequest.
     public EnderecoFiscalRef buscarEnderecoFiscal(UUID pessoaId, Long tenantId, UUID userId) {
         try {
             EnderecoEnvelope envelope = restClient.get()
@@ -276,7 +276,7 @@ public class CadastroServiceClient {
     private record EstabelecimentoProprioRef(UUID pessoaId) {
     }
 
-    // E6 (spec/estoque.md §5.1) — estoqueMinimo em lote pro badge "abaixo do mínimo" do GET
+    // E6 (spec/modulos/estoque/estoque.md §5.1) — estoqueMinimo em lote pro badge "abaixo do mínimo" do GET
     // /estoque/saldos. Best-effort: se o cadastro-service falhar, loga warn e devolve vazio — o
     // badge simplesmente não aparece, não trava a consulta de saldos.
     public Map<UUID, BigDecimal> buscarEstoqueConfig(List<UUID> produtoIds, UUID depositoId, Long tenantId, UUID userId) {

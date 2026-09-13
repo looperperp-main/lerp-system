@@ -1,7 +1,7 @@
 databaseChangeLog:
 
   # ──────────────────────────────────────────
-  # MATRIZ ICMS — fatia 3b de spec/motor-fiscal-proximos-passos.md §3.
+  # MATRIZ ICMS — fatia 3b de spec/fiscal/motor-fiscal-proximos-passos.md §3.
   #
   # Guarda a alíquota CHEIA de ICMS interno; a curva de redução 2029-2033 já é a
   # fiscal.transicao_ano (fatia 3a) — não é responsabilidade desta tabela nem entra na chave.

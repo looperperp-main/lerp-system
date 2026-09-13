@@ -50,7 +50,7 @@ import static org.mockito.Mockito.when;
 /**
  * Cobre a resolução da claim `roles` do JWT (AuthService.resolveRoles) — antes hardcoded
  * (isOwner ? [APP_OWNER, TENANT_OWNER] : ["ROLE_USER"]), agora busca a role real via user_role
- * (spec/auditoria.md §4.11).
+ * (spec/auditoria/auditoria.md §4.11).
  */
 class AuthServiceTest {
 
@@ -177,7 +177,7 @@ class AuthServiceTest {
         assertThat(roles).containsExactlyInAnyOrder(Constants.OWNER_ROLE_NAME, Roles.APP_OWNER);
     }
 
-    // ── CNPJ: dígito verificador (spec/auditoria.md §7.7) ──
+    // ── CNPJ: dígito verificador (spec/auditoria/auditoria.md §7.7) ──
 
     @Test
     void cnpj_numericoComDvValido_exemploOficialSerpro_passa() {

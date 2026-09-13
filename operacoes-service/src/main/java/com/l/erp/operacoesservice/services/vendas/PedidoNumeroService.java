@@ -7,7 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Numeração sequencial do pedido por tenant (spec/o2c-vendas.md §3.4/§16 Fase 3). Orçamento e
+ * Numeração sequencial do pedido por tenant (spec/modulos/o2c-vendas/o2c-vendas.md §3.4/§16 Fase 3). Orçamento e
  * pedido compartilham a mesma numeração — o que muda é só o status.
  */
 @Service
