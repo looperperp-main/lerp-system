@@ -2,7 +2,7 @@ databaseChangeLog:
 
   # Carga do catálogo NCM completo (Fatia A1).
   #
-  # Fonte: spec/Tabela_NCM_Desc_Concatenada_Vigente_20260702.csv — tabela oficial do MDIC/Gecex
+  # Fonte: spec/fiscal/Tabela_NCM_Desc_Concatenada_Vigente_20260702.csv — tabela oficial do MDIC/Gecex
   # (Resolução Gecex nº 812/2025, vigente em 02/07/2026), convertida para o formato do loadData:
   # separador ',', UTF-8 sem BOM, código normalizado só com dígitos ('0101.21.00' -> '01012100').
   #
