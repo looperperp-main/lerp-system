@@ -1,0 +1,309 @@
+<div *ngIf="pedido() as p" class="jb-detalhe-wrap">
+
+  <div class="jb-page-head">
+    <div>
+      <app-breadcrumb></app-breadcrumb>
+      <h1>
+        Pedido de Compra Nº {{ p.numero }}
+        <span class="jb-status" [class]="statusBadgeClass(p.status)">{{ statusLabel[p.status!] }}</span>
+      </h1>
+      <p class="sub">Aprovação, envio ao fornecedor e recebimento de mercadoria</p>
+    </div>
+    <div class="jb-panel-actions">
+      <button pButton icon="pi pi-arrow-left" label="Voltar" class="p-button-text" (click)="voltar()"></button>
+    </div>
+  </div>
+
+  <div class="jb-panel">
+    <h3><i class="pi pi-info-circle"></i> Dados Gerais</h3>
+    <div class="jb-info-grid">
+      <div class="jb-info-item">
+        <label>Fornecedor</label>
+        <span>{{ nomeFornecedor(p.fornecedorId) }}</span>
+      </div>
+      <div class="jb-info-item">
+        <label>Condição de Pagamento</label>
+        <span>{{ nomeCondicao(p.condicaoPagamentoId) }}</span>
+      </div>
+      <div class="jb-info-item">
+        <label>Depósito</label>
+        <span>{{ nomeDeposito(p.depositoId) }}</span>
+      </div>
+      <div class="jb-info-item">
+        <label>Data de Emissão</label>
+        <span>{{ p.dataEmissao | date:'dd/MM/yyyy' }}</span>
+      </div>
+      <div class="jb-info-item">
+        <label>Previsão de Entrega</label>
+        <span>{{ p.dataPrevisaoEntrega ? (p.dataPrevisaoEntrega | date:'dd/MM/yyyy') : '-' }}</span>
+      </div>
+      <div class="jb-info-item" *ngIf="p.valorFrete">
+        <label>Valor do Frete</label>
+        <span>{{ p.valorFrete | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}</span>
+      </div>
+    </div>
+    <div class="jb-info-item jb-info-observacao" *ngIf="p.observacao">
+      <label>Observação</label>
+      <span>{{ p.observacao }}</span>
+    </div>
+  </div>
+
+  <div class="jb-panel">
+    <h3><i class="pi pi-box"></i> Itens</h3>
+    <div class="table-container">
+      <table class="jb-simple-table">
+        <thead>
+          <tr>
+            <th>Produto</th>
+            <th>Qtd. Pedida</th>
+            <th>Qtd. Recebida</th>
+            <th>Pendente</th>
+            <th>Preço Unit.</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of p.itens">
+            <td>{{ nomeProduto(item.produtoId) }}</td>
+            <td>{{ item.quantidade }}</td>
+            <td>{{ item.quantidadeRecebida || 0 }}</td>
+            <td>{{ quantidadePendente(item) }}</td>
+            <td>{{ item.precoUnitario | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}</td>
+            <td class="jb-strong">{{ item.valorTotal | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="jb-total-geral">
+      <span>Total do Pedido</span>
+      <strong>{{ p.valorTotal | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}</strong>
+    </div>
+  </div>
+
+  <div class="jb-panel">
+    <h3><i class="pi pi-bolt"></i> Ações</h3>
+    <div class="jb-panel-actions" *ngIf="temAcaoDisponivel(); else semAcoes">
+      <button pButton icon="pi pi-send" label="Enviar para Aprovação" *ngIf="podeEnviarAprovacao()" [disabled]="processando()" (click)="enviarParaAprovacao()"></button>
+      <button pButton icon="pi pi-check" label="Aprovar" *ngIf="podeAprovar()" [disabled]="processando()" (click)="aprovar()"></button>
+      <button pButton icon="pi pi-times" label="Reprovar" class="p-button-danger p-button-text" *ngIf="podeReprovar()" [disabled]="processando()" (click)="abrirReprovar()"></button>
+      <button pButton icon="pi pi-undo" label="Reabrir para Rascunho" class="p-button-text" *ngIf="podeReabrir()" [disabled]="processando()" (click)="reabrir()"></button>
+      <button pButton icon="pi pi-truck" label="Marcar como Enviado" *ngIf="podeEnviar()" [disabled]="processando()" (click)="enviar()"></button>
+      <button pButton icon="pi pi-flag" label="Encerrar Saldo" class="p-button-text" *ngIf="podeEncerrarSaldo()" [disabled]="processando()" (click)="abrirEncerrarSaldo()"></button>
+      <button pButton icon="pi pi-ban" label="Cancelar Pedido" class="p-button-danger p-button-text" *ngIf="podeCancelar()" [disabled]="processando()" (click)="abrirCancelar()"></button>
+    </div>
+    <ng-template #semAcoes>
+      <p class="jb-sem-acoes">Nenhuma ação disponível para este pedido.</p>
+    </ng-template>
+  </div>
+
+  <div class="jb-panel">
+    <div class="jb-panel-head">
+      <h3><i class="pi pi-inbox"></i> Recebimentos</h3>
+      <div class="jb-panel-actions" *ngIf="podeRegistrarRecebimento()">
+        <app-primary-button
+          label="Registrar Recebimento"
+          icon="pi pi-plus"
+          (onClick)="abrirRegistrarRecebimento()">
+        </app-primary-button>
+      </div>
+    </div>
+
+    <p class="jb-sem-acoes" *ngIf="recebimentos().length === 0">Nenhum recebimento registrado para este pedido.</p>
+
+    <div class="jb-recebimento-card" *ngFor="let r of recebimentos()">
+      <div class="jb-recebimento-head">
+        <div>
+          <span class="jb-strong">Recebimento Nº {{ r.numero }}</span>
+          <span class="jb-status" [class]="statusRecebimentoBadgeClass(r.status)">{{ statusRecebimentoLabel[r.status!] }}</span>
+        </div>
+        <div class="jb-panel-actions">
+          <button pButton icon="pi pi-check" label="Confirmar" class="p-button-sm" *ngIf="r.status === 'EM_CONFERENCIA'" [disabled]="processando()" (click)="confirmarRecebimento(r)"></button>
+          <button pButton icon="pi pi-file-check" label="Faturar" class="p-button-sm" *ngIf="r.status === 'CONFIRMADO'" [disabled]="processando()" (click)="faturarRecebimento(r)"></button>
+          <button pButton icon="pi pi-times" label="Cancelar" class="p-button-sm p-button-danger p-button-text" *ngIf="r.status === 'EM_CONFERENCIA' || r.status === 'CONFIRMADO'" [disabled]="processando()" (click)="cancelarRecebimento(r)"></button>
+        </div>
+      </div>
+      <div class="jb-info-grid">
+        <div class="jb-info-item">
+          <label>Data de Recebimento</label>
+          <span>{{ r.dataRecebimento | date:'dd/MM/yyyy' }}</span>
+        </div>
+        <div class="jb-info-item">
+          <label>Documento Fiscal</label>
+          <span>{{ r.tipoDocumentoFiscal === 'NFE' ? 'NF-e' : 'NFS-e' }} {{ r.nfeNumero }}</span>
+        </div>
+        <div class="jb-info-item">
+          <label>Valor Total NF</label>
+          <span>{{ r.valorTotalNf | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}</span>
+        </div>
+      </div>
+      <div class="table-container">
+        <table class="jb-simple-table">
+          <thead>
+            <tr>
+              <th>Produto</th>
+              <th>Qtd. Recebida</th>
+              <th>Preço Unit. NF</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of r.itens">
+              <td>{{ nomeProduto(item.produtoId) }}</td>
+              <td>{{ item.quantidade }}</td>
+              <td>{{ item.precoUnitarioNf | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="jb-panel" *ngIf="p.historico?.length">
+    <h3><i class="pi pi-history"></i> Histórico</h3>
+    <div class="jb-timeline">
+      <div class="jb-timeline-item" *ngFor="let h of p.historico">
+        <span class="jb-status" [class]="historicoBadgeClass(h.statusNovo)">{{ historicoLabel(h.statusNovo) }}</span>
+        <span class="jb-timeline-data">{{ h.ocorridoEm | date:'dd/MM/yyyy HH:mm' }}</span>
+        <span class="jb-timeline-motivo" *ngIf="h.motivo">— {{ h.motivo }}</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="jb-loading" *ngIf="loading()">Carregando pedido...</div>
+
+<p-dialog [(visible)]="displayReprovarDialog" [style]="{width: '440px'}" [modal]="true" header="Reprovar Pedido">
+  <form [formGroup]="reprovarForm" (ngSubmit)="confirmarReprovacao()">
+    <div class="jb-field">
+      <label class="jb-label">Motivo da Reprovação *</label>
+      <textarea pTextarea formControlName="motivo" rows="3" style="width: 100%;"></textarea>
+    </div>
+    <div class="jb-form-footer">
+      <button pButton type="button" label="Voltar" class="p-button-secondary" (click)="displayReprovarDialog = false"></button>
+      <button pButton type="submit" label="Confirmar Reprovação" class="p-button-danger" [loading]="processando()"></button>
+    </div>
+  </form>
+</p-dialog>
+
+<p-dialog [(visible)]="displayCancelarDialog" [style]="{width: '440px'}" [modal]="true" header="Cancelar Pedido">
+  <form [formGroup]="cancelarForm" (ngSubmit)="confirmarCancelamento()">
+    <div class="jb-field">
+      <label class="jb-label">Motivo do Cancelamento *</label>
+      <textarea pTextarea formControlName="motivo" rows="3" style="width: 100%;"></textarea>
+    </div>
+    <div class="jb-form-footer">
+      <button pButton type="button" label="Voltar" class="p-button-secondary" (click)="displayCancelarDialog = false"></button>
+      <button pButton type="submit" label="Confirmar Cancelamento" class="p-button-danger" [loading]="processando()"></button>
+    </div>
+  </form>
+</p-dialog>
+
+<p-dialog [(visible)]="displayEncerrarSaldoDialog" [style]="{width: '440px'}" [modal]="true" header="Encerrar Saldo do Pedido">
+  <form [formGroup]="encerrarSaldoForm" (ngSubmit)="confirmarEncerramentoSaldo()">
+    <div class="jb-field">
+      <label class="jb-label">Motivo *</label>
+      <textarea pTextarea formControlName="motivo" rows="3" style="width: 100%;"></textarea>
+    </div>
+    <div class="jb-form-footer">
+      <button pButton type="button" label="Voltar" class="p-button-secondary" (click)="displayEncerrarSaldoDialog = false"></button>
+      <button pButton type="submit" label="Confirmar Encerramento" [loading]="processando()"></button>
+    </div>
+  </form>
+</p-dialog>
+
+<p-dialog [(visible)]="displayRecebimentoDialog" [style]="{width: '900px', maxWidth: '95vw'}" [breakpoints]="{ '1200px': '90vw', '640px': '95vw' }" [modal]="true" header="Registrar Recebimento" *ngIf="recebimentoForm">
+  <form [formGroup]="recebimentoForm" (ngSubmit)="confirmarRegistrarRecebimento()">
+    <div class="jb-grid-2">
+      <div class="jb-field">
+        <label class="jb-label">Data de Recebimento *</label>
+        <p-datepicker formControlName="dataRecebimento" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body"></p-datepicker>
+      </div>
+      <div class="jb-field">
+        <label class="jb-label">Tipo de Documento Fiscal *</label>
+        <p-select
+          [options]="tipoDocumentoFiscalOptions"
+          formControlName="tipoDocumentoFiscal"
+          optionLabel="label"
+          optionValue="value"
+          appendTo="body">
+        </p-select>
+      </div>
+    </div>
+
+    <div class="jb-grid-2">
+      <div class="jb-field">
+        <label class="jb-label">Número do Documento *</label>
+        <input pInputText formControlName="nfeNumero" style="width: 100%;" />
+      </div>
+      <div class="jb-field">
+        <label class="jb-label">Data de Emissão *</label>
+        <p-datepicker formControlName="nfeDataEmissao" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body"></p-datepicker>
+      </div>
+    </div>
+
+    <div class="jb-grid-2" *ngIf="recebimentoForm.value.tipoDocumentoFiscal === 'NFE'">
+      <div class="jb-field">
+        <label class="jb-label">Série</label>
+        <input pInputText formControlName="nfeSerie" style="width: 100%;" />
+      </div>
+      <div class="jb-field">
+        <label class="jb-label">Chave de Acesso</label>
+        <input pInputText formControlName="nfeChave" style="width: 100%;" />
+      </div>
+    </div>
+
+    <div class="jb-field" *ngIf="recebimentoForm.value.tipoDocumentoFiscal === 'NFSE'">
+      <label class="jb-label">Código de Verificação</label>
+      <input pInputText formControlName="nfseCodigoVerificacao" style="width: 100%;" />
+    </div>
+
+    <div class="jb-grid-2">
+      <div class="jb-field">
+        <label class="jb-label">Valor Total da NF *</label>
+        <p-inputNumber formControlName="valorTotalNf" mode="currency" currency="BRL" locale="pt-BR"></p-inputNumber>
+      </div>
+      <div class="jb-field">
+        <label class="jb-label">Condição de Pagamento</label>
+        <p-select
+          [options]="condicoesOptions"
+          formControlName="condicaoPagamentoId"
+          optionLabel="label"
+          optionValue="value"
+          [showClear]="true"
+          appendTo="body">
+        </p-select>
+      </div>
+    </div>
+
+    <div class="jb-field">
+      <label class="jb-label">Observação</label>
+      <textarea pTextarea formControlName="observacao" rows="2" style="width: 100%;"></textarea>
+    </div>
+
+    <h4 class="jb-section-title">Itens Pendentes de Recebimento</h4>
+
+    <div formArrayName="itens">
+      <div class="jb-item-row" *ngFor="let item of recebimentoItensArray.controls; let i = index" [formGroupName]="i">
+        <div class="jb-field jb-item-produto">
+          <label class="jb-label-sm">Produto</label>
+          <span>{{ nomeProduto(item.value.produtoId) }} <small class="jb-hint-neutro">(pendente: {{ item.value.quantidadePendente }})</small></span>
+        </div>
+
+        <div class="jb-field jb-item-qtd">
+          <label class="jb-label-sm">Qtd. Recebida</label>
+          <p-inputNumber formControlName="quantidade" [minFractionDigits]="0" [maxFractionDigits]="3" [min]="0.0001" [max]="item.value.quantidadePendente"></p-inputNumber>
+        </div>
+
+        <div class="jb-field jb-item-preco">
+          <label class="jb-label-sm">Preço Unit. NF</label>
+          <p-inputNumber formControlName="precoUnitarioNf" mode="currency" currency="BRL" locale="pt-BR"></p-inputNumber>
+        </div>
+      </div>
+    </div>
+
+    <div class="jb-form-footer">
+      <button pButton type="button" label="Voltar" class="p-button-secondary" (click)="displayRecebimentoDialog = false"></button>
+      <button pButton type="submit" label="Registrar Recebimento" [loading]="processando()"></button>
+    </div>
+  </form>
+</p-dialog>

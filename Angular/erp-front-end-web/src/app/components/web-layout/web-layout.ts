@@ -78,6 +78,7 @@ export class WebLayout {
       path: '/web/compras/requisicoes',
       items: [
         { label: 'Requisições', icon: 'pi pi-file-edit', routerLink: '/web/compras/requisicoes' },
+        { label: 'Pedidos', icon: 'pi pi-shopping-cart', routerLink: '/web/compras/pedidos' },
       ],
     },
     {

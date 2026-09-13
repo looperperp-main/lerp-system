@@ -120,6 +120,32 @@ export const routes: Routes = [
         },
       },
       {
+        path: 'compras/pedidos',
+        loadComponent: () => import('./pages/compras/pedidos/pedidos').then((m) => m.Pedidos),
+        data: {
+          breadcrumb: [
+            { label: 'Home', link: '/web/home' },
+            { label: 'Compras' },
+            { label: 'Pedidos de Compra' },
+          ],
+        },
+      },
+      {
+        path: 'compras/pedidos/:id',
+        loadComponent: () =>
+          import('./pages/compras/pedidos/pedido-detalhe/pedido-detalhe').then(
+            (m) => m.PedidoDetalhe,
+          ),
+        data: {
+          breadcrumb: [
+            { label: 'Home', link: '/web/home' },
+            { label: 'Compras' },
+            { label: 'Pedidos de Compra', link: '/web/compras/pedidos' },
+            { label: 'Detalhe do Pedido' },
+          ],
+        },
+      },
+      {
         path: 'vendas/pedidos',
         loadComponent: () => import('./pages/vendas/pedidos/pedidos').then((m) => m.Pedidos),
         data: {
