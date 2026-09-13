@@ -108,6 +108,18 @@ export const routes: Routes = [
         },
       },
       {
+        path: 'compras/requisicoes',
+        loadComponent: () =>
+          import('./pages/compras/requisicoes/requisicoes').then((m) => m.Requisicoes),
+        data: {
+          breadcrumb: [
+            { label: 'Home', link: '/web/home' },
+            { label: 'Compras' },
+            { label: 'Requisições' },
+          ],
+        },
+      },
+      {
         path: 'vendas/pedidos',
         loadComponent: () => import('./pages/vendas/pedidos/pedidos').then((m) => m.Pedidos),
         data: {
