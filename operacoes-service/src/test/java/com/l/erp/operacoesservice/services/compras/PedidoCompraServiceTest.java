@@ -3,12 +3,15 @@ package com.l.erp.operacoesservice.services.compras;
 import com.l.erp.common.exception.custom.BusinessException;
 import com.l.erp.operacoesservice.domain.compras.PedidoCompra;
 import com.l.erp.operacoesservice.domain.compras.PedidoCompraItem;
+import com.l.erp.operacoesservice.domain.compras.RecebimentoMercadoria;
 import com.l.erp.operacoesservice.domain.compras.enumerators.StatusPedidoCompra;
+import com.l.erp.operacoesservice.domain.compras.enumerators.StatusRecebimentoMercadoria;
 import com.l.erp.operacoesservice.domain.compras.enumerators.TipoDocumentoCompra;
 import com.l.erp.operacoesservice.infra.client.CadastroServiceClient;
 import com.l.erp.operacoesservice.repository.compras.CompraStatusHistoricoRepository;
 import com.l.erp.operacoesservice.repository.compras.PedidoCompraItemRepository;
 import com.l.erp.operacoesservice.repository.compras.PedidoCompraRepository;
+import com.l.erp.operacoesservice.repository.compras.RecebimentoMercadoriaRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -45,6 +48,8 @@ class PedidoCompraServiceTest {
     private CompraNumeroService compraNumeroService;
     @Mock
     private CadastroServiceClient cadastroServiceClient;
+    @Mock
+    private RecebimentoMercadoriaRepository recebimentoMercadoriaRepository;
 
     @InjectMocks
     private PedidoCompraService pedidoCompraService;
@@ -421,5 +426,50 @@ class PedidoCompraServiceTest {
 
         assertThatThrownBy(() -> pedidoCompraService.encerrarSaldo(pedido.getId(), TENANT_ID, USER_ID, "motivo qualquer"))
                 .isInstanceOf(BusinessException.class);
+    }
+
+    // ---------------------------------------------------------------- encerrarSeTodosRecebimentosFaturados (Fase 4)
+
+    private RecebimentoMercadoria recebimentoComStatus(StatusRecebimentoMercadoria status) {
+        return RecebimentoMercadoria.builder().id(UUID.randomUUID()).status(status).build();
+    }
+
+    @Test
+    void deveEncerrarPedidoQuandoRecebidoTotalETodosRecebimentosFaturados() {
+        PedidoCompra pedido = pedidoComStatus(StatusPedidoCompra.RECEBIDO_TOTAL);
+        when(pedidoCompraRepository.findByIdAndTenantId(pedido.getId(), TENANT_ID)).thenReturn(Optional.of(pedido));
+        when(recebimentoMercadoriaRepository.findAllByPedidoId(pedido.getId())).thenReturn(List.of(
+                recebimentoComStatus(StatusRecebimentoMercadoria.FATURADO),
+                recebimentoComStatus(StatusRecebimentoMercadoria.CANCELADO)));
+
+        pedidoCompraService.encerrarSeTodosRecebimentosFaturados(pedido.getId(), TENANT_ID, USER_ID);
+
+        assertThat(pedido.getStatus()).isEqualTo(StatusPedidoCompra.ENCERRADO);
+        verify(compraStatusHistoricoRepository).save(any());
+    }
+
+    @Test
+    void naoDeveEncerrarPedidoComRecebimentoAindaNaoFaturado() {
+        PedidoCompra pedido = pedidoComStatus(StatusPedidoCompra.RECEBIDO_TOTAL);
+        when(pedidoCompraRepository.findByIdAndTenantId(pedido.getId(), TENANT_ID)).thenReturn(Optional.of(pedido));
+        when(recebimentoMercadoriaRepository.findAllByPedidoId(pedido.getId())).thenReturn(List.of(
+                recebimentoComStatus(StatusRecebimentoMercadoria.FATURADO),
+                recebimentoComStatus(StatusRecebimentoMercadoria.CONFIRMADO)));
+
+        pedidoCompraService.encerrarSeTodosRecebimentosFaturados(pedido.getId(), TENANT_ID, USER_ID);
+
+        assertThat(pedido.getStatus()).isEqualTo(StatusPedidoCompra.RECEBIDO_TOTAL);
+        verify(pedidoCompraRepository, never()).save(any());
+    }
+
+    @Test
+    void naoDeveEncerrarPedidoComSaldoPendente() {
+        PedidoCompra pedido = pedidoComStatus(StatusPedidoCompra.RECEBIDO_PARCIAL);
+        when(pedidoCompraRepository.findByIdAndTenantId(pedido.getId(), TENANT_ID)).thenReturn(Optional.of(pedido));
+
+        pedidoCompraService.encerrarSeTodosRecebimentosFaturados(pedido.getId(), TENANT_ID, USER_ID);
+
+        assertThat(pedido.getStatus()).isEqualTo(StatusPedidoCompra.RECEBIDO_PARCIAL);
+        verify(recebimentoMercadoriaRepository, never()).findAllByPedidoId(any());
     }
 }

@@ -2,6 +2,7 @@ package com.l.erp.operacoesservice.infra.kafka;
 
 import com.l.erp.operacoesservice.services.compras.RecebimentoCanceladoEvent;
 import com.l.erp.operacoesservice.services.compras.RecebimentoConfirmadoEvent;
+import com.l.erp.operacoesservice.services.compras.RecebimentoFaturadoEvent;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -28,5 +29,10 @@ public class RecebimentoEventListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void aoCancelar(RecebimentoCanceladoEvent event) {
         producer.publicarCancelado(event);
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void aoFaturar(RecebimentoFaturadoEvent event) {
+        producer.publicarFaturado(event);
     }
 }

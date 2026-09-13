@@ -20,6 +20,7 @@ import com.l.erp.operacoesservice.repository.compras.PedidoCompraItemRepository;
 import com.l.erp.operacoesservice.repository.compras.RecebimentoMercadoriaItemRepository;
 import com.l.erp.operacoesservice.repository.compras.RecebimentoMercadoriaRepository;
 import com.l.erp.operacoesservice.services.estoque.EstoqueService;
+import com.l.erp.operacoesservice.services.vendas.PedidoService.ParcelaDefinicao;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -28,6 +29,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -218,6 +220,74 @@ public class RecebimentoMercadoriaService {
         return recebimento;
     }
 
+    /**
+     * Fatura o recebimento (CONFIRMADO -> FATURADO): calcula as parcelas a partir da condição de
+     * pagamento (RN-P2P-06), publica {@code nfe.entrada.aprovada} (Fin.md §F4.2, AFTER_COMMIT) e
+     * encerra o pedido automaticamente se já não houver saldo pendente e todos os recebimentos
+     * estiverem faturados (spec/p2p-compras.md §"Integração com o financeiro", Fase 4).
+     */
+    @Transactional
+    public RecebimentoMercadoria faturar(UUID recebimentoId, Long tenantId, UUID userId,
+                                          List<ParcelaDefinicao> parcelasDefinicao) {
+        RecebimentoMercadoria recebimento = buscarRecebimento(recebimentoId, tenantId);
+        StatusRecebimentoMercadoria statusAnterior = recebimento.getStatus();
+        validarTransicao(statusAnterior, StatusRecebimentoMercadoria.FATURADO);
+
+        BigDecimal somaPercentuais = parcelasDefinicao.stream()
+                .map(ParcelaDefinicao::percentual)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (somaPercentuais.compareTo(BigDecimal.valueOf(100)) != 0) {
+            throw new BusinessException(
+                    String.format(Constants.RECEBIMENTO_COMPRA_PARCELAS_PERCENTUAL_INVALIDO, somaPercentuais),
+                    HttpStatus.BAD_REQUEST);
+        }
+        List<ParcelaFaturamentoCompra> parcelas = calcularParcelas(
+                recebimento.getValorTotalNf(), recebimento.getNfeDataEmissao(), parcelasDefinicao);
+
+        Instant agora = Instant.now();
+        recebimento.setStatus(StatusRecebimentoMercadoria.FATURADO);
+        recebimento.setFaturadoEm(agora);
+        recebimento.setUpdatedAt(agora);
+        recebimento.setLastUpdatedBy(userId);
+        recebimentoMercadoriaRepository.save(recebimento);
+        registrarHistorico(recebimento, statusAnterior, StatusRecebimentoMercadoria.FATURADO, null, userId, agora);
+
+        PedidoCompra pedido = recebimento.getPedido();
+        pedidoCompraService.encerrarSeTodosRecebimentosFaturados(pedido.getId(), tenantId, userId);
+
+        List<RecebimentoMercadoriaItem> itens = recebimentoMercadoriaItemRepository.findAllByRecebimentoId(recebimento.getId());
+        eventPublisher.publishEvent(new RecebimentoFaturadoEvent(recebimento, pedido, itens, parcelas));
+        return recebimento;
+    }
+
+    // Mesmo algoritmo de PedidoService.calcularParcelas (vendas, spec/o2c-vendas.md §8): valor de
+    // cada parcela = percentual sobre valorTotal, arredondado (HALF_UP); a última absorve o
+    // resto do arredondamento, garantindo soma exata (RN-P2P-06). Duplicado em vez de exposto como
+    // util compartilhado — é a única outra chamada e os dois módulos evoluem independentes.
+    private static List<ParcelaFaturamentoCompra> calcularParcelas(BigDecimal valorTotal, LocalDate dataBase,
+                                                                     List<ParcelaDefinicao> definicoes) {
+        List<ParcelaFaturamentoCompra> parcelas = new ArrayList<>();
+        BigDecimal somaCalculada = BigDecimal.ZERO;
+        for (int i = 0; i < definicoes.size(); i++) {
+            ParcelaDefinicao def = definicoes.get(i);
+            boolean ultima = i == definicoes.size() - 1;
+            BigDecimal valor = ultima
+                    ? valorTotal.subtract(somaCalculada).setScale(2, RoundingMode.HALF_UP)
+                    : valorTotal.multiply(def.percentual()).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+            if (!ultima) {
+                somaCalculada = somaCalculada.add(valor);
+            }
+            parcelas.add(new ParcelaFaturamentoCompra(def.numero(), dataBase.plusDays(def.diasPrazo()), valor,
+                    def.formaPagamento()));
+        }
+        return parcelas;
+    }
+
+    /** Parcela calculada do faturamento (§"Integração com o financeiro", Fase 4). */
+    public record ParcelaFaturamentoCompra(Integer numero, LocalDate dataVencimento, BigDecimal valor,
+                                            String formaPagamento) {
+    }
+
     // Espelho de confirmar(): devolve quantidade_recebida por item e estorna o estoque (RN, mesma
     // transação) — spec/p2p-compras.md §"Integração com estoque".
     private void estornarConfirmacao(RecebimentoMercadoria recebimento, PedidoCompra pedido, Long tenantId, UUID userId) {
@@ -349,7 +419,8 @@ public class RecebimentoMercadoriaService {
             case CONFIRMADO -> origem == StatusRecebimentoMercadoria.EM_CONFERENCIA;
             case CANCELADO -> origem == StatusRecebimentoMercadoria.EM_CONFERENCIA
                     || origem == StatusRecebimentoMercadoria.CONFIRMADO;
-            default -> false; // FATURADO é Fase 4 — nenhuma transição pra lá nesta fase.
+            case FATURADO -> origem == StatusRecebimentoMercadoria.CONFIRMADO; // Fase 4
+            default -> false;
         };
         if (!valida) {
             throw new BusinessException(

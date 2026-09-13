@@ -5,12 +5,15 @@ import com.l.erp.common.util.Constants;
 import com.l.erp.operacoesservice.domain.compras.CompraStatusHistorico;
 import com.l.erp.operacoesservice.domain.compras.PedidoCompra;
 import com.l.erp.operacoesservice.domain.compras.PedidoCompraItem;
+import com.l.erp.operacoesservice.domain.compras.RecebimentoMercadoria;
 import com.l.erp.operacoesservice.domain.compras.enumerators.StatusPedidoCompra;
+import com.l.erp.operacoesservice.domain.compras.enumerators.StatusRecebimentoMercadoria;
 import com.l.erp.operacoesservice.domain.compras.enumerators.TipoDocumentoCompra;
 import com.l.erp.operacoesservice.infra.client.CadastroServiceClient;
 import com.l.erp.operacoesservice.repository.compras.CompraStatusHistoricoRepository;
 import com.l.erp.operacoesservice.repository.compras.PedidoCompraItemRepository;
 import com.l.erp.operacoesservice.repository.compras.PedidoCompraRepository;
+import com.l.erp.operacoesservice.repository.compras.RecebimentoMercadoriaRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -67,17 +70,20 @@ public class PedidoCompraService {
     private final CompraStatusHistoricoRepository compraStatusHistoricoRepository;
     private final CompraNumeroService compraNumeroService;
     private final CadastroServiceClient cadastroServiceClient;
+    private final RecebimentoMercadoriaRepository recebimentoMercadoriaRepository;
 
     public PedidoCompraService(PedidoCompraRepository pedidoCompraRepository,
                                 PedidoCompraItemRepository pedidoCompraItemRepository,
                                 CompraStatusHistoricoRepository compraStatusHistoricoRepository,
                                 CompraNumeroService compraNumeroService,
-                                CadastroServiceClient cadastroServiceClient) {
+                                CadastroServiceClient cadastroServiceClient,
+                                RecebimentoMercadoriaRepository recebimentoMercadoriaRepository) {
         this.pedidoCompraRepository = pedidoCompraRepository;
         this.pedidoCompraItemRepository = pedidoCompraItemRepository;
         this.compraStatusHistoricoRepository = compraStatusHistoricoRepository;
         this.compraNumeroService = compraNumeroService;
         this.cadastroServiceClient = cadastroServiceClient;
+        this.recebimentoMercadoriaRepository = recebimentoMercadoriaRepository;
     }
 
     // ---------------------------------------------------------------- criação/edição
@@ -233,6 +239,29 @@ public class PedidoCompraService {
             throw new BusinessException(Constants.PEDIDO_COMPRA_MOTIVO_ENCERRAMENTO_OBRIGATORIO, HttpStatus.BAD_REQUEST);
         }
         return transicionar(pedidoId, tenantId, userId, StatusPedidoCompra.ENCERRADO, motivo, p -> { });
+    }
+
+    /**
+     * Encerra o pedido automaticamente quando o faturamento do último recebimento pendente
+     * completa o ciclo: só age se o pedido já estiver RECEBIDO_TOTAL (sem saldo pendente) e todos
+     * os seus recebimentos não cancelados estiverem FATURADO (spec/p2p-compras.md §"Integração com
+     * o financeiro", Fase 4). Chamado só por RecebimentoMercadoriaService.faturar(). No-op nos
+     * demais casos — o pedido segue RECEBIDO_TOTAL/RECEBIDO_PARCIAL até o restante ser faturado ou
+     * o saldo ser encerrado manualmente ({@link #encerrarSaldo}).
+     */
+    @Transactional
+    public void encerrarSeTodosRecebimentosFaturados(UUID pedidoId, Long tenantId, UUID userId) {
+        PedidoCompra pedido = buscarPedido(pedidoId, tenantId);
+        if (pedido.getStatus() != StatusPedidoCompra.RECEBIDO_TOTAL) {
+            return;
+        }
+        List<RecebimentoMercadoria> recebimentos = recebimentoMercadoriaRepository.findAllByPedidoId(pedidoId);
+        boolean todosFaturados = recebimentos.stream()
+                .filter(r -> r.getStatus() != StatusRecebimentoMercadoria.CANCELADO)
+                .allMatch(r -> r.getStatus() == StatusRecebimentoMercadoria.FATURADO);
+        if (todosFaturados) {
+            transicionar(pedidoId, tenantId, userId, StatusPedidoCompra.ENCERRADO, null, p -> { });
+        }
     }
 
     private PedidoCompra transicionar(UUID pedidoId, Long tenantId, UUID userId, StatusPedidoCompra statusDestino,

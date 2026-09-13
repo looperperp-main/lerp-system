@@ -9,7 +9,9 @@ import com.l.erp.operacoesservice.api.mappers.RecebimentoMercadoriaAssembler;
 import com.l.erp.operacoesservice.api.mappers.RecebimentoMercadoriaMapper;
 import com.l.erp.operacoesservice.domain.compras.RecebimentoMercadoria;
 import com.l.erp.operacoesservice.domain.compras.enumerators.StatusRecebimentoMercadoria;
+import com.l.erp.operacoesservice.infra.client.CadastroServiceClient;
 import com.l.erp.operacoesservice.services.compras.RecebimentoMercadoriaService;
+import com.l.erp.operacoesservice.services.vendas.PedidoService.ParcelaDefinicao;
 import com.l.erp.operacoesservice.util.SecurityUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -34,6 +36,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 /** Recebimento de mercadoria: EM_CONFERENCIA -> CONFIRMADO/CANCELADO (spec/p2p-compras.md, Fase 3). */
@@ -47,12 +50,15 @@ public class RecebimentoMercadoriaController {
     private final RecebimentoMercadoriaService service;
     private final RecebimentoMercadoriaMapper mapper;
     private final RecebimentoMercadoriaAssembler assembler;
+    private final CadastroServiceClient cadastroServiceClient;
 
     public RecebimentoMercadoriaController(RecebimentoMercadoriaService service, RecebimentoMercadoriaMapper mapper,
-                                            RecebimentoMercadoriaAssembler assembler) {
+                                            RecebimentoMercadoriaAssembler assembler,
+                                            CadastroServiceClient cadastroServiceClient) {
         this.service = service;
         this.mapper = mapper;
         this.assembler = assembler;
+        this.cadastroServiceClient = cadastroServiceClient;
     }
 
     @Operation(summary = "Registrar recebimento", description = "Cria recebimento em EM_CONFERENCIA para um pedido ENVIADO/RECEBIDO_PARCIAL.")
@@ -115,6 +121,21 @@ public class RecebimentoMercadoriaController {
         logger.info("Cancelando recebimento de mercadoria ID: {}", id);
         String motivo = dto != null ? dto.motivo() : null;
         return ResponseEntity.ok(detalhe(service.cancelar(id, tenantId(), userId(), motivo)));
+    }
+
+    @Operation(summary = "Faturar recebimento",
+            description = "CONFIRMADO -> FATURADO: calcula as parcelas pela condição de pagamento e publica "
+                    + "nfe.entrada.aprovada (Fin.md §F4.2) pro financeiro-service gerar os títulos pagar.")
+    @PostMapping("/recebimentos/{id}/faturar")
+    @PreAuthorize("hasAuthority('COMPRAS_FATURAR')")
+    public ResponseEntity<RecebimentoMercadoriaResponseDTO> faturar(@PathVariable UUID id) {
+        logger.info("Faturando recebimento de mercadoria ID: {}", id);
+        Long tenantId = tenantId();
+        UUID userId = userId();
+        RecebimentoMercadoria recebimento = service.buscarPorId(id, tenantId);
+        List<ParcelaDefinicao> parcelas =
+                cadastroServiceClient.buscarParcelas(recebimento.getCondicaoPagamentoId(), tenantId, userId);
+        return ResponseEntity.ok(detalhe(service.faturar(id, tenantId, userId, parcelas)));
     }
 
     private RecebimentoMercadoriaResponseDTO detalhe(RecebimentoMercadoria recebimento) {

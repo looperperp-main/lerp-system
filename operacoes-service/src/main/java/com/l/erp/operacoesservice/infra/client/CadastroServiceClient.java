@@ -139,6 +139,25 @@ public class CadastroServiceClient {
     public record FornecedorRef(UUID pessoaId, String pessoaNomeRazao, Boolean ativo) {
     }
 
+    // P2P (spec/p2p-compras.md, Fase 4) — CNPJ do fornecedor pro payload nfe.entrada.aprovada
+    // (Fin.md §F4.2). Best-effort: pessoa não encontrada não deve travar o faturamento do
+    // recebimento, o evento simplesmente sai com fornecedorCnpj nulo.
+    public PessoaRef buscarPessoa(UUID pessoaId, Long tenantId, UUID userId) {
+        try {
+            return restClient.get()
+                    .uri("/api/v1/pessoas/{id}", pessoaId)
+                    .headers(headers -> headersInternos(headers, tenantId, userId))
+                    .retrieve()
+                    .body(PessoaRef.class);
+        } catch (HttpClientErrorException.NotFound e) {
+            return null;
+        }
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record PessoaRef(String documento) {
+    }
+
     // P2P (spec/p2p-compras.md, Fase 2) — preco_custo do ProdutoFornecedor em lote, pro alerta de
     // preço fora da faixa (RN-P2P-04). Best-effort: se o cadastro-service falhar ou o vínculo não
     // existir, o alerta simplesmente não dispara pro item — não bloqueia a emissão do pedido.

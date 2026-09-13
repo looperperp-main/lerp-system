@@ -11,7 +11,9 @@ import com.l.erp.operacoesservice.api.mappers.RecebimentoMercadoriaMapper;
 import com.l.erp.operacoesservice.domain.compras.RecebimentoMercadoria;
 import com.l.erp.operacoesservice.domain.compras.enumerators.StatusRecebimentoMercadoria;
 import com.l.erp.operacoesservice.domain.compras.enumerators.TipoDocumentoFiscal;
+import com.l.erp.operacoesservice.infra.client.CadastroServiceClient;
 import com.l.erp.operacoesservice.services.compras.RecebimentoMercadoriaService;
+import com.l.erp.operacoesservice.services.vendas.PedidoService.ParcelaDefinicao;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -46,6 +48,7 @@ class RecebimentoMercadoriaControllerTest {
     @MockitoBean private RecebimentoMercadoriaService service;
     @MockitoBean private RecebimentoMercadoriaMapper mapper;
     @MockitoBean private RecebimentoMercadoriaAssembler assembler;
+    @MockitoBean private CadastroServiceClient cadastroServiceClient;
 
     private static final Long TENANT_ID = 1L;
     private static final UUID USER_ID = UUID.randomUUID();
@@ -144,5 +147,33 @@ class RecebimentoMercadoriaControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser(authorities = "COMPRAS_FATURAR")
+    void faturarDeveRetornar200() throws Exception {
+        UUID id = UUID.randomUUID();
+        UUID condicaoPagamentoId = UUID.randomUUID();
+        RecebimentoMercadoria recebimento = recebimento(id);
+        recebimento.setCondicaoPagamentoId(condicaoPagamentoId);
+        List<ParcelaDefinicao> parcelas = List.of(new ParcelaDefinicao(1, 30, BigDecimal.valueOf(100), "BOLETO"));
+        when(service.buscarPorId(id, TENANT_ID)).thenReturn(recebimento);
+        when(cadastroServiceClient.buscarParcelas(condicaoPagamentoId, TENANT_ID, USER_ID)).thenReturn(parcelas);
+        when(service.faturar(id, TENANT_ID, USER_ID, parcelas)).thenReturn(recebimento);
+        when(assembler.toDetailModel(any(), any())).thenReturn(responseDto(id));
+
+        mockMvc.perform(post("/api/v1/compras/recebimentos/{id}/faturar", id)
+                        .header(Constants.HEADER_TENANT_ID, TENANT_ID)
+                        .header(Constants.HEADER_USER_ID, USER_ID))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser(authorities = "COMPRAS_RECEBER")
+    void faturarSemAutoridadeDeveRetornar403() throws Exception {
+        mockMvc.perform(post("/api/v1/compras/recebimentos/{id}/faturar", UUID.randomUUID())
+                        .header(Constants.HEADER_TENANT_ID, TENANT_ID)
+                        .header(Constants.HEADER_USER_ID, USER_ID))
+                .andExpect(status().isForbidden());
     }
 }

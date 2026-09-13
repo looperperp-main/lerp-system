@@ -34,6 +34,7 @@ Levantamento direto dos `@KafkaListener` e `kafkaTemplate.send(...)` nos serviç
 | `venda.pedido.cancelado` | pedidoId | operacoes · `PedidoEventProducer` | — (nenhum consumidor ainda) | — |
 | `compra.recebimento.confirmado` | recebimentoId | operacoes · `RecebimentoEventProducer` | cadastro · `RecebimentoCompraConfirmadoConsumer` (atualiza `ProdutoFornecedor.ultimoPrecoCompra`) | `cadastro-service-group` |
 | `compra.recebimento.cancelado` | recebimentoId | operacoes · `RecebimentoEventProducer` | — (só notificação externa, sem consumidor) | — |
+| `nfe.entrada.aprovada` | recebimentoId | operacoes · `RecebimentoEventProducer` | — (financeiro-service ainda não existe; publicado desde já, decisão do usuário — spec/p2p-compras.md Fase 4) | — |
 | `audit.events` | actorId (billing.sendAuditEvent usa targetId; operacoes usa pedidoId) | partner/billing · `AuditProducerService`, billing · `KafkaBillingProducerService`, operacoes · `PedidoEventProducer` | auth · `AuditConsumer` | auth-service-group |
 | `<topic>.DLT` | herda | `DeadLetterPublishingRecoverer` (auth/partner/billing) | — (inspeção manual) | — |
 

@@ -16,6 +16,7 @@ import com.l.erp.operacoesservice.repository.compras.PedidoCompraItemRepository;
 import com.l.erp.operacoesservice.repository.compras.RecebimentoMercadoriaItemRepository;
 import com.l.erp.operacoesservice.repository.compras.RecebimentoMercadoriaRepository;
 import com.l.erp.operacoesservice.services.estoque.EstoqueService;
+import com.l.erp.operacoesservice.services.vendas.PedidoService.ParcelaDefinicao;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -353,5 +354,65 @@ class RecebimentoMercadoriaServiceTest {
 
         assertThatThrownBy(() -> service.buscarPorId(id, TENANT_ID))
                 .isInstanceOf(BusinessException.class);
+    }
+
+    // ---------------------------------------------------------------- faturar() (Fase 4)
+
+    private RecebimentoMercadoria recebimentoConfirmado(PedidoCompra pedido) {
+        RecebimentoMercadoria recebimento = RecebimentoMercadoria.builder().id(UUID.randomUUID())
+                .pedido(pedido).status(StatusRecebimentoMercadoria.CONFIRMADO)
+                .valorTotalNf(BigDecimal.TEN).nfeDataEmissao(LocalDate.now()).build();
+        recebimento.setTenantId(TENANT_ID);
+        return recebimento;
+    }
+
+    @Test
+    void deveLancarAoFaturarQuandoNaoConfirmado() {
+        PedidoCompra pedido = pedidoComStatus(StatusPedidoCompra.ENVIADO);
+        RecebimentoMercadoria recebimento = RecebimentoMercadoria.builder().id(UUID.randomUUID())
+                .pedido(pedido).status(StatusRecebimentoMercadoria.EM_CONFERENCIA).build();
+        recebimento.setTenantId(TENANT_ID);
+        when(recebimentoMercadoriaRepository.findByIdAndTenantId(recebimento.getId(), TENANT_ID))
+                .thenReturn(Optional.of(recebimento));
+
+        List<ParcelaDefinicao> parcelas = List.of(new ParcelaDefinicao(1, 30, BigDecimal.valueOf(100), "BOLETO"));
+
+        assertThatThrownBy(() -> service.faturar(recebimento.getId(), TENANT_ID, USER_ID, parcelas))
+                .isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    void deveLancarAoFaturarComSomaDePercentuaisDiferenteDeCem() {
+        PedidoCompra pedido = pedidoComStatus(StatusPedidoCompra.RECEBIDO_TOTAL);
+        RecebimentoMercadoria recebimento = recebimentoConfirmado(pedido);
+        when(recebimentoMercadoriaRepository.findByIdAndTenantId(recebimento.getId(), TENANT_ID))
+                .thenReturn(Optional.of(recebimento));
+
+        List<ParcelaDefinicao> parcelas = List.of(new ParcelaDefinicao(1, 30, BigDecimal.valueOf(50), "BOLETO"));
+
+        assertThatThrownBy(() -> service.faturar(recebimento.getId(), TENANT_ID, USER_ID, parcelas))
+                .isInstanceOf(BusinessException.class);
+        verify(recebimentoMercadoriaRepository, never()).save(any());
+    }
+
+    @Test
+    void deveFaturarCalcularParcelasEPublicarEvento() {
+        PedidoCompra pedido = pedidoComStatus(StatusPedidoCompra.RECEBIDO_TOTAL);
+        RecebimentoMercadoria recebimento = recebimentoConfirmado(pedido);
+        when(recebimentoMercadoriaRepository.findByIdAndTenantId(recebimento.getId(), TENANT_ID))
+                .thenReturn(Optional.of(recebimento));
+        when(recebimentoMercadoriaItemRepository.findAllByRecebimentoId(recebimento.getId())).thenReturn(List.of());
+
+        List<ParcelaDefinicao> parcelas = List.of(
+                new ParcelaDefinicao(1, 30, BigDecimal.valueOf(50), "BOLETO"),
+                new ParcelaDefinicao(2, 60, BigDecimal.valueOf(50), "BOLETO"));
+
+        RecebimentoMercadoria resultado = service.faturar(recebimento.getId(), TENANT_ID, USER_ID, parcelas);
+
+        assertThat(resultado.getStatus()).isEqualTo(StatusRecebimentoMercadoria.FATURADO);
+        assertThat(resultado.getFaturadoEm()).isNotNull();
+        verify(compraStatusHistoricoRepository).save(any());
+        verify(pedidoCompraService).encerrarSeTodosRecebimentosFaturados(pedido.getId(), TENANT_ID, USER_ID);
+        verify(eventPublisher).publishEvent(any(RecebimentoFaturadoEvent.class));
     }
 }

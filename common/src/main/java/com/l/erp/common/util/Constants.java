@@ -723,4 +723,14 @@ public class Constants {
     public static final String RECEBIMENTO_COMPRA = "RECEBIMENTO_COMPRA";
     public static final String AUDIT_ACAO_RECEBIMENTO_CONFIRMADO = "RECEBIMENTO_CONFIRMADO";
     public static final String AUDIT_ACAO_RECEBIMENTO_CANCELADO = "RECEBIMENTO_CANCELADO";
+
+    // P2P — Faturamento do recebimento (operacoes-service, spec/p2p-compras.md, Fase 4)
+    // RN-P2P-06: soma dos percentuais das parcelas da condição de pagamento deve ser 100%.
+    // Placeholder: soma encontrada.
+    public static final String RECEBIMENTO_COMPRA_PARCELAS_PERCENTUAL_INVALIDO =
+            "Soma dos percentuais das parcelas deve ser 100 (atual: %s)";
+    // Publica nfe.entrada.aprovada (Fin.md §F4.2) pro financeiro-service gerar os títulos pagar —
+    // publicado desde já, sem consumidor (decisão do usuário, ver spec/p2p-compras.md).
+    public static final String NFE_ENTRADA_APROVADA_TOPIC = "nfe.entrada.aprovada";
+    public static final String AUDIT_ACAO_RECEBIMENTO_FATURADO = "RECEBIMENTO_FATURADO";
 }
