@@ -61,6 +61,7 @@ export interface CotacaoCompra {
   dataLimiteResposta?: string;
   depositoId?: string;
   cotacaoFornecedorVencedorId?: string;
+  quantidadeFornecedoresConvidados?: number;
   createdAt?: string;
   updatedAt?: string;
   createdBy?: string;

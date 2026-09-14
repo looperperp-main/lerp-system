@@ -48,6 +48,29 @@
   color: var(--ink-3);
 }
 
+.jb-field {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 14px;
+}
+
+.jb-label {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--ink-2);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.jb-form-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
 .jb-list-footer {
   display: flex;
   justify-content: space-between;

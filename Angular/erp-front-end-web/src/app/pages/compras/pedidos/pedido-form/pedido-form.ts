@@ -84,6 +84,34 @@ export class PedidoForm implements OnInit, OnChanges {
 
     this.populateForm();
     this.loadDropdowns();
+
+    this.form.get('requisicaoId')!.valueChanges.subscribe((requisicaoId) => {
+      if (requisicaoId) {
+        this.aoSelecionarRequisicao(requisicaoId);
+      }
+    });
+  }
+
+  private aoSelecionarRequisicao(requisicaoId: string): void {
+    this.requisicaoService.buscarPorId(requisicaoId).subscribe({
+      next: (requisicao) => {
+        this.form.patchValue({ depositoId: requisicao.depositoId || null });
+        this.itensArray.clear();
+        (requisicao.itens || []).forEach((item) =>
+          this.addItem(item.produtoId, item.quantidade, 0),
+        );
+        if (this.itensArray.length === 0) {
+          this.addItem();
+        }
+      },
+      error: (err: HttpErrorResponse) => {
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Erro',
+          detail: err.error?.message || 'Erro ao carregar itens da requisição.',
+        });
+      },
+    });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -95,17 +123,20 @@ export class PedidoForm implements OnInit, OnChanges {
   private populateForm(): void {
     this.itensArray.clear();
 
-    this.form.patchValue({
-      fornecedorId: this.pedidoData?.fornecedorId || null,
-      condicaoPagamentoId: this.pedidoData?.condicaoPagamentoId || null,
-      depositoId: this.pedidoData?.depositoId || null,
-      requisicaoId: this.pedidoData?.requisicaoId || null,
-      dataPrevisaoEntrega: this.pedidoData?.dataPrevisaoEntrega
-        ? new Date(this.pedidoData.dataPrevisaoEntrega)
-        : null,
-      valorFrete: this.pedidoData?.valorFrete ?? null,
-      observacao: this.pedidoData?.observacao || '',
-    });
+    this.form.patchValue(
+      {
+        fornecedorId: this.pedidoData?.fornecedorId || null,
+        condicaoPagamentoId: this.pedidoData?.condicaoPagamentoId || null,
+        depositoId: this.pedidoData?.depositoId || null,
+        requisicaoId: this.pedidoData?.requisicaoId || null,
+        dataPrevisaoEntrega: this.pedidoData?.dataPrevisaoEntrega
+          ? new Date(this.pedidoData.dataPrevisaoEntrega)
+          : null,
+        valorFrete: this.pedidoData?.valorFrete ?? null,
+        observacao: this.pedidoData?.observacao || '',
+      },
+      { emitEvent: false },
+    );
 
     if (this.pedidoData?.itens?.length) {
       this.pedidoData.itens.forEach((item) =>

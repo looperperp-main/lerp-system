@@ -42,6 +42,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.Set;
 import java.util.UUID;
 
@@ -313,6 +314,16 @@ public class CotacaoCompraService {
     @Transactional(readOnly = true)
     public Page<CotacaoCompra> listar(Long tenantId, StatusCotacaoCompra status, UUID requisicaoId, Pageable pageable) {
         return cotacaoCompraRepository.buscarComFiltros(tenantId, status, requisicaoId, pageable);
+    }
+
+    public Map<UUID, Long> contarFornecedoresConvidados(List<UUID> cotacaoIds) {
+        if (cotacaoIds.isEmpty()) {
+            return Map.of();
+        }
+        return cotacaoCompraFornecedorRepository.countByCotacaoIdIn(cotacaoIds).stream()
+                .collect(Collectors.toMap(
+                        CotacaoCompraFornecedorRepository.CotacaoFornecedorCount::getCotacaoId,
+                        CotacaoCompraFornecedorRepository.CotacaoFornecedorCount::getTotal));
     }
 
     @Transactional(readOnly = true)

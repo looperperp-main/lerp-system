@@ -47,6 +47,7 @@ import { TenantLoginService } from '../../../login/service/tenant-login.service'
 })
 export class RequisicaoForm implements OnInit, OnChanges {
   @Input() requisicaoData: RequisicaoCompra | null = null;
+  @Input() readonly = false;
   @Output() saved = new EventEmitter<void>();
   @Output() canceled = new EventEmitter<void>();
 
@@ -98,6 +99,12 @@ export class RequisicaoForm implements OnInit, OnChanges {
       );
     } else {
       this.addItem();
+    }
+
+    if (this.readonly) {
+      this.form.disable();
+    } else {
+      this.form.enable();
     }
   }
 

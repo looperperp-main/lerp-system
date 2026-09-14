@@ -37,6 +37,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /** P2P — cotação de compra multi-fornecedor: ABERTA → ENCERRADA/CANCELADA (spec/p2p-compras.md, Fase 5). */
@@ -90,7 +91,14 @@ public class CotacaoCompraController {
             Pageable pageable,
             PagedResourcesAssembler<CotacaoCompra> pagedResourcesAssembler) {
         Page<CotacaoCompra> page = service.listar(tenantId(), status, requisicaoId, pageable);
-        return ResponseEntity.ok(pagedResourcesAssembler.toModel(page, assembler));
+        PagedModel<CotacaoCompraResponseDTO> model = pagedResourcesAssembler.toModel(page, assembler);
+
+        List<UUID> ids = page.getContent().stream().map(CotacaoCompra::getId).toList();
+        Map<UUID, Long> contagens = service.contarFornecedoresConvidados(ids);
+        model.getContent().forEach(dto ->
+                dto.setQuantidadeFornecedoresConvidados(contagens.getOrDefault(dto.getId(), 0L).intValue()));
+
+        return ResponseEntity.ok(model);
     }
 
     @Operation(summary = "Registrar resposta do fornecedor",

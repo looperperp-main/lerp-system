@@ -110,6 +110,7 @@ public class PedidoCompraService {
             item.setTenantId(tenantId);
             item.setCreatedAt(agora);
             item.setCreatedBy(userId);
+            item.setQuantidadeRecebida(BigDecimal.ZERO);
         }
         pedidoCompraItemRepository.saveAll(itens);
 

@@ -10,7 +10,8 @@ import { Tooltip } from 'primeng/tooltip';
 import { Toast } from 'primeng/toast';
 import { Select } from 'primeng/select';
 import { InputText } from 'primeng/inputtext';
-import { ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
+import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { Textarea } from 'primeng/textarea';
 import { HttpErrorResponse } from '@angular/common/http';
 import { PrimaryButtonComponent } from '../../../components/primary-button/primary-button';
 import { Breadcrumb } from '../../../components/breadcrumb/breadcrumb';
@@ -37,6 +38,7 @@ import { ProdutoService } from '../../cadastros/produtos/produto.service';
     Toast,
     Select,
     InputText,
+    Textarea,
     ReactiveFormsModule,
     PrimaryButtonComponent,
     Breadcrumb,
@@ -60,7 +62,13 @@ export class Requisicoes implements OnInit {
   produtosMap = new Map<string, string>();
 
   displayForm = false;
+  viewMode = false;
   selectedRequisicao: RequisicaoCompra | null = null;
+
+  displayReprovarDialog = false;
+  requisicaoParaReprovar: RequisicaoCompra | null = null;
+  processando = signal<boolean>(false);
+  reprovarForm: FormGroup = this.fb.group({ motivo: ['', Validators.required] });
 
   statusLabel = STATUS_REQUISICAO_LABEL;
   statusOptions = [
@@ -121,11 +129,13 @@ export class Requisicoes implements OnInit {
 
   openNew(): void {
     this.selectedRequisicao = null;
+    this.viewMode = false;
     this.displayForm = true;
   }
 
   editarRequisicao(requisicao: RequisicaoCompra): void {
     this.selectedRequisicao = requisicao;
+    this.viewMode = false;
     this.displayForm = true;
 
     this.requisicaoService.buscarPorId(requisicao.id!).subscribe({
@@ -135,6 +145,22 @@ export class Requisicoes implements OnInit {
       error: (err: HttpErrorResponse) => {
         this.displayForm = false;
         this.handleError(err, 'Erro ao carregar a requisição para edição.');
+      },
+    });
+  }
+
+  visualizarRequisicao(requisicao: RequisicaoCompra): void {
+    this.selectedRequisicao = requisicao;
+    this.viewMode = true;
+    this.displayForm = true;
+
+    this.requisicaoService.buscarPorId(requisicao.id!).subscribe({
+      next: (r) => {
+        this.selectedRequisicao = r;
+      },
+      error: (err: HttpErrorResponse) => {
+        this.displayForm = false;
+        this.handleError(err, 'Erro ao carregar a requisição.');
       },
     });
   }
@@ -156,6 +182,58 @@ export class Requisicoes implements OnInit {
       error: (err: HttpErrorResponse) =>
         this.handleError(err, 'Erro ao enviar requisição para aprovação.'),
     });
+  }
+
+  podeAprovar(requisicao: RequisicaoCompra): boolean {
+    return requisicao.status === 'PENDENTE_APROVACAO';
+  }
+
+  aprovar(requisicao: RequisicaoCompra): void {
+    this.processando.set(true);
+    this.requisicaoService.aprovar(requisicao.id!).subscribe({
+      next: () => {
+        this.processando.set(false);
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Sucesso',
+          detail: 'Requisição aprovada.',
+        });
+        this.loadRequisicoes();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.processando.set(false);
+        this.handleError(err, 'Erro ao aprovar requisição.');
+      },
+    });
+  }
+
+  abrirReprovar(requisicao: RequisicaoCompra): void {
+    this.requisicaoParaReprovar = requisicao;
+    this.reprovarForm.reset();
+    this.displayReprovarDialog = true;
+  }
+
+  confirmarReprovacao(): void {
+    if (this.reprovarForm.invalid || !this.requisicaoParaReprovar) return;
+    this.processando.set(true);
+    this.requisicaoService
+      .reprovar(this.requisicaoParaReprovar.id!, this.reprovarForm.value)
+      .subscribe({
+        next: () => {
+          this.processando.set(false);
+          this.displayReprovarDialog = false;
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Sucesso',
+            detail: 'Requisição reprovada.',
+          });
+          this.loadRequisicoes();
+        },
+        error: (err: HttpErrorResponse) => {
+          this.processando.set(false);
+          this.handleError(err, 'Erro ao reprovar requisição.');
+        },
+      });
   }
 
   onFormSaved(): void {

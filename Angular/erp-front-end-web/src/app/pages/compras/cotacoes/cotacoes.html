@@ -75,7 +75,7 @@
             </td>
             <td>{{ numeroRequisicao(rowData.requisicaoId) }}</td>
             <td>{{ rowData.dataLimiteResposta ? (rowData.dataLimiteResposta | date:'dd/MM/yyyy') : '-' }}</td>
-            <td>{{ rowData.fornecedores?.length ?? 0 }}</td>
+            <td>{{ rowData.quantidadeFornecedoresConvidados ?? 0 }}</td>
             <td>
               <button
                 pButton

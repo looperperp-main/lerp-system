@@ -2,6 +2,8 @@ package com.l.erp.operacoesservice.repository.compras;
 
 import com.l.erp.operacoesservice.domain.compras.CotacaoCompraFornecedor;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -19,4 +21,14 @@ public interface CotacaoCompraFornecedorRepository extends JpaRepository<Cotacao
     Optional<CotacaoCompraFornecedor> findByCotacaoIdAndFornecedorId(UUID cotacaoId, UUID fornecedorId);
 
     boolean existsByCotacaoIdAndFornecedorId(UUID cotacaoId, UUID fornecedorId);
+
+    // Contagem em lote pra listagem paginada (evita N+1 — uma query por página, não por linha).
+    @Query("select f.cotacaoId as cotacaoId, count(f) as total from CotacaoCompraFornecedor f "
+            + "where f.cotacaoId in :cotacaoIds group by f.cotacaoId")
+    List<CotacaoFornecedorCount> countByCotacaoIdIn(@Param("cotacaoIds") List<UUID> cotacaoIds);
+
+    interface CotacaoFornecedorCount {
+        UUID getCotacaoId();
+        Long getTotal();
+    }
 }

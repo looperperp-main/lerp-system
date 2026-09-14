@@ -61,6 +61,7 @@
         icon="pi pi-trash"
         class="p-button-rounded p-button-text p-button-danger p-button-sm"
         pTooltip="Remover item"
+        *ngIf="!readonly"
         (click)="removeItem(i)">
       </button>
     </div>
@@ -68,11 +69,11 @@
     <p class="jb-itens-empty" *ngIf="itensArray.length === 0">Nenhum item adicionado.</p>
   </div>
 
-  <button pButton type="button" icon="pi pi-plus" label="Adicionar Item" class="p-button-sm p-button-text" (click)="addItem()"></button>
+  <button pButton type="button" icon="pi pi-plus" label="Adicionar Item" class="p-button-sm p-button-text" *ngIf="!readonly" (click)="addItem()"></button>
 
   <div class="jb-form-footer">
-    <button pButton type="button" label="Cancelar" class="p-button-secondary" (click)="onCancel()"></button>
-    <button pButton type="submit" label="Salvar" [loading]="isSaving"></button>
+    <button pButton type="button" [label]="readonly ? 'Fechar' : 'Cancelar'" class="p-button-secondary" (click)="onCancel()"></button>
+    <button pButton type="submit" label="Salvar" [loading]="isSaving" *ngIf="!readonly"></button>
   </div>
 
 </form>

@@ -80,10 +80,19 @@
               <button
                 pButton
                 pRipple
+                icon="pi pi-eye"
+                class="p-button-rounded p-button-text p-button-sm w-8 h-8"
+                pTooltip="Ver detalhe"
+                (click)="visualizarRequisicao(rowData)"
+                tooltipPosition="top">
+              </button>
+              <button
+                pButton
+                pRipple
                 icon="pi pi-pencil"
                 class="p-button-rounded p-button-text p-button-sm w-8 h-8"
                 pTooltip="Editar"
-                [disabled]="!podeEditar(rowData)"
+                *ngIf="podeEditar(rowData)"
                 (click)="editarRequisicao(rowData)"
                 tooltipPosition="top">
               </button>
@@ -95,6 +104,26 @@
                 pTooltip="Enviar para aprovação"
                 *ngIf="rowData.status === 'RASCUNHO'"
                 (click)="enviarParaAprovacao(rowData)"
+                tooltipPosition="top">
+              </button>
+              <button
+                pButton
+                pRipple
+                icon="pi pi-check"
+                class="p-button-rounded p-button-text p-button-success p-button-sm w-8 h-8"
+                pTooltip="Aprovar"
+                *ngIf="podeAprovar(rowData)"
+                (click)="aprovar(rowData)"
+                tooltipPosition="top">
+              </button>
+              <button
+                pButton
+                pRipple
+                icon="pi pi-times"
+                class="p-button-rounded p-button-text p-button-danger p-button-sm w-8 h-8"
+                pTooltip="Reprovar"
+                *ngIf="podeAprovar(rowData)"
+                (click)="abrirReprovar(rowData)"
                 tooltipPosition="top">
               </button>
             </td>
@@ -123,15 +152,29 @@
   <ng-template pTemplate="header">
     <div class="jb-dialog-head">
       <span class="eyebrow">COMPRAS · REQUISIÇÕES</span>
-      <h2>{{ selectedRequisicao ? 'Editar Requisição' : 'Nova Requisição' }}</h2>
+      <h2>{{ viewMode ? 'Visualizar Requisição' : (selectedRequisicao ? 'Editar Requisição' : 'Nova Requisição') }}</h2>
     </div>
   </ng-template>
 
   <app-requisicao-form
     *ngIf="displayForm"
     [requisicaoData]="selectedRequisicao"
+    [readonly]="viewMode"
     (saved)="onFormSaved()"
     (canceled)="onFormCanceled()">
   </app-requisicao-form>
 
+</p-dialog>
+
+<p-dialog [(visible)]="displayReprovarDialog" [style]="{width: '440px'}" [modal]="true" header="Reprovar Requisição">
+  <form [formGroup]="reprovarForm" (ngSubmit)="confirmarReprovacao()">
+    <div class="jb-field">
+      <label class="jb-label">Motivo da Reprovação *</label>
+      <textarea pTextarea formControlName="motivo" rows="3" style="width: 100%;"></textarea>
+    </div>
+    <div class="jb-form-footer">
+      <button pButton type="button" label="Voltar" class="p-button-secondary" (click)="displayReprovarDialog = false"></button>
+      <button pButton type="submit" label="Confirmar Reprovação" class="p-button-danger" [loading]="processando()"></button>
+    </div>
+  </form>
 </p-dialog>

@@ -26,6 +26,7 @@ public class CotacaoCompraResponseDTO extends RepresentationModel<CotacaoCompraR
     private LocalDate dataLimiteResposta;
     private UUID depositoId;
     private UUID cotacaoFornecedorVencedorId;
+    private Integer quantidadeFornecedoresConvidados;
     private Instant createdAt;
     private Instant updatedAt;
     private UUID createdBy;
