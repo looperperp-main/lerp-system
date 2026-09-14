@@ -200,11 +200,33 @@ alinhado com a exigência do §7 de não introduzir lock-in.
       O resultado do passo 1 (por UF) fica em `emissao.csrt_config` (`uf`,
       `id_csrt`, `hash`, `vigente_de`, `vigente_ate`) — mesmo padrão de
       vigência já usado em `fiscal.*`.
-    - **Pendente de confirmação antes da Etapa 2:** `infRespTec`/CSRT não é
-      obrigatório em todas as UFs simultaneamente (adoção da NT 2016.002
-      variou por estado). Confirmar, para cada uma das 5 UFs prioritárias
-      (SP, MG, RJ, DF, SC), se está exigido hoje — não presumir com base nas
-      outras tabelas deste doc.
+    - **Não existe portal nacional único para o credenciamento do RT** — é
+      por SEFAZ estadual (página da área do contribuinte/desenvolvedor, às
+      vezes também via webservice). Preencher `infRespTec` numa UF que não
+      exige gera **rejeição 225 (falha de schema)** — não é "preencher
+      sempre por segurança", tem que saber por UF se está exigido. Limite:
+      até 5 CSRT válidos simultâneos por estado (revogar um antigo pra gerar
+      o 6º).
+    - **Confirmado (14/09/2026) para as 5 UFs prioritárias — pendência
+      fechada.** Fonte: NT 2018.005 v1.52 (`spec/NT2018 005_v1_52-
+      AlteracaodeleiauteNF-eNFC.pdf`, §2.1/2.2 — CSRT é "a critério da UF",
+      cada estado publica se/como exige) + confirmação direta nos portais
+      oficiais de SP/MG/DF:
+      - **SC**: **obrigatório** desde 29/04/2020 (lista oficial da NT:
+        AM, MS, PE, PR, SC, TO — early adopters em produção desde
+        03/06/2019).
+      - **RJ**: aceita o campo **facultativamente** — não obrigatório.
+      - **SP**: SEFAZ-SP não publicou sistema/exigência de CSRT — não
+        obrigatório.
+      - **MG**: SEF-MG declara oficialmente (FAQ NFC-e/CSRT) que não tem
+        previsão de exigir — não obrigatório, sem link de cadastro
+        disponível.
+      - **DF**: SEEC-DF usa infraestrutura padrão sem ambiente próprio de
+        CSRT — não obrigatório.
+      **Conclusão prática**: `infRespTec`/CSRT só entra em produção de fato
+      para **SC** na Etapa 2/3; para SP/MG/RJ/DF o campo fica implementado
+      (é dado, não código travado) mas sem CSRT configurado — nunca
+      preenchido, evitando a rejeição 225 por schema.
 12. **Configuração de endpoint é dado, não código — com roteamento de
     contingência acionável pelo tenant.** Decisão (14 de setembro de 2026):
     nenhuma URL de webservice fica hardcoded nem em `application.yml` — vive
