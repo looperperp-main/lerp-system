@@ -174,14 +174,37 @@ alinhado com a exigência do §7 de não introduzir lock-in.
       produção — sem linha `CREDENCIADO`, emissão em produção nega com erro
       em PT-BR claro (`GlobalExceptionHandler`), nunca tenta e falha na
       SEFAZ. Vira checklist de onboarding fiscal na UI do tenant.
-    - **`infRespTec` + CSRT** (Código de Segurança do Responsável Técnico) é
-      obrigação do **fornecedor** (esta empresa), não do tenant — um
-      `infRespTec` fixo (CNPJ, contato) entra em `common/Constants.java`
-      (convenção do projeto para valor constante reutilizado); o CSRT é
-      obtido junto à SEFAZ **por UF**, então vira tabela pequena
-      `emissao.csrt_config` (`uf`, `id_csrt`, `hash`, `vigente_de`,
-      `vigente_ate`) — mesmo padrão de vigência já usado em `fiscal.*`.
-      Levantar o processo de obtenção por UF antes da Etapa 2.
+    - **Responsável Técnico (RT) ≠ Emissor.** O emissor de cada nota é sempre
+      o tenant (CNPJ dele, certificado dele, credenciamento dele — item
+      acima). O **Responsável Técnico** é quem *desenvolveu o software*, e
+      aparece num grupo à parte do XML (`infRespTec`), independente de quem
+      emitiu a nota. **SYAX não precisa ter CNPJ próprio para isso** — o RT é
+      identificado só pelo CNPJ informado, e esse CNPJ pode ser o do Vitor
+      (CNPJ hoje usado para outro serviço dele); "SYAX" é só o nome do
+      produto, não precisa ser uma pessoa jurídica separada. Se um dia SYAX
+      virar CNPJ próprio, é só re-credenciar o RT com o CNPJ novo — troca de
+      dado, não de arquitetura.
+    - **Cadastro do RT tem duas partes, uma externa e uma em código:**
+      1. **Credenciamento (externo, manual, uma vez por UF):** o RT se
+         cadastra no portal da SEFAZ daquele estado (CNPJ, nome de contato,
+         e-mail, telefone) e recebe um **CSRT** (código, com vigência —
+         precisa renovar periodicamente). Isso não é automatizável, é feito
+         fora do sistema.
+      2. **Preenchimento do XML (código, por documento):** com o CSRT em
+         mãos, todo NF-e/NFC-e emitido carrega um grupo `infRespTec` com
+         CNPJ/contato fixos (`common/Constants.java`, convenção do projeto
+         para valor constante reutilizado) mais dois campos calculados por
+         nota: `idCSRT` (o código vigente daquela UF) e `hashCSRT` =
+         Base64(SHA-1(CSRT + chave de acesso de 44 dígitos da NF-e)). Isso é
+         puramente determinístico, sem chamada externa.
+      O resultado do passo 1 (por UF) fica em `emissao.csrt_config` (`uf`,
+      `id_csrt`, `hash`, `vigente_de`, `vigente_ate`) — mesmo padrão de
+      vigência já usado em `fiscal.*`.
+    - **Pendente de confirmação antes da Etapa 2:** `infRespTec`/CSRT não é
+      obrigatório em todas as UFs simultaneamente (adoção da NT 2016.002
+      variou por estado). Confirmar, para cada uma das 5 UFs prioritárias
+      (SP, MG, RJ, DF, SC), se está exigido hoje — não presumir com base nas
+      outras tabelas deste doc.
 12. **Configuração de endpoint é dado, não código — com roteamento de
     contingência acionável pelo tenant.** Decisão (14 de setembro de 2026):
     nenhuma URL de webservice fica hardcoded nem em `application.yml` — vive
