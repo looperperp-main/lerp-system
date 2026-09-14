@@ -23,8 +23,8 @@ public interface CotacaoCompraFornecedorRepository extends JpaRepository<Cotacao
     boolean existsByCotacaoIdAndFornecedorId(UUID cotacaoId, UUID fornecedorId);
 
     // Contagem em lote pra listagem paginada (evita N+1 — uma query por página, não por linha).
-    @Query("select f.cotacaoId as cotacaoId, count(f) as total from CotacaoCompraFornecedor f "
-            + "where f.cotacaoId in :cotacaoIds group by f.cotacaoId")
+    @Query("select f.cotacao.id as cotacaoId, count(f) as total from CotacaoCompraFornecedor f "
+            + "where f.cotacao.id in :cotacaoIds group by f.cotacao.id")
     List<CotacaoFornecedorCount> countByCotacaoIdIn(@Param("cotacaoIds") List<UUID> cotacaoIds);
 
     interface CotacaoFornecedorCount {
