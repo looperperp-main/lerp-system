@@ -65,6 +65,14 @@ export class CotacaoForm implements OnInit {
 
     this.addItem();
     this.loadDropdowns();
+
+    this.form.get('requisicaoId')!.valueChanges.subscribe((requisicaoId) => {
+      if (requisicaoId) {
+        this.itensArray.disable();
+      } else {
+        this.itensArray.enable();
+      }
+    });
   }
 
   get itensArray(): FormArray {

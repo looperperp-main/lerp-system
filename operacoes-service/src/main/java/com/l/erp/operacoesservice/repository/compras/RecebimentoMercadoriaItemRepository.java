@@ -13,5 +13,8 @@ public interface RecebimentoMercadoriaItemRepository extends JpaRepository<Receb
 
     List<RecebimentoMercadoriaItem> findAllByRecebimentoId(UUID recebimentoId);
 
+    // Busca em lote pra listagem paginada (evita N+1 — uma query por página, não por linha).
+    List<RecebimentoMercadoriaItem> findAllByRecebimentoIdIn(List<UUID> recebimentoIds);
+
     void deleteAllByRecebimentoId(UUID recebimentoId);
 }

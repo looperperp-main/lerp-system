@@ -8,6 +8,7 @@ import com.l.erp.operacoesservice.api.dto.RecebimentoMercadoriaResponseDTO;
 import com.l.erp.operacoesservice.api.mappers.RecebimentoMercadoriaAssembler;
 import com.l.erp.operacoesservice.api.mappers.RecebimentoMercadoriaMapper;
 import com.l.erp.operacoesservice.domain.compras.RecebimentoMercadoria;
+import com.l.erp.operacoesservice.domain.compras.RecebimentoMercadoriaItem;
 import com.l.erp.operacoesservice.domain.compras.enumerators.StatusRecebimentoMercadoria;
 import com.l.erp.operacoesservice.infra.client.CadastroServiceClient;
 import com.l.erp.operacoesservice.services.compras.RecebimentoMercadoriaService;
@@ -37,6 +38,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /** Recebimento de mercadoria: EM_CONFERENCIA -> CONFIRMADO/CANCELADO (spec/p2p-compras.md, Fase 3). */
@@ -100,7 +102,14 @@ public class RecebimentoMercadoriaController {
             Pageable pageable, PagedResourcesAssembler<RecebimentoMercadoria> pagedResourcesAssembler) {
         Page<RecebimentoMercadoria> page = service.listar(tenantId(), status, pedidoId,
                 dataRecebimentoDe, dataRecebimentoAte, pageable);
-        return ResponseEntity.ok(pagedResourcesAssembler.toModel(page, assembler));
+        PagedModel<RecebimentoMercadoriaResponseDTO> model = pagedResourcesAssembler.toModel(page, assembler);
+
+        List<UUID> ids = page.getContent().stream().map(RecebimentoMercadoria::getId).toList();
+        Map<UUID, List<RecebimentoMercadoriaItem>> itensPorRecebimento = service.listarItensPorRecebimentos(ids);
+        model.getContent().forEach(dto -> dto.setItens(
+                mapper.toItemResponseDtos(itensPorRecebimento.getOrDefault(dto.getId(), List.of()))));
+
+        return ResponseEntity.ok(model);
     }
 
     @Operation(summary = "Confirmar recebimento",

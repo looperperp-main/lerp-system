@@ -128,6 +128,9 @@ app-root {
   --brand-grad: linear-gradient(135deg, #E63900 0%, #FF4B12 50%, #FDB60D 100%);
   --brand-grad-2: linear-gradient(135deg, #FF4B12 0%, #FF7A00 50%, #FDB60D 100%);
   --brand-grad-soft: linear-gradient(135deg, rgba(230, 57, 0, 0.15), rgba(255, 75, 18, 0.15), rgba(253, 182, 13, 0.15));
+
+  --glass-dialog-bg: rgba(40, 40, 50, 0.32);
+  --glass-dialog-border: rgba(255, 255, 255, 0.16);
 }
 
 /* Tema claro: mesma paleta de acento (syax/brand-grad/ok/bad), só troca fundo/tinta */
@@ -143,6 +146,9 @@ html.theme-light {
   --muted: #8C8475;
   --line: rgba(0, 0, 0, 0.08);
   --line-2: rgba(0, 0, 0, 0.14);
+
+  --glass-dialog-bg: rgba(255, 255, 255, 0.6);
+  --glass-dialog-border: rgba(0, 0, 0, 0.1);
 }
 
 html.theme-light .jb-topbar {

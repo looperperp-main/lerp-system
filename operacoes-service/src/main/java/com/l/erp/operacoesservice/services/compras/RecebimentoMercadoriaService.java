@@ -34,7 +34,9 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Recebimento de mercadoria (spec/p2p-compras.md, Fase 3): cria em EM_CONFERENCIA, confirma
@@ -324,6 +326,15 @@ public class RecebimentoMercadoriaService {
     @Transactional(readOnly = true)
     public List<RecebimentoMercadoriaItem> listarItens(UUID recebimentoId) {
         return recebimentoMercadoriaItemRepository.findAllByRecebimentoId(recebimentoId);
+    }
+
+    @Transactional(readOnly = true)
+    public Map<UUID, List<RecebimentoMercadoriaItem>> listarItensPorRecebimentos(List<UUID> recebimentoIds) {
+        if (recebimentoIds.isEmpty()) {
+            return Map.of();
+        }
+        return recebimentoMercadoriaItemRepository.findAllByRecebimentoIdIn(recebimentoIds).stream()
+                .collect(Collectors.groupingBy(item -> item.getRecebimento().getId()));
     }
 
     @Transactional(readOnly = true)

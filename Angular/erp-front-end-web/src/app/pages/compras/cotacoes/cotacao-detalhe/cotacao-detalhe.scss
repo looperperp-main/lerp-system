@@ -272,8 +272,8 @@
   }
 
   .p-dialog {
-    background: rgba(40, 40, 50, 0.32);
-    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: var(--glass-dialog-bg);
+    border: 1px solid var(--glass-dialog-border);
     border-radius: 20px;
     backdrop-filter: blur(35px) saturate(180%);
     -webkit-backdrop-filter: blur(35px) saturate(180%);
