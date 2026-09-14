@@ -16,7 +16,12 @@ import { Toast } from 'primeng/toast';
 import { Breadcrumb } from '../../../../components/breadcrumb/breadcrumb';
 import { PrimaryButtonComponent } from '../../../../components/primary-button/primary-button';
 import { PedidoCompraService } from '../pedido-compra.service';
-import { PedidoCompra, PedidoCompraItemResponse, STATUS_PEDIDO_COMPRA_LABEL, StatusPedidoCompra } from '../pedido-compra.model';
+import {
+  PedidoCompra,
+  PedidoCompraItemResponse,
+  STATUS_PEDIDO_COMPRA_LABEL,
+  StatusPedidoCompra,
+} from '../pedido-compra.model';
 import { RecebimentoMercadoriaService } from '../../recebimentos/recebimento.service';
 import {
   RecebimentoMercadoria,
@@ -226,7 +231,12 @@ export class PedidoDetalhe implements OnInit {
   }
   podeCancelar(): boolean {
     const status = this.pedido()?.status;
-    return status === 'RASCUNHO' || status === 'PENDENTE_APROVACAO' || status === 'APROVADO' || status === 'ENVIADO';
+    return (
+      status === 'RASCUNHO' ||
+      status === 'PENDENTE_APROVACAO' ||
+      status === 'APROVADO' ||
+      status === 'ENVIADO'
+    );
   }
   podeEncerrarSaldo(): boolean {
     const status = this.pedido()?.status;
@@ -387,7 +397,11 @@ export class PedidoDetalhe implements OnInit {
             quantidadePendente: [this.quantidadePendente(item)],
             quantidade: [
               this.quantidadePendente(item),
-              [Validators.required, Validators.min(0.0001), Validators.max(this.quantidadePendente(item))],
+              [
+                Validators.required,
+                Validators.min(0.0001),
+                Validators.max(this.quantidadePendente(item)),
+              ],
             ],
             precoUnitarioNf: [item.precoUnitario, [Validators.required, Validators.min(0)]],
           }),
@@ -430,7 +444,11 @@ export class PedidoDetalhe implements OnInit {
       next: () => {
         this.displayRecebimentoDialog = false;
         this.processando.set(false);
-        this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Recebimento registrado com sucesso.' });
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Sucesso',
+          detail: 'Recebimento registrado com sucesso.',
+        });
         this.carregarPedido();
       },
       error: (err: HttpErrorResponse) => {
@@ -446,7 +464,11 @@ export class PedidoDetalhe implements OnInit {
     this.recebimentoService.confirmar(recebimento.id).subscribe({
       next: () => {
         this.processando.set(false);
-        this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Recebimento confirmado.' });
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Sucesso',
+          detail: 'Recebimento confirmado.',
+        });
         this.carregarPedido();
       },
       error: (err: HttpErrorResponse) => {
@@ -462,7 +484,11 @@ export class PedidoDetalhe implements OnInit {
     this.recebimentoService.cancelar(recebimento.id, {}).subscribe({
       next: () => {
         this.processando.set(false);
-        this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Recebimento cancelado.' });
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Sucesso',
+          detail: 'Recebimento cancelado.',
+        });
         this.carregarPedido();
       },
       error: (err: HttpErrorResponse) => {
@@ -478,7 +504,11 @@ export class PedidoDetalhe implements OnInit {
     this.recebimentoService.faturar(recebimento.id).subscribe({
       next: () => {
         this.processando.set(false);
-        this.messageService.add({ severity: 'success', summary: 'Sucesso', detail: 'Recebimento faturado.' });
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Sucesso',
+          detail: 'Recebimento faturado.',
+        });
         this.carregarPedido();
       },
       error: (err: HttpErrorResponse) => {
