@@ -260,12 +260,22 @@ public class MotorFiscalService {
                 .valorInss(retencao.inss())
                 .regimeAplicado(regime.name())
                 .memoriaCalculo(memoria)
+                .cClassTrib(req.getCClassTrib())
+                .percentualIbsUf(aliqIbsEstEfetiva)
+                .percentualIbsMunicipal(aliqIbsMunEfetiva)
+                .percentualCbs(aliqCbsEfetiva)
+                .percentualReducaoAplicado(regime.reducaoPercentual())
+                .percentualIcmsNominal(legado.percentualIcmsNominal())
+                .percentualReducaoBaseIcms(legado.percentualReducaoBaseIcms())
+                .modalidadeBaseCalculoIcms(legado.modalidadeBaseCalculoIcms())
                 .build();
     }
 
     // ponytail: MEI/alíquota-zero/monofásico não calculam legado nem retenção nesta fatia —
     // campos saem null (mesmo comportamento de antes de 3c/3e). Escopo real desses casos fica
     // pra quando um caso de teste real exigir (ex.: serviço isento com ISS retido na fonte).
+    // Mesmo raciocínio cobre os campos da Etapa 0 (cClassTrib/percentuais): esses caminhos
+    // retornam ANTES de buscar AliquotaIbs/AliquotaCbs (Passo 3), então não há valor a propagar.
     private OperacaoFiscalDTO zerado(BigDecimal valorTributavel, RegimeDiferenciado regime,
                                      List<String> memoria, boolean splitLigado) {
         BigDecimal zero = BigDecimal.ZERO.setScale(ESCALA);
@@ -415,7 +425,7 @@ public class MotorFiscalService {
             BigDecimal valorIss = pct(valorTributavel, aliqIss.aliquotaPct())
                     .multiply(fatorLegado).setScale(ESCALA, RoundingMode.HALF_UP);
             memoria.add("ISS legado (" + transicao.pctRemanescente() + "% remanescente): " + valorIss);
-            return new Legado(null, valorIss);
+            return new Legado(null, valorIss, null, null, null);
         }
 
         if (!preenchido(req.getUfOrigem()) || !preenchido(req.getUfDestino())) {
@@ -428,7 +438,8 @@ public class MotorFiscalService {
         BigDecimal valorIcms = pct(valorTributavel, aliqIcmsEfetiva)
                 .multiply(fatorLegado).setScale(ESCALA, RoundingMode.HALF_UP);
         memoria.add("ICMS legado (" + transicao.pctRemanescente() + "% remanescente): " + valorIcms);
-        return new Legado(valorIcms, null);
+        return new Legado(valorIcms, null, regimeIcms.aliqNominal(), regimeIcms.pReducaoBase(),
+                Constants.FISCAL_ICMS_MODBC_VALOR_OPERACAO);
     }
 
     /**
@@ -555,6 +566,11 @@ public class MotorFiscalService {
                 .valorCreditoCbs(creditoCbs)
                 .regimeAplicado(regime.name())
                 .memoriaCalculo(memoria)
+                .cClassTrib(req.getCClassTrib())
+                .percentualIbsUf(aliqIbs.estadual().multiply(fatores.fatorIbs()))
+                .percentualIbsMunicipal(aliqIbs.municipal().multiply(fatores.fatorIbs()))
+                .percentualCbs(aliqCbs.multiply(fatores.fatorCbs()))
+                .percentualReducaoAplicado(regime.reducaoPercentual())
                 .build();
     }
 
@@ -568,9 +584,14 @@ public class MotorFiscalService {
                 .build();
     }
 
-    /** ICMS (produto) xor ISS (serviço) da transição — os dois {@code null} quando pctRemanescente = 0. */
-    private record Legado(BigDecimal icms, BigDecimal iss) {
-        private static final Legado NENHUM = new Legado(null, null);
+    /**
+     * ICMS (produto) xor ISS (serviço) da transição — os dois {@code null} quando pctRemanescente = 0.
+     * {@code percentualIcmsNominal}/{@code percentualReducaoBaseIcms}/{@code modalidadeBaseCalculoIcms}
+     * só saem preenchidos no ramo ICMS (produto) — mesmo padrão de {@code icms}.
+     */
+    private record Legado(BigDecimal icms, BigDecimal iss, BigDecimal percentualIcmsNominal,
+                           BigDecimal percentualReducaoBaseIcms, String modalidadeBaseCalculoIcms) {
+        private static final Legado NENHUM = new Legado(null, null, null, null, null);
     }
 
     /** Valores retidos na fonte — cada campo {@code null} quando não declarado ou dispensado pelo piso. */

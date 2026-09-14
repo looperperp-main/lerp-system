@@ -1,5 +1,6 @@
 package com.l.erp.cadastroservice.api.dto;
 
+import com.l.erp.cadastroservice.domain.enumerators.IndicadorIeDestinatario;
 import com.l.erp.cadastroservice.domain.enumerators.TipoPessoa;
 import com.l.erp.common.validation.NoHtml;
 import jakarta.validation.constraints.NotBlank;
@@ -24,6 +25,7 @@ public record PessoaRequestDTO(
         String im,
         String rg,
         LocalDate dataNascimento,
-        Boolean ativo
+        Boolean ativo,
+        IndicadorIeDestinatario indIeDest
 ) {
 }

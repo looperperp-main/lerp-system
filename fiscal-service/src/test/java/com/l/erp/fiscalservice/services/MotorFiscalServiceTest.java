@@ -60,6 +60,13 @@ class MotorFiscalServiceTest {
         assertValor("250.00", r.getValorIbsMunicipal());
         assertValor("1850.00", r.getValorIbs());
         assertValor("850.00", r.getValorCbs());
+
+        // Etapa 0 (contrato XML-ready) — PADRAO: sem redução, sem cClassTrib (é produto).
+        assertNull(r.getCClassTrib());
+        assertValor("16.00", r.getPercentualIbsUf());
+        assertValor("2.50", r.getPercentualIbsMunicipal());
+        assertValor("8.50", r.getPercentualCbs());
+        assertValor("0", r.getPercentualReducaoAplicado());
     }
 
     @Test
@@ -113,6 +120,13 @@ class MotorFiscalServiceTest {
         assertValor("22.20", r.getValorIbs());
         assertValor("10.20", r.getValorCbs());           // 300 * (8.50% * 0.4)
         assertEquals("ANEXO_III_60", r.getRegimeAplicado());
+
+        // Etapa 0 — redução de 60% já refletida nos percentuais efetivos.
+        assertEquals("200029", r.getCClassTrib());
+        assertValor("6.40", r.getPercentualIbsUf());       // 16.00% * 0.4
+        assertValor("1.00", r.getPercentualIbsMunicipal()); // 2.50% * 0.4
+        assertValor("3.40", r.getPercentualCbs());          // 8.50% * 0.4
+        assertValor("60", r.getPercentualReducaoAplicado());
     }
 
     /**
@@ -134,6 +148,13 @@ class MotorFiscalServiceTest {
         assertValor("92.50", r.getValorIbs());
         assertValor("42.50", r.getValorCbs());           // 500 * 8.50%
         assertEquals("INTEGRAL", r.getRegimeAplicado());
+
+        // Etapa 0 — INTEGRAL: redução 0, alíquotas cheias.
+        assertEquals("000001", r.getCClassTrib());
+        assertValor("16.00", r.getPercentualIbsUf());
+        assertValor("2.50", r.getPercentualIbsMunicipal());
+        assertValor("8.50", r.getPercentualCbs());
+        assertValor("0", r.getPercentualReducaoAplicado());
     }
 
     /**
@@ -154,6 +175,15 @@ class MotorFiscalServiceTest {
         assertValor("185.00", r.getValorIbs());
         assertValor("0", r.getValorCbs());                // CBS zerada (override 100%)
         assertEquals("PROUNI", r.getRegimeAplicado());
+
+        // Etapa 0 — override por tributo: percentuais efetivos refletem o override (IBS cheio,
+        // CBS zerado), mas percentualReducaoAplicado é o reducaoPercentual NOMINAL do regime (0),
+        // não o override — os percentuais de IBS/CBS já carregam o efeito real por tributo.
+        assertEquals("200025", r.getCClassTrib());
+        assertValor("16.00", r.getPercentualIbsUf());
+        assertValor("2.50", r.getPercentualIbsMunicipal());
+        assertValor("0", r.getPercentualCbs());
+        assertValor("0", r.getPercentualReducaoAplicado());
     }
 
     /**
@@ -176,6 +206,13 @@ class MotorFiscalServiceTest {
         assertValor("42.50", r.getValorCbs());             // 1000 * (8.50% * 0.5)
         assertValor("135.00", r.getValorIbs().add(r.getValorCbs())); // 13,50% travado da base
         assertEquals("SERVICO_FINANCEIRO", r.getRegimeAplicado());
+
+        // Etapa 0 — override de alíquota ABSOLUTA: percentuais efetivos já rateados (fator 0.5).
+        assertEquals("010002", r.getCClassTrib());
+        assertValor("8.00", r.getPercentualIbsUf());       // 16.00% * 0.5
+        assertValor("1.25", r.getPercentualIbsMunicipal()); // 2.50% * 0.5
+        assertValor("4.25", r.getPercentualCbs());          // 8.50% * 0.5
+        assertValor("0", r.getPercentualReducaoAplicado());
     }
 
     @Test
@@ -452,6 +489,12 @@ class MotorFiscalServiceTest {
         assertNull(r.getValorIbs());
         assertNull(r.getValorCbs());
         assertNull(r.getValorIs());
+
+        // Etapa 0 — entrada também expõe os percentuais (já calculados pra rateio do crédito).
+        assertValor("16.00", r.getPercentualIbsUf());
+        assertValor("2.50", r.getPercentualIbsMunicipal());
+        assertValor("8.50", r.getPercentualCbs());
+        assertValor("0", r.getPercentualReducaoAplicado());
     }
 
     /** Vedação: uso e consumo pessoal zera o crédito inteiro, mesmo com CFOP creditável. */
@@ -559,6 +602,11 @@ class MotorFiscalServiceTest {
 
         assertValor("1620.00", r.getValorIcms()); // 10000 * 18% (fallback SP) * 90% remanescente
         assertNull(r.getValorIss());
+
+        // Etapa 0 — legado ICMS: aliqNominal/pReducaoBase propagados sem recalcular, modBC fixo.
+        assertValor("18.00", r.getPercentualIcmsNominal());
+        assertValor("0", r.getPercentualReducaoBaseIcms());
+        assertEquals(Constants.FISCAL_ICMS_MODBC_VALOR_OPERACAO, r.getModalidadeBaseCalculoIcms());
     }
 
     @Test
@@ -584,6 +632,11 @@ class MotorFiscalServiceTest {
 
         assertValor("13.50", r.getValorIss()); // 300 * 5% (referência) * 90% remanescente
         assertNull(r.getValorIcms());
+
+        // Etapa 0 — legado ICMS só existe do lado produto; serviço fica null (mesmo padrão de valorIcms).
+        assertNull(r.getPercentualIcmsNominal());
+        assertNull(r.getPercentualReducaoBaseIcms());
+        assertNull(r.getModalidadeBaseCalculoIcms());
     }
 
     @Test

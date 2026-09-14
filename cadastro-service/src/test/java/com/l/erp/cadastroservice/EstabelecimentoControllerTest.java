@@ -6,6 +6,7 @@ import com.l.erp.cadastroservice.api.dto.EstabelecimentoRequestDTO;
 import com.l.erp.cadastroservice.api.dto.EstabelecimentoResponseDTO;
 import com.l.erp.cadastroservice.api.mappers.EstabelecimentoAssembler;
 import com.l.erp.cadastroservice.domain.Estabelecimento;
+import com.l.erp.cadastroservice.domain.enumerators.CodigoRegimeTributario;
 import com.l.erp.cadastroservice.services.EstabelecimentoService;
 import com.l.erp.common.exception.custom.BusinessException;
 import com.l.erp.common.util.Constants;
@@ -60,7 +61,7 @@ class EstabelecimentoControllerTest {
     private EstabelecimentoAssembler assembler;
 
     private EstabelecimentoRequestDTO buildDto() {
-        return new EstabelecimentoRequestDTO("12345678000276", "IE123", "IM456", true);
+        return new EstabelecimentoRequestDTO("12345678000276", "IE123", "IM456", true, CodigoRegimeTributario.REGIME_NORMAL);
     }
 
     private EstabelecimentoResponseDTO buildResponseDto(UUID pessoaId, UUID id) {
@@ -152,7 +153,20 @@ class EstabelecimentoControllerTest {
     @Test
     void shouldRejectCriarComCnpjBlank() throws Exception {
         UUID pessoaId = UUID.randomUUID();
-        EstabelecimentoRequestDTO dto = new EstabelecimentoRequestDTO("", null, null, null);
+        EstabelecimentoRequestDTO dto = new EstabelecimentoRequestDTO("", null, null, null, CodigoRegimeTributario.REGIME_NORMAL);
+
+        mockMvc.perform(post(BASE_URL, pessoaId)
+                        .header(Constants.HEADER_TENANT_ID, TENANT_ID)
+                        .header(Constants.HEADER_USER_ID, USER_ID.toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void shouldRejectCriarSemCrt() throws Exception {
+        UUID pessoaId = UUID.randomUUID();
+        EstabelecimentoRequestDTO dto = new EstabelecimentoRequestDTO("12345678000276", null, null, null, null);
 
         mockMvc.perform(post(BASE_URL, pessoaId)
                         .header(Constants.HEADER_TENANT_ID, TENANT_ID)

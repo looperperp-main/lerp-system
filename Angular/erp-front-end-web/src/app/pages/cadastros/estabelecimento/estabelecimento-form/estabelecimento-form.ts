@@ -4,14 +4,15 @@ import { MessageService } from 'primeng/api';
 import { Button } from 'primeng/button';
 import { Checkbox } from 'primeng/checkbox';
 import { InputText } from 'primeng/inputtext';
+import { Select } from 'primeng/select';
 import { NgClass, NgIf } from '@angular/common';
 import { EstabelecimentoService } from '../estabelecimento.service';
-import { Estabelecimento } from '../estabelecimento.model';
+import { CodigoRegimeTributario, Estabelecimento } from '../estabelecimento.model';
 import { CnpjService } from '../../../../services/cnpj.service';
 
 @Component({
   selector: 'app-estabelecimento-form',
-  imports: [Button, Checkbox, InputText, NgClass, NgIf, ReactiveFormsModule],
+  imports: [Button, Checkbox, InputText, Select, NgClass, NgIf, ReactiveFormsModule],
   templateUrl: './estabelecimento-form.html',
   styleUrl: './estabelecimento-form.scss',
 })
@@ -29,6 +30,13 @@ export class EstabelecimentoForm implements OnInit {
   form!: FormGroup;
   isSaving = false;
 
+  opcoesCrt: { label: string; value: CodigoRegimeTributario }[] = [
+    { label: 'Simples Nacional', value: 'SIMPLES_NACIONAL' },
+    { label: 'Simples Nacional - excesso de sublimite', value: 'SIMPLES_EXCESSO' },
+    { label: 'Regime Normal', value: 'REGIME_NORMAL' },
+    { label: 'MEI', value: 'MEI' },
+  ];
+
   get isMatriz(): boolean {
     return !!this.estabelecimentoData?.matriz;
   }
@@ -44,6 +52,7 @@ export class EstabelecimentoForm implements OnInit {
       ie: [this.estabelecimentoData?.ie || '', [Validators.maxLength(20)]],
       im: [this.estabelecimentoData?.im || '', [Validators.maxLength(20)]],
       ativo: [this.estabelecimentoData ? this.estabelecimentoData.ativo : true],
+      crt: [this.estabelecimentoData?.crt || null, [Validators.required]],
     });
   }
 

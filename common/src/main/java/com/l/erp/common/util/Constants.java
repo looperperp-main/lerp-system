@@ -158,6 +158,11 @@ public class Constants {
     public static final String END_UPDATE = END +"_" + UPDATE;
     public static final String END_NOT_FOUND = "Endereço nao encontrada!";
     public static final String END_ALREADY_EXISTS = "Já existe um Endereço com este nome";
+    // Preparação pra emissão fiscal (spec/modulos/emissao-fiscal/emissao-fiscal.md §10) — cMun é
+    // obrigatório no XML da NF-e/NFC-e pro emitente (Estabelecimento); endereço de Pessoa PF direto
+    // segue opcional.
+    public static final String END_IBGE_CODIGO_OBRIGATORIO_ESTABELECIMENTO =
+            "Código IBGE do município é obrigatório para endereço de Estabelecimento";
 
     public static final String CONTATO = "CONTATO";
     public static final String CONTATO_CREATION = CONTATO + "_" + INSERT;
@@ -516,6 +521,11 @@ public class Constants {
     public static final String FISCAL_MEMORIA_VEDACAO_57 =
             "Art. 57 §7º LC 214/2025: exclusão de %s da base de cálculo (bem sem crédito na "
                     + "entrada, valor de aquisição %s)";
+
+    // Etapa 0 do contrato XML-ready (spec/modulos/emissao-fiscal/emissao-fiscal.md §10) — modBC da
+    // NF-e sempre "3" (Valor da Operação): fiscal.matriz_tributaria (fiscal-schema-011) só modela
+    // alíquota nominal + redução de base, nunca pauta fiscal (modBC 1) ou preço tabelado (modBC 2).
+    public static final String FISCAL_ICMS_MODBC_VALOR_OPERACAO = "3";
 
     // O2C — Pedido de venda (operacoes-service, schema vendas — spec/modulos/o2c-vendas/o2c-vendas.md §4/§7/§8, Fase 3)
     public static final String PEDIDO = "PEDIDO";

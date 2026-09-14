@@ -60,6 +60,13 @@ class EnderecoServiceTest {
     private EnderecoRequestDTO buildDto(TipoEndereco tipo, boolean principal) {
         return new EnderecoRequestDTO(
                 tipo, "Rua das Flores", "123", null, "Centro",
+                "São Paulo", "SP", "01234-567", "3550308", "Brasil", principal
+        );
+    }
+
+    private EnderecoRequestDTO buildDtoSemIbge(TipoEndereco tipo, boolean principal) {
+        return new EnderecoRequestDTO(
+                tipo, "Rua das Flores", "123", null, "Centro",
                 "São Paulo", "SP", "01234-567", null, "Brasil", principal
         );
     }
@@ -145,6 +152,40 @@ class EnderecoServiceTest {
 
         assertThat(result.getEstabelecimento()).isEqualTo(matriz);
         assertThat(result.getPessoa()).isNull();
+    }
+
+    /** cMun obrigatório no XML da NF-e pro emitente — endereço de Estabelecimento sem ibgeCodigo é 400. */
+    @Test
+    void shouldRejectEnderecoDeEstabelecimentoSemIbgeCodigo() {
+        UUID pessoaId = UUID.randomUUID();
+        Pessoa pessoa = buildPessoa(pessoaId);
+        pessoa.setTipo(TipoPessoa.PJ);
+        EnderecoRequestDTO dto = buildDtoSemIbge(TipoEndereco.FISCAL, true);
+
+        Estabelecimento matriz = new Estabelecimento();
+        matriz.setId(UUID.randomUUID());
+
+        when(pessoaService.findByIdAndTenant(pessoaId, TENANT_ID)).thenReturn(pessoa);
+        when(estabelecimentoService.buscarMatrizPorPessoa(pessoaId, TENANT_ID)).thenReturn(matriz);
+
+        assertThatThrownBy(() -> enderecoService.create(pessoaId, dto, TENANT_ID, USER_ID))
+                .isInstanceOf(BusinessException.class);
+    }
+
+    /** Endereço de Pessoa PF direto continua com ibgeCodigo opcional. */
+    @Test
+    void shouldAllowEnderecoDePessoaFisicaSemIbgeCodigo() {
+        UUID pessoaId = UUID.randomUUID();
+        Pessoa pessoa = buildPessoa(pessoaId);
+        EnderecoRequestDTO dto = buildDtoSemIbge(TipoEndereco.FISCAL, true);
+
+        when(pessoaService.findByIdAndTenant(pessoaId, TENANT_ID)).thenReturn(pessoa);
+        when(enderecoRepository.save(any(Endereco.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Endereco result = enderecoService.create(pessoaId, dto, TENANT_ID, USER_ID);
+
+        assertThat(result.getIbgeCodigo()).isNull();
+        assertThat(result.getPessoa()).isEqualTo(pessoa);
     }
 
     @Test

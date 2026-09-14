@@ -1,0 +1,72 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # Preparação pra emissão fiscal (spec/modulos/emissao-fiscal/emissao-fiscal.md §10) — gaps de
+  # cadastro que o futuro emissao-fiscal-service vai precisar. Etapa 0, sem o serviço em si.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-052-add-crt-estabelecimento
+      author: vitor-fernandes
+      comment: >
+        CRT (Código de Regime Tributário, grupo emit da NF-e) é NOT NULL. Backfill provisório com
+        REGIME_NORMAL (fallback mais conservador, tributa cheio) pro dado já existente — o valor
+        real por tenant precisa ser levantado no onboarding, não assumido em massa.
+      changes:
+        - addColumn:
+            schemaName: cadastros
+            tableName: estabelecimento
+            columns:
+              - column:
+                  name: crt
+                  type: varchar(20)
+                  defaultValue: REGIME_NORMAL
+                  remarks: >
+                    Backfill provisório (REGIME_NORMAL) na migração — revisar por tenant no onboarding.
+                  constraints:
+                    nullable: false
+      rollback:
+        - dropColumn:
+            schemaName: cadastros
+            tableName: estabelecimento
+            columnName: crt
+
+  - changeSet:
+      id: cad-053-add-ind-ie-dest-pessoa
+      author: vitor-fernandes
+      comment: Indicador da IE do destinatário (grupo dest da NF-e) — nullable, nem toda Pessoa é destinatário fiscal.
+      changes:
+        - addColumn:
+            schemaName: cadastros
+            tableName: pessoa
+            columns:
+              - column:
+                  name: ind_ie_dest
+                  type: varchar(20)
+      rollback:
+        - dropColumn:
+            schemaName: cadastros
+            tableName: pessoa
+            columnName: ind_ie_dest
+
+  # ──────────────────────────────────────────
+  # cMun é obrigatório no XML da NF-e pro emitente — só quando o endereço pertence a um
+  # Estabelecimento (PJ); endereço de Pessoa PF direto continua opcional. Mesmo espírito do CHECK
+  # XOR pessoa/estabelecimento (cad-046), mas NOT VALID: dado existente pode ter estabelecimento
+  # sem ibge_codigo (campo era opcional até aqui) e a migração não pode travar nisso — a
+  # constraint passa a valer pra toda escrita NOVA a partir de agora; validação de negócio
+  # (EnderecoService) já dá 400 com mensagem em PT-BR antes de chegar no banco.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-054-check-endereco-ibge-obrigatorio-estabelecimento
+      author: vitor-fernandes
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              ALTER TABLE cadastros.endereco
+              ADD CONSTRAINT ck_endereco_ibge_obrigatorio_estabelecimento
+              CHECK (estabelecimento_id IS NULL OR ibge_codigo IS NOT NULL) NOT VALID;
+      rollback:
+        - sql:
+            sql: ALTER TABLE cadastros.endereco DROP CONSTRAINT ck_endereco_ibge_obrigatorio_estabelecimento;

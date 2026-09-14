@@ -111,6 +111,9 @@ databaseChangeLog:
   - include:
       file: cadastro/cadastro-schema-015.yaml
       relativeToChangelogFile: true
+  - include:
+      file: cadastro/cadastro-schema-016.yaml
+      relativeToChangelogFile: true
 
   # 3. Schema de Billing
   - include:
