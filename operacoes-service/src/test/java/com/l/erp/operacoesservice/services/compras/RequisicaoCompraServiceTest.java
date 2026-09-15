@@ -311,6 +311,7 @@ class RequisicaoCompraServiceTest {
                 .thenReturn(Optional.of(requisicao));
 
         assertThatThrownBy(() -> requisicaoCompraService.atender(requisicao.getId(), TENANT_ID, USER_ID))
-                .isInstanceOf(BusinessException.class);
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Transição de status inválida: APROVADA -> ATENDIDA");
     }
 }

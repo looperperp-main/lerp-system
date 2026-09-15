@@ -260,6 +260,11 @@ public class RequisicaoCompraService {
                     String.format(Constants.REQUISICAO_COMPRA_TRANSICAO_INVALIDA, origem, destino),
                     HttpStatus.BAD_REQUEST);
         }
+        if(origem.equals(StatusRequisicaoCompra.APROVADA) && destino.equals(StatusRequisicaoCompra.ATENDIDA)){
+            throw new BusinessException(
+                    String.format(Constants.REQUISICAO_COMPRA_TRANSICAO_INVALIDA, origem, destino),
+                    HttpStatus.BAD_REQUEST);
+        }
     }
 
     private void registrarHistorico(RequisicaoCompra requisicao, StatusRequisicaoCompra statusAnterior,
