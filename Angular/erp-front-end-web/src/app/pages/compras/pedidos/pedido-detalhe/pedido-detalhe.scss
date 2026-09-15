@@ -220,6 +220,12 @@
   margin-bottom: 8px;
 }
 
+.jb-item-produto,
+.jb-item-qtd,
+.jb-item-preco {
+  margin-bottom: 0;
+}
+
 .jb-item-produto { flex: 2 1 220px; min-width: 0; }
 .jb-item-qtd { flex: 1 1 120px; min-width: 0; }
 .jb-item-preco { flex: 1 1 140px; min-width: 0; }
@@ -271,12 +277,23 @@
 
 :host ::ng-deep {
   .p-select,
+  .p-inputnumber,
+  .p-inputnumber input,
+  .p-textarea {
+    width: 100%;
+  }
+
+  .p-select,
   .p-inputnumber input,
   .p-textarea {
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid var(--line-2);
     border-radius: 12px;
     color: var(--ink);
+  }
+
+  .p-dialog-mask {
+    background: transparent !important;
   }
 
   .p-button:not(.p-button-secondary):not(.p-button-text):not(.p-button-danger) {
