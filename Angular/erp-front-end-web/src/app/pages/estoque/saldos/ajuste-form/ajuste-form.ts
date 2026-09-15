@@ -10,7 +10,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { EstoqueService } from '../../estoque.service';
 import { EstoqueSaldo, OrigemMovimentoEstoque } from '../../estoque.model';
 
-/** Modal de ajuste por saldo contado (spec/estoque.md §5.3/E7, D5). */
+/** Modal de ajuste por saldo contado (spec/modulos/estoque/estoque.md §5.3/E7, D5). */
 @Component({
   selector: 'app-ajuste-form',
   imports: [NgIf, ReactiveFormsModule, Button, InputNumber, Select, Textarea],
@@ -38,7 +38,7 @@ export class AjusteForm implements OnInit {
 
   ngOnInit(): void {
     this.form = this.fb.group({
-      // D5 (spec/estoque.md §5.3): quantidadeContada é a contagem física da prateleira, nunca
+      // D5 (spec/modulos/estoque/estoque.md §5.3): quantidadeContada é a contagem física da prateleira, nunca
       // negativa — mesmo que o saldo atual esteja negativo (venda sem bloqueio de estoque), a
       // correção é contar o valor real (ex.: 0) e deixar o sistema calcular o delta sozinho.
       // Backend valida a mesma regra (ESTOQUE_QUANTIDADE_CONTADA_INVALIDA); manter em sincronia.

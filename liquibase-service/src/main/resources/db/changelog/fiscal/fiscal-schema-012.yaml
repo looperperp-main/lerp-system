@@ -1,7 +1,7 @@
 databaseChangeLog:
 
   # ──────────────────────────────────────────
-  # RETENÇÃO NA FONTE — fatia 3e de spec/motor-fiscal-proximos-passos.md §3, decisão de
+  # RETENÇÃO NA FONTE — fatia 3e de spec/fiscal/motor-fiscal-proximos-passos.md §3, decisão de
   # 30/07/2026: cálculo do VALOR retido mora no motor (/fiscal/calcular), junto com IBS/CBS/IS
   # e o legado (ICMS/ISS, fatia 3c) — persistir título de retenção e emitir guia de recolhimento
   # é responsabilidade de um módulo de AR futuro, não desta tabela nem deste serviço.

@@ -84,7 +84,7 @@ public class Produto extends BaseTenantEntity {
     @Column(name = "codigo_servico", length = 10)
     private String codigoServico;
 
-    // D4 (spec/o2c-vendas.md §8) — classificação tributária IBS/CBS do serviço (Anexo VIII).
+    // D4 (spec/modulos/o2c-vendas/o2c-vendas.md §8) — classificação tributária IBS/CBS do serviço (Anexo VIII).
     @Size(max = 10)
     @Column(name = "class_trib", length = 10)
     private String classTrib;

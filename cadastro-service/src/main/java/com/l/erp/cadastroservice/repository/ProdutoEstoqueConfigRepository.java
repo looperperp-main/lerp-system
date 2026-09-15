@@ -12,7 +12,7 @@ import java.util.UUID;
 @Repository
 public interface ProdutoEstoqueConfigRepository extends JpaRepository<ProdutoEstoqueConfig, UUID> {
 
-    /** Consulta em lote pro badge "abaixo do mínimo" do estoque (spec/estoque.md §5.1/E6). */
+    /** Consulta em lote pro badge "abaixo do mínimo" do estoque (spec/modulos/estoque/estoque.md §5.1/E6). */
     @Query("select c from ProdutoEstoqueConfig c where c.tenantId = :tenantId "
             + "and c.deposito.id = :depositoId and c.produto.id in :produtoIds")
     List<ProdutoEstoqueConfig> buscarPorProdutosEDeposito(@Param("tenantId") Long tenantId,

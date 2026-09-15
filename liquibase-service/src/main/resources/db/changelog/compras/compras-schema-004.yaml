@@ -1,0 +1,388 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # TABELA: compras.cotacao_compra
+  # Cotação multi-fornecedor: avulsa ou originada de requisição aprovada (requisicao_id
+  # nulo no caso avulso). ABERTA → ENCERRADA | CANCELADA. spec/p2p-compras.md
+  # §"cotacao_compra", Fase 5
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: compras-008-create-cotacao-compra
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: compras
+            tableName: cotacao_compra
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: numero
+                  type: bigint
+                  constraints:
+                    nullable: false
+                  remarks: "Numeração sequencial por tenant/tipo COTACAO — ver compras.compra_numeracao"
+              - column:
+                  name: requisicao_id
+                  type: uuid
+                  constraints:
+                    foreignKeyName: fk_cotacao_compra_requisicao
+                    referencedTableSchemaName: compras
+                    referencedTableName: requisicao_compra
+                    referencedColumnNames: id
+                  remarks: "Nulo quando a cotação é avulsa (spec RN-P2P-01)"
+              - column:
+                  name: status
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+                  remarks: "StatusCotacaoCompra: ABERTA | ENCERRADA | CANCELADA"
+              - column:
+                  name: data_limite_resposta
+                  type: date
+              - column:
+                  name: deposito_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                  remarks: "Ref. cadastro-service (cadastros.deposito) — sem FK física"
+              - column:
+                  name: cotacao_fornecedor_vencedor_id
+                  type: uuid
+                  remarks: "Setado no encerramento — FK física adicionada depois que cotacao_compra_fornecedor existe (changeSet compras-011)"
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: created_by
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_updated_by
+                  type: uuid
+        - addUniqueConstraint:
+            schemaName: compras
+            tableName: cotacao_compra
+            columnNames: tenant_id, numero
+            constraintName: uq_cotacao_compra_tenant_numero
+        - createIndex:
+            schemaName: compras
+            tableName: cotacao_compra
+            indexName: idx_cotacao_compra_tenant_status
+            columns:
+              - column:
+                  name: tenant_id
+              - column:
+                  name: status
+      rollback:
+        - dropTable:
+            schemaName: compras
+            tableName: cotacao_compra
+
+  # ──────────────────────────────────────────
+  # TABELA: compras.cotacao_compra_item
+  # Item materializado da cotação (copiado da requisição ou digitado na criação avulsa),
+  # deixa a cotação autocontida. spec/p2p-compras.md §"cotacao_compra_item", Fase 5
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: compras-009-create-cotacao-compra-item
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: compras
+            tableName: cotacao_compra_item
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: cotacao_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_cotacao_compra_item_cotacao
+                    referencedTableSchemaName: compras
+                    referencedTableName: cotacao_compra
+                    referencedColumnNames: id
+              - column:
+                  name: produto_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                  remarks: "Ref. cadastro-service (cadastros.produto) sem FK física, valida via API"
+              - column:
+                  name: quantidade
+                  type: decimal(15,4)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: created_by
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_updated_by
+                  type: uuid
+        - createIndex:
+            schemaName: compras
+            tableName: cotacao_compra_item
+            indexName: idx_cotacao_compra_item_cotacao_id
+            columns:
+              - column:
+                  name: cotacao_id
+        - sql:
+            sql: >
+              ALTER TABLE compras.cotacao_compra_item
+              ADD CONSTRAINT chk_cotacao_compra_item_quantidade
+              CHECK (quantidade > 0);
+      rollback:
+        - dropTable:
+            schemaName: compras
+            tableName: cotacao_compra_item
+
+  # ──────────────────────────────────────────
+  # TABELA: compras.cotacao_compra_fornecedor
+  # Convite/resposta de um fornecedor numa cotação. Único por (cotacao_id, fornecedor_id).
+  # AGUARDANDO → RESPONDIDA | DECLINADA. spec/p2p-compras.md §"cotacao_compra_fornecedor", Fase 5
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: compras-010-create-cotacao-compra-fornecedor
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: compras
+            tableName: cotacao_compra_fornecedor
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: cotacao_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_cotacao_compra_fornecedor_cotacao
+                    referencedTableSchemaName: compras
+                    referencedTableName: cotacao_compra
+                    referencedColumnNames: id
+              - column:
+                  name: fornecedor_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                  remarks: "Ref. cadastro-service (Fornecedor) — sem FK física; precisa estar ativo no convite"
+              - column:
+                  name: status
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+                  remarks: "StatusCotacaoCompraFornecedor: AGUARDANDO | RESPONDIDA | DECLINADA"
+              - column:
+                  name: condicao_pagamento_id
+                  type: uuid
+                  remarks: "Ref. cadastro-service (CondicaoPagamento) — obrigatória quando status = RESPONDIDA"
+              - column:
+                  name: prazo_entrega_dias
+                  type: integer
+              - column:
+                  name: valor_frete
+                  type: decimal(15,2)
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: observacao
+                  type: varchar(500)
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: created_by
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_updated_by
+                  type: uuid
+        - addUniqueConstraint:
+            schemaName: compras
+            tableName: cotacao_compra_fornecedor
+            columnNames: cotacao_id, fornecedor_id
+            constraintName: uq_cotacao_compra_fornecedor_cotacao_fornecedor
+      rollback:
+        - dropTable:
+            schemaName: compras
+            tableName: cotacao_compra_fornecedor
+
+  # ──────────────────────────────────────────
+  # cotacao_compra.cotacao_fornecedor_vencedor_id — FK física adiada até aqui porque
+  # cotacao_compra_fornecedor só passa a existir no changeSet anterior (compras-010).
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: compras-011-add-fk-cotacao-compra-vencedor
+      author: vitor-fernandes
+      changes:
+        - addForeignKeyConstraint:
+            baseTableSchemaName: compras
+            baseTableName: cotacao_compra
+            baseColumnNames: cotacao_fornecedor_vencedor_id
+            referencedTableSchemaName: compras
+            referencedTableName: cotacao_compra_fornecedor
+            referencedColumnNames: id
+            constraintName: fk_cotacao_compra_vencedor
+      rollback:
+        - dropForeignKeyConstraint:
+            baseTableSchemaName: compras
+            baseTableName: cotacao_compra
+            constraintName: fk_cotacao_compra_vencedor
+
+  # ──────────────────────────────────────────
+  # TABELA: compras.cotacao_compra_fornecedor_item
+  # Preço unitário ofertado por um fornecedor pra um item da cotação. Único por
+  # (cotacao_fornecedor_id, cotacao_item_id). spec/p2p-compras.md
+  # §"cotacao_compra_fornecedor_item", Fase 5
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: compras-012-create-cotacao-compra-fornecedor-item
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: compras
+            tableName: cotacao_compra_fornecedor_item
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: cotacao_fornecedor_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_cotacao_compra_fornecedor_item_fornecedor
+                    referencedTableSchemaName: compras
+                    referencedTableName: cotacao_compra_fornecedor
+                    referencedColumnNames: id
+              - column:
+                  name: cotacao_item_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_cotacao_compra_fornecedor_item_item
+                    referencedTableSchemaName: compras
+                    referencedTableName: cotacao_compra_item
+                    referencedColumnNames: id
+              - column:
+                  name: preco_unitario
+                  type: decimal(15,4)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: created_by
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_updated_by
+                  type: uuid
+        - addUniqueConstraint:
+            schemaName: compras
+            tableName: cotacao_compra_fornecedor_item
+            columnNames: cotacao_fornecedor_id, cotacao_item_id
+            constraintName: uq_cotacao_compra_fornecedor_item_fornecedor_item
+        - sql:
+            sql: >
+              ALTER TABLE compras.cotacao_compra_fornecedor_item
+              ADD CONSTRAINT chk_cotacao_compra_fornecedor_item_preco
+              CHECK (preco_unitario >= 0);
+      rollback:
+        - dropTable:
+            schemaName: compras
+            tableName: cotacao_compra_fornecedor_item
+
+  # ──────────────────────────────────────────
+  # pedido_compra.cotacao_fornecedor_id — vincula o pedido gerado no encerramento da
+  # cotação à resposta vencedora (rastreabilidade cotação → pedido). Anunciada no
+  # header de compras-schema-002.yaml. spec/p2p-compras.md, Fase 5
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: compras-013-add-cotacao-fornecedor-id-pedido-compra
+      author: vitor-fernandes
+      changes:
+        - addColumn:
+            schemaName: compras
+            tableName: pedido_compra
+            columns:
+              - column:
+                  name: cotacao_fornecedor_id
+                  type: uuid
+                  constraints:
+                    foreignKeyName: fk_pedido_compra_cotacao_fornecedor
+                    referencedTableSchemaName: compras
+                    referencedTableName: cotacao_compra_fornecedor
+                    referencedColumnNames: id
+                  remarks: "Nulo quando o pedido não se origina de uma cotação"
+      rollback:
+        - dropColumn:
+            schemaName: compras
+            tableName: pedido_compra
+            columnName: cotacao_fornecedor_id

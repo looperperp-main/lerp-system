@@ -1,7 +1,7 @@
 databaseChangeLog:
 
   # ──────────────────────────────────────────
-  # CURVA DA TRANSIÇÃO 2026-2033 — fatia 3a de spec/motor-fiscal-proximos-passos.md §3.
+  # CURVA DA TRANSIÇÃO 2026-2033 — fatia 3a de spec/fiscal/motor-fiscal-proximos-passos.md §3.
   #
   # POR QUE UMA TABELA SÓ DE ANO, E NÃO UMA COLUNA DE ANO NA MATRIZ
   # A matriz tributária (fatia 3b) guarda a alíquota CHEIA de ICMS/ISS por rota fiscal. Se a

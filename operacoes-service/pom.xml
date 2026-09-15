@@ -12,12 +12,12 @@
     <artifactId>operacoes-service</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>operacoes-service</name>
-    <description>O2C (vendas) + P2P (compras) + estoque num serviço só — spec/o2c-vendas.md, spec/p2p-compras.md</description>
+    <description>O2C (vendas) + P2P (compras) + estoque num serviço só — spec/modulos/o2c-vendas/o2c-vendas.md, spec/p2p-compras.md</description>
 
     <properties>
         <java.version>25</java.version>
         <jacoco.version>0.8.14</jacoco.version>
-        <coverage.minimum>0.60</coverage.minimum>
+        <coverage.minimum>0.70</coverage.minimum>
         <spring-cloud.version>2025.1.1</spring-cloud.version>
     </properties>
 

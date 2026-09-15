@@ -1,0 +1,105 @@
+<form [formGroup]="form" (ngSubmit)="onSubmit()">
+
+  <div class="jb-grid-2">
+    <div class="jb-field">
+      <label class="jb-label">Depósito de Recebimento *</label>
+      <p-select
+        [options]="depositosOptions()"
+        formControlName="depositoId"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Selecione o depósito"
+        [filter]="true"
+        filterBy="label"
+        [showClear]="true"
+        appendTo="body"
+        [class.ng-invalid]="isFieldInvalid('depositoId')">
+      </p-select>
+      <small class="jb-hint" *ngIf="isFieldInvalid('depositoId')">Depósito é obrigatório.</small>
+    </div>
+
+    <div class="jb-field">
+      <label class="jb-label">Data Limite para Resposta</label>
+      <p-datepicker formControlName="dataLimiteResposta" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body"></p-datepicker>
+    </div>
+  </div>
+
+  <div class="jb-field">
+    <label class="jb-label">Requisição de Origem</label>
+    <p-select
+      [options]="requisicoesOptions()"
+      formControlName="requisicaoId"
+      optionLabel="label"
+      optionValue="value"
+      placeholder="Cotação avulsa (sem requisição)"
+      [filter]="true"
+      filterBy="label"
+      [showClear]="true"
+      appendTo="body">
+    </p-select>
+    <small class="jb-hint-neutro">Ao selecionar uma requisição, os itens abaixo são ignorados — os itens da requisição são copiados automaticamente.</small>
+  </div>
+
+  <div class="jb-field">
+    <label class="jb-label">Fornecedores Convidados *</label>
+    <p-multiselect
+      [options]="fornecedoresOptions()"
+      formControlName="fornecedorIds"
+      optionLabel="label"
+      optionValue="value"
+      placeholder="Selecione os fornecedores"
+      [filter]="true"
+      filterBy="label"
+      display="chip"
+      appendTo="body"
+      [class.ng-invalid]="isFieldInvalid('fornecedorIds')">
+    </p-multiselect>
+    <small class="jb-hint" *ngIf="isFieldInvalid('fornecedorIds')">Selecione ao menos um fornecedor.</small>
+  </div>
+
+  <ng-container *ngIf="!form.value.requisicaoId">
+    <h4 class="jb-section-title">Itens da Cotação</h4>
+
+    <div formArrayName="itens">
+      <div class="jb-item-row" *ngFor="let item of itensArray.controls; let i = index" [formGroupName]="i">
+        <div class="jb-field jb-item-produto">
+          <label class="jb-label-sm">Produto *</label>
+          <p-select
+            [options]="produtosOptions()"
+            formControlName="produtoId"
+            optionLabel="label"
+            optionValue="value"
+            placeholder="Selecione o produto"
+            [filter]="true"
+            filterBy="label"
+            appendTo="body">
+          </p-select>
+        </div>
+
+        <div class="jb-field jb-item-qtd">
+          <label class="jb-label-sm">Qtd.</label>
+          <p-inputNumber formControlName="quantidade" [minFractionDigits]="0" [maxFractionDigits]="3" [min]="0.0001"></p-inputNumber>
+        </div>
+
+        <button
+          pButton
+          type="button"
+          icon="pi pi-trash"
+          class="p-button-rounded p-button-text p-button-danger p-button-sm"
+          pTooltip="Remover item"
+          (click)="removeItem(i)">
+        </button>
+      </div>
+
+      <p class="jb-itens-empty" *ngIf="itensArray.length === 0">Nenhum item adicionado.</p>
+    </div>
+
+    <button pButton type="button" icon="pi pi-plus" label="Adicionar Item" class="p-button-sm p-button-text" (click)="addItem()"></button>
+  </ng-container>
+
+  <div class="jb-form-footer">
+    <button pButton type="button" label="Cancelar" class="p-button-secondary" (click)="onCancel()"></button>
+    <button pButton type="submit" label="Enviar Convite" [loading]="isSaving"></button>
+  </div>
+
+</form>

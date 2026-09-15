@@ -49,7 +49,7 @@ class PessoaServiceTest {
     void shouldCreatePessoaJuridicaSuccess() {
         PessoaRequestDTO dto = new PessoaRequestDTO(
                 TipoPessoa.PJ, "Empresa XYZ", null, "12.345.678/0001-90",
-                null, null, null, null, true
+                null, null, null, null, true, null
         );
 
         Pessoa entity = new Pessoa();
@@ -69,7 +69,7 @@ class PessoaServiceTest {
     void shouldCreatePessoaFisicaSuccess() {
         PessoaRequestDTO dto = new PessoaRequestDTO(
                 TipoPessoa.PF, "João Silva", null, "123.456.789-09",
-                null, null, null, null, true
+                null, null, null, null, true, null
         );
 
         Pessoa entity = new Pessoa();
@@ -88,7 +88,7 @@ class PessoaServiceTest {
     void shouldRejectPFWithInvalidCPF() {
         PessoaRequestDTO dto = new PessoaRequestDTO(
                 TipoPessoa.PF, "João Silva", null, "12345",
-                null, null, null, null, true
+                null, null, null, null, true, null
         );
 
         assertThatThrownBy(() -> pessoaService.create(dto, TENANT_ID, USER_ID))
@@ -100,7 +100,7 @@ class PessoaServiceTest {
     void shouldRejectPJWithInvalidCNPJ() {
         PessoaRequestDTO dto = new PessoaRequestDTO(
                 TipoPessoa.PJ, "Empresa XYZ", null, "12345",
-                null, null, null, null, true
+                null, null, null, null, true, null
         );
 
         assertThatThrownBy(() -> pessoaService.create(dto, TENANT_ID, USER_ID))
@@ -112,7 +112,7 @@ class PessoaServiceTest {
     void shouldRejectPFDocumentoWithMoreThan11Digits() {
         PessoaRequestDTO dto = new PessoaRequestDTO(
                 TipoPessoa.PF, "João Silva", null, "12.345.678/0001-90",
-                null, null, null, null, true
+                null, null, null, null, true, null
         );
 
         assertThatThrownBy(() -> pessoaService.create(dto, TENANT_ID, USER_ID))
@@ -124,7 +124,7 @@ class PessoaServiceTest {
     void shouldRejectDuplicatePessoa() {
         PessoaRequestDTO dto = new PessoaRequestDTO(
                 TipoPessoa.PJ, "Empresa XYZ", null, "12.345.678/0001-90",
-                null, null, null, null, true
+                null, null, null, null, true, null
         );
 
         when(pessoaRepository.existsByCnpjRaizAndTenantId(any(), any())).thenReturn(true);
@@ -162,7 +162,7 @@ class PessoaServiceTest {
         UUID pessoaId = UUID.randomUUID();
         PessoaRequestDTO dto = new PessoaRequestDTO(
                 TipoPessoa.PJ, "Empresa XYZ Atualizada", null, "12.345.678/0001-90",
-                null, null, null, null, true
+                null, null, null, null, true, null
         );
 
         Pessoa existing = new Pessoa();
@@ -187,7 +187,7 @@ class PessoaServiceTest {
         UUID pessoaId = UUID.randomUUID();
         PessoaRequestDTO dto = new PessoaRequestDTO(
                 TipoPessoa.PJ, "Empresa XYZ", null, "12.345.678/0001-90",
-                null, null, null, null, true
+                null, null, null, null, true, null
         );
 
         Pessoa existing = new Pessoa();

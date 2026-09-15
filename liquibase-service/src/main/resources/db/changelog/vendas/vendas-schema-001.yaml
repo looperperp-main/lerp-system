@@ -10,7 +10,7 @@ databaseChangeLog:
   # Orçamento/pedido de venda (O2C). Máquina de estados:
   # ORCAMENTO → [BLOQUEADO_CREDITO] → CONFIRMADO → EXPEDIDO → FATURADO,
   # CANCELADO alcançável de qualquer estado pré-faturamento.
-  # spec/o2c-vendas.md §3.1
+  # spec/modulos/o2c-vendas/o2c-vendas.md §3.1
   # ──────────────────────────────────────────
   - changeSet:
       id: vendas-001-create-pedido
@@ -164,7 +164,7 @@ databaseChangeLog:
   # ──────────────────────────────────────────
   # TABELA: pedido_item
   # Itens do pedido — snapshot de preço congelado (preco_tabela/tabela_preco_id/
-  # origem_preco não mudam se a tabela de preço mudar depois). spec/o2c-vendas.md §3.2
+  # origem_preco não mudam se a tabela de preço mudar depois). spec/modulos/o2c-vendas/o2c-vendas.md §3.2
   # ──────────────────────────────────────────
   - changeSet:
       id: vendas-002-create-pedido-item
@@ -274,7 +274,7 @@ databaseChangeLog:
   # ──────────────────────────────────────────
   # TABELA: pedido_status_historico
   # Append-only — insert em toda transição (inclusive criação), sem update/delete.
-  # spec/o2c-vendas.md §3.3
+  # spec/modulos/o2c-vendas/o2c-vendas.md §3.3
   # ──────────────────────────────────────────
   - changeSet:
       id: vendas-003-create-pedido-status-historico
@@ -338,7 +338,7 @@ databaseChangeLog:
   # TABELA: pedido_sequencia
   # Contador de numeração por tenant — PedidoNumeroService faz
   # SELECT ... FOR UPDATE / incrementa / retorna. Linha criada on-demand (upsert)
-  # no primeiro pedido do tenant. spec/o2c-vendas.md §3.4
+  # no primeiro pedido do tenant. spec/modulos/o2c-vendas/o2c-vendas.md §3.4
   # ──────────────────────────────────────────
   - changeSet:
       id: vendas-004-create-pedido-sequencia

@@ -104,4 +104,14 @@ export class TenantLoginService {
   getUsername(): string | null {
     return sessionStorage.getItem(this.STORAGE_KEYS.USERNAME);
   }
+
+  getUserId(): string | null {
+    const token = this.getToken();
+    if (!token) return null;
+    try {
+      return JSON.parse(atob(token.split('.')[1])).sub ?? null;
+    } catch {
+      return null;
+    }
+  }
 }

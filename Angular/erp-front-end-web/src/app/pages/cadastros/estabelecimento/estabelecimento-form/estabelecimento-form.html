@@ -25,6 +25,22 @@
     <input id="im" type="text" pInputText formControlName="im" class="w-full" placeholder="IM do estabelecimento">
   </div>
 
+  <div class="flex flex-col gap-2">
+    <label for="crt" class="jb-label">Regime Tributário <span class="text-red-500">*</span></label>
+    <p-select
+      id="crt"
+      formControlName="crt"
+      [options]="opcoesCrt"
+      optionLabel="label"
+      optionValue="value"
+      placeholder="Selecione..."
+      appendTo="body"
+      [ngClass]="{'ng-invalid ng-dirty': isFieldInvalid('crt')}"
+      [style]="{'width':'100%'}">
+    </p-select>
+    <small *ngIf="isFieldInvalid('crt')" class="text-red-500">O Regime Tributário é obrigatório.</small>
+  </div>
+
   <div class="flex items-center gap-2 mt-2">
     <p-checkbox
       inputId="ativo"

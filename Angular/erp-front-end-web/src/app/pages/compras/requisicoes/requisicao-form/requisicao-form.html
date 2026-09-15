@@ -1,0 +1,79 @@
+<form [formGroup]="form" (ngSubmit)="onSubmit()">
+
+  <div class="jb-grid-2">
+    <div class="jb-field">
+      <label class="jb-label">Depósito</label>
+      <p-select
+        [options]="depositosOptions()"
+        formControlName="depositoId"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Selecione o depósito (obrigatório se houver item de mercadoria)"
+        [filter]="true"
+        filterBy="label"
+        [showClear]="true"
+        appendTo="body">
+      </p-select>
+    </div>
+
+    <div class="jb-field">
+      <label class="jb-label">Data de Necessidade</label>
+      <p-datepicker formControlName="dataNecessidade" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body"></p-datepicker>
+    </div>
+  </div>
+
+  <div class="jb-field">
+    <label class="jb-label">Justificativa</label>
+    <textarea pTextarea formControlName="justificativa" rows="2" style="width: 100%;"></textarea>
+  </div>
+
+  <h4 class="jb-section-title">Itens da Requisição</h4>
+
+  <div formArrayName="itens">
+    <div class="jb-item-row" *ngFor="let item of itensArray.controls; let i = index" [formGroupName]="i">
+      <div class="jb-field jb-item-produto">
+        <label class="jb-label-sm">Produto *</label>
+        <p-select
+          [options]="produtosOptions()"
+          formControlName="produtoId"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Selecione o produto"
+          [filter]="true"
+          filterBy="label"
+          appendTo="body">
+        </p-select>
+      </div>
+
+      <div class="jb-field jb-item-qtd">
+        <label class="jb-label-sm">Qtd.</label>
+        <p-inputNumber formControlName="quantidade" [minFractionDigits]="0" [maxFractionDigits]="3" [min]="0.001"></p-inputNumber>
+      </div>
+
+      <div class="jb-field jb-item-produto">
+        <label class="jb-label-sm">Observação</label>
+        <input pInputText formControlName="observacao" style="width: 100%;" />
+      </div>
+
+      <button
+        pButton
+        type="button"
+        icon="pi pi-trash"
+        class="p-button-rounded p-button-text p-button-danger p-button-sm"
+        pTooltip="Remover item"
+        *ngIf="!readonly"
+        (click)="removeItem(i)">
+      </button>
+    </div>
+
+    <p class="jb-itens-empty" *ngIf="itensArray.length === 0">Nenhum item adicionado.</p>
+  </div>
+
+  <button pButton type="button" icon="pi pi-plus" label="Adicionar Item" class="p-button-sm p-button-text" *ngIf="!readonly" (click)="addItem()"></button>
+
+  <div class="jb-form-footer">
+    <button pButton type="button" [label]="readonly ? 'Fechar' : 'Cancelar'" class="p-button-secondary" (click)="onCancel()"></button>
+    <button pButton type="submit" label="Salvar" [loading]="isSaving" *ngIf="!readonly"></button>
+  </div>
+
+</form>

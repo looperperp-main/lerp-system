@@ -12,7 +12,7 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 
 /**
- * Numeração concorrente do pedido (spec/o2c-vendas.md §3.4, §16 Fase 3): linha criada on-demand
+ * Numeração concorrente do pedido (spec/modulos/o2c-vendas/o2c-vendas.md §3.4, §16 Fase 3): linha criada on-demand
  * via upsert, depois lida com SELECT ... FOR UPDATE pelo PedidoNumeroService.
  */
 @Repository

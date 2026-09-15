@@ -1,0 +1,26 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # ALTER: cadastros.produto_fornecedor.ultimo_preco_compra
+  # Campo novo e separado de preco_custo (que o P2P nunca atualiza — decisão do usuário: custo de
+  # reposição envolve frete/seguro/ST/IPI, não é só o valor da nota). Informativo, sem impacto
+  # contábil/DRE. Atualizado pelo cadastro-service ao consumir compra.recebimento.confirmado
+  # (operacoes-service) a cada recebimento confirmado. spec/p2p-compras.md §"Preço de compra", Fase 3
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cadastro-015-add-ultimo-preco-compra-produto-fornecedor
+      author: vitor-fernandes
+      changes:
+        - addColumn:
+            schemaName: cadastros
+            tableName: produto_fornecedor
+            columns:
+              - column:
+                  name: ultimo_preco_compra
+                  type: decimal(15,4)
+                  remarks: "Informativo, sem impacto contábil — atualizado a cada compra.recebimento.confirmado (RECEBIMENTO_CONFIRMADO_TOPIC). Não confundir com preco_custo, nunca tocado pelo P2P."
+      rollback:
+        - dropColumn:
+            schemaName: cadastros
+            tableName: produto_fornecedor
+            columnName: ultimo_preco_compra

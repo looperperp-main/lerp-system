@@ -12,7 +12,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Linha do extrato de GET /api/v1/estoque/movimentos (spec/estoque.md §5.2). {@code origemId} deixa
+ * Linha do extrato de GET /api/v1/estoque/movimentos (spec/modulos/estoque/estoque.md §5.2). {@code origemId} deixa
  * o frontend linkar de volta pro pedido/recebimento que gerou o movimento. {@code ponytail:} sem
  * endpoint de detalhe — a linha do extrato já é o recurso inteiro (§5.2).
  */

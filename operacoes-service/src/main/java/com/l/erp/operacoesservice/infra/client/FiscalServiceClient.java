@@ -17,7 +17,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 /**
- * Client HTTP pro fiscal-service via Eureka (D4, spec/o2c-vendas.md §8): calcula IBS/CBS/IS/ISS
+ * Client HTTP pro fiscal-service via Eureka (D4, spec/modulos/o2c-vendas/o2c-vendas.md §8): calcula IBS/CBS/IS/ISS
  * de saída por item do pedido no momento do faturamento (POST /fiscal/calcular).
  *
  * ponytail: cfop/regimeEmpresa/tipoDocumento vêm de defaults (Constants.PEDIDO_FISCAL_CFOP_*,

@@ -481,7 +481,7 @@ public class AuthService {
 
     @Transactional
     public Optional<TenantLoginResponse> criarContaGratis(CriarContaGratisRequest req) {
-        // Normaliza mantendo letras (7.7, spec/auditoria.md): replaceAll("\\D", "") descartava
+        // Normaliza mantendo letras (7.7, spec/auditoria/auditoria.md): replaceAll("\\D", "") descartava
         // qualquer letra silenciosamente — quebra na chegada do CNPJ alfanumérico (NT 2026.004).
         // Valida só o dígito verificador (algoritmo oficial, alfanumérico-ready) — sem consultar
         // Receita/BrasilAPI de propósito, isso adicionaria fricção pra testar o próprio cadastro.
@@ -555,7 +555,7 @@ public class AuthService {
     // Dígito verificador do CNPJ (numérico hoje, alfanumérico-ready pra NT 2026.004 — Receita
     // trata cada caractere da base pelo valor ASCII - 48, então dígitos '0'-'9' valem 0-9 e
     // letras 'A'-'Z' valem 17-42; os 2 DVs em si continuam sempre numéricos).
-    // Package-private (não private) só pra dar pra testar direto sem reflection (spec/auditoria.md §7.7).
+    // Package-private (não private) só pra dar pra testar direto sem reflection (spec/auditoria/auditoria.md §7.7).
     // Normaliza o CNPJ pro formato armazenado: sem pontuação e em maiúsculas (alfanumérico-ready,
     // NT 2026.004). Cadastro e login usam este mesmo método pra o lookup casar.
     static String normalizeCnpj(String cnpj) {

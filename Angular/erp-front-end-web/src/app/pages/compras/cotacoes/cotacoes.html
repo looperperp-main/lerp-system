@@ -1,0 +1,125 @@
+<div>
+
+  <div class="jb-page-head">
+    <div>
+      <app-breadcrumb></app-breadcrumb>
+      <h1>Cotações de Compra</h1>
+      <p class="sub">Convite multi-fornecedor, comparação de respostas e escolha do vencedor</p>
+    </div>
+  </div>
+
+  <div class="jb-panel">
+    <div class="jb-panel-head">
+      <h3><i class="pi pi-percentage"></i> Cotações Cadastradas</h3>
+      <div class="jb-panel-actions">
+        <app-primary-button
+          class="jb-btn-paginator-style"
+          label="Novo Convite"
+          icon="pi pi-plus"
+          (onClick)="openNew()">
+        </app-primary-button>
+      </div>
+    </div>
+
+    <form [formGroup]="filtroForm" class="jb-filtros" (ngSubmit)="aplicarFiltro()">
+      <div class="jb-filtro-campo">
+        <label class="jb-label-sm">Status</label>
+        <p-select
+          [options]="statusOptions"
+          formControlName="status"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Todos"
+          [showClear]="true"
+          appendTo="body">
+        </p-select>
+      </div>
+      <div class="jb-filtro-acoes">
+        <button pButton type="submit" icon="pi pi-search" label="Filtrar" class="p-button-sm"></button>
+        <button pButton type="button" icon="pi pi-times" label="Limpar" class="p-button-sm p-button-text" (click)="limparFiltro()"></button>
+      </div>
+    </form>
+
+    <div class="table-container">
+      <p-table
+        [value]="cotacoes()"
+        [loading]="loading()"
+        [lazy]="true"
+        (onLazyLoad)="loadCotacoes($event)"
+        [totalRecords]="totalRecords()"
+        [paginator]="true"
+        [rows]="10"
+        [rowsPerPageOptions]="[10, 20, 50]"
+        [tableStyle]="{ 'min-width': '60rem' }"
+        styleClass="p-datatable-sm text-sm"
+        [paginatorDropdownAppendTo]="'body'"
+      >
+        <ng-template pTemplate="header">
+          <tr>
+            <th>Nº</th>
+            <th>Status</th>
+            <th>Requisição de Origem</th>
+            <th>Data Limite Resposta</th>
+            <th>Fornecedores Convidados</th>
+            <th>Ações</th>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="body" let-rowData>
+          <tr>
+            <td class="jb-strong">{{ rowData.numero }}</td>
+            <td>
+              <span class="jb-status" [class]="statusBadgeClass(rowData.status)">
+                {{ label(rowData.status) }}
+              </span>
+            </td>
+            <td>{{ numeroRequisicao(rowData.requisicaoId) }}</td>
+            <td>{{ rowData.dataLimiteResposta ? (rowData.dataLimiteResposta | date:'dd/MM/yyyy') : '-' }}</td>
+            <td>{{ rowData.quantidadeFornecedoresConvidados ?? 0 }}</td>
+            <td>
+              <button
+                pButton
+                pRipple
+                icon="pi pi-eye"
+                class="p-button-rounded p-button-text p-button-sm w-8 h-8"
+                pTooltip="Ver detalhe"
+                (click)="verCotacao(rowData)"
+                tooltipPosition="top">
+              </button>
+            </td>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td colspan="6" style="text-align: center; padding: 24px; color: var(--muted);">
+              Nenhuma cotação encontrada.
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </div>
+  </div>
+
+  <footer class="jb-list-footer">
+    <span>© 2026 SYAX TECNOLOGIA · BUILD 26.04.01</span>
+    <span>{{ totalRecords() }} {{ totalRecords() === 1 ? 'COTAÇÃO CADASTRADA' : 'COTAÇÕES CADASTRADAS' }}</span>
+  </footer>
+
+</div>
+
+<p-dialog [(visible)]="displayForm" [style]="{width: '900px', maxWidth: '95vw'}" [breakpoints]="{ '1200px': '90vw', '640px': '95vw' }" [modal]="true" [resizable]="true">
+  <ng-template pTemplate="header">
+    <div class="jb-dialog-head">
+      <span class="eyebrow">COMPRAS · COTAÇÕES</span>
+      <h2>Novo Convite de Cotação</h2>
+    </div>
+  </ng-template>
+
+  <app-cotacao-form
+    *ngIf="displayForm"
+    (saved)="onFormSaved()"
+    (canceled)="onFormCanceled()">
+  </app-cotacao-form>
+
+</p-dialog>

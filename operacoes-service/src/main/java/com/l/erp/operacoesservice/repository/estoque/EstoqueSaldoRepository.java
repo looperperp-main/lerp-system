@@ -17,7 +17,7 @@ import java.util.UUID;
 public interface EstoqueSaldoRepository extends JpaRepository<EstoqueSaldo, UUID> {
     Optional<EstoqueSaldo> findByTenantIdAndProdutoIdAndDepositoId(Long tenantId, UUID produtoId, UUID depositoId);
 
-    /** Upsert seguro do saldo dentro da transação do movimento (spec/estoque.md §4.1 passo 4). */
+    /** Upsert seguro do saldo dentro da transação do movimento (spec/modulos/estoque/estoque.md §4.1 passo 4). */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select s from EstoqueSaldo s where s.tenantId = :tenantId "
             + "and s.produtoId = :produtoId and s.depositoId = :depositoId")
@@ -25,7 +25,7 @@ public interface EstoqueSaldoRepository extends JpaRepository<EstoqueSaldo, UUID
                                                                   @Param("produtoId") UUID produtoId,
                                                                   @Param("depositoId") UUID depositoId);
 
-    /** Listagem paginada com filtros opcionais para GET /api/v1/estoque/saldos (spec/estoque.md §5.1). */
+    /** Listagem paginada com filtros opcionais para GET /api/v1/estoque/saldos (spec/modulos/estoque/estoque.md §5.1). */
     @Query("select s from EstoqueSaldo s where s.tenantId = :tenantId "
             + "and (:produtoId is null or s.produtoId = :produtoId) "
             + "and (:depositoId is null or s.depositoId = :depositoId) "

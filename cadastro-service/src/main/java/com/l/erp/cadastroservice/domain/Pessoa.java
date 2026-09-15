@@ -1,5 +1,6 @@
 package com.l.erp.cadastroservice.domain;
 
+import com.l.erp.cadastroservice.domain.enumerators.IndicadorIeDestinatario;
 import com.l.erp.cadastroservice.domain.enumerators.TipoPessoa;
 import com.l.erp.cadastroservice.repository.filter.BaseTenantEntity;
 import jakarta.persistence.Column;
@@ -74,6 +75,15 @@ public class Pessoa extends BaseTenantEntity {
     @ColumnDefault("true")
     @Column(name = "ativo", nullable = false)
     private Boolean ativo;
+
+    /**
+     * Indicador da IE do destinatário — grupo {@code dest} da NF-e
+     * (spec/modulos/emissao-fiscal/emissao-fiscal.md §10). Nullable: nem toda Pessoa é destinatário
+     * de uma operação fiscal; obrigatório só na hora de emitir (validação do emissao-fiscal-service).
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "ind_ie_dest", length = 20)
+    private IndicadorIeDestinatario indIeDest;
 
     @NotNull
     @Column(name = "created_at", nullable = false)

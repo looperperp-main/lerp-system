@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Resposta do pedido (spec/o2c-vendas.md §5/§10, Fase 4). itens/historico só vêm preenchidos no
+ * Resposta do pedido (spec/modulos/o2c-vendas/o2c-vendas.md §5/§10, Fase 4). itens/historico só vêm preenchidos no
  * detalhe (GET /{id}); a listagem (GET) devolve o resumo, por isso NON_NULL pra omitir no JSON.
  */
 @Getter

@@ -19,7 +19,7 @@ public interface MovimentoEstoqueRepository extends JpaRepository<MovimentoEstoq
     Optional<MovimentoEstoque> findByIdAndTenantId(UUID id, Long tenantId);
 
     /**
-     * Extrato paginado com filtros opcionais, ordenado por ocorrido_em DESC (spec/estoque.md §5.2).
+     * Extrato paginado com filtros opcionais, ordenado por ocorrido_em DESC (spec/modulos/estoque/estoque.md §5.2).
      * O "cast(:de as timestamp)"/"cast(:ate as timestamp)" na checagem de nulo é necessário porque,
      * no Postgres, um parâmetro Instant que só aparece isolado num "? is null" (sem coluna do lado)
      * não tem tipo inferível e a query falha com "could not determine data type of parameter" — o

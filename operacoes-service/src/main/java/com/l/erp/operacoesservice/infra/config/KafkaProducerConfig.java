@@ -14,7 +14,7 @@ import org.springframework.kafka.core.ProducerFactory;
 import java.util.HashMap;
 import java.util.Map;
 
-/** Fase 5 (spec/o2c-vendas.md §8) — mesmo padrão do auth-service/KafkaProducerConfig. */
+/** Fase 5 (spec/modulos/o2c-vendas/o2c-vendas.md §8) — mesmo padrão do auth-service/KafkaProducerConfig. */
 @Configuration
 @EnableKafka
 public class KafkaProducerConfig {

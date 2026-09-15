@@ -1,0 +1,280 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # TABELA: compras.recebimento_mercadoria
+  # Recebimento de mercadoria de um pedido de compra — um pedido pode ter N recebimentos
+  # (entrega parcial). Dados da NF de entrada digitados manualmente (importação de XML é módulo
+  # fiscal, fora de escopo). Máquina de estados: EM_CONFERENCIA -> CONFIRMADO -> FATURADO, com
+  # CANCELADO nos pontos previstos. FATURADO/faturado_em pertencem à Fase 4 (faturamento) — a
+  # coluna já nasce aqui pra não exigir ALTER depois, mas nenhuma transição é exercitada agora.
+  # spec/p2p-compras.md §"recebimento_mercadoria", Fase 3
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: compras-014-create-recebimento-mercadoria
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: compras
+            tableName: recebimento_mercadoria
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: numero
+                  type: bigint
+                  constraints:
+                    nullable: false
+                  remarks: "Sequencial por tenant/tipo RECEBIMENTO — ver compras.compra_numeracao"
+              - column:
+                  name: pedido_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_recebimento_mercadoria_pedido_id
+                    referencedTableSchemaName: compras
+                    references: compras.pedido_compra(id)
+              - column:
+                  name: deposito_id
+                  type: uuid
+                  remarks: "Ref. cadastro-service (cadastros.deposito), nullable (Rev. 5) — default = do pedido, editável; obrigatório só se houver item MERCADORIA, validado no service"
+              - column:
+                  name: status
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+                  remarks: "StatusRecebimentoMercadoria: EM_CONFERENCIA | CONFIRMADO | FATURADO | CANCELADO"
+              - column:
+                  name: data_recebimento
+                  type: date
+                  constraints:
+                    nullable: false
+              - column:
+                  name: tipo_documento_fiscal
+                  type: varchar(5)
+                  constraints:
+                    nullable: false
+                  remarks: "NFE | NFSE (Rev. 5) — define quais campos nfe_*/nfse_* são obrigatórios (RN-P2P-07)"
+              - column:
+                  name: nfe_numero
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: nfe_serie
+                  type: varchar(5)
+                  remarks: "Obrigatória só quando tipo_documento_fiscal = NFE — NFS-e não tem série"
+              - column:
+                  name: nfe_chave
+                  type: varchar(44)
+                  remarks: "Obrigatória só quando tipo_documento_fiscal = NFE; única por tenant quando não nula (RN-P2P-07)"
+              - column:
+                  name: nfse_codigo_verificacao
+                  type: varchar(50)
+                  remarks: "Obrigatório só quando tipo_documento_fiscal = NFSE; único por tenant quando não nulo (RN-P2P-07)"
+              - column:
+                  name: nfe_data_emissao
+                  type: date
+                  constraints:
+                    nullable: false
+              - column:
+                  name: valor_total_nf
+                  type: decimal(15,2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: condicao_pagamento_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                  remarks: "Ref. cadastro-service (cadastros.condicao_pagamento) — default = do pedido, editável, sem FK física"
+              - column:
+                  name: impostos_ibs
+                  type: decimal(15,2)
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+                  remarks: "Zerado/informativo no MVP — só o fiscal-service preenche no futuro (decisão do usuário)"
+              - column:
+                  name: impostos_cbs
+                  type: decimal(15,2)
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: impostos_is
+                  type: decimal(15,2)
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: faturado_em
+                  type: timestamp
+                  remarks: "Preenchido quando nfe.entrada.aprovada for publicado — Fase 4 (faturamento), fora de escopo"
+              - column:
+                  name: observacao
+                  type: varchar(500)
+              - column:
+                  name: motivo_cancelamento
+                  type: varchar(500)
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: created_by
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_updated_by
+                  type: uuid
+        - addUniqueConstraint:
+            schemaName: compras
+            tableName: recebimento_mercadoria
+            columnNames: tenant_id, numero
+            constraintName: uq_recebimento_mercadoria_tenant_numero
+        - createIndex:
+            schemaName: compras
+            tableName: recebimento_mercadoria
+            indexName: idx_recebimento_mercadoria_tenant_status
+            columns:
+              - column:
+                  name: tenant_id
+              - column:
+                  name: status
+        - createIndex:
+            schemaName: compras
+            tableName: recebimento_mercadoria
+            indexName: idx_recebimento_mercadoria_pedido_id
+            columns:
+              - column:
+                  name: pedido_id
+        # CHECKs/índices únicos parciais (createTable não expressa bem): spec/p2p-compras.md §"recebimento_mercadoria"
+        - sql:
+            sql: >
+              ALTER TABLE compras.recebimento_mercadoria
+              ADD CONSTRAINT chk_recebimento_mercadoria_dados_fiscais
+              CHECK (
+                (tipo_documento_fiscal = 'NFE' AND nfe_serie IS NOT NULL AND nfe_chave IS NOT NULL)
+                OR
+                (tipo_documento_fiscal = 'NFSE' AND nfse_codigo_verificacao IS NOT NULL)
+              );
+        - sql:
+            sql: >
+              CREATE UNIQUE INDEX uq_recebimento_mercadoria_tenant_nfe_chave
+              ON compras.recebimento_mercadoria (tenant_id, nfe_chave)
+              WHERE nfe_chave IS NOT NULL;
+        - sql:
+            sql: >
+              CREATE UNIQUE INDEX uq_recebimento_mercadoria_tenant_nfse_codigo
+              ON compras.recebimento_mercadoria (tenant_id, nfse_codigo_verificacao)
+              WHERE nfse_codigo_verificacao IS NOT NULL;
+      rollback:
+        - dropTable:
+            schemaName: compras
+            tableName: recebimento_mercadoria
+
+  # ──────────────────────────────────────────
+  # TABELA: compras.recebimento_mercadoria_item
+  # Item cujo produto (via pedido_item_id -> pedido_compra_item -> produto_id, cadastro-service)
+  # tem Produto.tipo = SERVICO não gera movimento_estoque (Rev. 5) — o recebimento desse item
+  # funciona como aceite do serviço, não como entrada física. spec/p2p-compras.md §"recebimento_mercadoria_item"
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: compras-015-create-recebimento-mercadoria-item
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: compras
+            tableName: recebimento_mercadoria_item
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: recebimento_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_recebimento_mercadoria_item_recebimento_id
+                    referencedTableSchemaName: compras
+                    references: compras.recebimento_mercadoria(id)
+              - column:
+                  name: pedido_item_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_recebimento_mercadoria_item_pedido_item_id
+                    referencedTableSchemaName: compras
+                    references: compras.pedido_compra_item(id)
+                  remarks: "RN-P2P-08: o produtoId do item vem daqui (pedido_compra_item.produto_id), não duplicado nesta tabela"
+              - column:
+                  name: quantidade
+                  type: decimal(15,4)
+                  constraints:
+                    nullable: false
+                  remarks: "Validada contra saldo pendente do item + tolerância de 5% (RN-P2P-05)"
+              - column:
+                  name: preco_unitario_nf
+                  type: decimal(15,4)
+                  constraints:
+                    nullable: false
+                  remarks: "Preço efetivo da NF — pode divergir do preco_unitario do pedido"
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: created_by
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_updated_by
+                  type: uuid
+        - createIndex:
+            schemaName: compras
+            tableName: recebimento_mercadoria_item
+            indexName: idx_recebimento_mercadoria_item_recebimento_id
+            columns:
+              - column:
+                  name: recebimento_id
+        - sql:
+            sql: >
+              ALTER TABLE compras.recebimento_mercadoria_item
+              ADD CONSTRAINT chk_recebimento_mercadoria_item_quantidade
+              CHECK (quantidade > 0);
+        - sql:
+            sql: >
+              ALTER TABLE compras.recebimento_mercadoria_item
+              ADD CONSTRAINT chk_recebimento_mercadoria_item_preco_unitario_nf
+              CHECK (preco_unitario_nf >= 0);
+      rollback:
+        - dropTable:
+            schemaName: compras
+            tableName: recebimento_mercadoria_item

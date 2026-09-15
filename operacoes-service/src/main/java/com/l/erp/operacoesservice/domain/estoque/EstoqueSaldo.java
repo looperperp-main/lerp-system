@@ -20,7 +20,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Saldo materializado por produto+depósito (spec/estoque.md §3.3) — atualizado via upsert com
+ * Saldo materializado por produto+depósito (spec/modulos/estoque/estoque.md §3.3) — atualizado via upsert com
  * SELECT ... FOR UPDATE na mesma transação do movimento que o originou.
  */
 @Getter

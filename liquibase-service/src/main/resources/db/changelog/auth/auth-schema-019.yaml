@@ -2,12 +2,12 @@ databaseChangeLog:
   # ──────────────────────────────────────────
   # Seed de permissões RBAC do domínio ESTOQUE (operacoes-service — schema estoque).
   # Padrão DOMINIO_ACAO — scope não informado, default TENANT (auth-schema-010).
-  # spec/estoque.md §3.4
+  # spec/modulos/estoque/estoque.md §3.4
   # ──────────────────────────────────────────
   - changeSet:
       id: auth-019-permission-estoque-seed
       author: vitor-fernandes
-      comment: "Permissões do domínio ESTOQUE (saldo e movimento — operacoes-service). Scope TENANT (default). spec/estoque.md §3.4"
+      comment: "Permissões do domínio ESTOQUE (saldo e movimento — operacoes-service). Scope TENANT (default). spec/modulos/estoque/estoque.md §3.4"
       changes:
         - sql:
             dbms: postgresql

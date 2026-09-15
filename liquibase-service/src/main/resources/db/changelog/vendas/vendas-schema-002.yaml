@@ -1,7 +1,7 @@
 databaseChangeLog:
 
   # ──────────────────────────────────────────
-  # Suporte a serviço no item do pedido (spec/o2c-vendas.md, Rev. 8)
+  # Suporte a serviço no item do pedido (spec/modulos/o2c-vendas/o2c-vendas.md, Rev. 8)
   # tipo_item: snapshot imutável de Produto.tipo no momento em que o item foi
   # adicionado ao pedido — MERCADORIA (default, compatível com pedidos existentes) ou SERVICO.
   # ──────────────────────────────────────────

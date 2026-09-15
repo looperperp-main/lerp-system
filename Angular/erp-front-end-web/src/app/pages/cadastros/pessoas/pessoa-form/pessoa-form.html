@@ -104,6 +104,20 @@
               pInputMask="99/99/9999">
             </p-datepicker>
           </div>
+          <div class="flex flex-col gap-2">
+
+            <label for="indIeDest" class="jb-label">Indicador de IE do Destinatário</label>
+            <p-select
+              id="indIeDest"
+              formControlName="indIeDest"
+              [options]="opcoesIndIeDest"
+              optionLabel="label"
+              optionValue="value"
+              placeholder="Selecione..."
+              appendTo="body"
+              [style]="{'width':'100%'}">
+            </p-select>
+          </div>
         </form>
         <div class="flex justify-end gap-2 mt-4">
           <p-button label="Cancelar" severity="secondary" class="mr-2" (onClick)="onCanceled.emit()"></p-button>
@@ -210,13 +224,17 @@
             </p-inputmask>
           </div>
           <div class="flex flex-col gap-2">
-            <label for="ibgeCodigo" class="jb-label">Código do IBGE</label>
+            <label for="ibgeCodigo" class="jb-label">Código do IBGE
+              <span *ngIf="formPessoa.get('tipo')?.value === 'PJ'" class="text-red-500">*</span>
+            </label>
             <input pInputText formControlName="ibgeCodigo"
                    id="ibgeCodigo"
                    type="text"
                    class="w-full"
                    pKeyFilter="int"
+                   [ngClass]="{'ng-invalid ng-dirty': isEnderecoFieldInvalid('ibgeCodigo')}"
                    placeholder="Ex: 000000" />
+            <small *ngIf="isEnderecoFieldInvalid('ibgeCodigo')" class="text-red-500">O Código do IBGE é obrigatório para Pessoa Jurídica.</small>
           </div>
           <div class="flex flex-col gap-2">
             <label for="pais" class="jb-label">País</label>

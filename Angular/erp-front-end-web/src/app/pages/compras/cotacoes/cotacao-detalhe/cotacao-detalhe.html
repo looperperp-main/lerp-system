@@ -1,0 +1,264 @@
+<div *ngIf="cotacao() as c" class="jb-detalhe-wrap">
+
+  <div class="jb-page-head">
+    <div>
+      <app-breadcrumb></app-breadcrumb>
+      <h1>
+        Cotação de Compra Nº {{ c.numero }}
+        <span class="jb-status" [class]="statusBadgeClass(c.status)">{{ statusLabel[c.status!] }}</span>
+      </h1>
+      <p class="sub">Convite multi-fornecedor, comparação de respostas e escolha do vencedor</p>
+    </div>
+    <div class="jb-panel-actions">
+      <button pButton icon="pi pi-arrow-left" label="Voltar" class="p-button-text" (click)="voltar()"></button>
+    </div>
+  </div>
+
+  <div class="jb-panel">
+    <h3><i class="pi pi-info-circle"></i> Dados Gerais</h3>
+    <div class="jb-info-grid">
+      <div class="jb-info-item">
+        <label>Depósito</label>
+        <span>{{ nomeDeposito(c.depositoId) }}</span>
+      </div>
+      <div class="jb-info-item">
+        <label>Data Limite para Resposta</label>
+        <span>{{ c.dataLimiteResposta ? (c.dataLimiteResposta | date:'dd/MM/yyyy') : '-' }}</span>
+      </div>
+      <div class="jb-info-item">
+        <label>Requisição de Origem</label>
+        <span>{{ c.requisicaoId ? ('Nº ' + c.requisicaoId) : 'Avulsa' }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="jb-panel">
+    <h3><i class="pi pi-box"></i> Itens da Cotação</h3>
+    <div class="table-container">
+      <table class="jb-simple-table">
+        <thead>
+          <tr>
+            <th>Produto</th>
+            <th>Quantidade</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of c.itens">
+            <td>{{ nomeProduto(item.produtoId) }}</td>
+            <td>{{ item.quantidade }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="jb-panel">
+    <h3><i class="pi pi-truck"></i> Fornecedores Convidados</h3>
+
+    <div class="jb-fornecedor-card" *ngFor="let f of c.fornecedores">
+      <div class="jb-fornecedor-head">
+        <div>
+          <span class="jb-strong">{{ nomeFornecedor(f.fornecedorId) }}</span>
+          <span class="jb-status" [class]="statusFornecedorBadgeClass(f.status)">{{ statusFornecedorLabel[f.status] }}</span>
+          <span class="jb-ordem-sugerida" *ngIf="f.ordemSugerida as ordem">{{ ordem }}º sugerido</span>
+        </div>
+        <div class="jb-panel-actions">
+          <button pButton icon="pi pi-check" label="Registrar Resposta" class="p-button-sm" *ngIf="podeResponder(f)" [disabled]="processando()" (click)="abrirResponder(f)"></button>
+          <button pButton icon="pi pi-times" label="Declinar" class="p-button-sm p-button-danger p-button-text" *ngIf="podeDeclinar(f)" [disabled]="processando()" (click)="abrirDeclinar(f)"></button>
+        </div>
+      </div>
+
+      <div class="jb-info-grid" *ngIf="f.status === 'RESPONDIDA'">
+        <div class="jb-info-item">
+          <label>Condição de Pagamento</label>
+          <span>{{ nomeCondicao(f.condicaoPagamentoId) }}</span>
+        </div>
+        <div class="jb-info-item">
+          <label>Prazo de Entrega</label>
+          <span>{{ f.prazoEntregaDias ? f.prazoEntregaDias + ' dias' : '-' }}</span>
+        </div>
+        <div class="jb-info-item">
+          <label>Frete</label>
+          <span>{{ f.valorFrete ? (f.valorFrete | currency:'BRL':'symbol':'1.2-2':'pt-BR') : '-' }}</span>
+        </div>
+        <div class="jb-info-item">
+          <label>Valor Total Ofertado</label>
+          <span class="jb-strong">{{ f.valorTotalOfertado | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}</span>
+        </div>
+      </div>
+      <div class="jb-info-item jb-info-observacao" *ngIf="f.observacao">
+        <label>Observação</label>
+        <span>{{ f.observacao }}</span>
+      </div>
+
+      <div class="table-container" *ngIf="f.status === 'RESPONDIDA'">
+        <table class="jb-simple-table">
+          <thead>
+            <tr>
+              <th>Produto</th>
+              <th>Preço Unit.</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of f.itens">
+              <td>{{ nomeProduto(item.produtoId) }}</td>
+              <td>{{ item.precoUnitario | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}</td>
+              <td>{{ item.valorTotal | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <p class="jb-sem-acoes" *ngIf="!c.fornecedores?.length">Nenhum fornecedor convidado.</p>
+  </div>
+
+  <div class="jb-panel" *ngIf="colunasFornecedoresMapa().length > 0">
+    <h3><i class="pi pi-table"></i> Mapa Comparativo</h3>
+    <div class="table-container">
+      <table class="jb-simple-table">
+        <thead>
+          <tr>
+            <th>Produto</th>
+            <th *ngFor="let f of colunasFornecedoresMapa()">{{ nomeFornecedor(f.fornecedorId) }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let linha of mapaComparativo()">
+            <td>{{ linha.nomeProduto }}</td>
+            <td *ngFor="let cel of linha.celulas" [class.jb-menor-preco]="cel.menorPreco">
+              {{ cel.preco !== null ? (cel.preco | currency:'BRL':'symbol':'1.2-2':'pt-BR') : '-' }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="jb-panel">
+    <h3><i class="pi pi-bolt"></i> Ações da Cotação</h3>
+    <div class="jb-panel-actions" *ngIf="temAcaoDisponivel(); else semAcoes">
+      <button pButton icon="pi pi-flag" label="Encerrar Cotação" *ngIf="podeEncerrar()" [disabled]="processando()" (click)="abrirEncerrar()"></button>
+      <button pButton icon="pi pi-ban" label="Cancelar Cotação" class="p-button-danger p-button-text" *ngIf="podeCancelar()" [disabled]="processando()" (click)="abrirCancelar()"></button>
+    </div>
+    <ng-template #semAcoes>
+      <p class="jb-sem-acoes">Nenhuma ação disponível para esta cotação.</p>
+    </ng-template>
+  </div>
+
+  <div class="jb-panel" *ngIf="c.historico?.length">
+    <h3><i class="pi pi-history"></i> Histórico</h3>
+    <div class="jb-timeline">
+      <div class="jb-timeline-item" *ngFor="let h of c.historico">
+        <span class="jb-status" [class]="historicoBadgeClass(h.statusNovo)">{{ historicoLabel(h.statusNovo) }}</span>
+        <span class="jb-timeline-data">{{ h.ocorridoEm | date:'dd/MM/yyyy HH:mm' }}</span>
+        <span class="jb-timeline-motivo" *ngIf="h.motivo">— {{ h.motivo }}</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="jb-loading" *ngIf="loading()">Carregando cotação...</div>
+
+<p-dialog [(visible)]="displayRespostaDialog" [style]="{width: '700px', maxWidth: '95vw'}" [breakpoints]="{ '640px': '95vw' }" [modal]="true" header="Registrar Resposta do Fornecedor" *ngIf="respostaForm">
+  <form [formGroup]="respostaForm" (ngSubmit)="confirmarResposta()">
+    <div class="jb-grid-2">
+      <div class="jb-field">
+        <label class="jb-label">Condição de Pagamento *</label>
+        <p-select
+          [options]="condicoesOptions"
+          formControlName="condicaoPagamentoId"
+          optionLabel="label"
+          optionValue="value"
+          [filter]="true"
+          filterBy="label"
+          appendTo="body">
+        </p-select>
+      </div>
+      <div class="jb-field">
+        <label class="jb-label">Prazo de Entrega (dias)</label>
+        <p-inputNumber formControlName="prazoEntregaDias" [min]="0"></p-inputNumber>
+      </div>
+    </div>
+
+    <div class="jb-field">
+      <label class="jb-label">Valor do Frete</label>
+      <p-inputNumber formControlName="valorFrete" mode="currency" currency="BRL" locale="pt-BR"></p-inputNumber>
+    </div>
+
+    <div class="jb-field">
+      <label class="jb-label">Observação</label>
+      <textarea pTextarea formControlName="observacao" rows="2" style="width: 100%;"></textarea>
+    </div>
+
+    <h4 class="jb-section-title">Preços Ofertados</h4>
+
+    <div formArrayName="itens">
+      <div class="jb-item-row" *ngFor="let item of respostaItensArray.controls; let i = index" [formGroupName]="i">
+        <div class="jb-field jb-item-produto">
+          <label class="jb-label-sm">Produto</label>
+          <span>{{ nomeProduto(item.value.produtoId) }}</span>
+        </div>
+        <div class="jb-field jb-item-preco">
+          <label class="jb-label-sm">Preço Unit. *</label>
+          <p-inputNumber formControlName="precoUnitario" mode="currency" currency="BRL" locale="pt-BR"></p-inputNumber>
+        </div>
+      </div>
+    </div>
+
+    <div class="jb-form-footer">
+      <button pButton type="button" label="Voltar" class="p-button-secondary" (click)="displayRespostaDialog = false"></button>
+      <button pButton type="submit" label="Registrar Resposta" [loading]="processando()"></button>
+    </div>
+  </form>
+</p-dialog>
+
+<p-dialog [(visible)]="displayDeclinarDialog" [style]="{width: '440px'}" [modal]="true" header="Declinar Convite">
+  <form [formGroup]="declinarForm" (ngSubmit)="confirmarDeclinio()">
+    <div class="jb-field">
+      <label class="jb-label">Motivo (opcional)</label>
+      <textarea pTextarea formControlName="motivo" rows="3" style="width: 100%;"></textarea>
+    </div>
+    <div class="jb-form-footer">
+      <button pButton type="button" label="Voltar" class="p-button-secondary" (click)="displayDeclinarDialog = false"></button>
+      <button pButton type="submit" label="Confirmar Declínio" class="p-button-danger" [loading]="processando()"></button>
+    </div>
+  </form>
+</p-dialog>
+
+<p-dialog [(visible)]="displayEncerrarDialog" [style]="{width: '480px'}" [modal]="true" header="Encerrar Cotação">
+  <form [formGroup]="encerrarForm" (ngSubmit)="confirmarEncerramento()">
+    <div class="jb-field">
+      <label class="jb-label">Fornecedor Vencedor *</label>
+      <p-select
+        [options]="encerrarOptions()"
+        formControlName="cotacaoFornecedorVencedorId"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Selecione o fornecedor vencedor"
+        appendTo="body"
+        style="width: 100%;">
+      </p-select>
+      <small class="jb-hint-neutro">A escolha do vencedor é sempre manual. Ao encerrar, um pedido de compra é gerado em rascunho a partir da resposta escolhida.</small>
+    </div>
+    <div class="jb-form-footer">
+      <button pButton type="button" label="Voltar" class="p-button-secondary" (click)="displayEncerrarDialog = false"></button>
+      <button pButton type="submit" label="Confirmar Encerramento" [loading]="processando()"></button>
+    </div>
+  </form>
+</p-dialog>
+
+<p-dialog [(visible)]="displayCancelarDialog" [style]="{width: '440px'}" [modal]="true" header="Cancelar Cotação">
+  <form [formGroup]="cancelarForm" (ngSubmit)="confirmarCancelamento()">
+    <div class="jb-field">
+      <label class="jb-label">Motivo do Cancelamento *</label>
+      <textarea pTextarea formControlName="motivo" rows="3" style="width: 100%;"></textarea>
+    </div>
+    <div class="jb-form-footer">
+      <button pButton type="button" label="Voltar" class="p-button-secondary" (click)="displayCancelarDialog = false"></button>
+      <button pButton type="submit" label="Confirmar Cancelamento" class="p-button-danger" [loading]="processando()"></button>
+    </div>
+  </form>
+</p-dialog>

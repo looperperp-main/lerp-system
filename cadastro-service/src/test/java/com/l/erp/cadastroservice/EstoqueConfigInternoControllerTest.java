@@ -24,7 +24,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/** spec/estoque.md §5.1/E6 — badge "abaixo do mínimo" chamado pelo operacoes-service. */
+/** spec/modulos/estoque/estoque.md §5.1/E6 — badge "abaixo do mínimo" chamado pelo operacoes-service. */
 @WebMvcTest(controllers = EstoqueConfigInternoController.class)
 @AutoConfigureMockMvc(addFilters = false)
 class EstoqueConfigInternoControllerTest {

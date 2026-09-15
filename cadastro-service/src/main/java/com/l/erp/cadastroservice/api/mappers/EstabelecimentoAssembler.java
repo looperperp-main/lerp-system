@@ -31,6 +31,7 @@ public class EstabelecimentoAssembler extends RepresentationModelAssemblerSuppor
         dto.setIe(entity.getIe());
         dto.setIm(entity.getIm());
         dto.setAtivo(entity.getAtivo());
+        dto.setCrt(entity.getCrt());
         dto.setCreatedAt(entity.getCreatedAt());
         dto.setUpdatedAt(entity.getUpdatedAt());
         dto.setCreatedBy(entity.getCreatedBy());

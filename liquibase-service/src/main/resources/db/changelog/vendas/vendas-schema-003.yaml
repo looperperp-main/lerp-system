@@ -1,7 +1,7 @@
 databaseChangeLog:
 
   # ──────────────────────────────────────────
-  # D4: integração fiscal no faturamento (spec/o2c-vendas.md §8, Rev. 10)
+  # D4: integração fiscal no faturamento (spec/modulos/o2c-vendas/o2c-vendas.md §8, Rev. 10)
   # Colunas preenchidas só no momento do faturamento, a partir do agregado das chamadas a
   # POST /fiscal/calcular (fiscal-service) por item do pedido — nulas até lá.
   # ──────────────────────────────────────────

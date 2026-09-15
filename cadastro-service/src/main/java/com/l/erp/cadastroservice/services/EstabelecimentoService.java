@@ -3,6 +3,7 @@ package com.l.erp.cadastroservice.services;
 import com.l.erp.cadastroservice.api.dto.EstabelecimentoRequestDTO;
 import com.l.erp.cadastroservice.domain.Estabelecimento;
 import com.l.erp.cadastroservice.domain.Pessoa;
+import com.l.erp.cadastroservice.domain.enumerators.CodigoRegimeTributario;
 import com.l.erp.cadastroservice.domain.enumerators.TipoPessoa;
 import com.l.erp.cadastroservice.repository.EstabelecimentoRepository;
 import com.l.erp.cadastroservice.repository.PessoaRepository;
@@ -89,6 +90,7 @@ public class EstabelecimentoService {
         entity.setIe(dto.ie());
         entity.setIm(dto.im());
         entity.setAtivo(dto.ativo() != null ? dto.ativo() : Boolean.TRUE);
+        entity.setCrt(dto.crt());
         entity.setCreatedAt(Instant.now());
         entity.setCreatedBy(userId);
 
@@ -111,6 +113,7 @@ public class EstabelecimentoService {
         if (dto.ativo() != null) {
             entity.setAtivo(dto.ativo());
         }
+        entity.setCrt(dto.crt());
         entity.setUpdatedAt(Instant.now());
         entity.setLastUpdatedBy(userId);
 
@@ -132,6 +135,11 @@ public class EstabelecimentoService {
         matriz.setIe(ie);
         matriz.setIm(im);
         matriz.setAtivo(Boolean.TRUE);
+        // CRT provisório: matriz é criada automaticamente por PessoaService, sem esse dado ainda
+        // coletado no cadastro de Pessoa. REGIME_NORMAL é o fallback mais conservador (tributa
+        // cheio) — o valor real por tenant precisa ser revisto no onboarding, não assumido em massa
+        // (mesmo raciocínio do backfill em cadastro-schema-016).
+        matriz.setCrt(CodigoRegimeTributario.REGIME_NORMAL);
         matriz.setCreatedAt(Instant.now());
         matriz.setCreatedBy(userId);
         return estabelecimentoRepository.save(matriz);

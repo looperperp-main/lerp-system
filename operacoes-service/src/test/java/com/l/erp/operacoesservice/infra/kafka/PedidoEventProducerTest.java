@@ -68,7 +68,7 @@ class PedidoEventProducerTest {
                 .build();
     }
 
-    // P4 (spec/o2c-vendas.md §8): confirma que o item enriquecido carrega ncm/codigoServico do
+    // P4 (spec/modulos/o2c-vendas/o2c-vendas.md §8): confirma que o item enriquecido carrega ncm/codigoServico do
     // Produto buscado no cadastro-service.
     @Test
     void publicarConfirmado_deveEnriquecerItensComNcmECodigoServico() {

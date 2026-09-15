@@ -1,8 +1,11 @@
 package com.l.erp.cadastroservice.domain;
 
+import com.l.erp.cadastroservice.domain.enumerators.CodigoRegimeTributario;
 import com.l.erp.cadastroservice.repository.filter.BaseTenantEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -69,6 +72,16 @@ public class Estabelecimento extends BaseTenantEntity {
     @ColumnDefault("true")
     @Column(name = "ativo", nullable = false)
     private Boolean ativo;
+
+    /**
+     * Código de Regime Tributário do emitente — obrigatório no grupo {@code emit} da NF-e
+     * (spec/modulos/emissao-fiscal/emissao-fiscal.md §10). Migração (cadastro-schema-016) faz
+     * backfill provisório com REGIME_NORMAL; valor real por tenant precisa ser revisto no onboarding.
+     */
+    @NotNull
+    @Enumerated(EnumType.STRING)
+    @Column(name = "crt", nullable = false, length = 20)
+    private CodigoRegimeTributario crt;
 
     @NotNull
     @Column(name = "created_at", nullable = false)

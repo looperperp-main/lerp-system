@@ -122,6 +122,17 @@ public class EnderecoService {
     }
 
     private void createEndereco(EnderecoRequestDTO dto, Endereco entity) {
+        // cMun é obrigatório no XML da NF-e pro emitente (spec/modulos/emissao-fiscal/emissao-fiscal.md
+        // §10) — só quando o endereço pertence a um Estabelecimento (PJ); endereço de Pessoa PF
+        // direto continua opcional. entity.getEstabelecimento() já está setado nos dois pontos de
+        // chamada (create() seta antes de chamar; update() carrega do registro já persistido, que
+        // nunca muda de dono).
+        boolean deEstabelecimento = entity.getEstabelecimento() != null;
+        boolean semIbge = dto.ibgeCodigo() == null || dto.ibgeCodigo().isBlank();
+        if (deEstabelecimento && semIbge) {
+            throw new BusinessException(Constants.END_IBGE_CODIGO_OBRIGATORIO_ESTABELECIMENTO, HttpStatus.BAD_REQUEST);
+        }
+
         entity.setTipo(dto.tipo());
         entity.setLogradouro(dto.logradouro());
         entity.setNumero(dto.numero());

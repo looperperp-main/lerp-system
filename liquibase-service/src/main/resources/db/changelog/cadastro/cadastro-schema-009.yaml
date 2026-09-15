@@ -1,7 +1,7 @@
 databaseChangeLog:
 
   # ──────────────────────────────────────────
-  # Suporte a serviço no cadastro de produto (spec/o2c-vendas.md, Rev. 8)
+  # Suporte a serviço no cadastro de produto (spec/modulos/o2c-vendas/o2c-vendas.md, Rev. 8)
   # tipo: MERCADORIA (default, compatível com produtos existentes) ou SERVICO.
   # codigo_servico: obrigatório se SERVICO, vazio se MERCADORIA (validado em ProdutoService).
   # ──────────────────────────────────────────

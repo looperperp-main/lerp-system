@@ -1,5 +1,6 @@
 package com.l.erp.cadastroservice.api.dto;
 
+import com.l.erp.cadastroservice.domain.enumerators.IndicadorIeDestinatario;
 import com.l.erp.cadastroservice.domain.enumerators.TipoPessoa;
 import lombok.Getter;
 import lombok.Setter;
@@ -25,6 +26,7 @@ public class PessoaResponseDTO extends RepresentationModel<PessoaResponseDTO> {
     private String rg;
     private LocalDate dataNascimento;
     private Boolean ativo;
+    private IndicadorIeDestinatario indIeDest;
     private Instant createdAt;
     private Instant updatedAt;
     private UUID createdBy;

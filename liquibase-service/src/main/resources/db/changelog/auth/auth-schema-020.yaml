@@ -1,0 +1,28 @@
+databaseChangeLog:
+  # ──────────────────────────────────────────
+  # Seed de permissões RBAC do domínio COMPRAS (P2P — operacoes-service, schema compras).
+  # Padrão DOMINIO_ACAO — scope não informado, default TENANT (auth-schema-010).
+  # spec/p2p-compras.md §"Fases de implementação" (Fase 1) + §523 (menu/rotas condicionados a COMPRAS_*)
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: auth-020-permission-compras-seed
+      author: vitor-fernandes
+      comment: "Permissões do domínio COMPRAS (requisição, pedido, recebimento — operacoes-service). Scope TENANT (default). spec/p2p-compras.md"
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO auth.permission (id, code, domain, description, created_by) VALUES
+              (gen_random_uuid(), 'COMPRAS_VISUALIZAR', 'COMPRAS', 'Consultar requisições, cotações, pedidos e recebimentos de compra', 'system-seed'),
+              (gen_random_uuid(), 'COMPRAS_CRIAR', 'COMPRAS', 'Criar/editar/enviar requisições, cotações e pedidos de compra', 'system-seed'),
+              (gen_random_uuid(), 'COMPRAS_APROVAR_PEDIDO', 'COMPRAS', 'Aprovar ou reprovar requisição/pedido de compra (RN-P2P-01)', 'system-seed'),
+              (gen_random_uuid(), 'COMPRAS_RECEBER', 'COMPRAS', 'Registrar recebimento de pedido de compra', 'system-seed'),
+              (gen_random_uuid(), 'COMPRAS_FATURAR', 'COMPRAS', 'Faturar recebimento (NF de entrada) e publicar nfe.entrada.aprovada', 'system-seed')
+              ON CONFLICT (code) DO NOTHING;
+      rollback:
+        - sql:
+            dbms: postgresql
+            sql: >
+              DELETE FROM auth.permission WHERE code IN (
+              'COMPRAS_VISUALIZAR', 'COMPRAS_CRIAR', 'COMPRAS_APROVAR_PEDIDO', 'COMPRAS_RECEBER', 'COMPRAS_FATURAR');

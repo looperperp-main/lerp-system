@@ -72,7 +72,7 @@ public class RolesService {
      */
     public List<RoleDTO> getAllRoles() {
         logger.debug("Recuperando a Lista de Roles");
-        // 7.11 (spec/auditoria.md): cap defensivo em vez de findAll() puro — tabela é pequena
+        // 7.11 (spec/auditoria/auditoria.md): cap defensivo em vez de findAll() puro — tabela é pequena
         // por natureza (impacto baixo), mas nada impede crescer sem controle. Já existe listagem
         // paginada de verdade em GET /auth/roles/pages; esse endpoint mantém o contrato de List
         // (dropdowns/picklists), só deixa de ser ilimitado.

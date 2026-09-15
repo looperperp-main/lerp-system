@@ -40,7 +40,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/** @WebMvcTest dos 10 endpoints de PedidoController (spec/o2c-vendas.md §5/§10, Fase 4). */
+/** @WebMvcTest dos 10 endpoints de PedidoController (spec/modulos/o2c-vendas/o2c-vendas.md §5/§10, Fase 4). */
 @WebMvcTest(controllers = PedidoController.class)
 @AutoConfigureMockMvc(addFilters = false)
 class PedidoControllerTest {

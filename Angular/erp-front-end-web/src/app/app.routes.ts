@@ -108,6 +108,70 @@ export const routes: Routes = [
         },
       },
       {
+        path: 'compras/requisicoes',
+        loadComponent: () =>
+          import('./pages/compras/requisicoes/requisicoes').then((m) => m.Requisicoes),
+        data: {
+          breadcrumb: [
+            { label: 'Home', link: '/web/home' },
+            { label: 'Compras' },
+            { label: 'Requisições' },
+          ],
+        },
+      },
+      {
+        path: 'compras/pedidos',
+        loadComponent: () => import('./pages/compras/pedidos/pedidos').then((m) => m.Pedidos),
+        data: {
+          breadcrumb: [
+            { label: 'Home', link: '/web/home' },
+            { label: 'Compras' },
+            { label: 'Pedidos de Compra' },
+          ],
+        },
+      },
+      {
+        path: 'compras/pedidos/:id',
+        loadComponent: () =>
+          import('./pages/compras/pedidos/pedido-detalhe/pedido-detalhe').then(
+            (m) => m.PedidoDetalhe,
+          ),
+        data: {
+          breadcrumb: [
+            { label: 'Home', link: '/web/home' },
+            { label: 'Compras' },
+            { label: 'Pedidos de Compra', link: '/web/compras/pedidos' },
+            { label: 'Detalhe do Pedido' },
+          ],
+        },
+      },
+      {
+        path: 'compras/cotacoes',
+        loadComponent: () => import('./pages/compras/cotacoes/cotacoes').then((m) => m.Cotacoes),
+        data: {
+          breadcrumb: [
+            { label: 'Home', link: '/web/home' },
+            { label: 'Compras' },
+            { label: 'Cotações' },
+          ],
+        },
+      },
+      {
+        path: 'compras/cotacoes/:id',
+        loadComponent: () =>
+          import('./pages/compras/cotacoes/cotacao-detalhe/cotacao-detalhe').then(
+            (m) => m.CotacaoDetalhe,
+          ),
+        data: {
+          breadcrumb: [
+            { label: 'Home', link: '/web/home' },
+            { label: 'Compras' },
+            { label: 'Cotações', link: '/web/compras/cotacoes' },
+            { label: 'Detalhe da Cotação' },
+          ],
+        },
+      },
+      {
         path: 'vendas/pedidos',
         loadComponent: () => import('./pages/vendas/pedidos/pedidos').then((m) => m.Pedidos),
         data: {

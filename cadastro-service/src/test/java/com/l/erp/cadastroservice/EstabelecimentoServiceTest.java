@@ -3,6 +3,7 @@ package com.l.erp.cadastroservice;
 import com.l.erp.cadastroservice.api.dto.EstabelecimentoRequestDTO;
 import com.l.erp.cadastroservice.domain.Estabelecimento;
 import com.l.erp.cadastroservice.domain.Pessoa;
+import com.l.erp.cadastroservice.domain.enumerators.CodigoRegimeTributario;
 import com.l.erp.cadastroservice.domain.enumerators.TipoPessoa;
 import com.l.erp.cadastroservice.repository.EstabelecimentoRepository;
 import com.l.erp.cadastroservice.repository.PessoaRepository;
@@ -54,7 +55,7 @@ class EstabelecimentoServiceTest {
     }
 
     private EstabelecimentoRequestDTO buildDto() {
-        return new EstabelecimentoRequestDTO("12345678000276", "IE123", "IM456", true);
+        return new EstabelecimentoRequestDTO("12345678000276", "IE123", "IM456", true, CodigoRegimeTributario.REGIME_NORMAL);
     }
 
     @Test
@@ -194,6 +195,7 @@ class EstabelecimentoServiceTest {
         assertThat(result.getProprio()).isFalse();
         assertThat(result.getIe()).isEqualTo("IE123");
         assertThat(result.getAtivo()).isTrue();
+        assertThat(result.getCrt()).isEqualTo(CodigoRegimeTributario.REGIME_NORMAL);
         verify(utils).sendAuditEvent(any(), eq(USER_ID), any(), any(), any(), any(), any());
     }
 
@@ -258,6 +260,7 @@ class EstabelecimentoServiceTest {
         assertThat(result.getCnpjCompleto()).isEqualTo(dto.cnpjCompleto());
         assertThat(result.getIe()).isEqualTo(dto.ie());
         assertThat(result.getIm()).isEqualTo(dto.im());
+        assertThat(result.getCrt()).isEqualTo(dto.crt());
     }
 
     @Test
@@ -288,6 +291,7 @@ class EstabelecimentoServiceTest {
         assertThat(result.getCnpjCompleto()).isEqualTo(pessoa.getDocumento());
         assertThat(result.getIe()).isEqualTo("IE999");
         assertThat(result.getIm()).isEqualTo("IM999");
+        assertThat(result.getCrt()).isEqualTo(CodigoRegimeTributario.REGIME_NORMAL);
     }
 
     @Test

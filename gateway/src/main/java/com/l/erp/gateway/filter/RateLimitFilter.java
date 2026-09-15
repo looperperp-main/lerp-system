@@ -37,7 +37,7 @@ public class RateLimitFilter implements Filter {
                 }
             });
     // Bucket dedicado, mais restrito, para os paths públicos que rodam Argon2 memory-hard por
-    // chamada (7.3/7.12, spec/auditoria.md): criar-conta (+ 2 INSERTs) e os 3 logins (encode
+    // chamada (7.3/7.12, spec/auditoria/auditoria.md): criar-conta (+ 2 INSERTs) e os 3 logins (encode
     // já roda antes de qualquer CAPTCHA existir). /auth/refresh e /auth/logout ficam de fora —
     // não tocam em hash de senha.
     private static final Set<String> ARGON2_PATHS = Set.of(
@@ -136,7 +136,7 @@ public class RateLimitFilter implements Filter {
 
     // Só confia em X-Forwarded-For quando a conexão vem de um IP explicitamente listado em
     // gateway.trusted-proxies (o LB/nginx real, não a faixa RFC1918 inteira) — senão qualquer
-    // chamador nessa faixa forja o header e anula o rate-limit (spec/auditoria.md §7.2).
+    // chamador nessa faixa forja o header e anula o rate-limit (spec/auditoria/auditoria.md §7.2).
     // Default vazio = nunca confia em XFF = seguro em dev local sem precisar configurar nada.
     private String resolveKey(HttpServletRequest request) {
         String remoteAddr = request.getRemoteAddr();

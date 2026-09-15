@@ -15,7 +15,7 @@ import org.mapstruct.Mapping;
 
 import java.util.List;
 
-/** Cópia de campos entidade <-> DTO (spec/o2c-vendas.md §5/§10, Fase 4). Links HATEOAS ficam no PedidoAssembler. */
+/** Cópia de campos entidade <-> DTO (spec/modulos/o2c-vendas/o2c-vendas.md §5/§10, Fase 4). Links HATEOAS ficam no PedidoAssembler. */
 @Mapper(componentModel = "spring")
 public interface PedidoMapper {
 

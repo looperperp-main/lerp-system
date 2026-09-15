@@ -43,4 +43,34 @@ public class OperacaoFiscalDTO {
     private BigDecimal valorCreditoCbs;
     private String regimeAplicado;
     private List<String> memoriaCalculo;
+
+    // Etapa 0 do contrato XML-ready (spec/modulos/emissao-fiscal/emissao-fiscal.md §10) — valores
+    // que o motor já resolve internamente (TabelaFiscal/RegimeDiferenciado/AliquotaIbs/AliquotaCbs)
+    // pra chegar no valor final, agora propagados em vez de descartados. Preenchidos nos caminhos
+    // SAÍDA e ENTRADA que passam pela Etapa 3 (alíquotas vigentes); MEI/alíquota-zero/monofásico
+    // retornam antes dessa etapa e não têm esses valores pra propagar (mesmo escopo do ponytail de
+    // {@code zerado()} — ver MotorFiscalService).
+    private String cClassTrib;
+    private BigDecimal percentualIbsUf;
+    private BigDecimal percentualIbsMunicipal;
+    private BigDecimal percentualCbs;
+    private BigDecimal percentualReducaoAplicado;
+
+    // ponytail: cst (CST do IBS/CBS, Anexo NT 2023.001) e cstIcms/csosn não têm fonte resolvida
+    // internamente — o motor não modela essa classificação hoje, só reducaoPercentual/aliquotaZero/
+    // monofasico. Inventar o mapeamento aqui seria lógica fiscal nova (e arriscada: CST errado
+    // rejeita a NF-e na SEFAZ), fora do escopo desta fatia ("propagar, não recalcular"). Ficam
+    // sempre null até existir uma tabela real de resolução — upgrade quando o emissao-fiscal-service
+    // tiver o dado.
+    private String cst;
+    private String cstIcms;
+    private String csosn;
+
+    // Legado ICMS (fatia 3c) — só preenchidos quando calcularLegado resolve RegimeIcms (produto,
+    // transição ativa); null nos demais casos, mesmo padrão de valorIcms.
+    private BigDecimal percentualIcmsNominal;
+    private BigDecimal percentualReducaoBaseIcms;
+    /** modBC da NF-e — sempre "3" (Valor da Operação): o motor não modela pauta/margem/preço
+     * tabelado (fiscal-schema-011), então essa é a única modalidade que este cálculo produz. */
+    private String modalidadeBaseCalculoIcms;
 }

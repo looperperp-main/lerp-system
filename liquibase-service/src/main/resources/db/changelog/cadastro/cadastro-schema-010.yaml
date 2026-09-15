@@ -1,7 +1,7 @@
 databaseChangeLog:
 
   # ──────────────────────────────────────────
-  # Classificação tributária IBS/CBS do serviço (Anexo VIII, spec/o2c-vendas.md Rev. 10).
+  # Classificação tributária IBS/CBS do serviço (Anexo VIII, spec/modulos/o2c-vendas/o2c-vendas.md Rev. 10).
   # Obrigatória quando tipo=SERVICO, exigida pelo fiscal-service (MotorFiscalService) —
   # validada em ProdutoService.validarTipo.
   # ──────────────────────────────────────────

@@ -1,3 +1,5 @@
+export type IndicadorIeDestinatario = 'CONTRIBUINTE_ICMS' | 'ISENTO' | 'NAO_CONTRIBUINTE';
+
 export interface Pessoa {
   id?: string;
   tenantId?: number;
@@ -12,6 +14,7 @@ export interface Pessoa {
   email?: string;
   telefone?: string;
   ativo: boolean;
+  indIeDest?: IndicadorIeDestinatario;
   _links?: any; // HATEOAS Links
 }
 

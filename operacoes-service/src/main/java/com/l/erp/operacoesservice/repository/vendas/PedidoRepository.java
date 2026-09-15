@@ -24,7 +24,7 @@ public interface PedidoRepository extends JpaRepository<Pedido, UUID> {
 
     /**
      * Soma local do valor_total dos pedidos do cliente em CONFIRMADO/EXPEDIDO ainda não faturados —
-     * base da exposição de crédito (spec/o2c-vendas.md §7). Não inclui o AR do financeiro-service
+     * base da exposição de crédito (spec/modulos/o2c-vendas/o2c-vendas.md §7). Não inclui o AR do financeiro-service
      * (serviço ainda não existe neste monorepo); somar isso é upgrade futuro, quando o AR existir.
      */
     @Query("select coalesce(sum(p.valorTotal), 0) from Pedido p where p.tenantId = :tenantId "

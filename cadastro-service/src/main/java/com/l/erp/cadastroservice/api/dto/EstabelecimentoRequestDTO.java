@@ -1,6 +1,8 @@
 package com.l.erp.cadastroservice.api.dto;
 
+import com.l.erp.cadastroservice.domain.enumerators.CodigoRegimeTributario;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 /**
@@ -10,6 +12,7 @@ public record EstabelecimentoRequestDTO(
         @NotBlank @Size(max = 18) String cnpjCompleto,
         String ie,
         String im,
-        Boolean ativo
+        Boolean ativo,
+        @NotNull CodigoRegimeTributario crt
 ) {
 }

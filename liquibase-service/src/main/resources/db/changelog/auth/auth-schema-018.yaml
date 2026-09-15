@@ -3,12 +3,12 @@ databaseChangeLog:
   # ──────────────────────────────────────────
   # Seed de permissões RBAC do domínio PEDIDO (O2C — vendas.pedido)
   # Padrão DOMINIO_ACAO — scope não informado, default TENANT (auth-schema-010).
-  # spec/o2c-vendas.md §5
+  # spec/modulos/o2c-vendas/o2c-vendas.md §5
   # ──────────────────────────────────────────
   - changeSet:
       id: auth-018-permission-pedido-seed
       author: vitor-fernandes
-      comment: "Permissões do domínio PEDIDO (O2C — vendas.pedido). Scope TENANT (default) — inclui PEDIDO_CONFIRMACAO_SEM_LIMITE, bypass do bloqueio por limite de crédito. spec/o2c-vendas.md §5"
+      comment: "Permissões do domínio PEDIDO (O2C — vendas.pedido). Scope TENANT (default) — inclui PEDIDO_CONFIRMACAO_SEM_LIMITE, bypass do bloqueio por limite de crédito. spec/modulos/o2c-vendas/o2c-vendas.md §5"
       changes:
         - sql:
             dbms: postgresql

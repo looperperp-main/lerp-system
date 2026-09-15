@@ -1,5 +1,6 @@
 package com.l.erp.cadastroservice.api.dto;
 
+import com.l.erp.cadastroservice.domain.enumerators.CodigoRegimeTributario;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.hateoas.RepresentationModel;
@@ -21,6 +22,7 @@ public class EstabelecimentoResponseDTO extends RepresentationModel<Estabelecime
     private String ie;
     private String im;
     private Boolean ativo;
+    private CodigoRegimeTributario crt;
     private Instant createdAt;
     private Instant updatedAt;
     private UUID createdBy;

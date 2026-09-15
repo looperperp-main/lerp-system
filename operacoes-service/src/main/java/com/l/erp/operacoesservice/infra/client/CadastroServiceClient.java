@@ -23,7 +23,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * Client HTTP pro cadastro-service via Eureka (RestClientConfig, spec/o2c-vendas.md §2/§6):
+ * Client HTTP pro cadastro-service via Eureka (RestClientConfig, spec/modulos/o2c-vendas/o2c-vendas.md §2/§6):
  * limite de crédito do cliente (usado em confirmar()) e parcelas da condição de pagamento
  * (usadas em faturar()). Repassa os mesmos headers internos que o gateway injeta.
  */
@@ -47,7 +47,7 @@ public class CadastroServiceClient {
         return cliente != null && cliente.limiteCredito() != null ? cliente.limiteCredito() : BigDecimal.ZERO;
     }
 
-    // Fase 5: cliente_pessoa_id do payload do evento venda.pedido.faturado (spec/o2c-vendas.md §8).
+    // Fase 5: cliente_pessoa_id do payload do evento venda.pedido.faturado (spec/modulos/o2c-vendas/o2c-vendas.md §8).
     public UUID buscarClientePessoaId(UUID clienteId, Long tenantId, UUID userId) {
         ClienteRef cliente = buscarCliente(clienteId, tenantId, userId);
         return cliente != null ? cliente.pessoaId() : null;
@@ -82,7 +82,7 @@ public class CadastroServiceClient {
         }
     }
 
-    // Motor de preço (spec/motor-resolucao-preco.md) — cascata CLIENTE→GRUPO→PADRAO. clienteId nulo
+    // Motor de preço (spec/modulos/precos/motor-resolucao-preco.md) — cascata CLIENTE→GRUPO→PADRAO. clienteId nulo
     // é válido (pedido sem cliente ainda não deveria chegar aqui, mas a cascata cai direto pro PADRAO).
     public PrecoResolvidoRef resolverPreco(UUID produtoId, UUID clienteId, Long tenantId, UUID userId) {
         try {
@@ -120,6 +120,73 @@ public class CadastroServiceClient {
         }
     }
 
+    // P2P (spec/p2p-compras.md, Fase 2) — fornecedor ativo na emissão do pedido (RN-P2P-02).
+    public FornecedorRef buscarFornecedor(UUID fornecedorId, Long tenantId, UUID userId) {
+        try {
+            return restClient.get()
+                    .uri("/api/v1/fornecedores/{id}", fornecedorId)
+                    .headers(headers -> headersInternos(headers, tenantId, userId))
+                    .retrieve()
+                    .body(FornecedorRef.class);
+        } catch (HttpClientErrorException.NotFound e) {
+            throw new BusinessException(Constants.FORNECEDORES_NOT_FOUND, HttpStatus.BAD_REQUEST);
+        } catch (HttpServerErrorException e) {
+            throw new BusinessException(Constants.CADASTRO_SERVICE_INDISPONIVEL, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record FornecedorRef(UUID pessoaId, String pessoaNomeRazao, Boolean ativo) {
+    }
+
+    // P2P (spec/p2p-compras.md, Fase 4) — CNPJ do fornecedor pro payload nfe.entrada.aprovada
+    // (Fin.md §F4.2). Best-effort: pessoa não encontrada não deve travar o faturamento do
+    // recebimento, o evento simplesmente sai com fornecedorCnpj nulo.
+    public PessoaRef buscarPessoa(UUID pessoaId, Long tenantId, UUID userId) {
+        try {
+            return restClient.get()
+                    .uri("/api/v1/pessoas/{id}", pessoaId)
+                    .headers(headers -> headersInternos(headers, tenantId, userId))
+                    .retrieve()
+                    .body(PessoaRef.class);
+        } catch (HttpClientErrorException.NotFound e) {
+            return null;
+        }
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record PessoaRef(String documento) {
+    }
+
+    // P2P (spec/p2p-compras.md, Fase 2) — preco_custo do ProdutoFornecedor em lote, pro alerta de
+    // preço fora da faixa (RN-P2P-04). Best-effort: se o cadastro-service falhar ou o vínculo não
+    // existir, o alerta simplesmente não dispara pro item — não bloqueia a emissão do pedido.
+    public Map<UUID, BigDecimal> buscarPrecosCusto(List<UUID> produtoIds, UUID fornecedorId, Long tenantId, UUID userId) {
+        if (produtoIds.isEmpty()) {
+            return Map.of();
+        }
+        try {
+            List<ProdutoFornecedorRef> vinculos = restClient.get()
+                    .uri(uriBuilder -> uriBuilder.path("/api/v1/interno/produto-fornecedor")
+                            .queryParam("produtoIds", produtoIds)
+                            .queryParam("fornecedorId", fornecedorId)
+                            .build())
+                    .headers(headers -> headersInternos(headers, tenantId, userId))
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<List<ProdutoFornecedorRef>>() { });
+            return vinculos == null ? Map.of() : vinculos.stream()
+                    .filter(v -> v.precoCusto() != null)
+                    .collect(Collectors.toMap(ProdutoFornecedorRef::produtoId, ProdutoFornecedorRef::precoCusto));
+        } catch (Exception e) {
+            log.warn("Falha ao buscar preço de custo no cadastro-service para fornecedorId={}: {}", fornecedorId, e.getMessage());
+            return Map.of();
+        }
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record ProdutoFornecedorRef(UUID produtoId, BigDecimal precoCusto) {
+    }
+
     private void headersInternos(HttpHeaders headers, Long tenantId, UUID userId) {
         headers.add(Constants.HEADER_INTERNAL_SECRET, internalSecret);
         headers.add(Constants.HEADER_TENANT_ID, String.valueOf(tenantId));
@@ -150,7 +217,7 @@ public class CadastroServiceClient {
     public record ProdutoRef(String tipo, String codigoServico, Boolean ativo, String ncm, String classTrib, String nome) {
     }
 
-    // P2 (spec/o2c-vendas.md, gaps do D4) — UF/IBGE do cliente pro MotorFiscalRequest.
+    // P2 (spec/modulos/o2c-vendas/o2c-vendas.md, gaps do D4) — UF/IBGE do cliente pro MotorFiscalRequest.
     public EnderecoFiscalRef buscarEnderecoFiscal(UUID pessoaId, Long tenantId, UUID userId) {
         try {
             EnderecoEnvelope envelope = restClient.get()
@@ -209,7 +276,7 @@ public class CadastroServiceClient {
     private record EstabelecimentoProprioRef(UUID pessoaId) {
     }
 
-    // E6 (spec/estoque.md §5.1) — estoqueMinimo em lote pro badge "abaixo do mínimo" do GET
+    // E6 (spec/modulos/estoque/estoque.md §5.1) — estoqueMinimo em lote pro badge "abaixo do mínimo" do GET
     // /estoque/saldos. Best-effort: se o cadastro-service falhar, loga warn e devolve vazio — o
     // badge simplesmente não aparece, não trava a consulta de saldos.
     public Map<UUID, BigDecimal> buscarEstoqueConfig(List<UUID> produtoIds, UUID depositoId, Long tenantId, UUID userId) {

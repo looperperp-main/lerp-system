@@ -20,7 +20,7 @@ import {
 import { ProdutoService } from '../../cadastros/produtos/produto.service';
 import { DepositoService } from '../../cadastros/deposito/deposito.service';
 
-/** Extrato de movimentos de estoque (spec/estoque.md §5.2/E7). */
+/** Extrato de movimentos de estoque (spec/modulos/estoque/estoque.md §5.2/E7). */
 @Component({
   selector: 'app-movimentos',
   imports: [

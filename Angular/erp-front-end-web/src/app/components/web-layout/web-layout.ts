@@ -73,6 +73,16 @@ export class WebLayout {
       ],
     },
     {
+      label: 'Compras',
+      icon: 'pi pi-cart-plus',
+      path: '/web/compras/requisicoes',
+      items: [
+        { label: 'Requisições', icon: 'pi pi-file-edit', routerLink: '/web/compras/requisicoes' },
+        { label: 'Cotações', icon: 'pi pi-percentage', routerLink: '/web/compras/cotacoes' },
+        { label: 'Pedidos', icon: 'pi pi-shopping-cart', routerLink: '/web/compras/pedidos' },
+      ],
+    },
+    {
       label: 'Comercial & Financeiro',
       icon: 'pi pi-wallet',
       path: '/web/financeiro',

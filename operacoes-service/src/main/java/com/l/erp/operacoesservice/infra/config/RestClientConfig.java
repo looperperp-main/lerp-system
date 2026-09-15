@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.web.client.RestClient;
 
 /**
- * RestClient @LoadBalanced resolvendo lb://cadastro-service via Eureka (spec/o2c-vendas.md §2) —
+ * RestClient @LoadBalanced resolvendo lb://cadastro-service via Eureka (spec/modulos/o2c-vendas/o2c-vendas.md §2) —
  * padrão novo no monorepo: até aqui só existiam clients para APIs externas (Asaas, ViaCEP, CNPJá).
  * Sem OpenFeign: usa só o que o stack Spring Cloud já traz (spring-cloud-starter-loadbalancer).
  *
