@@ -457,7 +457,8 @@ class EstoqueServiceTest {
         when(fechamentoEstoqueRepository.existsByTenantIdAndCompetencia(TENANT_ID, "2026-09")).thenReturn(true);
 
         assertThatThrownBy(() -> estoqueService.registrarMovimento(req))
-                .isInstanceOf(BusinessException.class);
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Período de estoque já fechado para esta competência — reabra o fechamento para lançar movimentos retroativos");
         verifyNoInteractions(estoqueSaldoRepository, movimentoEstoqueRepository);
     }
 }
