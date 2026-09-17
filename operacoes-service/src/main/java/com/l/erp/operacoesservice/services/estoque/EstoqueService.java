@@ -285,8 +285,9 @@ public class EstoqueService {
                 throw new BusinessException(Constants.ESTOQUE_MOTIVO_TAMANHO_INVALIDO, HttpStatus.BAD_REQUEST);
             }
         }
-        // origem_id nulo (§3.2): requisição de almoxarifado não tem documento de origem.
-        if (req.origemTipo() != OrigemMovimentoEstoque.CONSUMO && req.origemId() == null) {
+        // origem_id nulo (§3.2): requisição de almoxarifado (CONSUMO) e ajuste/inventário não têm documento de origem.
+        if (req.origemId() == null && req.origemTipo() != OrigemMovimentoEstoque.CONSUMO
+                && !ORIGENS_SEM_DOCUMENTO.contains(req.origemTipo())) {
             throw new BusinessException(Constants.ESTOQUE_ORIGEM_ID_OBRIGATORIO, HttpStatus.BAD_REQUEST);
         }
         // RN-EST-10 [D7, §12]: sem centro de custo não há contrapartida contábil.

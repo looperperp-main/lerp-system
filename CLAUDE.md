@@ -193,3 +193,5 @@ Ao decidir entre a solução rápida e a solução correta, puxar pra correta �
 **Botões desabilitados vs. escondidos:** quando uma ação não pode ser realizada por regra de negócio (ex.: status não permite editar/excluir), o botão correspondente deve ser **escondido** (`*ngIf`/`hidden`), nunca desabilitado (`disabled`). Vale para toda tela nova e refactor de tela existente a partir de agora.
 
 **Não gerar mensagem de commit:** o Claude não deve propor/gerar mensagens de commit ao final das mudanças, a menos que o usuário peça explicitamente.
+
+**Testes nunca usam curl:** testes automatizados (backend ou frontend) nunca devem depender de `curl` (ou chamada HTTP externa equivalente) — usar os frameworks de teste do projeto (`MockMvc`/`@WebMvcTest` no backend, harness do Angular/Vitest no frontend). Só é aceitável abrir mão dessa regra havendo um impedimento técnico extremamente grande, e isso deve ficar explícito no código/PR.
