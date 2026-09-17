@@ -111,10 +111,12 @@ public class EstoqueService {
             // se lança 400 (bloqueado) ou segue e marca pendência de regularização/apontar produção.
             PendenciaTipoEstoque tipoPendencia = null;
             if (TIPOS_SUJEITOS_A_BLOQUEIO.contains(req.tipo()) && saldoNovo.signum() < 0) {
-                boolean produtoAcabado = isProdutoAcabado(req, produtoId);
+                CadastroServiceClient.ProdutoRef produto = cadastroServiceClient.buscarProduto(produtoId, req.tenantId(), req.userId());
+                boolean produtoAcabado = produto != null && FINALIDADE_PRODUTO_ACABADO.equals(produto.finalidade());
                 if (!produtoAcabado && !req.permitirSaldoNegativo()) {
+                    String nomeProduto = produto != null ? produto.nome() : produtoId.toString();
                     throw new BusinessException(String.format(Constants.ESTOQUE_SALDO_INSUFICIENTE,
-                            produtoId, req.depositoId(), saldoAnterior, req.origemId()), HttpStatus.BAD_REQUEST);
+                            nomeProduto, req.depositoId(), saldoAnterior, req.origemId()), HttpStatus.BAD_REQUEST);
                 }
                 tipoPendencia = produtoAcabado ? PendenciaTipoEstoque.APONTAR_PRODUCAO : PendenciaTipoEstoque.REGULARIZACAO;
             }
@@ -140,11 +142,6 @@ public class EstoqueService {
                 criarPendencia(req, produtoId, tipoPendencia, movimento.getId());
             }
         }
-    }
-
-    private boolean isProdutoAcabado(MovimentoRequisicao req, UUID produtoId) {
-        CadastroServiceClient.ProdutoRef produto = cadastroServiceClient.buscarProduto(produtoId, req.tenantId(), req.userId());
-        return produto != null && FINALIDADE_PRODUTO_ACABADO.equals(produto.finalidade());
     }
 
     private void criarPendencia(MovimentoRequisicao req, UUID produtoId, PendenciaTipoEstoque tipo, UUID movimentoId) {
