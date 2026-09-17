@@ -603,7 +603,7 @@ public class Constants {
             "Depósito é obrigatório para registrar movimento de estoque";
     public static final String ESTOQUE_SEM_LINHAS = "Movimento de estoque deve ter ao menos uma linha";
     public static final String ESTOQUE_QUANTIDADE_INVALIDA = "Quantidade do movimento deve ser maior que zero";
-    public static final String ESTOQUE_MOTIVO_OBRIGATORIO = "Motivo é obrigatório para ajuste ou inventário";
+    // [superado por ESTOQUE_TIPO_AJUSTE_OBRIGATORIO, RN-EST-11/D9, §12] motivo virou opcional.
     public static final String ESTOQUE_MOTIVO_TAMANHO_INVALIDO = "Motivo deve ter no máximo 500 caracteres";
     public static final String ESTOQUE_ORIGEM_ID_OBRIGATORIO =
             "Documento de origem é obrigatório para este tipo de movimento";
@@ -617,6 +617,37 @@ public class Constants {
             "Quantidade contada não pode ser negativa";
     public static final String ESTOQUE_ORIGEM_AJUSTE_INVALIDA =
             "Origem do ajuste deve ser AJUSTE ou INVENTARIO";
+    // RN-EST-10 [D7, §12] — sem centro de custo não há contrapartida contábil (D Despesa / C Estoque).
+    public static final String ESTOQUE_CENTRO_CUSTO_OBRIGATORIO =
+            "Centro de custo é obrigatório para consumo interno (requisição de almoxarifado)";
+    // RN-EST-11 [D9, §12] — substitui motivo livre como campo obrigatório de ajuste/inventário.
+    public static final String ESTOQUE_TIPO_AJUSTE_OBRIGATORIO =
+            "Tipo de ajuste é obrigatório para ajuste ou inventário";
+    // RN-EST-11 [D9, §12] — ajuste positivo sem lastro de valor não entra (exceto carga de saldo inicial).
+    public static final String ESTOQUE_AJUSTE_ENTRADA_SEM_CUSTO =
+            "Ajuste de entrada exige custo informado, exceto para SALDO_INICIAL";
+    // RN-EST-12 [D10, §12] — bloqueio de saldo negativo por finalidade do produto, substitui a flag
+    // única estoque.bloquear-saida (REVENDA/USO_CONSUMO/MATERIA_PRIMA sem override reaproveita
+    // ESTOQUE_SALDO_INSUFICIENTE; PRODUTO_ACABADO nunca bloqueia).
+    public static final String ESTOQUE_PENDENCIA_NOT_FOUND = "Pendência de estoque não encontrada";
+    public static final String ESTOQUE_PENDENCIA_JA_RESOLVIDA = "Pendência de estoque já foi resolvida";
+    // RN-EST-13 [D10, §12] — fechamento de período não fecha com pendência aberta ou saldo negativo.
+    public static final String ESTOQUE_FECHAMENTO_COMPETENCIA_INVALIDA = "Competência deve estar no formato aaaa-mm";
+    public static final String ESTOQUE_FECHAMENTO_JA_REALIZADO = "Esta competência já foi fechada";
+    public static final String ESTOQUE_FECHAMENTO_PENDENCIA_ABERTA =
+            "Existem pendências de estoque não resolvidas — fechamento bloqueado";
+    public static final String ESTOQUE_FECHAMENTO_SALDO_NEGATIVO =
+            "Existem saldos de estoque negativos — fechamento bloqueado";
+
+    // Produção própria (Fase 2, D11, §12) — ficha técnica + ordem de produção.
+    public static final String PRODUCAO_FICHA_TECNICA_SEM_ITENS = "Ficha técnica deve ter ao menos um componente";
+    public static final String PRODUCAO_FICHA_TECNICA_PRODUTO_PROPRIO_COMPONENTE =
+            "Produto acabado não pode ser componente da própria ficha técnica";
+    public static final String PRODUCAO_FICHA_TECNICA_INEXISTENTE_PARA_PRODUTO =
+            "Não existe ficha técnica ativa para este produto acabado";
+    public static final String PRODUCAO_ORDEM_NOT_FOUND = "Ordem de produção não encontrada";
+    public static final String PRODUCAO_ORDEM_STATUS_INVALIDO = "Ordem de produção não está aberta";
+    public static final String PRODUCAO_QUANTIDADE_PRODUZIDA_INVALIDA = "Quantidade produzida deve ser maior que zero";
 
     // P2P — Requisição de compra (operacoes-service, schema compras — spec/p2p-compras.md, Fase 1b)
     public static final String REQUISICAO_COMPRA_NOT_FOUND = "Requisição de compra não encontrada";

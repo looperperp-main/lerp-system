@@ -1,0 +1,129 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # D10 (bloqueio de saldo negativo por finalidade) + fechamento de período — spec/modulos/estoque/estoque.md
+  # §12, extensão pós-E10 (17 de setembro de 2026). RN-EST-12/RN-EST-13.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: estoque-009-create-pendencia-estoque
+      author: vitor-fernandes
+      comment: >
+        Pendência gerada quando um movimento sujeito a bloqueio (RN-EST-12) deixa o saldo negativo —
+        REGULARIZACAO (REVENDA/USO_CONSUMO/MATERIA_PRIMA com override) ou APONTAR_PRODUCAO (PRODUTO_ACABADO,
+        sempre). Fechamento de período (RN-EST-13) não fecha com pendência não resolvida.
+      changes:
+        - createTable:
+            schemaName: estoque
+            tableName: pendencia_estoque
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: produto_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: deposito_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: tipo
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+                  remarks: "PendenciaTipoEstoque: REGULARIZACAO | APONTAR_PRODUCAO"
+              - column:
+                  name: movimento_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                  remarks: "estoque.movimento_estoque.id que gerou a pendência"
+              - column:
+                  name: resolvida
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: criada_em
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: resolvida_em
+                  type: TIMESTAMP WITH TIME ZONE
+              - column:
+                  name: resolvido_por
+                  type: uuid
+        - createIndex:
+            schemaName: estoque
+            tableName: pendencia_estoque
+            indexName: idx_pendencia_estoque_tenant_resolvida
+            columns:
+              - column:
+                  name: tenant_id
+              - column:
+                  name: resolvida
+      rollback:
+        - dropTable:
+            schemaName: estoque
+            tableName: pendencia_estoque
+
+  - changeSet:
+      id: estoque-010-create-fechamento-estoque
+      author: vitor-fernandes
+      comment: >
+        RN-EST-13: fechamento de período não fecha com pendência aberta nem saldo negativo em nenhum
+        produto/depósito do tenant. Negativo é tolerado intra-mês, nunca atravessa um fechamento.
+      changes:
+        - createTable:
+            schemaName: estoque
+            tableName: fechamento_estoque
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: competencia
+                  type: varchar(7)
+                  constraints:
+                    nullable: false
+                  remarks: "aaaa-mm"
+              - column:
+                  name: data_fechamento
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: usuario_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            schemaName: estoque
+            tableName: fechamento_estoque
+            columnNames: tenant_id, competencia
+            constraintName: uq_fechamento_estoque_tenant_competencia
+      rollback:
+        - dropTable:
+            schemaName: estoque
+            tableName: fechamento_estoque

@@ -294,7 +294,7 @@ public class PedidoService {
         if (!itensMercadoria.isEmpty()) {
             estoqueService.registrarMovimento(new EstoqueService.MovimentoRequisicao(tenantId, userId,
                     TipoMovimentoEstoque.SAIDA_VENDA, OrigemMovimentoEstoque.PEDIDO_VENDA, pedido.getId(),
-                    depositoId, agora, null, linhasDoEstoque(itensMercadoria)));
+                    depositoId, agora, null, null, null, null, linhasDoEstoque(itensMercadoria)));
         }
         return pedido;
     }
@@ -376,7 +376,8 @@ public class PedidoService {
             if (!itensMercadoria.isEmpty()) {
                 estoqueService.registrarMovimento(new EstoqueService.MovimentoRequisicao(tenantId, userId,
                         TipoMovimentoEstoque.ESTORNO_SAIDA_VENDA, OrigemMovimentoEstoque.PEDIDO_VENDA,
-                        pedido.getId(), pedido.getDepositoId(), agora, null, linhasDoEstoque(itensMercadoria)));
+                        pedido.getId(), pedido.getDepositoId(), agora, null, null, null, null,
+                        linhasDoEstoque(itensMercadoria)));
             }
         }
         return pedido;

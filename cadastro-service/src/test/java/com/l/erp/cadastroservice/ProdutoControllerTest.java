@@ -63,6 +63,7 @@ class ProdutoControllerTest {
                 "SKU-1", null,         // sku, codigoExterno
                 "Produto Teste", null, // nome, descricao
                 null,                  // tipo
+                null,                  // finalidade
                 "UN", null,            // unidade, unidadeSecundaria
                 null, null, null,      // fatorConversao, ncm, codigoServico
                 null, null, null, null,// classTrib, ean, cest, origem

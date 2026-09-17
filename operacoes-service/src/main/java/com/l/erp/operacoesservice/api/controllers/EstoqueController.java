@@ -3,11 +3,15 @@ package com.l.erp.operacoesservice.api.controllers;
 import com.l.erp.common.exception.custom.BusinessException;
 import com.l.erp.common.util.Constants;
 import com.l.erp.operacoesservice.api.dto.AjusteEstoqueRequestDTO;
+import com.l.erp.operacoesservice.api.dto.ConsumoEstoqueRequestDTO;
 import com.l.erp.operacoesservice.api.dto.EstoqueSaldoResponseDTO;
+import com.l.erp.operacoesservice.api.dto.FechamentoEstoqueRequestDTO;
 import com.l.erp.operacoesservice.api.dto.MovimentoEstoqueResponseDTO;
+import com.l.erp.operacoesservice.api.dto.PendenciaEstoqueResponseDTO;
 import com.l.erp.operacoesservice.api.mappers.EstoqueMapper;
 import com.l.erp.operacoesservice.domain.estoque.EstoqueSaldo;
 import com.l.erp.operacoesservice.domain.estoque.MovimentoEstoque;
+import com.l.erp.operacoesservice.domain.estoque.PendenciaEstoque;
 import com.l.erp.operacoesservice.infra.client.CadastroServiceClient;
 import com.l.erp.operacoesservice.domain.estoque.enumerators.OrigemMovimentoEstoque;
 import com.l.erp.operacoesservice.domain.estoque.enumerators.TipoMovimentoEstoque;
@@ -26,6 +30,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -116,8 +121,54 @@ public class EstoqueController {
     public ResponseEntity<Void> ajustar(@RequestBody @Valid AjusteEstoqueRequestDTO dto) {
         logger.info("Ajuste de estoque: produto {}, depósito {}", dto.produtoId(), dto.depositoId());
         service.ajustar(new EstoqueService.AjusteRequisicao(tenantId(), userId(), dto.produtoId(), dto.depositoId(),
-                dto.quantidadeContada(), dto.origem(), dto.motivo(), dto.valorUnitario()));
+                dto.quantidadeContada(), dto.origem(), dto.tipoAjuste(), dto.motivo(), dto.documentoReferencia(),
+                dto.valorUnitario(), dto.permitirSaldoNegativo()));
         return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "Registrar consumo interno (requisição de almoxarifado)",
+            description = "D7/RN-EST-10 (spec/modulos/estoque/estoque.md §12): gera SAIDA_CONSUMO com centro de custo "
+                    + "obrigatório; valorUnitario grava o custo médio vigente do produto (RN-EST-09), não é informado aqui.")
+    @PostMapping("/consumo")
+    @PreAuthorize("hasAuthority('ESTOQUE_CONSUMO_REGISTRAR')")
+    public ResponseEntity<Void> consumo(@RequestBody @Valid ConsumoEstoqueRequestDTO dto) {
+        logger.info("Consumo interno de estoque: produto {}, depósito {}, centro de custo {}",
+                dto.produtoId(), dto.depositoId(), dto.centroCustoId());
+        service.registrarMovimento(new EstoqueService.MovimentoRequisicao(tenantId(), userId(),
+                TipoMovimentoEstoque.SAIDA_CONSUMO, OrigemMovimentoEstoque.CONSUMO, null, dto.depositoId(),
+                Instant.now(), dto.motivo(), dto.centroCustoId(), null, null,
+                List.of(new EstoqueService.MovimentoRequisicao.Linha(dto.produtoId(), dto.quantidade(), null)),
+                dto.permitirSaldoNegativo()));
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "Listar pendências de estoque",
+            description = "RN-EST-12 (spec/modulos/estoque/estoque.md §12): pendências de regularização/apontar produção geradas quando um movimento sujeito a bloqueio deixa o saldo negativo.")
+    @GetMapping("/pendencias")
+    @PreAuthorize("hasAuthority('ESTOQUE_VISUALIZAR')")
+    public ResponseEntity<PagedModel<PendenciaEstoqueResponseDTO>> pendencias(
+            @RequestParam(required = false) Boolean resolvida,
+            Pageable pageable,
+            PagedResourcesAssembler<PendenciaEstoque> pagedResourcesAssembler) {
+        Page<PendenciaEstoque> page = service.buscarPendencias(tenantId(), resolvida, pageable);
+        return ResponseEntity.ok(pagedResourcesAssembler.toModel(page, mapper::toPendenciaResponseDto));
+    }
+
+    @Operation(summary = "Resolver pendência de estoque", description = "RN-EST-12: marca a pendência como resolvida.")
+    @PostMapping("/pendencias/{id}/resolver")
+    @PreAuthorize("hasAuthority('ESTOQUE_PENDENCIA_RESOLVER')")
+    public ResponseEntity<Void> resolverPendencia(@PathVariable UUID id) {
+        service.resolverPendencia(tenantId(), id, userId());
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "Fechar período de estoque",
+            description = "RN-EST-13 (spec/modulos/estoque/estoque.md §12): não fecha com pendência aberta nem saldo negativo em nenhum produto/depósito do tenant.")
+    @PostMapping("/fechamento")
+    @PreAuthorize("hasAuthority('ESTOQUE_FECHAMENTO_REGISTRAR')")
+    public ResponseEntity<Void> fechar(@RequestBody @Valid FechamentoEstoqueRequestDTO dto) {
+        service.fecharPeriodo(tenantId(), dto.competencia(), userId());
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
     private Long tenantId() {

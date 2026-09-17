@@ -6,6 +6,7 @@ import com.l.erp.cadastroservice.api.dto.ProdutoPrecoDTO;
 import com.l.erp.cadastroservice.api.mappers.ProdutoMapper;
 import com.l.erp.cadastroservice.domain.Pessoa;
 import com.l.erp.cadastroservice.domain.Produto;
+import com.l.erp.cadastroservice.domain.enumerators.FinalidadeProduto;
 import com.l.erp.cadastroservice.domain.enumerators.TipoProduto;
 import com.l.erp.cadastroservice.domain.ProdutoEstoqueConfig;
 import com.l.erp.cadastroservice.domain.ProdutoFornecedor;
@@ -159,6 +160,11 @@ public class ProdutoService {
     private void validarTipo(Produto produto) {
         if (produto.getTipo() == null) {
             produto.setTipo(TipoProduto.MERCADORIA);
+        }
+        // D6 (spec/modulos/estoque/estoque.md §12) — nulo = REVENDA (compatibilidade com
+        // clientes que ainda não enviam o campo; produtos existentes são todos de revenda).
+        if (produto.getFinalidade() == null) {
+            produto.setFinalidade(FinalidadeProduto.REVENDA);
         }
         boolean temCodigoServico = produto.getCodigoServico() != null && !produto.getCodigoServico().isBlank();
         if (produto.getTipo() == TipoProduto.MERCADORIA) {

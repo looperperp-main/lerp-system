@@ -1,8 +1,8 @@
 # Módulo ESTOQUE — saldo e movimento (`operacoes-service`) — Plano de implementação
 
-**Última atualização:** 7 de setembro de 2026
+**Última atualização:** 16 de setembro de 2026
 
-**Status:** **E1 a E7 feitos** — módulo completo ponta a ponta (schema Liquibase + domínio/repositories; `EstoqueService` com flag `estoque.bloquear-saida`; baixa/estorno ligados em `PedidoService.expedir()`/`cancelar()`; API REST `EstoqueController`+DTOs+mapper; badge "abaixo do mínimo" via `cadastro-service`+`CadastroServiceClient`; frontend `erp-front-end-web` com telas de saldos/movimentos/ajuste). **E3-E5 verificados: `mvn test` verde no `operacoes-service` (usuário, 7 de setembro de 2026)**; **E6-E7 implementados em 7 de setembro de 2026, não testados** (nenhum `mvn`/`npm` rodado pelo Claude — ver notas de escopo no §9) · **Serviço:** `operacoes-service` (porta 8089, já existe — Fase 0 do `o2c-vendas.md`/`p2p-compras.md` feita), schema Postgres **`estoque`** · **Depende de:** nada além do que já está no ar (schema `vendas` aplicado, `Produto.tipo` já existe no `cadastro-service`) · **Fecha:** issue **#80** (parte estoque) e issue **#89** (baixa/estorno no O2C) · **Specs irmãos:** `o2c-vendas.md` (§7 expedição/cancelamento, §10 Fase 3), `p2p-compras.md` (Fase E), `Fin.md` §11.1 (contabilidade de estoque — fora de escopo aqui)
+**Status:** **E1 a E7 feitos** — módulo completo ponta a ponta (schema Liquibase + domínio/repositories; `EstoqueService` com flag `estoque.bloquear-saida`; baixa/estorno ligados em `PedidoService.expedir()`/`cancelar()`; API REST `EstoqueController`+DTOs+mapper; badge "abaixo do mínimo" via `cadastro-service`+`CadastroServiceClient`; frontend `erp-front-end-web` com telas de saldos/movimentos/ajuste). **E3-E5 verificados: `mvn test` verde no `operacoes-service` (usuário, 7 de setembro de 2026)**; **E6-E7 implementados em 7 de setembro de 2026, não testados** (nenhum `mvn`/`npm` rodado pelo Claude — ver notas de escopo no §9). **Extensão E8-E11 planejada em 16 de setembro de 2026 (§12); D6 (`Produto.finalidade`), E8 (custo médio), E9 (`SAIDA_CONSUMO`) e E10 (ajuste tipificado, exceto integração com `contabil.mapeamento` — `financeiro-service` não existe no código) FEITOS em 16/09/2026, não testados; E11 pendente** · **Serviço:** `operacoes-service` (porta 8089, já existe — Fase 0 do `o2c-vendas.md`/`p2p-compras.md` feita), schema Postgres **`estoque`** · **Depende de:** nada além do que já está no ar (schema `vendas` aplicado, `Produto.tipo` já existe no `cadastro-service`) · **Fecha:** issue **#80** (parte estoque) e issue **#89** (baixa/estorno no O2C) · **Specs irmãos:** `o2c-vendas.md` (§7 expedição/cancelamento, §10 Fase 3), `p2p-compras.md` (Fase E), `Fin.md` §11.1 (contabilidade de estoque — fora de escopo aqui)
 
 **Decisões fechadas (6 de setembro de 2026, com o usuário):**
 
@@ -11,6 +11,15 @@
 - **D3 — `movimento_estoque` guarda `valor_unitario` (nullable).** A tabela é append-only: o que não for gravado na hora nunca poderá ser reconstruído. Preço da NF na entrada, preço de venda na saída. É a matéria-prima do custo médio ponderado (que segue fora de escopo).
 - **D4 — O spec cobre backend e frontend**, o frontend na última fase (tela de saldos + extrato + form de ajuste), igual ao padrão do `o2c-vendas.md`/`p2p-compras.md`.
 - **D5 — Um único endpoint de escrita, por saldo contado, não por delta** (§5.3). Ajuste e inventário são o mesmo mecanismo: o operador informa "o saldo certo é 12" e o serviço calcula a diferença. Muda a *forma* da opção aprovada em D1, não o alcance — justificativa em §3.2.
+
+**Extensão pós-E7 (16 de setembro de 2026, a partir de revisão funcional de um especialista + Opus) — decisões fechadas, implementação ainda não iniciada (§12):**
+
+- **D6 — Produto ganha `finalidade`: `REVENDA` / `USO_CONSUMO` / `MATERIA_PRIMA` / `PRODUTO_ACABADO`.** Campo novo em `cadastro-service` (`Produto`), independente de `tipo` (`MERCADORIA`/`SERVICO` — RN-EST-01 não muda). Hoje o sistema só sabe "isso é mercadoria", não "para quê" — e sem essa informação não dá para derivar CFOP de entrada (fiscal), decidir Estoque × Despesa × Imobilizado (contábil/Ativos) nem aplicar a política de saldo negativo do D9. Imobilizado fica de fora — não é item de estoque. Este spec só registra a dependência; o campo em si é escopo do `cadastro-service` (fora deste documento).
+- **D7 — Novo tipo de movimento `SAIDA_CONSUMO`**, para requisição de almoxarilho de item `USO_CONSUMO`: hoje o único jeito de tirar saldo é venda ou ajuste, e consumo interno não é nenhum dos dois — é fato operacional com destino (`centro_custo_id`), não documento fiscal. `centro_custo_id` obrigatório na linha (RN-EST-10) — é a contrapartida contábil (D Despesa por centro de custo / C Estoque).
+- **D8 — Custo médio móvel entra no modelo.** `estoque_saldo` ganha `custo_medio`, recalculado a cada entrada (`ENTRADA_COMPRA`, `AJUSTE_ENTRADA`) dentro da mesma transação do `registrarMovimento` (RN-EST-04 já garante atomicidade). **Muda o significado de `valor_unitario` em toda saída** (`SAIDA_VENDA`, `SAIDA_CONSUMO`, `AJUSTE_SAIDA`): passa a ser o custo médio da hora, não mais o preço de venda (supera parcialmente D3/§7.1 — preço de venda já mora em `PedidoItem.precoUnitario`, não precisa duplicar no movimento). **Isto muda um contrato já implementado e testado (E3/E4)** — não é retroativo aos movimentos já gravados em produção, só vale a partir da fase que implementar D8.
+- **D9 — Ajuste deixa de ter motivo em texto livre; vira `tipo_ajuste` cadastrado** (`SALDO_INICIAL`, `INVENTARIO`, `AVARIA`, `PERDA_QUEBRA`, `FURTO_ROUBO`, `BONIFICACAO_RECEBIDA`, `AMOSTRA_BRINDE`, `ERRO_LANCAMENTO`, …) + `observacao` livre (o texto de hoje, agora complementar) + `documento_referencia` opcional (laudo, B.O., termo de descarte — o lastro documental que faltava). Motivo: motivo livre sem reflexo contábil abre buraco de fraude ("como eu justifico que o estoque diminuiu sem documento fiscal?"). Cada `tipo_ajuste` entra no `contabil.mapeamento` (mesmo conceito de "de/para" já usado no financeiro, `Fin.md` §7.2) → conta de contrapartida (Perdas com estoque, Resultado de inventário, Ajuste de implantação). `AJUSTE_ENTRADA` sem `tipo_ajuste` que justifique valor positivo (fora de `SALDO_INICIAL`) fica proibido — ajuste positivo sem custo informado é proibido.
+- **D10 — Saldo negativo passa a ter política por `finalidade`, não uma flag geral única.** Hoje `estoque.bloquear-saida` (§6.1) é uma chave só, geral, desligada durante os testes. A partir de D6: `REVENDA` bloqueia expedição por padrão assim que o saldo inicial estiver carregado (negativo em revenda só pode significar compra sem nota — RIR/2018 art. 293, omissão de receita por diferença de estoque); com override de tenant, a venda passa mas abre pendência de regularização numa fila, nunca silenciosa. `PRODUTO_ACABADO` permite negativo e abre pendência "apontar produção" (o negativo vira "a produzir", Fase 2/D11). Fechamento de período de estoque (mensal, alinhado ao contábil) não fecha com saldo negativo em nenhum produto/depósito — mesmo padrão de RN-CONT-009: pendência impede fechamento. Negativo é tolerado intra-mês; nunca atravessa um fechamento.
+- **D11 — Produção própria fica em Fase 2** (fora do MVP, foco atual é serviço). Desenho mínimo já registrado para não fechar a porta: `ficha_tecnica` (insumos por unidade do produto acabado) + `ordem_producao`; apontar produção gera N `SAIDA_PRODUCAO` (insumos a custo médio) + 1 `ENTRADA_PRODUCAO` (produto acabado, custo = soma dos insumos + custos adicionais informados). Produto intermediário é só um `PRODUTO_ACABADO` que também aparece como insumo em outra ficha — não precisa de um terceiro valor de `finalidade`.
 
 ---
 
@@ -114,15 +123,18 @@ Nunca sofre `UPDATE` nem `DELETE`. Correção é sempre **um movimento novo** (e
 | `deposito_id` | UUID NOT NULL | ref. `cadastros.deposito` — sem FK física |
 | `tipo` | VARCHAR(25) NOT NULL | enum `TipoMovimentoEstoque` (§3.2) |
 | `quantidade` | NUMERIC(15,4) NOT NULL | **sempre positiva**; o sinal vem do `tipo`. CHECK `quantidade > 0` |
-| `valor_unitario` | NUMERIC(15,4) NULL | **[D3]** preço da NF na entrada, preço de venda na saída, custo informado (ou null) no ajuste |
+| `valor_unitario` | NUMERIC(15,4) NULL | **[D3]** preço da NF na entrada. Na saída, **[D8, §12] passa a ser o custo médio da hora** (não mais preço de venda — o preço de venda já mora em `PedidoItem.precoUnitario`) |
 | `origem_tipo` | VARCHAR(20) NOT NULL | enum `OrigemMovimentoEstoque` (§3.2) |
-| `origem_id` | UUID NULL | id do `vendas.pedido` ou do `compras.recebimento_mercadoria`. **NULL para `AJUSTE`/`INVENTARIO`** (não têm documento) |
-| `motivo` | VARCHAR(500) NULL | obrigatório para `AJUSTE`/`INVENTARIO` (validado no service), null nos demais |
+| `origem_id` | UUID NULL | id do `vendas.pedido` ou do `compras.recebimento_mercadoria`. **NULL para `AJUSTE`/`INVENTARIO`/`CONSUMO`** (não têm documento) |
+| `motivo` | VARCHAR(500) NULL | **[superado por D9, §12]** hoje texto livre, obrigatório para `AJUSTE`/`INVENTARIO`; vira `observacao` complementar quando `tipo_ajuste` (D9) entrar |
+| `tipo_ajuste` | VARCHAR(30) NULL | **[D9, §12]** `SALDO_INICIAL`/`INVENTARIO`/`AVARIA`/`PERDA_QUEBRA`/`FURTO_ROUBO`/`BONIFICACAO_RECEBIDA`/`AMOSTRA_BRINDE`/`ERRO_LANCAMENTO`/…, obrigatório para `AJUSTE`/`INVENTARIO`. Cada valor mapeia uma conta de contrapartida em `contabil.mapeamento` |
+| `documento_referencia` | VARCHAR(200) NULL | **[D9, §12]** opcional — laudo, B.O., termo de descarte; lastro documental do ajuste |
+| `centro_custo_id` | UUID NULL | **[D7, §12]** obrigatório para `SAIDA_CONSUMO` (sem FK física, como `produto_id`/`deposito_id`); null nos demais tipos |
 | `usuario_id` | UUID NOT NULL | userId do JWT |
 | `ocorrido_em` | TIMESTAMPTZ NOT NULL | momento do fato (expedição/recebimento), **não** o `created_at` da linha |
 | 4 colunas de auditoria | — | padrão do projeto |
 
-> **Divergência registrada vs. `p2p-compras.md`:** naquele spec `origem_id` está como `UUID NOT NULL`. Com ajuste/inventário no escopo (D1) não existe documento de origem para essas linhas, então a coluna passa a ser **nullable com CHECK**: `CHECK (origem_tipo IN ('AJUSTE','INVENTARIO') OR origem_id IS NOT NULL)`. As colunas `valor_unitario` e `motivo` também são novas em relação àquele desenho. O `p2p-compras.md` precisa apontar para este spec como fonte da modelagem de estoque (§11.3).
+> **Divergência registrada vs. `p2p-compras.md`:** naquele spec `origem_id` está como `UUID NOT NULL`. Com ajuste/inventário no escopo (D1) não existe documento de origem para essas linhas, então a coluna passa a ser **nullable com CHECK**: `CHECK (origem_tipo IN ('AJUSTE','INVENTARIO') OR origem_id IS NOT NULL)` — **[D7, §12] o CHECK precisa ganhar `CONSUMO`** quando `SAIDA_CONSUMO` for implementado. As colunas `valor_unitario` e `motivo` também são novas em relação àquele desenho. O `p2p-compras.md` precisa apontar para este spec como fonte da modelagem de estoque (§11.3).
 
 **Índices:**
 
@@ -143,14 +155,17 @@ public enum TipoMovimentoEstoque {
     SAIDA_VENDA,             // (-) expedição do pedido de venda (O2C)
     ESTORNO_SAIDA_VENDA,     // (+) cancelamento de pedido que estava EXPEDIDO
     AJUSTE_ENTRADA,          // (+) acerto manual para cima
-    AJUSTE_SAIDA             // (-) acerto manual para baixo
+    AJUSTE_SAIDA,            // (-) acerto manual para baixo
+    SAIDA_CONSUMO            // [D7, §12] (-) requisição de almoxarifado, centro_custo_id obrigatório
+    // SAIDA_PRODUCAO / ENTRADA_PRODUCAO — Fase 2 (D11), enum já extensível, não implementar agora
 }
 
 public enum OrigemMovimentoEstoque {
     PEDIDO_VENDA,    // origem_id = vendas.pedido.id
     RECEBIMENTO,     // origem_id = compras.recebimento_mercadoria.id
     AJUSTE,          // origem_id null — acerto avulso
-    INVENTARIO       // origem_id null — contagem física
+    INVENTARIO,      // origem_id null — contagem física
+    CONSUMO          // [D7, §12] origem_id null — requisição de almoxarifado
 }
 ```
 
@@ -165,6 +180,7 @@ public enum OrigemMovimentoEstoque {
 | `produto_id` | UUID NOT NULL | sem FK física |
 | `deposito_id` | UUID NOT NULL | sem FK física |
 | `quantidade` | NUMERIC(15,4) NOT NULL DEFAULT 0 | atualizada por upsert com `SELECT ... FOR UPDATE` na **mesma transação** do movimento |
+| `custo_medio` | NUMERIC(15,4) NULL | **[D8, §12]** recalculado a cada entrada (`ENTRADA_COMPRA`/`AJUSTE_ENTRADA` com `SALDO_INICIAL`): `nova_media = (saldo_atual × custo_atual + qtd_entrada × valor_entrada) / (saldo_atual + qtd_entrada)`. Toda saída lê daqui, não recebe do chamador |
 | 4 colunas de auditoria | — | `updated_at`/`last_updated_by` mudam a cada movimento |
 
 **UNIQUE (`tenant_id`, `produto_id`, `deposito_id`)** — é o que torna o upsert seguro e a leitura por par produto+depósito um index lookup.
@@ -262,6 +278,8 @@ Serviço: trava o saldo (`FOR UPDATE`), calcula `delta = quantidadeContada - sal
 
 `ponytail:` sem documento de inventário com máquina de estados (abertura → contagem → apuração). Contagem em lote é upgrade direto: N chamadas, ou um endpoint que faz batch das mesmas linhas. O modelo não muda.
 
+> **[D9, §12] FEITO em 16/09/2026, não testado:** `motivo` continua no payload, mas virou opcional/observação; `tipoAjuste` (`TipoAjusteEstoque`, obrigatório) e `documentoReferencia` (opcional) entraram em `AjusteEstoqueRequestDTO`. `origem` continua `AJUSTE`/`INVENTARIO`. `AJUSTE_ENTRADA` sem `tipoAjuste = SALDO_INICIAL` e sem custo informado é rejeitado — RN-EST-11.
+
 ---
 
 ## 6. Regras de negócio
@@ -273,9 +291,14 @@ Serviço: trava o saldo (`FOR UPDATE`), calcula `delta = quantidadeContada - sal
 | **RN-EST-03** | **`quantidade > 0` sempre**; o sinal vem do `tipo` | CHECK + service |
 | **RN-EST-04** | **Saldo e movimento commitam juntos.** Nunca existe movimento sem saldo atualizado, nem o contrário | mesma transação, §4.1 |
 | **RN-EST-05** | **Saldo insuficiente NÃO bloqueia saída** enquanto `estoque.bloquear-saida = false` (default). Com a flag ligada, `SAIDA_VENDA` e `AJUSTE_SAIDA` que deixariam o saldo negativo lançam 400 PT-BR (`Constants.ESTOQUE_SALDO_INSUFICIENTE`, com produto/depósito/saldo/documento na mensagem). **`ESTORNO_*` e `AJUSTE_ENTRADA` nunca são bloqueados** — devolver e corrigir precisam funcionar mesmo com saldo torto, senão a flag prende o sistema num estado sem saída | `EstoqueService` (§4.1 passo 4) |
-| **RN-EST-06** | **Ajuste exige motivo** (até 500 caracteres) — é o único movimento sem documento de origem, e sem motivo vira buraco de auditoria | service |
+| **RN-EST-06** | ~~Ajuste exige motivo~~ **[SUPERADA por RN-EST-11, §12, FEITO 16/09/2026]** — `tipo_ajuste` (D9) passou a ser o campo obrigatório; `motivo` virou `observacao` opcional | service |
 | **RN-EST-07** | **Idempotência por documento:** o mesmo (`tipo`, `origem_tipo`, `origem_id`, `produto_id`) não entra duas vezes. Violação = 409 (documento já movimentado), não 500 | índice único parcial + tradução no `GlobalExceptionHandler` |
 | **RN-EST-08** | **Recebimento não checa saldo.** Entrada só aumenta — "saldo insuficiente" não se aplica. A validação equivalente do lado da compra seria capacidade física do depósito, fora de escopo | doc |
+| **RN-EST-09** [D8, §12] | **Custo médio recalcula só na entrada.** `ENTRADA_COMPRA` e `AJUSTE_ENTRADA` recalculam `estoque_saldo.custo_medio`; toda saída (`SAIDA_VENDA`, `SAIDA_CONSUMO`, `AJUSTE_SAIDA`) lê o custo médio vigente e grava em `movimento_estoque.valor_unitario` — o chamador não informa mais valor de saída | `EstoqueService` |
+| **RN-EST-10** [D7, §12] | **`SAIDA_CONSUMO` exige `centro_custo_id`.** Sem centro de custo não há contrapartida contábil (D Despesa / C Estoque) — mesma lógica de RN-EST-06 para `motivo`, aplicada ao novo tipo | service |
+| **RN-EST-11** [D9, §12] | ✅ **FEITO, não testado (16/09/2026).** Ajuste exige `tipo_ajuste` cadastrado, não texto livre. `documento_referencia` é opcional. `AJUSTE_ENTRADA` fora de `SALDO_INICIAL` sem custo informado é proibido. **Integração com `contabil.mapeamento` NÃO feita** — `financeiro-service` não existe no código | service (`contabil.mapeamento` pendente) |
+| **RN-EST-12** [D10, §12] | **Bloqueio de saldo negativo é por `finalidade` do produto (D6), não uma flag geral única.** `REVENDA`: bloqueia por padrão quando saldo inicial carregado; com override, passa mas abre pendência de regularização (nunca silenciosa). `PRODUTO_ACABADO`: permite, abre pendência "apontar produção". Substitui a flag única `estoque.bloquear-saida` do §6.1 quando implementada | `EstoqueService` |
+| **RN-EST-13** [D10, §12] | **Fechamento de período de estoque não fecha com saldo negativo** em nenhum produto/depósito — mesmo padrão de RN-CONT-009 (`Fin-funcional.md`): pendência impede fechamento. Negativo é tolerado intra-mês, nunca atravessa um fechamento | fechamento mensal (a desenhar) |
 
 ### 6.1 A flag `estoque.bloquear-saida`
 
@@ -317,7 +340,7 @@ Pontos já resolvidos, que não exigem trabalho novo:
 - **Tipo do item não custa chamada externa.** `PedidoItem.tipo_item` já é snapshot gravado na criação do pedido (D2 do `o2c-vendas.md`) — o filtro `MERCADORIA` é leitura local, sem ida ao `cadastro-service`.
 - **Depósito é único e já validado.** `expedir()` já exige `depositoId` não nulo (`Constants.PEDIDO_DEPOSITO_OBRIGATORIO`) e o grava no cabeçalho; `pedido_item` não tem depósito próprio. Toda a baixa sai desse depósito. Expedição multi-depósito é upgrade (§10).
 - **Pedido só-serviço nem chega aqui:** `expedir()` já lança 400 (`PEDIDO_EXPEDICAO_SO_MERCADORIA`) antes. Pedido misto expede e baixa só a parte mercadoria — é o que a lista filtrada faz.
-- **`valorUnitario` = `precoUnitario` do item** (preço de venda, D3). Não é custo; a coluna guarda "o valor daquele movimento", e o que ela significa depende do tipo — documentado no §3.1.
+- **`valorUnitario` = `precoUnitario` do item** (preço de venda, D3). Não é custo; a coluna guarda "o valor daquele movimento", e o que ela significa depende do tipo — documentado no §3.1. **[D8, §12] FEITO em 16/09/2026, não testado:** `expedir()` continua enviando `precoUnitario` na linha (não precisou mudar), mas o `EstoqueService` agora ignora esse valor em `SAIDA_VENDA`/`SAIDA_CONSUMO`/`AJUSTE_SAIDA` e grava o custo médio vigente (`estoque_saldo.custo_medio`) como `valor_unitario` do movimento — o preço de venda continua só em `PedidoItem`.
 - **Sem risco de duplicidade:** a máquina de estados só permite `CONFIRMADO → EXPEDIDO` uma vez, e o índice único (RN-EST-07) é a rede de segurança.
 
 ### 7.2 `cancelar()` — gera `ESTORNO_SAIDA_VENDA` quando `statusAnterior == EXPEDIDO`
@@ -360,9 +383,14 @@ Padrão do projeto: JUnit + Mockito para serviço, `@WebMvcTest` + MockMvc para 
 | Ajuste com `quantidadeContada` > saldo | grava `AJUSTE_ENTRADA` com o delta |
 | Ajuste com `quantidadeContada` < saldo | grava `AJUSTE_SAIDA` com o módulo do delta |
 | Ajuste com `quantidadeContada` == saldo | no-op: nenhum movimento gravado |
-| Ajuste sem motivo | 400 (RN-EST-06) |
+| Ajuste sem `tipoAjuste` | 400 (RN-EST-11, testado em `ajusteSemTipoAjuste_lanca400`) |
+| `AJUSTE_ENTRADA` fora de `SALDO_INICIAL` sem custo | 400 (RN-EST-11, testado em `ajusteEntradaSemCustoForaDeSaldoInicial_lanca400`) |
+| `AJUSTE_ENTRADA` com `SALDO_INICIAL` sem custo | permite (RN-EST-11, testado em `ajusteEntradaSaldoInicialSemCusto_permiteMesmoAssim`) |
 | `quantidade <= 0` na requisição | 400 (RN-EST-03) |
 | Movimento com origem documental e `origemId` null | 400 |
+| `SAIDA_CONSUMO` sem `centroCustoId` | 400 (RN-EST-10, testado em `consumoSemCentroCusto_lanca400`) |
+| Entrada com preço, saldo existente com custo médio | recalcula média ponderada (RN-EST-09, testado em `entradaComPrecoESaldoExistente_recalculaCustoMedioPonderado`) |
+| `SAIDA_VENDA` com custo médio no saldo | `valorUnitario` do movimento vira o custo médio, não o valor informado na linha (RN-EST-09, testado em `saidaVenda_gravaValorUnitarioComoCustoMedioVigente_ignorandoValorInformadoNaLinha`) |
 
 ### 8.2 `PedidoServiceTest` — cenários novos (hoje inexistentes)
 
@@ -421,9 +449,13 @@ flowchart LR
 | Item | Por que fora | Upgrade |
 |---|---|---|
 | **Reserva de estoque na confirmação** | MVP baixa na expedição; reserva exige saldo disponível diferente de saldo físico e política de expiração | coluna `quantidade_reservada` em `estoque_saldo` (aditiva) + movimento de reserva/liberação; `confirmar()` passa a chamar o módulo |
-| **Custo médio ponderado / valorização** | contabilidade é spec separado (`Fin.md` §11.1) | **[D3]** `valor_unitario` já grava a matéria-prima em cada movimento; o custo médio vira projeção sobre a tabela append-only, sem migração de dados |
+| **Custo médio ponderado / valorização** | ✅ **[D8, §12] FEITO, não testado (16/09/2026)** — `estoque_saldo.custo_medio` + saída lendo custo médio em vez de preço de venda (E8) | — |
 | **Lote / validade / número de série** | nenhum cliente-alvo exige rastreio por lote hoje | tabela `estoque_lote` + `lote_id` em `movimento_estoque`; `estoque_saldo` ganha granularidade por lote (é o upgrade caro deste modelo) |
 | **Transferência entre depósitos** | não pedida; hoje se resolve com dois ajustes | tipos `TRANSFERENCIA_SAIDA`/`TRANSFERENCIA_ENTRADA` + endpoint que grava o par na mesma transação. Sem mudança de tabela |
+| **Produção própria** | **[D11, §12]** Fase 2 — foco atual é serviço | `ficha_tecnica` + `ordem_producao`; apontar produção gera N `SAIDA_PRODUCAO` + 1 `ENTRADA_PRODUCAO` |
+| **Consumo interno (almoxarifado)** | ✅ **[D7, §12] FEITO, não testado (16/09/2026)** — `SAIDA_CONSUMO` + `centro_custo_id` + `POST /api/v1/estoque/consumo` (E9) | — |
+| **Ajuste tipificado + lastro documental** | ⚠️ **[D9, §12] FEITO parcial, não testado (16/09/2026)** — `tipo_ajuste` cadastrado substitui `motivo` livre (E10); mapeamento contábil (`contabil.mapeamento`) bloqueado por `financeiro-service` não existir | — |
+| **Bloqueio de saldo negativo por finalidade** | **[D10, §12] decidido, não implementado** — substitui a flag única `estoque.bloquear-saida` | §12 (RN-EST-12/13) |
 | **Documento de inventário com máquina de estados** | contagem cíclica linha a linha resolve o MVP (§5.3) | `inventario` + `inventario_item` (abertura → contagem → apuração); a apuração gera os mesmos `AJUSTE_*` do endpoint atual |
 | **Expedição/recebimento multi-depósito** | `pedido.deposito_id` é do cabeçalho, um por documento | `deposito_id` em `pedido_item` (nullable, default = o do cabeçalho); `registrarMovimento` já recebe depósito por requisição — bastaria quebrar em N requisições |
 | **Devolução de cliente (RMA)** | fluxo fiscal próprio (NF de devolução), `o2c-vendas.md` §11 | tipo `ENTRADA_DEVOLUCAO` + origem `DEVOLUCAO`; até lá, cancelamento pós-expedição cobre o caso simples |
@@ -441,3 +473,43 @@ flowchart LR
 3. **`p2p-compras.md` precisa de revisão** apontando este spec como fonte da modelagem de estoque: `origem_id` passou a nullable, e `valor_unitario`/`motivo` são colunas novas em relação ao desenho daquele documento (§3.1).
 4. **E6 é a única fase que toca o `cadastro-service`** — se o endpoint interno atrasar, E7 entrega saldos e extrato sem o badge, sem bloquear nada.
 5. **Nada aqui foi compilado ou rodado** — é planejamento. O usuário executa builds e testes.
+
+---
+
+## 12. Extensão pós-E7: consumo, custo médio, ajuste tipificado e saldo negativo por finalidade
+
+**Origem:** revisão funcional de um especialista externo sobre `estoque-funcional.md`, com segunda leitura do Opus, 16 de setembro de 2026. Decisões fechadas com o usuário (D6-D11, listadas no topo do documento). **D6 (`Produto.finalidade`) FEITO em 16 de setembro de 2026, não testado** (ver §12.2). **E8 (custo médio), E9 (`SAIDA_CONSUMO`) e E10 (ajuste tipificado) também FEITOS em 16/09/2026, não testados** (ver §12.4). **Ressalva do E10:** o lado `operacoes-service` (tipo_ajuste, documento_referencia, RN-EST-11) está feito; a integração com `contabil.mapeamento` **não foi feita** porque esse recurso não existe no código — `financeiro-service` é só spec (`Fin.md`), nunca foi implementado (nenhum diretório, schema `contabil` ou tabela `mapeamento`). Fica pendente até o serviço existir. E11 (bloqueio por finalidade) ainda não foi implementado.
+
+### 12.1 Por que agora
+
+O E1-E7 resolveu "quanto tem e de onde veio" para venda e compra. Três buracos ficaram de fora e o especialista os nomeou: (a) não existe saída para consumo interno, então não há como imputar custo a centro de custo; (b) `motivo` de ajuste é texto livre sem contrapartida contábil — motivo aberto para fraude de estoque, já que a Receita presume omissão de receita quando o estoque não fecha (RIR/2018, art. 293); (c) a flag `estoque.bloquear-saida` é única e geral, mas a resposta correta a saldo negativo depende de **para que serve o produto** (revenda vs. produção própria têm implicações fiscais e de auditoria diferentes).
+
+### 12.2 Dependência cross-serviço: `Produto.finalidade`
+
+**D6** vive em `cadastro-service`, fora deste documento — mas todo o resto de §12 depende dela. `Produto` precisa do campo `finalidade` (`REVENDA`/`USO_CONSUMO`/`MATERIA_PRIMA`/`PRODUTO_ACABADO`), consumido por três lados: este módulo (RN-EST-12/13), o motor fiscal (CFOP de entrada — fora do `fiscal-service` atual, que só calcula saída) e o contábil/Ativos (Estoque × Despesa × Imobilizado). É um campo, três consumidores — não triplicar o dado.
+
+**FEITO em 16 de setembro de 2026, não testado** (nenhum `mvn` rodado): enum `FinalidadeProduto` (`cadastroservice.domain.enumerators`), campo `Produto.finalidade` (`@Enumerated(EnumType.STRING)`, default `REVENDA`), `ProdutoDTO`/`ProdutoResponseDTO` com o novo campo (mapeamento automático por nome no `ProdutoMapper`, sem `@Mapping` extra), default `null → REVENDA` em `ProdutoService.validarTipo` (mesmo ponto onde `tipo` já é defaultado para `MERCADORIA`), migração Liquibase `cadastro-schema-017.yaml` (`cad-055-add-finalidade-produto`, coluna `varchar(15) NOT NULL DEFAULT 'REVENDA'`, backfill do dado existente). Testes `ProdutoServiceTest`/`ProdutoControllerTest` atualizados (construtor posicional do record `ProdutoDTO` mudou) + novo teste `create_finalidadeNula_defaultParaRevenda`. Ainda não implementado: qualquer validação cruzada `tipo`×`finalidade` (ex.: `SERVICO` não deveria ter `finalidade` de estoque) — fica para quando E11/bloqueio por finalidade entrar, se fizer sentido.
+
+### 12.3 O que muda no modelo (resumo dos §3.1/§3.2/§3.3 já editados acima)
+
+| Item | Onde |
+|---|---|
+| `TipoMovimentoEstoque.SAIDA_CONSUMO` + `OrigemMovimentoEstoque.CONSUMO` | §3.2 |
+| `movimento_estoque.tipo_ajuste`, `.documento_referencia`, `.centro_custo_id` (novas colunas) | §3.1 |
+| `movimento_estoque.motivo` vira opcional/complementar (`observacao`) | §3.1 |
+| `estoque_saldo.custo_medio` (nova coluna) | §3.3 |
+| CHECK de `origem_id` ganha `CONSUMO` | §3.1 (nota de divergência) |
+
+### 12.4 Fases (a fazer depois de E7, antes de ligar qualquer bloqueio)
+
+| Fase | Entrega | Depende de |
+|---|---|---|
+| **E8** | ✅ **FEITO, não testado (16/09/2026).** **Custo médio (D8).** `estoque_saldo.custo_medio` + migração Liquibase (`estoque-schema-002.yaml`); `EstoqueService.registrarMovimento` recalcula na entrada (`ENTRADA_COMPRA`/`AJUSTE_ENTRADA`) e preenche `valor_unitario` de toda saída internamente (`SAIDA_VENDA`/`SAIDA_CONSUMO`/`AJUSTE_SAIDA` ignoram o valor que o chamador informar) — `PedidoService`/`RecebimentoMercadoriaService` não precisaram mudar (o valor que já enviavam passa a ser ignorado nas linhas de saída). RN-EST-09. Testes novos em `EstoqueServiceTest`: recálculo de média ponderada e saída lendo o custo médio | E7 |
+| **E9** | ✅ **FEITO, não testado (16/09/2026).** **`SAIDA_CONSUMO` (D7).** Enum + coluna `centro_custo_id` + CHECK `chk_mov_estoque_origem` atualizada (`CONSUMO` sem `origem_id`); endpoint `POST /api/v1/estoque/consumo` (`ConsumoEstoqueRequestDTO`, autoridade `ESTOQUE_CONSUMO_REGISTRAR` semeada em `auth-schema-021.yaml`). RN-EST-10. Testes novos: sem centro de custo → 400, com centro de custo → grava `centroCustoId` + custo médio como `valorUnitario` | E8 |
+| **E10** | ⚠️ **PARCIAL, FEITO no `operacoes-service` (16/09/2026), não testado.** `TipoAjusteEstoque` (enum: SALDO_INICIAL/INVENTARIO/AVARIA/PERDA_QUEBRA/FURTO_ROUBO/BONIFICACAO_RECEBIDA/AMOSTRA_BRINDE/ERRO_LANCAMENTO) + colunas `tipo_ajuste`/`documento_referencia` (`estoque-schema-003.yaml`, sem backfill dos ajustes antigos — decisão explícita, mesmo espírito não retroativo de D8); `tipo_ajuste` agora obrigatório em AJUSTE/INVENTARIO (substituiu `motivo`, que virou observação opcional); `AJUSTE_ENTRADA` fora de `SALDO_INICIAL` sem custo informado é rejeitado (RN-EST-11). **Não feito:** `contabil.mapeamento` ganhar as entradas de tipo_ajuste → conta — **bloqueado, `financeiro-service` não existe no código** (só spec em `Fin.md`; nenhum schema `contabil`/tabela `mapeamento` implementados). Retomar quando esse serviço nascer | E8 |
+| **E11** | **Bloqueio por finalidade + fechamento de período (D10).** Substitui `estoque.bloquear-saida` por lógica que lê `Produto.finalidade`; fila de pendência de regularização; fechamento mensal de estoque que não fecha com negativo. RN-EST-12/13. `Produto.finalidade` já existe no `cadastro-service` (§12.2, FEITO 16/09) | E8 |
+| **Fase 2** | **Produção própria (D11).** `ficha_tecnica` + `ordem_producao` + `SAIDA_PRODUCAO`/`ENTRADA_PRODUCAO`. Fora do MVP — retomar quando o produto priorizar produção própria sobre serviço | E8 |
+
+### 12.5 O que a análise **não** mudou
+
+A arquitetura de `registrarMovimento` como único ponto de escrita (§4.1), o padrão append-only imutável (RN-EST-02), a chamada Java direta em vez de Kafka (§2.2) e RN-EST-01 (só `MERCADORIA` movimenta estoque) continuam exatamente como estão — `finalidade` (D6) é uma subdivisão de `MERCADORIA`, não substitui `tipo`.

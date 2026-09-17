@@ -8,6 +8,7 @@ import com.l.erp.cadastroservice.domain.Produto;
 import com.l.erp.cadastroservice.domain.ProdutoCategoria;
 import com.l.erp.cadastroservice.domain.ProdutoPreco;
 import com.l.erp.cadastroservice.domain.TabelaPreco;
+import com.l.erp.cadastroservice.domain.enumerators.FinalidadeProduto;
 import com.l.erp.cadastroservice.domain.enumerators.TipoProduto;
 import com.l.erp.cadastroservice.repository.DepositoRepository;
 import com.l.erp.cadastroservice.repository.FornecedorRepository;
@@ -56,7 +57,7 @@ class ProdutoServiceTest {
 
     private ProdutoDTO dto(UUID categoriaId, List<ProdutoEstoqueConfigDTO> estoqueConfigs) {
         return new ProdutoDTO(null, TENANT_ID, categoriaId, "SKU1", null, "Produto 1", null,
-                TipoProduto.MERCADORIA, "UN",
+                TipoProduto.MERCADORIA, FinalidadeProduto.REVENDA, "UN",
                 null, null, null, null, null, null, null, null, null, null, null, null, null, true,
                 null, null, null, null, null, null, estoqueConfigs);
     }
@@ -145,6 +146,19 @@ class ProdutoServiceTest {
         Produto saved = produtoService.create(TENANT_ID, USER_ID, dto(null, null));
 
         assertThat(saved.getTipo()).isEqualTo(TipoProduto.MERCADORIA);
+    }
+
+    @Test
+    void create_finalidadeNula_defaultParaRevenda() {
+        Produto mapped = new Produto();
+        mapped.setTipo(TipoProduto.MERCADORIA);
+        mapped.setNcm("12345678");
+        when(mapper.toEntity(any(ProdutoDTO.class))).thenReturn(mapped);
+        when(produtoRepository.save(any(Produto.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Produto saved = produtoService.create(TENANT_ID, USER_ID, dto(null, null));
+
+        assertThat(saved.getFinalidade()).isEqualTo(FinalidadeProduto.REVENDA);
     }
 
     @Test
@@ -246,7 +260,7 @@ class ProdutoServiceTest {
                 null, TENANT_ID, UUID.randomUUID(), BigDecimal.TEN, LocalDate.now(), null,
                 null, null, null, null);
         ProdutoDTO dtoComPreco = new ProdutoDTO(null, TENANT_ID, null, "SKU1", null, "Produto 1", null,
-                TipoProduto.MERCADORIA, "UN",
+                TipoProduto.MERCADORIA, FinalidadeProduto.REVENDA, "UN",
                 null, null, null, null, null, null, null, null, null, null, null, null, null, true,
                 null, null, null, null, List.of(precoSemAuditoria), null, null);
 

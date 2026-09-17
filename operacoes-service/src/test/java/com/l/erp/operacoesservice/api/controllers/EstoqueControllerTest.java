@@ -4,9 +4,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.l.erp.common.util.Constants;
 import com.l.erp.operacoesservice.api.dto.EstoqueSaldoResponseDTO;
 import com.l.erp.operacoesservice.api.dto.MovimentoEstoqueResponseDTO;
+import com.l.erp.operacoesservice.api.dto.PendenciaEstoqueResponseDTO;
 import com.l.erp.operacoesservice.api.mappers.EstoqueMapper;
 import com.l.erp.operacoesservice.domain.estoque.EstoqueSaldo;
 import com.l.erp.operacoesservice.domain.estoque.MovimentoEstoque;
+import com.l.erp.operacoesservice.domain.estoque.PendenciaEstoque;
 import com.l.erp.operacoesservice.domain.estoque.enumerators.OrigemMovimentoEstoque;
 import com.l.erp.operacoesservice.domain.estoque.enumerators.TipoMovimentoEstoque;
 import com.l.erp.operacoesservice.infra.client.CadastroServiceClient;
@@ -174,6 +176,107 @@ class EstoqueControllerTest {
                         .header(Constants.HEADER_USER_ID, USER_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(authorities = "ESTOQUE_CONSUMO_REGISTRAR")
+    void consumoDeveRetornar204() throws Exception {
+        String payload = """
+                {"produtoId":"%s","depositoId":"%s","quantidade":5,"centroCustoId":"%s","motivo":"requisição de almoxarifado"}
+                """.formatted(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
+
+        mockMvc.perform(post("/api/v1/estoque/consumo")
+                        .header(Constants.HEADER_TENANT_ID, TENANT_ID)
+                        .header(Constants.HEADER_USER_ID, USER_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @WithMockUser(authorities = "ESTOQUE_CONSUMO_REGISTRAR")
+    void consumoComPayloadInvalidoDeveRetornar400() throws Exception {
+        // produtoId ausente viola @NotNull do ConsumoEstoqueRequestDTO.
+        String payload = """
+                {"depositoId":"%s","quantidade":5,"centroCustoId":"%s"}
+                """.formatted(UUID.randomUUID(), UUID.randomUUID());
+
+        mockMvc.perform(post("/api/v1/estoque/consumo")
+                        .header(Constants.HEADER_TENANT_ID, TENANT_ID)
+                        .header(Constants.HEADER_USER_ID, USER_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(authorities = "ESTOQUE_VISUALIZAR")
+    void consumoSemAutoridadeDeveRetornar403() throws Exception {
+        String payload = """
+                {"produtoId":"%s","depositoId":"%s","quantidade":5,"centroCustoId":"%s"}
+                """.formatted(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
+
+        mockMvc.perform(post("/api/v1/estoque/consumo")
+                        .header(Constants.HEADER_TENANT_ID, TENANT_ID)
+                        .header(Constants.HEADER_USER_ID, USER_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(authorities = "ESTOQUE_VISUALIZAR")
+    void pendenciasDeveRetornar200() throws Exception {
+        PendenciaEstoque pendencia = PendenciaEstoque.builder().id(UUID.randomUUID())
+                .produtoId(UUID.randomUUID()).depositoId(UUID.randomUUID()).resolvida(false).build();
+        Page<PendenciaEstoque> page = new PageImpl<>(List.of(pendencia));
+        when(service.buscarPendencias(eq(TENANT_ID), any(), any())).thenReturn(page);
+        when(mapper.toPendenciaResponseDto(any())).thenReturn(new PendenciaEstoqueResponseDTO());
+
+        mockMvc.perform(get("/api/v1/estoque/pendencias")
+                        .header(Constants.HEADER_TENANT_ID, TENANT_ID)
+                        .header(Constants.HEADER_USER_ID, USER_ID))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser(authorities = "ESTOQUE_PENDENCIA_RESOLVER")
+    void resolverPendenciaDeveRetornar204() throws Exception {
+        mockMvc.perform(post("/api/v1/estoque/pendencias/{id}/resolver", UUID.randomUUID())
+                        .header(Constants.HEADER_TENANT_ID, TENANT_ID)
+                        .header(Constants.HEADER_USER_ID, USER_ID))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @WithMockUser(authorities = "ESTOQUE_VISUALIZAR")
+    void resolverPendenciaSemAutoridadeDeveRetornar403() throws Exception {
+        mockMvc.perform(post("/api/v1/estoque/pendencias/{id}/resolver", UUID.randomUUID())
+                        .header(Constants.HEADER_TENANT_ID, TENANT_ID)
+                        .header(Constants.HEADER_USER_ID, USER_ID))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(authorities = "ESTOQUE_FECHAMENTO_REGISTRAR")
+    void fecharDeveRetornar201() throws Exception {
+        mockMvc.perform(post("/api/v1/estoque/fechamento")
+                        .header(Constants.HEADER_TENANT_ID, TENANT_ID)
+                        .header(Constants.HEADER_USER_ID, USER_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"competencia\":\"2026-09\"}"))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    @WithMockUser(authorities = "ESTOQUE_VISUALIZAR")
+    void fecharSemAutoridadeDeveRetornar403() throws Exception {
+        mockMvc.perform(post("/api/v1/estoque/fechamento")
+                        .header(Constants.HEADER_TENANT_ID, TENANT_ID)
+                        .header(Constants.HEADER_USER_ID, USER_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"competencia\":\"2026-09\"}"))
                 .andExpect(status().isForbidden());
     }
 }

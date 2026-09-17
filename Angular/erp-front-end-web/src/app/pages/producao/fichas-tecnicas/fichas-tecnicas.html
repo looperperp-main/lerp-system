@@ -1,0 +1,161 @@
+<div>
+
+  <div class="jb-page-head">
+    <div>
+      <app-breadcrumb></app-breadcrumb>
+      <h1>Fichas Técnicas</h1>
+      <p class="sub">Componentes consumidos por unidade de produto acabado (produção própria)</p>
+    </div>
+  </div>
+
+  <div class="jb-panel">
+    <div class="jb-panel-head">
+      <h3><i class="pi pi-file"></i> Fichas Técnicas</h3>
+      <div class="jb-panel-actions">
+        <app-primary-button
+          class="jb-btn-paginator-style"
+          label="Nova Ficha Técnica"
+          icon="pi pi-plus"
+          (onClick)="abrirNovaFicha()">
+        </app-primary-button>
+      </div>
+    </div>
+
+    <div class="table-container">
+      <p-table
+        [value]="fichas()"
+        [loading]="loading()"
+        [lazy]="true"
+        (onLazyLoad)="loadFichas($event)"
+        [totalRecords]="totalRecords()"
+        [paginator]="true"
+        [rows]="10"
+        [rowsPerPageOptions]="[10, 20, 50]"
+        styleClass="p-datatable-sm text-sm"
+        [paginatorDropdownAppendTo]="'body'"
+      >
+        <ng-template pTemplate="header">
+          <tr>
+            <th>Produto acabado</th>
+            <th>Componentes</th>
+            <th>Situação</th>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="body" let-rowData>
+          <tr>
+            <td class="jb-strong">{{ nomeProduto(rowData.produtoAcabadoId) }}</td>
+            <td>
+              <span *ngFor="let item of rowData.itens; let last = last">
+                {{ nomeProduto(item.produtoComponenteId) }} ({{ item.quantidade }}){{ last ? '' : ', ' }}
+              </span>
+            </td>
+            <td>
+              <span *ngIf="rowData.ativo" class="jb-status ok">Ativa</span>
+              <span *ngIf="!rowData.ativo" class="jb-status neutral">Substituída</span>
+            </td>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td colspan="3" style="text-align: center; padding: 24px; color: var(--muted);">
+              Nenhuma ficha técnica cadastrada.
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </div>
+  </div>
+
+  <footer class="jb-list-footer">
+    <span>© 2026 SYAX TECNOLOGIA · BUILD 26.04.01</span>
+    <span>{{ totalRecords() }} {{ totalRecords() === 1 ? 'FICHA ENCONTRADA' : 'FICHAS ENCONTRADAS' }}</span>
+  </footer>
+
+</div>
+
+<p-dialog [(visible)]="displayForm" [style]="{width: '560px', maxWidth: '95vw'}" [modal]="true">
+  <ng-template pTemplate="header">
+    <div class="jb-dialog-head">
+      <span class="eyebrow">PRODUÇÃO · FICHA TÉCNICA</span>
+      <h2>Nova Ficha Técnica</h2>
+    </div>
+  </ng-template>
+
+  <form [formGroup]="form" (ngSubmit)="onSubmit()" class="flex flex-col gap-4 mt-2">
+    <div class="flex flex-col gap-2">
+      <label class="jb-label">Produto acabado <span class="text-red-500">*</span></label>
+      <p-select
+        [options]="produtoOptions"
+        formControlName="produtoAcabadoId"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Selecione"
+        [filter]="true"
+        styleClass="w-full"
+        appendTo="body">
+      </p-select>
+    </div>
+
+    <div class="flex flex-col gap-2" formArrayName="itens">
+      <label class="jb-label">Componentes <span class="text-red-500">*</span></label>
+      <div *ngFor="let item of itens.controls; let i = index" [formGroupName]="i" class="jb-item-row">
+        <p-select
+          [options]="produtoOptions"
+          formControlName="produtoComponenteId"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Componente"
+          [filter]="true"
+          styleClass="flex-1"
+          appendTo="body">
+        </p-select>
+        <p-inputNumber
+          formControlName="quantidade"
+          [minFractionDigits]="0"
+          [maxFractionDigits]="4"
+          [min]="0.0001"
+          placeholder="Qtd."
+          styleClass="w-32">
+        </p-inputNumber>
+        <button
+          pButton
+          type="button"
+          icon="pi pi-trash"
+          class="p-button-text p-button-danger"
+          (click)="removerItem(i)"
+          [disabled]="itens.length === 1">
+        </button>
+      </div>
+      <button
+        pButton
+        type="button"
+        icon="pi pi-plus"
+        label="Adicionar componente"
+        class="p-button-sm p-button-text"
+        (click)="adicionarItem()">
+      </button>
+    </div>
+
+    <div class="flex justify-end gap-2 mt-2 pt-4 border-t border-gray-200">
+      <button
+        pButton
+        type="button"
+        label="Cancelar"
+        icon="pi pi-times"
+        class="p-button-text p-button-secondary"
+        (click)="displayForm = false"
+        [disabled]="isSaving">
+      </button>
+      <button
+        pButton
+        type="submit"
+        label="Salvar"
+        icon="pi pi-check"
+        [loading]="isSaving"
+        [disabled]="form.invalid">
+      </button>
+    </div>
+  </form>
+</p-dialog>

@@ -100,7 +100,8 @@
             <th>Quantidade</th>
             <th>Valor Unitário</th>
             <th>Origem</th>
-            <th>Motivo</th>
+            <th>Motivo / Tipo de ajuste</th>
+            <th>Documento</th>
           </tr>
         </ng-template>
 
@@ -122,13 +123,17 @@
                 {{ labelOrigem(rowData.origemTipo) }}
               </span>
             </td>
-            <td>{{ rowData.motivo || '-' }}</td>
+            <td>
+              <span *ngIf="rowData.tipoAjuste">{{ labelTipoAjuste(rowData.tipoAjuste) }}</span>
+              <span *ngIf="!rowData.tipoAjuste">{{ rowData.motivo || '-' }}</span>
+            </td>
+            <td>{{ rowData.documentoReferencia || (rowData.centroCustoId ? ('Centro de custo: ' + rowData.centroCustoId) : '-') }}</td>
           </tr>
         </ng-template>
 
         <ng-template pTemplate="emptymessage">
           <tr>
-            <td colspan="8" style="text-align: center; padding: 24px; color: var(--muted);">
+            <td colspan="9" style="text-align: center; padding: 24px; color: var(--muted);">
               Nenhum movimento encontrado.
             </td>
           </tr>

@@ -17,6 +17,9 @@ import java.util.UUID;
 public interface EstoqueSaldoRepository extends JpaRepository<EstoqueSaldo, UUID> {
     Optional<EstoqueSaldo> findByTenantIdAndProdutoIdAndDepositoId(Long tenantId, UUID produtoId, UUID depositoId);
 
+    /** RN-EST-13 [D10, §12] — fechamento de período não fecha com saldo negativo em nenhum produto/depósito. */
+    boolean existsByTenantIdAndQuantidadeLessThan(Long tenantId, java.math.BigDecimal quantidade);
+
     /** Upsert seguro do saldo dentro da transação do movimento (spec/modulos/estoque/estoque.md §4.1 passo 4). */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select s from EstoqueSaldo s where s.tenantId = :tenantId "

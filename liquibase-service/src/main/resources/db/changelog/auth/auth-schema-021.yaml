@@ -1,0 +1,22 @@
+databaseChangeLog:
+  # ──────────────────────────────────────────
+  # Permissão do novo endpoint POST /api/v1/estoque/consumo (D7/E9 — spec/modulos/estoque/estoque.md §12).
+  # Mesmo padrão DOMINIO_ACAO de auth-schema-019.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: auth-021-permission-estoque-consumo-seed
+      author: vitor-fernandes
+      comment: "Permissão de registrar consumo interno (requisição de almoxarifado) de estoque. Scope TENANT (default)."
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO auth.permission (id, code, domain, description, created_by) VALUES
+              (gen_random_uuid(), 'ESTOQUE_CONSUMO_REGISTRAR', 'ESTOQUE', 'Registrar consumo interno (requisição de almoxarifado) de estoque', 'system-seed')
+              ON CONFLICT (code) DO NOTHING;
+      rollback:
+        - sql:
+            dbms: postgresql
+            sql: >
+              DELETE FROM auth.permission WHERE code = 'ESTOQUE_CONSUMO_REGISTRAR';

@@ -61,6 +61,11 @@ export class WebLayout {
           routerLink: '/web/estoque/movimentos',
         },
         {
+          label: 'Pendências de Estoque',
+          icon: 'pi pi-exclamation-triangle',
+          routerLink: '/web/estoque/pendencias',
+        },
+        {
           label: 'Tabelas de Preço',
           icon: 'pi pi-dollar',
           routerLink: '/web/cadastros/tabela-preco',
@@ -70,6 +75,19 @@ export class WebLayout {
           icon: 'pi pi-users',
           routerLink: '/web/cadastros/tabela-preco-grupo',
         },
+      ],
+    },
+    {
+      label: 'Produção',
+      icon: 'pi pi-cog',
+      path: '/web/producao/ordens',
+      items: [
+        {
+          label: 'Fichas Técnicas',
+          icon: 'pi pi-file',
+          routerLink: '/web/producao/fichas-tecnicas',
+        },
+        { label: 'Ordens de Produção', icon: 'pi pi-cog', routerLink: '/web/producao/ordens' },
       ],
     },
     {

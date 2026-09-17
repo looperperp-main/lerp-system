@@ -11,7 +11,28 @@
   <div class="jb-panel">
     <div class="jb-panel-head">
       <h3><i class="pi pi-warehouse"></i> Saldos</h3>
+      <a routerLink="/web/estoque/pendencias" class="jb-link">
+        <i class="pi pi-exclamation-triangle"></i> Pendências de regularização
+      </a>
     </div>
+
+    <form [formGroup]="fechamentoForm" class="jb-filtros" (ngSubmit)="fecharPeriodo()">
+      <div class="jb-filtro-campo">
+        <label class="jb-label-sm">Fechar período de estoque (competência)</label>
+        <input type="month" pInputText formControlName="competencia" class="w-full">
+      </div>
+      <div class="jb-filtro-acoes">
+        <button
+          pButton
+          type="submit"
+          icon="pi pi-lock"
+          label="Fechar período"
+          class="p-button-sm p-button-secondary"
+          [loading]="fechandoPeriodo"
+          [disabled]="fechamentoForm.invalid">
+        </button>
+      </div>
+    </form>
 
     <form [formGroup]="filtroForm" class="jb-filtros" (ngSubmit)="aplicarFiltro()">
       <div class="jb-filtro-campo">
@@ -64,6 +85,7 @@
             <th>Produto</th>
             <th>Depósito</th>
             <th>Quantidade</th>
+            <th>Custo médio</th>
             <th>Situação</th>
             <th>Atualizado em</th>
             <th>Ações</th>
@@ -75,6 +97,7 @@
             <td class="jb-strong">{{ nomeProduto(rowData.produtoId) }}</td>
             <td>{{ nomeDeposito(rowData.depositoId) }}</td>
             <td>{{ rowData.quantidade }}</td>
+            <td>{{ rowData.custoMedio != null ? (rowData.custoMedio | currency:'BRL':'symbol':'1.2-4':'pt-BR') : '-' }}</td>
             <td>
               <span *ngIf="rowData.abaixoMinimo" class="jb-status bad">
                 Abaixo do mínimo
@@ -94,13 +117,22 @@
                 (click)="abrirAjuste(rowData)"
                 tooltipPosition="top">
               </button>
+              <button
+                pButton
+                pRipple
+                icon="pi pi-arrow-circle-down"
+                class="p-button-rounded p-button-text p-button-sm w-8 h-8"
+                pTooltip="Registrar consumo"
+                (click)="abrirConsumo(rowData)"
+                tooltipPosition="top">
+              </button>
             </td>
           </tr>
         </ng-template>
 
         <ng-template pTemplate="emptymessage">
           <tr>
-            <td colspan="6" style="text-align: center; padding: 24px; color: var(--muted);">
+            <td colspan="7" style="text-align: center; padding: 24px; color: var(--muted);">
               Nenhum saldo encontrado.
             </td>
           </tr>
@@ -132,5 +164,24 @@
     (saved)="onAjusteSaved()"
     (canceled)="onAjusteCanceled()">
   </app-ajuste-form>
+
+</p-dialog>
+
+<p-dialog [(visible)]="displayConsumo" [style]="{width: '520px', maxWidth: '95vw'}" [modal]="true">
+  <ng-template pTemplate="header">
+    <div class="jb-dialog-head">
+      <span class="eyebrow">ESTOQUE · CONSUMO</span>
+      <h2>Registrar Consumo</h2>
+    </div>
+  </ng-template>
+
+  <app-consumo-form
+    *ngIf="displayConsumo"
+    [saldo]="selectedSaldo"
+    [nomeProduto]="nomeProduto(selectedSaldo?.produtoId)"
+    [nomeDeposito]="nomeDeposito(selectedSaldo?.depositoId)"
+    (saved)="onConsumoSaved()"
+    (canceled)="onConsumoCanceled()">
+  </app-consumo-form>
 
 </p-dialog>

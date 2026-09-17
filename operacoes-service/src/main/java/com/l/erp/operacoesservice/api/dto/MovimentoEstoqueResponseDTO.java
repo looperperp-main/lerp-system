@@ -1,6 +1,7 @@
 package com.l.erp.operacoesservice.api.dto;
 
 import com.l.erp.operacoesservice.domain.estoque.enumerators.OrigemMovimentoEstoque;
+import com.l.erp.operacoesservice.domain.estoque.enumerators.TipoAjusteEstoque;
 import com.l.erp.operacoesservice.domain.estoque.enumerators.TipoMovimentoEstoque;
 import lombok.Getter;
 import lombok.Setter;
@@ -29,6 +30,9 @@ public class MovimentoEstoqueResponseDTO extends RepresentationModel<MovimentoEs
     private BigDecimal quantidade;
     private BigDecimal valorUnitario;
     private String motivo;
+    private TipoAjusteEstoque tipoAjuste;
+    private String documentoReferencia;
+    private UUID centroCustoId;
     private UUID usuarioId;
     private Instant ocorridoEm;
 }

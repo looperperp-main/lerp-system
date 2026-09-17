@@ -1,6 +1,6 @@
 # Estoque: visão funcional
 
-**Status:** decisões fechadas · **Data:** 8 de setembro de 2026 · **Módulo:** `operacoes-service` (microsserviço único, também dono de vendas e compras)
+**Status:** decisões fechadas (E1-E7 no ar) + extensão planejada (§ "Revisão funcional") · **Data:** 16 de setembro de 2026 · **Módulo:** `operacoes-service` (microsserviço único, também dono de vendas e compras)
 
 > Este documento descreve o controle de estoque em linguagem de negócio — sem schema de banco, endpoint ou detalhe técnico. Para a implementação, ver `spec/estoque.md`.
 
@@ -59,11 +59,24 @@ Hoje, vender mais do que o saldo mostra **não impede a venda** — o saldo simp
 | Estorno/entrada com saldo negativo | Nunca bloqueado, mesmo com a chave de bloqueio ligada |
 | Histórico de movimentos | Permanente e imutável — correção é sempre um novo registro, nunca edição |
 
+## Revisão funcional (16 de setembro de 2026)
+
+Um especialista externo revisou este documento; a segunda leitura confirmou que as perguntas apontavam para buracos reais. Decisões fechadas, **implementação ainda não começou** (desenho técnico em `estoque.md` §12):
+
+- **Para que serve o produto.** Hoje o sistema só distingue mercadoria de serviço. Vai ganhar uma segunda informação — se aquela mercadoria é para revender, para uso e consumo interno, ou matéria-prima/produto acabado de uma produção própria. Essa informação alimenta o fiscal (que nota fiscal de entrada usar), o contábil (se vira despesa ou fica no estoque) e a regra de saldo negativo abaixo.
+- **Consumo interno passa a movimentar estoque.** Hoje só existem duas portas de saída: venda e ajuste manual. Uma requisição de almoxarifado (papel, material de limpeza, EPI de uso próprio) vai virar um terceiro tipo de saída, com centro de custo obrigatório — é o que permite depois saber quanto cada setor gastou.
+- **Ajuste ganha motivo tipificado e documento de apoio.** Hoje o operador escreve qualquer texto no motivo do ajuste. Vai virar uma lista fechada (avaria, perda, roubo, bonificação recebida, erro de lançamento, saldo inicial, inventário...) com espaço pra anexar um documento (laudo, boletim de ocorrência). Sem isso, ajuste sem lastro é a porta mais fácil pra sumir estoque sem explicação — e a Receita enxerga estoque que não fecha como venda não declarada.
+- **Bloqueio de saldo negativo vai depender do tipo de produto, não de uma chave única.** Item de revenda com saldo negativo é sinal de compra feita sem nota fiscal — bloqueia por padrão assim que o saldo inicial estiver carregado (hoje a chave existe, mas é uma só pra tudo e está desligada). Produto acabado de produção própria pode ficar negativo temporariamente ("ainda não apontei a produção"), mas nunca atravessa um fechamento mensal de estoque.
+- **Produção própria fica para depois.** Hoje o foco é serviço; produzir e montar produto próprio (com baixa de insumo e entrada do produto pronto) é uma etapa futura, só desenhada em linhas gerais para não fechar portas.
+
 ## O que fica de fora por enquanto
 
-- Bloqueio de venda por saldo insuficiente (a checagem existe, mas está desligada até o saldo inicial ser carregado).
+- Bloqueio de venda por saldo insuficiente (a checagem existe, mas está desligada até o saldo inicial ser carregado) — vai deixar de ser uma chave única e passar a depender do tipo de produto (ver revisão acima).
 - Reserva de saldo na confirmação do pedido (hoje a baixa só acontece na expedição).
-- Custo médio ponderado / valorização de estoque (fica com o Financeiro, spec própria).
+- Custo médio ponderado / valorização de estoque — **decidido na revisão acima, ainda não implementado**; deixa de ser "fica com o Financeiro" e passa a viver no próprio módulo de estoque.
+- Consumo interno com baixa de estoque e custo médio — **decidido na revisão acima, ainda não implementado**.
+- Ajuste com motivo tipificado e lastro documental — **decidido na revisão acima, ainda não implementado**; hoje o motivo é texto livre.
+- Produção própria (ficha técnica, ordem de produção, baixa de insumo/entrada de produto acabado) — fica para uma fase futura.
 - Controle por lote, validade ou número de série.
 - Transferência entre depósitos (hoje se resolve com dois ajustes manuais).
 - Documento de inventário com etapas (abertura → contagem → apuração) — hoje é contagem direta, produto a produto.

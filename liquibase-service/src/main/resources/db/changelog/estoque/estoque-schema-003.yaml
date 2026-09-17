@@ -1,0 +1,34 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # D9 (ajuste tipificado) — spec/modulos/estoque/estoque.md §12, extensão pós-E7. RN-EST-11.
+  # Sem backfill dos ajustes já gravados (fica NULL) — mesmo espírito não-retroativo de D8/E8;
+  # a regra nova vale só a partir de agora, reconstruir o passado numa tabela append-only exigiria
+  # inventar um dado que nunca foi registrado.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: estoque-008-add-tipo-ajuste-documento-referencia
+      author: vitor-fernandes
+      comment: >
+        tipo_ajuste (RN-EST-11) obrigatório em AJUSTE/INVENTARIO a partir de agora, validado em
+        EstoqueService; documento_referencia opcional (laudo, B.O., termo de descarte).
+      changes:
+        - addColumn:
+            schemaName: estoque
+            tableName: movimento_estoque
+            columns:
+              - column:
+                  name: tipo_ajuste
+                  type: varchar(30)
+              - column:
+                  name: documento_referencia
+                  type: varchar(200)
+      rollback:
+        - dropColumn:
+            schemaName: estoque
+            tableName: movimento_estoque
+            columnName: tipo_ajuste
+        - dropColumn:
+            schemaName: estoque
+            tableName: movimento_estoque
+            columnName: documento_referencia

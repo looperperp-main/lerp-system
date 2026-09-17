@@ -96,6 +96,41 @@ export const routes: Routes = [
         },
       },
       {
+        path: 'estoque/pendencias',
+        loadComponent: () =>
+          import('./pages/estoque/pendencias/pendencias').then((m) => m.Pendencias),
+        data: {
+          breadcrumb: [
+            { label: 'Home', link: '/web/home' },
+            { label: 'Estoque & Produtos' },
+            { label: 'Pendências de Estoque' },
+          ],
+        },
+      },
+      {
+        path: 'producao/fichas-tecnicas',
+        loadComponent: () =>
+          import('./pages/producao/fichas-tecnicas/fichas-tecnicas').then((m) => m.FichasTecnicas),
+        data: {
+          breadcrumb: [
+            { label: 'Home', link: '/web/home' },
+            { label: 'Produção' },
+            { label: 'Fichas Técnicas' },
+          ],
+        },
+      },
+      {
+        path: 'producao/ordens',
+        loadComponent: () => import('./pages/producao/ordens/ordens').then((m) => m.Ordens),
+        data: {
+          breadcrumb: [
+            { label: 'Home', link: '/web/home' },
+            { label: 'Produção' },
+            { label: 'Ordens de Produção' },
+          ],
+        },
+      },
+      {
         path: 'cadastros/cond-pagamento',
         loadComponent: () =>
           import('./pages/cadastros/cond-pagamento/cond-pagamentos').then((m) => m.CondPagamentos),

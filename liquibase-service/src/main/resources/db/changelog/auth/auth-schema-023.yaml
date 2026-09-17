@@ -1,0 +1,24 @@
+databaseChangeLog:
+  # ──────────────────────────────────────────
+  # Permissões de produção própria (D11, Fase 2 — spec/modulos/estoque/estoque.md §12).
+  # Mesmo padrão DOMINIO_ACAO de auth-schema-019/021/022.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: auth-023-permission-producao-seed
+      author: vitor-fernandes
+      comment: "Permissões do domínio PRODUCAO (ficha técnica, ordem de produção — operacoes-service). Scope TENANT (default)."
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO auth.permission (id, code, domain, description, created_by) VALUES
+              (gen_random_uuid(), 'PRODUCAO_VISUALIZAR', 'PRODUCAO', 'Consultar fichas técnicas e ordens de produção', 'system-seed'),
+              (gen_random_uuid(), 'PRODUCAO_GERENCIAR', 'PRODUCAO', 'Criar ficha técnica, criar ordem de produção e apontar produção', 'system-seed')
+              ON CONFLICT (code) DO NOTHING;
+      rollback:
+        - sql:
+            dbms: postgresql
+            sql: >
+              DELETE FROM auth.permission WHERE code IN (
+              'PRODUCAO_VISUALIZAR', 'PRODUCAO_GERENCIAR');

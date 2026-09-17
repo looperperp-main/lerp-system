@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
   AjusteEstoqueRequest,
+  ConsumoEstoqueRequest,
   OrigemMovimentoEstoque,
   TipoMovimentoEstoque,
 } from './estoque.model';
@@ -21,6 +22,10 @@ export interface MovimentoFiltro {
   ate?: string | null;
   tipo?: TipoMovimentoEstoque | null;
   origemTipo?: OrigemMovimentoEstoque | null;
+}
+
+export interface PendenciaFiltro {
+  resolvida?: boolean | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -52,5 +57,23 @@ export class EstoqueService {
 
   ajustar(dto: AjusteEstoqueRequest): Observable<void> {
     return this.http.post<void>(`${this.apiUrl}/ajustes`, dto);
+  }
+
+  consumir(dto: ConsumoEstoqueRequest): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/consumo`, dto);
+  }
+
+  buscarPendencias(filtro: PendenciaFiltro, page: number = 0, size: number = 10): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/pendencias`, {
+      params: this.paramsFrom(filtro, page, size),
+    });
+  }
+
+  resolverPendencia(id: string): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/pendencias/${id}/resolver`, {});
+  }
+
+  fecharPeriodo(competencia: string): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/fechamento`, { competencia });
   }
 }

@@ -181,7 +181,7 @@ public class RecebimentoMercadoriaService {
         if (!linhasMercadoria.isEmpty()) {
             estoqueService.registrarMovimento(new EstoqueService.MovimentoRequisicao(tenantId, userId,
                     TipoMovimentoEstoque.ENTRADA_COMPRA, OrigemMovimentoEstoque.RECEBIMENTO, recebimento.getId(),
-                    recebimento.getDepositoId(), agora, null, linhasMercadoria));
+                    recebimento.getDepositoId(), agora, null, null, null, null, linhasMercadoria));
         }
 
         pedidoCompraService.recalcularStatusAposRecebimento(pedido.getId(), tenantId, userId);
@@ -312,7 +312,7 @@ public class RecebimentoMercadoriaService {
         if (!linhasMercadoria.isEmpty()) {
             estoqueService.registrarMovimento(new EstoqueService.MovimentoRequisicao(tenantId, userId,
                     TipoMovimentoEstoque.ESTORNO_ENTRADA_COMPRA, OrigemMovimentoEstoque.RECEBIMENTO, recebimento.getId(),
-                    recebimento.getDepositoId(), Instant.now(), null, linhasMercadoria));
+                    recebimento.getDepositoId(), Instant.now(), null, null, null, null, linhasMercadoria));
         }
 
         pedidoCompraService.recalcularStatusAposRecebimento(pedido.getId(), tenantId, userId);

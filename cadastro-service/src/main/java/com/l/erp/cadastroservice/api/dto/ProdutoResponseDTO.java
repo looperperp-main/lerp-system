@@ -1,5 +1,6 @@
 package com.l.erp.cadastroservice.api.dto;
 
+import com.l.erp.cadastroservice.domain.enumerators.FinalidadeProduto;
 import com.l.erp.cadastroservice.domain.enumerators.TipoProduto;
 import lombok.Getter;
 import lombok.Setter;
@@ -21,6 +22,7 @@ public class ProdutoResponseDTO extends RepresentationModel<ProdutoResponseDTO> 
     private String nome;
     private String descricao;
     private TipoProduto tipo;
+    private FinalidadeProduto finalidade;
     private String unidade;
     private String unidadeSecundaria;
     private BigDecimal fatorConversao;

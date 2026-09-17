@@ -1,0 +1,68 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # D8 (custo médio móvel) + D7 (SAIDA_CONSUMO/centro de custo) — spec/modulos/estoque/estoque.md §12,
+  # extensão pós-E7 (16 de setembro de 2026). RN-EST-09/RN-EST-10.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: estoque-005-add-custo-medio
+      author: vitor-fernandes
+      comment: >
+        Custo médio recalculado só em ENTRADA_COMPRA/AJUSTE_ENTRADA (RN-EST-09); null até a
+        primeira entrada com valor informado.
+      changes:
+        - addColumn:
+            schemaName: estoque
+            tableName: estoque_saldo
+            columns:
+              - column:
+                  name: custo_medio
+                  type: numeric(15,4)
+      rollback:
+        - dropColumn:
+            schemaName: estoque
+            tableName: estoque_saldo
+            columnName: custo_medio
+
+  - changeSet:
+      id: estoque-006-add-centro-custo-movimento
+      author: vitor-fernandes
+      comment: Obrigatório quando tipo=SAIDA_CONSUMO (RN-EST-10), validado em EstoqueService.
+      changes:
+        - addColumn:
+            schemaName: estoque
+            tableName: movimento_estoque
+            columns:
+              - column:
+                  name: centro_custo_id
+                  type: uuid
+      rollback:
+        - dropColumn:
+            schemaName: estoque
+            tableName: movimento_estoque
+            columnName: centro_custo_id
+
+  - changeSet:
+      id: estoque-007-check-origem-consumo
+      author: vitor-fernandes
+      comment: >
+        CHECK chk_mov_estoque_origem (estoque-002) ganha CONSUMO — requisição de almoxarifado
+        também não tem documento de origem (origem_id null), igual AJUSTE/INVENTARIO.
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              ALTER TABLE estoque.movimento_estoque DROP CONSTRAINT chk_mov_estoque_origem;
+              ALTER TABLE estoque.movimento_estoque
+              ADD CONSTRAINT chk_mov_estoque_origem
+              CHECK (origem_tipo IN ('AJUSTE', 'INVENTARIO', 'CONSUMO') OR origem_id IS NOT NULL);
+      rollback:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              ALTER TABLE estoque.movimento_estoque DROP CONSTRAINT chk_mov_estoque_origem;
+              ALTER TABLE estoque.movimento_estoque
+              ADD CONSTRAINT chk_mov_estoque_origem
+              CHECK (origem_tipo IN ('AJUSTE', 'INVENTARIO') OR origem_id IS NOT NULL);

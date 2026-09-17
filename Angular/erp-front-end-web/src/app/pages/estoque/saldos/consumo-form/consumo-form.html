@@ -1,0 +1,77 @@
+<form [formGroup]="form" (ngSubmit)="onSubmit()" class="flex flex-col gap-4 mt-2">
+
+  <div class="jb-info-grid">
+    <div>
+      <label class="jb-label-sm">Produto</label>
+      <p class="jb-strong">{{ nomeProduto || '-' }}</p>
+    </div>
+    <div>
+      <label class="jb-label-sm">Depósito</label>
+      <p class="jb-strong">{{ nomeDeposito || '-' }}</p>
+    </div>
+    <div>
+      <label class="jb-label-sm">Saldo atual</label>
+      <p class="jb-strong">{{ saldo?.quantidade ?? 0 }}</p>
+    </div>
+  </div>
+
+  <div class="flex flex-col gap-2">
+    <label for="quantidade" class="jb-label">Quantidade consumida <span class="text-red-500">*</span></label>
+    <p-inputNumber
+      inputId="quantidade"
+      formControlName="quantidade"
+      [minFractionDigits]="0"
+      [maxFractionDigits]="4"
+      [min]="0.0001"
+      styleClass="w-full"
+      class="w-full">
+    </p-inputNumber>
+    <small *ngIf="isFieldInvalid('quantidade')" class="text-red-500">Informe a quantidade consumida (> 0).</small>
+  </div>
+
+  <div class="flex flex-col gap-2">
+    <label for="centroCustoId" class="jb-label">Centro de custo (ID) <span class="text-red-500">*</span></label>
+    <input
+      id="centroCustoId"
+      type="text"
+      pInputText
+      formControlName="centroCustoId"
+      class="w-full"
+      placeholder="UUID do centro de custo">
+    <small *ngIf="isFieldInvalid('centroCustoId')" class="text-red-500">O centro de custo é obrigatório.</small>
+  </div>
+
+  <div class="flex flex-col gap-2">
+    <label for="motivo" class="jb-label">Motivo (opcional)</label>
+    <textarea
+      id="motivo"
+      rows="3"
+      pTextarea
+      formControlName="motivo"
+      class="w-full"
+      maxlength="500"
+      placeholder="Ex: requisição de almoxarifado nº 45..."></textarea>
+  </div>
+
+  <div class="flex items-center gap-2">
+    <p-checkbox inputId="permitirSaldoNegativo" formControlName="permitirSaldoNegativo" [binary]="true"></p-checkbox>
+    <label for="permitirSaldoNegativo" class="jb-label-sm">
+      Permitir saldo negativo (abre pendência de regularização em vez de bloquear)
+    </label>
+  </div>
+
+  <div class="flex justify-end gap-2 mt-6 pt-4 border-t border-gray-200">
+    <p-button
+      label="Cancelar"
+      icon="pi pi-times"
+      styleClass="p-button-text p-button-secondary"
+      (onClick)="onCancel()"
+      [disabled]="isSaving"></p-button>
+    <p-button
+      label="Registrar Consumo"
+      icon="pi pi-check"
+      type="submit"
+      [loading]="isSaving"
+      [disabled]="form.invalid"></p-button>
+  </div>
+</form>

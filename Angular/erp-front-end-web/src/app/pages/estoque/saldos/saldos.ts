@@ -1,9 +1,11 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { TableModule } from 'primeng/table';
 import { Dialog } from 'primeng/dialog';
 import { PrimeTemplate, MessageService } from 'primeng/api';
 import { ButtonDirective } from 'primeng/button';
+import { InputText } from 'primeng/inputtext';
 import { Ripple } from 'primeng/ripple';
 import { Tooltip } from 'primeng/tooltip';
 import { Select } from 'primeng/select';
@@ -13,6 +15,7 @@ import { Breadcrumb } from '../../../components/breadcrumb/breadcrumb';
 import { EstoqueService } from '../estoque.service';
 import { EstoqueSaldo } from '../estoque.model';
 import { AjusteForm } from './ajuste-form/ajuste-form';
+import { ConsumoForm } from './consumo-form/consumo-form';
 import { ProdutoService } from '../../cadastros/produtos/produto.service';
 import { DepositoService } from '../../cadastros/deposito/deposito.service';
 
@@ -31,6 +34,9 @@ import { DepositoService } from '../../cadastros/deposito/deposito.service';
     ReactiveFormsModule,
     Breadcrumb,
     AjusteForm,
+    ConsumoForm,
+    RouterLink,
+    InputText,
   ],
   templateUrl: './saldos.html',
   styleUrl: './saldos.scss',
@@ -54,11 +60,18 @@ export class Saldos implements OnInit {
   depositoOptions: { label: string; value: string }[] = [];
 
   displayAjuste = false;
+  displayConsumo = false;
   selectedSaldo: EstoqueSaldo | null = null;
+
+  fechandoPeriodo = false;
 
   filtroForm: FormGroup = this.fb.group({
     produtoId: [null],
     depositoId: [null],
+  });
+
+  fechamentoForm: FormGroup = this.fb.group({
+    competencia: [this.competenciaAtual()],
   });
 
   ngOnInit(): void {
@@ -68,8 +81,12 @@ export class Saldos implements OnInit {
   private carregarMapas(): void {
     this.produtoService.getAll(0, 1000).subscribe({
       next: (res: any) => {
-        const content = res._embedded?.produtoResponseDTOList || res._embedded?.produtoDTOList
-          || res._embedded?.produtos || res.content || [];
+        const content =
+          res._embedded?.produtoResponseDTOList ||
+          res._embedded?.produtoDTOList ||
+          res._embedded?.produtos ||
+          res.content ||
+          [];
         content.forEach((p: any) => {
           this.produtosMap.set(p.id, p.nome);
           this.produtoOptions.push({ label: p.nome, value: p.id });
@@ -78,7 +95,8 @@ export class Saldos implements OnInit {
     });
     this.depositoService.listar(0, 1000).subscribe({
       next: (res: any) => {
-        const content = res._embedded?.depositoList || res._embedded?.depositos || res.content || [];
+        const content =
+          res._embedded?.depositoList || res._embedded?.depositos || res.content || [];
         content.forEach((d: any) => {
           this.depositosMap.set(d.id, d.nome);
           this.depositoOptions.push({ label: d.nome, value: d.id });
@@ -138,6 +156,47 @@ export class Saldos implements OnInit {
 
   onAjusteCanceled(): void {
     this.displayAjuste = false;
+  }
+
+  abrirConsumo(saldo: EstoqueSaldo): void {
+    this.selectedSaldo = saldo;
+    this.displayConsumo = true;
+  }
+
+  onConsumoSaved(): void {
+    this.displayConsumo = false;
+    this.loadSaldos({ first: this.page * this.size, rows: this.size });
+  }
+
+  onConsumoCanceled(): void {
+    this.displayConsumo = false;
+  }
+
+  private competenciaAtual(): string {
+    const agora = new Date();
+    return `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}`;
+  }
+
+  fecharPeriodo(): void {
+    const competencia = this.fechamentoForm.value.competencia;
+    if (!competencia) {
+      return;
+    }
+    this.fechandoPeriodo = true;
+    this.estoqueService.fecharPeriodo(competencia).subscribe({
+      next: () => {
+        this.fechandoPeriodo = false;
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Período fechado',
+          detail: `Competência ${competencia} fechada com sucesso.`,
+        });
+      },
+      error: (err: HttpErrorResponse) => {
+        this.fechandoPeriodo = false;
+        this.handleError(err, 'Não foi possível fechar o período');
+      },
+    });
   }
 
   private handleError(err: HttpErrorResponse, defaultSummary: string): void {

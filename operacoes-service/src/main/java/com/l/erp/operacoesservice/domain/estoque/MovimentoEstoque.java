@@ -1,6 +1,7 @@
 package com.l.erp.operacoesservice.domain.estoque;
 
 import com.l.erp.operacoesservice.domain.estoque.enumerators.OrigemMovimentoEstoque;
+import com.l.erp.operacoesservice.domain.estoque.enumerators.TipoAjusteEstoque;
 import com.l.erp.operacoesservice.domain.estoque.enumerators.TipoMovimentoEstoque;
 import com.l.erp.operacoesservice.repository.filter.BaseTenantEntity;
 import jakarta.persistence.Column;
@@ -68,9 +69,25 @@ public class MovimentoEstoque extends BaseTenantEntity {
     @Column(name = "origem_id")
     private UUID origemId;
 
+    // [D9, §12] superado como campo obrigatório por tipoAjuste — vira observação livre
+    // complementar, opcional mesmo em AJUSTE/INVENTARIO.
     @Size(max = 500)
     @Column(name = "motivo", length = 500)
     private String motivo;
+
+    // [D9, RN-EST-11, §12] obrigatório em AJUSTE/INVENTARIO; substitui motivo como campo mandatório.
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tipo_ajuste", length = 30)
+    private TipoAjusteEstoque tipoAjuste;
+
+    // [D9, §12] opcional — laudo, B.O., termo de descarte (lastro documental do ajuste).
+    @Size(max = 200)
+    @Column(name = "documento_referencia", length = 200)
+    private String documentoReferencia;
+
+    // [D7, RN-EST-10, §12] obrigatório quando tipo=SAIDA_CONSUMO; null nos demais tipos.
+    @Column(name = "centro_custo_id")
+    private UUID centroCustoId;
 
     @NotNull
     @Column(name = "usuario_id", nullable = false)

@@ -213,8 +213,15 @@ public class CadastroServiceClient {
 
     // Público: PedidoController usa o tipo do produto pra montar o item do pedido, e o nome pra
     // mensagem de erro de produto inativo (em vez do UUID cru, ilegível pro usuário).
+    // finalidade [D6, §12] — REVENDA/USO_CONSUMO/MATERIA_PRIMA/PRODUTO_ACABADO, usado por EstoqueService
+    // pra decidir bloqueio de saldo negativo por finalidade (RN-EST-12).
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record ProdutoRef(String tipo, String codigoServico, Boolean ativo, String ncm, String classTrib, String nome) {
+    public record ProdutoRef(String tipo, String codigoServico, Boolean ativo, String ncm, String classTrib,
+                              String nome, String finalidade) {
+        // ponytail: overload preserva as chamadas existentes (O2C/P2P) que não usam finalidade.
+        public ProdutoRef(String tipo, String codigoServico, Boolean ativo, String ncm, String classTrib, String nome) {
+            this(tipo, codigoServico, ativo, ncm, classTrib, nome, null);
+        }
     }
 
     // P2 (spec/modulos/o2c-vendas/o2c-vendas.md, gaps do D4) — UF/IBGE do cliente pro MotorFiscalRequest.

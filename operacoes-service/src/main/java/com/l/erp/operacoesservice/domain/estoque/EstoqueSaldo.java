@@ -49,6 +49,11 @@ public class EstoqueSaldo extends BaseTenantEntity {
     @Column(name = "quantidade", precision = 15, scale = 4, nullable = false)
     private BigDecimal quantidade;
 
+    // [D8, RN-EST-09, §12] recalculado só em ENTRADA_COMPRA/AJUSTE_ENTRADA; null até a primeira
+    // entrada com valor informado — saída lê este campo em vez do valor que o chamador informar.
+    @Column(name = "custo_medio", precision = 15, scale = 4)
+    private BigDecimal custoMedio;
+
     @NotNull
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;

@@ -21,6 +21,7 @@ public class EstoqueSaldoResponseDTO extends RepresentationModel<EstoqueSaldoRes
     private UUID produtoId;
     private UUID depositoId;
     private BigDecimal quantidade;
+    private BigDecimal custoMedio;
     private BigDecimal estoqueMinimo;
     private Boolean abaixoMinimo;
     private Instant atualizadoEm;

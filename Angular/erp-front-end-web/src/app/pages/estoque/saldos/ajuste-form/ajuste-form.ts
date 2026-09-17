@@ -3,17 +3,24 @@ import { NgIf } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MessageService } from 'primeng/api';
 import { Button } from 'primeng/button';
+import { Checkbox } from 'primeng/checkbox';
 import { InputNumber } from 'primeng/inputnumber';
+import { InputText } from 'primeng/inputtext';
 import { Select } from 'primeng/select';
 import { Textarea } from 'primeng/textarea';
 import { HttpErrorResponse } from '@angular/common/http';
 import { EstoqueService } from '../../estoque.service';
-import { EstoqueSaldo, OrigemMovimentoEstoque } from '../../estoque.model';
+import {
+  EstoqueSaldo,
+  OrigemMovimentoEstoque,
+  TIPO_AJUSTE_LABEL,
+  TipoAjusteEstoque,
+} from '../../estoque.model';
 
 /** Modal de ajuste por saldo contado (spec/modulos/estoque/estoque.md §5.3/E7, D5). */
 @Component({
   selector: 'app-ajuste-form',
-  imports: [NgIf, ReactiveFormsModule, Button, InputNumber, Select, Textarea],
+  imports: [NgIf, ReactiveFormsModule, Button, Checkbox, InputNumber, InputText, Select, Textarea],
   templateUrl: './ajuste-form.html',
   styleUrl: './ajuste-form.scss',
 })
@@ -36,6 +43,11 @@ export class AjusteForm implements OnInit {
     { label: 'Inventário', value: 'INVENTARIO' },
   ];
 
+  tipoAjusteOptions = Object.entries(TIPO_AJUSTE_LABEL).map(([value, label]) => ({
+    label,
+    value: value as TipoAjusteEstoque,
+  }));
+
   ngOnInit(): void {
     this.form = this.fb.group({
       // D5 (spec/modulos/estoque/estoque.md §5.3): quantidadeContada é a contagem física da prateleira, nunca
@@ -47,8 +59,14 @@ export class AjusteForm implements OnInit {
         [Validators.required, Validators.min(0)],
       ],
       origem: ['AJUSTE', Validators.required],
+      tipoAjuste: [null, Validators.required],
       motivo: ['', [Validators.required, Validators.maxLength(500)]],
+      documentoReferencia: ['', Validators.maxLength(200)],
       valorUnitario: [null],
+      // RN-EST-12 (item 5): saída que zeraria o saldo abaixo de zero é bloqueada por padrão para
+      // produtos REVENDA/USO_CONSUMO/MATERIA_PRIMA; marcar permite passar e abre uma pendência de
+      // regularização em vez de travar o ajuste (nunca silencioso).
+      permitirSaldoNegativo: [false],
     });
   }
 
@@ -67,8 +85,11 @@ export class AjusteForm implements OnInit {
         depositoId: this.saldo.depositoId,
         quantidadeContada: formValue.quantidadeContada,
         origem: formValue.origem,
+        tipoAjuste: formValue.tipoAjuste,
         motivo: formValue.motivo,
+        documentoReferencia: formValue.documentoReferencia || null,
         valorUnitario: formValue.valorUnitario,
+        permitirSaldoNegativo: formValue.permitirSaldoNegativo,
       })
       .subscribe({
         next: () => {

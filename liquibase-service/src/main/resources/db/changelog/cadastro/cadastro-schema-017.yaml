@@ -1,0 +1,30 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # D6 (spec/modulos/estoque/estoque.md §12) — para que serve o produto: revenda, uso e
+  # consumo interno, matéria-prima ou produto acabado de produção própria (Fase 2). Alimenta
+  # fiscal (CFOP de entrada), contábil e a futura política de saldo negativo por finalidade.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-055-add-finalidade-produto
+      author: vitor-fernandes
+      comment: >
+        Backfill REVENDA (default mais conservador — produtos existentes são todos de revenda
+        hoje) pro dado já existente; ProdutoService também aplica o mesmo default quando o
+        cliente não envia o campo.
+      changes:
+        - addColumn:
+            schemaName: cadastros
+            tableName: produto
+            columns:
+              - column:
+                  name: finalidade
+                  type: varchar(15)
+                  defaultValue: REVENDA
+                  constraints:
+                    nullable: false
+      rollback:
+        - dropColumn:
+            schemaName: cadastros
+            tableName: produto
+            columnName: finalidade

@@ -1,0 +1,95 @@
+<div>
+
+  <div class="jb-page-head">
+    <div>
+      <app-breadcrumb></app-breadcrumb>
+      <h1>Pendências de Estoque</h1>
+      <p class="sub">Regularizações e apontamentos de produção abertos (RN-EST-12/13)</p>
+    </div>
+  </div>
+
+  <div class="jb-panel">
+    <div class="jb-panel-head">
+      <h3><i class="pi pi-exclamation-triangle"></i> Pendências</h3>
+    </div>
+
+    <form [formGroup]="filtroForm" class="jb-filtros" (ngSubmit)="aplicarFiltro()">
+      <div class="jb-filtro-campo">
+        <label class="jb-label-sm">Situação</label>
+        <p-select
+          [options]="resolvidaOptions"
+          formControlName="resolvida"
+          optionLabel="label"
+          optionValue="value"
+          appendTo="body">
+        </p-select>
+      </div>
+      <div class="jb-filtro-acoes">
+        <button pButton type="submit" icon="pi pi-search" label="Filtrar" class="p-button-sm"></button>
+      </div>
+    </form>
+
+    <div class="table-container">
+      <p-table
+        [value]="pendencias()"
+        [loading]="loading()"
+        [lazy]="true"
+        (onLazyLoad)="loadPendencias($event)"
+        [totalRecords]="totalRecords()"
+        [paginator]="true"
+        [rows]="10"
+        [rowsPerPageOptions]="[10, 20, 50]"
+        styleClass="p-datatable-sm text-sm"
+        [paginatorDropdownAppendTo]="'body'"
+      >
+        <ng-template pTemplate="header">
+          <tr>
+            <th>Criada em</th>
+            <th>Produto</th>
+            <th>Depósito</th>
+            <th>Tipo</th>
+            <th>Situação</th>
+            <th>Ações</th>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="body" let-rowData>
+          <tr>
+            <td>{{ rowData.criadaEm | date:'dd/MM/yyyy HH:mm' }}</td>
+            <td class="jb-strong">{{ nomeProduto(rowData.produtoId) }}</td>
+            <td>{{ nomeDeposito(rowData.depositoId) }}</td>
+            <td>{{ labelTipo(rowData.tipo) }}</td>
+            <td>
+              <span *ngIf="rowData.resolvida" class="jb-status ok">Resolvida</span>
+              <span *ngIf="!rowData.resolvida" class="jb-status bad">Aberta</span>
+            </td>
+            <td>
+              <button
+                *ngIf="!rowData.resolvida"
+                pButton
+                icon="pi pi-check"
+                label="Resolver"
+                class="p-button-sm p-button-text"
+                (click)="resolver(rowData)">
+              </button>
+            </td>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td colspan="6" style="text-align: center; padding: 24px; color: var(--muted);">
+              Nenhuma pendência encontrada.
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </div>
+  </div>
+
+  <footer class="jb-list-footer">
+    <span>© 2026 SYAX TECNOLOGIA · BUILD 26.04.01</span>
+    <span>{{ totalRecords() }} {{ totalRecords() === 1 ? 'PENDÊNCIA ENCONTRADA' : 'PENDÊNCIAS ENCONTRADAS' }}</span>
+  </footer>
+
+</div>

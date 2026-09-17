@@ -65,6 +65,15 @@ databaseChangeLog:
       file: auth/auth-schema-020.yaml
       relativeToChangelogFile: true
   - include:
+      file: auth/auth-schema-021.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: auth/auth-schema-022.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: auth/auth-schema-023.yaml
+      relativeToChangelogFile: true
+  - include:
       file: audit/audit-schema-001.yaml
       relativeToChangelogFile: true
   - include:
@@ -113,6 +122,9 @@ databaseChangeLog:
       relativeToChangelogFile: true
   - include:
       file: cadastro/cadastro-schema-016.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: cadastro/cadastro-schema-017.yaml
       relativeToChangelogFile: true
 
   # 3. Schema de Billing
@@ -267,6 +279,18 @@ databaseChangeLog:
   # 8. Schema de Estoque — saldo e movimento (operacoes-service)
   - include:
       file: estoque/estoque-schema-001.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: estoque/estoque-schema-002.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: estoque/estoque-schema-003.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: estoque/estoque-schema-004.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: estoque/estoque-schema-005.yaml
       relativeToChangelogFile: true
 
   # 9. Schema de Compras — P2P, Fase 1a (operacoes-service)

@@ -1,0 +1,196 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # D11 (produção própria, Fase 2) — spec/modulos/estoque/estoque.md §12 (17 de setembro de 2026).
+  # ficha_tecnica + ordem_producao; apontar produção gera N SAIDA_PRODUCAO + 1 ENTRADA_PRODUCAO
+  # (TipoMovimentoEstoque/OrigemMovimentoEstoque já estendidos, sem migração de coluna — varchar(25)/
+  # varchar(20) já comportam os valores novos).
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: estoque-011-create-ficha-tecnica
+      author: vitor-fernandes
+      comment: "Cabeçalho da ficha técnica — só uma ativa por produto acabado, controlado em ProducaoService."
+      changes:
+        - createTable:
+            schemaName: estoque
+            tableName: ficha_tecnica
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: produto_acabado_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                  remarks: "Ref. cadastros.produto (finalidade=PRODUTO_ACABADO) — sem FK física"
+              - column:
+                  name: ativo
+                  type: boolean
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: created_by
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_updated_by
+                  type: uuid
+        - createIndex:
+            schemaName: estoque
+            tableName: ficha_tecnica
+            indexName: idx_ficha_tecnica_tenant_produto_ativo
+            columns:
+              - column:
+                  name: tenant_id
+              - column:
+                  name: produto_acabado_id
+              - column:
+                  name: ativo
+      rollback:
+        - dropTable:
+            schemaName: estoque
+            tableName: ficha_tecnica
+
+  - changeSet:
+      id: estoque-012-create-ficha-tecnica-item
+      author: vitor-fernandes
+      comment: "Componente + quantidade (pra produzir 1 unidade do produto acabado) de uma ficha técnica."
+      changes:
+        - createTable:
+            schemaName: estoque
+            tableName: ficha_tecnica_item
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: ficha_tecnica_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: produto_componente_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                  remarks: "Ref. cadastros.produto — sem FK física"
+              - column:
+                  name: quantidade
+                  type: decimal(15,4)
+                  constraints:
+                    nullable: false
+        - createIndex:
+            schemaName: estoque
+            tableName: ficha_tecnica_item
+            indexName: idx_ficha_tecnica_item_ficha
+            columns:
+              - column:
+                  name: ficha_tecnica_id
+        - sql:
+            sql: >
+              ALTER TABLE estoque.ficha_tecnica_item
+              ADD CONSTRAINT chk_ficha_tecnica_item_quantidade
+              CHECK (quantidade > 0);
+      rollback:
+        - dropTable:
+            schemaName: estoque
+            tableName: ficha_tecnica_item
+
+  - changeSet:
+      id: estoque-013-create-ordem-producao
+      author: vitor-fernandes
+      comment: >
+        Ordem de produção. Apontar produção (ProducaoService.apontarProducao) gera N SAIDA_PRODUCAO (um por
+        componente da ficha técnica ativa) + 1 ENTRADA_PRODUCAO e marca a ordem CONCLUIDA.
+      changes:
+        - createTable:
+            schemaName: estoque
+            tableName: ordem_producao
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: produto_acabado_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: deposito_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: quantidade_planejada
+                  type: decimal(15,4)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: varchar(10)
+                  constraints:
+                    nullable: false
+                  remarks: "StatusOrdemProducao: ABERTA | CONCLUIDA | CANCELADA"
+              - column:
+                  name: concluida_em
+                  type: TIMESTAMP WITH TIME ZONE
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: created_by
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_updated_by
+                  type: uuid
+        - sql:
+            sql: >
+              ALTER TABLE estoque.ordem_producao
+              ADD CONSTRAINT chk_ordem_producao_quantidade
+              CHECK (quantidade_planejada > 0);
+      rollback:
+        - dropTable:
+            schemaName: estoque
+            tableName: ordem_producao

@@ -1,0 +1,192 @@
+<div>
+
+  <div class="jb-page-head">
+    <div>
+      <app-breadcrumb></app-breadcrumb>
+      <h1>Ordens de Produção</h1>
+      <p class="sub">Apontamento de produção própria: N saídas de componentes + 1 entrada do acabado</p>
+    </div>
+  </div>
+
+  <div class="jb-panel">
+    <div class="jb-panel-head">
+      <h3><i class="pi pi-cog"></i> Ordens de Produção</h3>
+      <div class="jb-panel-actions">
+        <app-primary-button
+          class="jb-btn-paginator-style"
+          label="Nova Ordem"
+          icon="pi pi-plus"
+          (onClick)="abrirNovaOrdem()">
+        </app-primary-button>
+      </div>
+    </div>
+
+    <form [formGroup]="filtroForm" class="jb-filtros" (ngSubmit)="aplicarFiltro()">
+      <div class="jb-filtro-campo">
+        <label class="jb-label-sm">Status</label>
+        <p-select
+          [options]="statusOptions"
+          formControlName="status"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Todos"
+          [showClear]="true"
+          appendTo="body">
+        </p-select>
+      </div>
+      <div class="jb-filtro-acoes">
+        <button pButton type="submit" icon="pi pi-search" label="Filtrar" class="p-button-sm"></button>
+      </div>
+    </form>
+
+    <div class="table-container">
+      <p-table
+        [value]="ordens()"
+        [loading]="loading()"
+        [lazy]="true"
+        (onLazyLoad)="loadOrdens($event)"
+        [totalRecords]="totalRecords()"
+        [paginator]="true"
+        [rows]="10"
+        [rowsPerPageOptions]="[10, 20, 50]"
+        styleClass="p-datatable-sm text-sm"
+        [paginatorDropdownAppendTo]="'body'"
+      >
+        <ng-template pTemplate="header">
+          <tr>
+            <th>Criada em</th>
+            <th>Produto acabado</th>
+            <th>Qtd. planejada</th>
+            <th>Depósito</th>
+            <th>Status</th>
+            <th>Ações</th>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="body" let-rowData>
+          <tr>
+            <td>{{ rowData.criadaEm | date:'dd/MM/yyyy HH:mm' }}</td>
+            <td class="jb-strong">{{ nomeProduto(rowData.produtoAcabadoId) }}</td>
+            <td>{{ rowData.quantidadePlanejada }}</td>
+            <td>{{ nomeDeposito(rowData.depositoId) }}</td>
+            <td>
+              <span *ngIf="rowData.status === 'ABERTA'" class="jb-status info">Aberta</span>
+              <span *ngIf="rowData.status === 'CONCLUIDA'" class="jb-status ok">Concluída</span>
+              <span *ngIf="rowData.status === 'CANCELADA'" class="jb-status bad">Cancelada</span>
+            </td>
+            <td>
+              <button
+                *ngIf="rowData.status === 'ABERTA'"
+                pButton
+                icon="pi pi-check-circle"
+                label="Apontar produção"
+                class="p-button-sm p-button-text"
+                (click)="abrirApontar(rowData)">
+              </button>
+            </td>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td colspan="6" style="text-align: center; padding: 24px; color: var(--muted);">
+              Nenhuma ordem de produção encontrada.
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </div>
+  </div>
+
+  <footer class="jb-list-footer">
+    <span>© 2026 SYAX TECNOLOGIA · BUILD 26.04.01</span>
+    <span>{{ totalRecords() }} {{ totalRecords() === 1 ? 'ORDEM ENCONTRADA' : 'ORDENS ENCONTRADAS' }}</span>
+  </footer>
+
+</div>
+
+<p-dialog [(visible)]="displayForm" [style]="{width: '480px', maxWidth: '95vw'}" [modal]="true">
+  <ng-template pTemplate="header">
+    <div class="jb-dialog-head">
+      <span class="eyebrow">PRODUÇÃO · ORDEM</span>
+      <h2>Nova Ordem de Produção</h2>
+    </div>
+  </ng-template>
+
+  <form [formGroup]="form" (ngSubmit)="onSubmit()" class="flex flex-col gap-4 mt-2">
+    <div class="flex flex-col gap-2">
+      <label class="jb-label">Produto acabado <span class="text-red-500">*</span></label>
+      <p-select
+        [options]="produtoOptions"
+        formControlName="produtoAcabadoId"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Selecione"
+        [filter]="true"
+        styleClass="w-full"
+        appendTo="body">
+      </p-select>
+    </div>
+
+    <div class="flex flex-col gap-2">
+      <label class="jb-label">Quantidade planejada <span class="text-red-500">*</span></label>
+      <p-inputNumber
+        formControlName="quantidadePlanejada"
+        [minFractionDigits]="0"
+        [maxFractionDigits]="4"
+        [min]="0.0001"
+        styleClass="w-full"
+        class="w-full">
+      </p-inputNumber>
+    </div>
+
+    <div class="flex flex-col gap-2">
+      <label class="jb-label">Depósito <span class="text-red-500">*</span></label>
+      <p-select
+        [options]="depositoOptions"
+        formControlName="depositoId"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Selecione"
+        styleClass="w-full"
+        appendTo="body">
+      </p-select>
+    </div>
+
+    <div class="flex justify-end gap-2 mt-2 pt-4 border-t border-gray-200">
+      <button pButton type="button" label="Cancelar" icon="pi pi-times" class="p-button-text p-button-secondary" (click)="displayForm = false" [disabled]="isSaving"></button>
+      <button pButton type="submit" label="Salvar" icon="pi pi-check" [loading]="isSaving" [disabled]="form.invalid"></button>
+    </div>
+  </form>
+</p-dialog>
+
+<p-dialog [(visible)]="displayApontar" [style]="{width: '420px', maxWidth: '95vw'}" [modal]="true">
+  <ng-template pTemplate="header">
+    <div class="jb-dialog-head">
+      <span class="eyebrow">PRODUÇÃO · APONTAMENTO</span>
+      <h2>Apontar Produção</h2>
+    </div>
+  </ng-template>
+
+  <form [formGroup]="apontarForm" (ngSubmit)="onApontar()" class="flex flex-col gap-4 mt-2">
+    <p class="jb-strong">{{ nomeProduto(ordemSelecionada?.produtoAcabadoId) }} — planejado: {{ ordemSelecionada?.quantidadePlanejada }}</p>
+
+    <div class="flex flex-col gap-2">
+      <label class="jb-label">Quantidade produzida <span class="text-red-500">*</span></label>
+      <p-inputNumber
+        formControlName="quantidadeProduzida"
+        [minFractionDigits]="0"
+        [maxFractionDigits]="4"
+        [min]="0.0001"
+        styleClass="w-full"
+        class="w-full">
+      </p-inputNumber>
+      <small class="jb-label-sm">Gera a saída dos componentes da ficha técnica e a entrada do produto acabado pelo custo médio consumido.</small>
+    </div>
+
+    <div class="flex justify-end gap-2 mt-2 pt-4 border-t border-gray-200">
+      <button pButton type="button" label="Cancelar" icon="pi pi-times" class="p-button-text p-button-secondary" (click)="displayApontar = false" [disabled]="isSaving"></button>
+      <button pButton type="submit" label="Confirmar" icon="pi pi-check" [loading]="isSaving" [disabled]="apontarForm.invalid"></button>
+    </div>
+  </form>
+</p-dialog>

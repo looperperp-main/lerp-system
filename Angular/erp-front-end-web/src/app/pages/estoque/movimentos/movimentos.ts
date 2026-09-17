@@ -13,7 +13,9 @@ import { EstoqueService } from '../estoque.service';
 import {
   MovimentoEstoque,
   ORIGEM_MOVIMENTO_LABEL,
+  TIPO_AJUSTE_LABEL,
   TIPO_MOVIMENTO_LABEL,
+  TipoAjusteEstoque,
   TipoMovimentoEstoque,
   OrigemMovimentoEstoque,
 } from '../estoque.model';
@@ -56,7 +58,10 @@ export class Movimentos implements OnInit {
   depositoOptions: { label: string; value: string }[] = [];
 
   tipoOptions = Object.entries(TIPO_MOVIMENTO_LABEL).map(([value, label]) => ({ label, value }));
-  origemOptions = Object.entries(ORIGEM_MOVIMENTO_LABEL).map(([value, label]) => ({ label, value }));
+  origemOptions = Object.entries(ORIGEM_MOVIMENTO_LABEL).map(([value, label]) => ({
+    label,
+    value,
+  }));
 
   filtroForm: FormGroup = this.fb.group({
     produtoId: [null],
@@ -74,8 +79,12 @@ export class Movimentos implements OnInit {
   private carregarMapas(): void {
     this.produtoService.getAll(0, 1000).subscribe({
       next: (res: any) => {
-        const content = res._embedded?.produtoResponseDTOList || res._embedded?.produtoDTOList
-          || res._embedded?.produtos || res.content || [];
+        const content =
+          res._embedded?.produtoResponseDTOList ||
+          res._embedded?.produtoDTOList ||
+          res._embedded?.produtos ||
+          res.content ||
+          [];
         content.forEach((p: any) => {
           this.produtosMap.set(p.id, p.nome);
           this.produtoOptions.push({ label: p.nome, value: p.id });
@@ -84,7 +93,8 @@ export class Movimentos implements OnInit {
     });
     this.depositoService.listar(0, 1000).subscribe({
       next: (res: any) => {
-        const content = res._embedded?.depositoList || res._embedded?.depositos || res.content || [];
+        const content =
+          res._embedded?.depositoList || res._embedded?.depositos || res.content || [];
         content.forEach((d: any) => {
           this.depositosMap.set(d.id, d.nome);
           this.depositoOptions.push({ label: d.nome, value: d.id });
@@ -107,6 +117,10 @@ export class Movimentos implements OnInit {
 
   labelOrigem(origem: OrigemMovimentoEstoque): string {
     return ORIGEM_MOVIMENTO_LABEL[origem] || origem;
+  }
+
+  labelTipoAjuste(tipoAjuste: TipoAjusteEstoque): string {
+    return TIPO_AJUSTE_LABEL[tipoAjuste] || tipoAjuste;
   }
 
   loadMovimentos(event?: any): void {

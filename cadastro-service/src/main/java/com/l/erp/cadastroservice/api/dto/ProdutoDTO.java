@@ -1,5 +1,6 @@
 package com.l.erp.cadastroservice.api.dto;
 
+import com.l.erp.cadastroservice.domain.enumerators.FinalidadeProduto;
 import com.l.erp.cadastroservice.domain.enumerators.TipoProduto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -31,6 +32,10 @@ public record ProdutoDTO(
         // Nulo = MERCADORIA (default aplicado no ProdutoService, compatível com clientes
         // que ainda não enviam o campo).
         TipoProduto tipo,
+
+        // D6 (spec/modulos/estoque/estoque.md §12). Nulo = REVENDA (default aplicado no
+        // ProdutoService, compatível com clientes que ainda não enviam o campo).
+        FinalidadeProduto finalidade,
 
         @NotBlank
         @Size(max = 10)

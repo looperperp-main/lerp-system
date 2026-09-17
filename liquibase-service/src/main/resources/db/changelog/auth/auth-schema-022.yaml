@@ -1,0 +1,24 @@
+databaseChangeLog:
+  # ──────────────────────────────────────────
+  # Permissões de pendência/fechamento de estoque (D10, RN-EST-12/13 — spec/modulos/estoque/estoque.md §12).
+  # Mesmo padrão DOMINIO_ACAO de auth-schema-019/021.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: auth-022-permission-estoque-pendencia-fechamento-seed
+      author: vitor-fernandes
+      comment: "Permissões de resolver pendência e fechar período de estoque. Scope TENANT (default)."
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO auth.permission (id, code, domain, description, created_by) VALUES
+              (gen_random_uuid(), 'ESTOQUE_PENDENCIA_RESOLVER', 'ESTOQUE', 'Resolver pendência de regularização/apontar produção de estoque', 'system-seed'),
+              (gen_random_uuid(), 'ESTOQUE_FECHAMENTO_REGISTRAR', 'ESTOQUE', 'Fechar período de estoque', 'system-seed')
+              ON CONFLICT (code) DO NOTHING;
+      rollback:
+        - sql:
+            dbms: postgresql
+            sql: >
+              DELETE FROM auth.permission WHERE code IN (
+              'ESTOQUE_PENDENCIA_RESOLVER', 'ESTOQUE_FECHAMENTO_REGISTRAR');

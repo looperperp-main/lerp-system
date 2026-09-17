@@ -2,8 +2,10 @@ package com.l.erp.operacoesservice.api.mappers;
 
 import com.l.erp.operacoesservice.api.dto.EstoqueSaldoResponseDTO;
 import com.l.erp.operacoesservice.api.dto.MovimentoEstoqueResponseDTO;
+import com.l.erp.operacoesservice.api.dto.PendenciaEstoqueResponseDTO;
 import com.l.erp.operacoesservice.domain.estoque.EstoqueSaldo;
 import com.l.erp.operacoesservice.domain.estoque.MovimentoEstoque;
+import com.l.erp.operacoesservice.domain.estoque.PendenciaEstoque;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
@@ -18,4 +20,6 @@ public interface EstoqueMapper {
     EstoqueSaldoResponseDTO toSaldoResponseDto(EstoqueSaldo entity);
 
     MovimentoEstoqueResponseDTO toMovimentoResponseDto(MovimentoEstoque entity);
+
+    PendenciaEstoqueResponseDTO toPendenciaResponseDto(PendenciaEstoque entity);
 }

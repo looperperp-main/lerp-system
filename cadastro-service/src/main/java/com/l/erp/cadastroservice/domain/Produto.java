@@ -1,5 +1,6 @@
 package com.l.erp.cadastroservice.domain;
 
+import com.l.erp.cadastroservice.domain.enumerators.FinalidadeProduto;
 import com.l.erp.cadastroservice.domain.enumerators.TipoProduto;
 import com.l.erp.cadastroservice.repository.filter.BaseTenantEntity;
 import jakarta.persistence.CascadeType;
@@ -63,6 +64,15 @@ public class Produto extends BaseTenantEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "tipo", nullable = false, length = 12)
     private TipoProduto tipo;
+
+    // D6 (spec/modulos/estoque/estoque.md §12) — para que serve o produto: revenda, uso e
+    // consumo interno, matéria-prima ou produto acabado de produção própria (Fase 2).
+    // Default REVENDA cobre o cadastro existente (produtos hoje são todos de revenda).
+    @NotNull
+    @ColumnDefault("'REVENDA'")
+    @Enumerated(EnumType.STRING)
+    @Column(name = "finalidade", nullable = false, length = 15)
+    private FinalidadeProduto finalidade;
 
     @Size(max = 10)
     @NotNull
