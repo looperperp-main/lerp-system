@@ -71,7 +71,9 @@
   </div>
 
   <div class="flex flex-col gap-2">
-    <label for="valorUnitario" class="jb-label">Valor unitário (opcional)</label>
+    <label for="valorUnitario" class="jb-label">
+      Valor unitário <span *ngIf="exigeCusto" class="text-red-500">*</span><ng-container *ngIf="!exigeCusto">(opcional)</ng-container>
+    </label>
     <p-inputNumber
       inputId="valorUnitario"
       formControlName="valorUnitario"
@@ -81,6 +83,9 @@
       styleClass="w-full"
       class="w-full">
     </p-inputNumber>
+    <small *ngIf="isFieldInvalid('valorUnitario')" class="text-red-500">
+      Informe o custo — ajuste de entrada exige valor unitário, exceto saldo inicial.
+    </small>
   </div>
 
   <div class="flex flex-col gap-2">

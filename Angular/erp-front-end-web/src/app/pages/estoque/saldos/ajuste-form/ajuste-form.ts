@@ -68,6 +68,25 @@ export class AjusteForm implements OnInit {
       // regularização em vez de travar o ajuste (nunca silencioso).
       permitirSaldoNegativo: [false],
     });
+
+    // RN-EST-11 (§12): ajuste de entrada (contado > saldo atual) exige custo, exceto SALDO_INICIAL.
+    // Backend valida a mesma regra (ESTOQUE_AJUSTE_ENTRADA_SEM_CUSTO); manter em sincronia.
+    this.form
+      .get('quantidadeContada')!
+      .valueChanges.subscribe(() => this.atualizarValidacaoCusto());
+    this.form.get('tipoAjuste')!.valueChanges.subscribe(() => this.atualizarValidacaoCusto());
+  }
+
+  get exigeCusto(): boolean {
+    const quantidadeContada = this.form?.value?.quantidadeContada ?? 0;
+    const saldoAtual = this.saldo?.quantidade ?? 0;
+    return quantidadeContada > saldoAtual && this.form?.value?.tipoAjuste !== 'SALDO_INICIAL';
+  }
+
+  private atualizarValidacaoCusto(): void {
+    const valorUnitario = this.form.get('valorUnitario')!;
+    valorUnitario.setValidators(this.exigeCusto ? [Validators.required] : []);
+    valorUnitario.updateValueAndValidity({ emitEvent: false });
   }
 
   onSubmit(): void {

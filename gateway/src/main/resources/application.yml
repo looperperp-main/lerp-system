@@ -25,7 +25,7 @@ spring:
             - id: operacoes-service
               uri: lb://operacoes-service
               predicates:
-                - Path=/api/v1/pedidos/**,/api/v1/compras/**,/api/v1/estoque/**
+                - Path=/api/v1/pedidos/**,/api/v1/compras/**,/api/v1/estoque/**,/api/v1/producao/**
             - id: cadastro-service
               uri: lb://cadastro-service
               predicates:
