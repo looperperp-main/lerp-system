@@ -446,4 +446,18 @@ class EstoqueServiceTest {
                 .isInstanceOf(BusinessException.class);
         verifyNoInteractions(fechamentoEstoqueRepository);
     }
+
+    @Test
+    void registrarMovimentoComCompetenciaJaFechada_lanca409ENaoGravaNada() {
+        Instant ocorridoEm = Instant.parse("2026-09-15T12:00:00Z");
+        EstoqueService.MovimentoRequisicao req = new EstoqueService.MovimentoRequisicao(TENANT_ID, USER_ID,
+                TipoMovimentoEstoque.ENTRADA_COMPRA, OrigemMovimentoEstoque.RECEBIMENTO, UUID.randomUUID(),
+                DEPOSITO_ID, ocorridoEm, null, null, null, null,
+                List.of(new EstoqueService.MovimentoRequisicao.Linha(PRODUTO_ID, BigDecimal.TEN, BigDecimal.TEN)));
+        when(fechamentoEstoqueRepository.existsByTenantIdAndCompetencia(TENANT_ID, "2026-09")).thenReturn(true);
+
+        assertThatThrownBy(() -> estoqueService.registrarMovimento(req))
+                .isInstanceOf(BusinessException.class);
+        verifyNoInteractions(estoqueSaldoRepository, movimentoEstoqueRepository);
+    }
 }

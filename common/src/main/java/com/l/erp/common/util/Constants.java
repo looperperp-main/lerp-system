@@ -638,6 +638,9 @@ public class Constants {
             "Existem pendências de estoque não resolvidas — fechamento bloqueado";
     public static final String ESTOQUE_FECHAMENTO_SALDO_NEGATIVO =
             "Existem saldos de estoque negativos — fechamento bloqueado";
+    // RN-EST-13: período fechado trava novo movimento com data dentro da competência já fechada.
+    public static final String ESTOQUE_PERIODO_FECHADO =
+            "Período de estoque já fechado para esta competência — reabra o fechamento para lançar movimentos retroativos";
 
     // Produção própria (Fase 2, D11, §12) — ficha técnica + ordem de produção.
     public static final String PRODUCAO_FICHA_TECNICA_SEM_ITENS = "Ficha técnica deve ter ao menos um componente";

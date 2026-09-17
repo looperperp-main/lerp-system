@@ -94,8 +94,10 @@
         placeholder="Selecione"
         [filter]="true"
         styleClass="w-full"
-        appendTo="body">
+        appendTo="body"
+        [class.ng-invalid]="isFieldInvalid('produtoAcabadoId')">
       </p-select>
+      <small class="text-red-500" *ngIf="isFieldInvalid('produtoAcabadoId')">Produto acabado é obrigatório.</small>
     </div>
 
     <div class="flex flex-col gap-2" formArrayName="itens">

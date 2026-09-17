@@ -25,6 +25,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
+import java.time.YearMonth;
+import java.time.ZoneOffset;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
@@ -290,6 +292,11 @@ public class EstoqueService {
         // RN-EST-10 [D7, §12]: sem centro de custo não há contrapartida contábil.
         if (req.tipo() == TipoMovimentoEstoque.SAIDA_CONSUMO && req.centroCustoId() == null) {
             throw new BusinessException(Constants.ESTOQUE_CENTRO_CUSTO_OBRIGATORIO, HttpStatus.BAD_REQUEST);
+        }
+        // RN-EST-13 [D10, §12]: período já fechado trava novo movimento datado dentro da competência.
+        String competencia = YearMonth.from(req.ocorridoEm().atZone(ZoneOffset.UTC)).toString();
+        if (fechamentoEstoqueRepository.existsByTenantIdAndCompetencia(req.tenantId(), competencia)) {
+            throw new BusinessException(Constants.ESTOQUE_PERIODO_FECHADO, HttpStatus.CONFLICT);
         }
     }
 

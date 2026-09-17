@@ -127,6 +127,11 @@ export class FichasTecnicas implements OnInit {
     this.itens.removeAt(index);
   }
 
+  isFieldInvalid(field: string): boolean {
+    const control = this.form.get(field);
+    return !!(control && control.invalid && (control.dirty || control.touched));
+  }
+
   onSubmit(): void {
     if (this.form.invalid || this.itens.length === 0) {
       this.form.markAllAsTouched();
