@@ -82,6 +82,48 @@ class MotorFiscalServiceTest {
         assertValor("500", r.getBaseCalculo());
     }
 
+    /**
+     * Conflito entre anexos (princípio da especialidade): o NCM 21069090 está em dois anexos —
+     * Anexo I (100%, fórmula infantil) e Anexo VI (60%, demais preparações). Sem declaração vale a
+     * retaguarda de 60%; declarando o cClassTrib do Anexo I, o contribuinte afirma que o produto
+     * atende à descrição e leva a alíquota zero. Os dois no mesmo teste porque o que importa é a
+     * diferença entre eles.
+     */
+    @Test
+    void conflitoEntreAnexos_cClassTribDeclaradoVenceNcm() {
+        MotorFiscalRequest.MotorFiscalRequestBuilder base = MotorFiscalRequest.builder()
+                .cfop("5102").ncm("21069090").ibgeDestino(SP)
+                .valorOperacao(new BigDecimal("1000")).dataCompetencia(COMP)
+                .regimeEmpresa(Constants.REGIME_LUCRO_REAL);
+
+        // Sem cClassTrib: retaguarda do NCM, 60% de redução (IBS 18,50% → 7,40%; CBS 8,50% → 3,40%).
+        OperacaoFiscalDTO retaguarda = motor.calcular(base.build(), null);
+        assertEquals("ANEXO_VI_60", retaguarda.getRegimeAplicado());
+        assertValor("74.00", retaguarda.getValorIbs());
+        assertValor("34.00", retaguarda.getValorCbs());
+
+        // Com o cClassTrib do Anexo I declarado: vence o NCM e zera.
+        OperacaoFiscalDTO declarado = motor.calcular(base.cClassTrib("200001").build(), null);
+        assertEquals("ANEXO_I_ZERO", declarado.getRegimeAplicado());
+        assertValor("0", declarado.getValorIbs());
+        assertValor("0", declarado.getValorCbs());
+        assertTrue(declarado.getMemoriaCalculo().contains(
+                Constants.FISCAL_MEMORIA_CCLASSTRIB_VENCE_NCM
+                        .formatted("ANEXO_I_ZERO", "200001", "21069090")));
+    }
+
+    /** cClassTrib declarado em produto mas sem linha na tabela: não vira PADRAO, cai no NCM. */
+    @Test
+    void conflitoEntreAnexos_cClassTribSemLinha_caiNoNcm() {
+        OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()
+                .cfop("5102").ncm("21069090").ibgeDestino(SP).cClassTrib("999999")
+                .valorOperacao(new BigDecimal("1000")).dataCompetencia(COMP)
+                .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null);
+
+        assertEquals("ANEXO_VI_60", r.getRegimeAplicado());
+        assertValor("74.00", r.getValorIbs());
+    }
+
     @Test
     void ex3_cigarro_fabricante_1aEtapa_comIS() {
         OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()

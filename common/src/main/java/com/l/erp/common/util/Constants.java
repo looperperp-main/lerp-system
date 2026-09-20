@@ -427,6 +427,14 @@ public class Constants {
     public static final String FISCAL_TIPO_CODIGO_NCM = "NCM";
     public static final String FISCAL_TIPO_CODIGO_CCLASSTRIB = "cClassTrib";
 
+    // Produto cujo cClassTrib declarado no documento venceu o regime do NCM (principio da
+    // especialidade — ver MotorFiscalService#regimeDoItem). Vai so para a memoria de calculo: nao e
+    // anomalia, e a via legitima de o contribuinte afirmar que o item atende a descricao do anexo
+    // mais benefico. Placeholders: regime aplicado, cClassTrib declarado, NCM preterido.
+    public static final String FISCAL_MEMORIA_CCLASSTRIB_VENCE_NCM =
+            "Regime %s: cClassTrib '%s' declarado no documento prevalece sobre o NCM '%s' "
+                    + "(princípio da especialidade, §1.4.4)";
+
     // Codigo IBGE sentinela da linha-base de fiscal.aliq_ibs_municipio: a aliquota de REFERENCIA
     // (fixada pelo Senado) e uniforme por tipo de ente, entao ela vive numa linha por ano em vez de
     // ser replicada nos 5.570 municipios. Municipio com aliquota PROPRIA tem linha propria e vence.

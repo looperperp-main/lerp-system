@@ -1,0 +1,51 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────────────────────────────────────────────────────
+  # Conflito entre anexos: mesmo NCM com reduções diferentes — spec/fiscal/anexos-lc214-revisar.md.
+  #
+  # Regra aplicada (princípio da especialidade, decidida em 20/09/2026): quando um NCM aparece em
+  # dois anexos da LC 214, vence o de MAIOR benefício **desde que** o produto atenda estritamente à
+  # descrição textual daquele anexo; o anexo de menor benefício é a regra geral de RETAGUARDA para
+  # todos os demais produtos do mesmo código.
+  #
+  # Quem sabe se o produto atende à descrição é o contribuinte, e ele afirma isso declarando o
+  # cClassTrib no documento (igual NF-e). Por isso a divisão de responsabilidade ficou:
+  #   - regime_dif_ncm    → guarda a RETAGUARDA (anexo de menor benefício). É o default silencioso.
+  #   - regime_cclasstrib → guarda a via do anexo mais benéfico, só alcançada quando declarada.
+  # O motor implementa isso em MotorFiscalService#regimeDoItem.
+  #
+  # Errar para o lado da retaguarda é erro CONTRA o contribuinte (tributa a mais; ele corrige
+  # declarando o cClassTrib). Errar para o lado do benefício é erro A FAVOR, que vira autuação no
+  # cliente — por isso o default nunca é o anexo de 100%.
+  #
+  # Os 5 conflitos do Anexo IV (90189099, 90189010, 90211010, 90211020, 90219019) NÃO precisam de
+  # changeset: já estão como ANEXO_IV_60, que é exatamente a retaguarda correta. Falta só o seed
+  # dos cClassTrib de PRODUTO dos Anexos XII/XIII para habilitar a via de 100% — hoje
+  # regime_cclasstrib só tem códigos de serviço (ver fiscal-schema-007 e -013).
+
+  - changeSet:
+      id: fiscal-052-conflito-anexos-retaguarda
+      author: vitor-fernandes
+      comment: 21069090 e 25010090 — retaguarda de 60% nos conflitos Anexo I (100%) x Anexo VI (60%)
+      changes:
+        # 21069090 ("outras preparações alimentícias") hoje herda 'ANEXO_I_ZERO, 100' do prefixo
+        # curto '2106', carregado por causa das fórmulas infantis. Isso dá alíquota zero a qualquer
+        # preparação alimentícia do código — erro a favor do contribuinte. A linha de 8 dígitos
+        # vence o prefixo no casamento do SQL_REGIME_NCM e devolve o default à retaguarda de 60%.
+        # Fórmula infantil de verdade segue com 100%, declarando o cClassTrib do Anexo I.
+        #
+        # 25010090 ("outros" cloretos de sódio) não tinha linha nenhuma (caía em PADRAO, tributava
+        # cheio); só o 25010020 (sal de mesa) estava em ANEXO_I_ZERO. A retaguarda do código é o
+        # Anexo VI.
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.regime_dif_ncm (ncm, descricao, regime, percentual_reducao, vigente_de) VALUES
+              ('21069090', 'Outras preparações alimentícias - retaguarda Anexo VI (Anexo I 100% só com cClassTrib declarado)', 'ANEXO_VI_60', 60, DATE '2027-01-01'),
+              ('25010090', 'Outros cloretos de sódio - retaguarda Anexo VI (Anexo I 100% só com cClassTrib declarado)', 'ANEXO_VI_60', 60, DATE '2027-01-01');
+      rollback:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: DELETE FROM fiscal.regime_dif_ncm WHERE ncm IN ('21069090','25010090');

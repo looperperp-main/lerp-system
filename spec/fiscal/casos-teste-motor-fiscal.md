@@ -1,6 +1,6 @@
 # Casos de Teste — Motor Fiscal (IBS/CBS/IS)
 
-**Última atualização:** 27 de agosto de 2026
+**Última atualização:** 20 de setembro de 2026
 **Alvo de teste:** `MotorFiscalService.calcular(MotorFiscalRequest, String tenantId)` (`fiscal-service`, Fin.md §1.4).
 O `tenantId` vem do header `X-Tenant-Id` e **só** decide o split payment por tenant — não entra no cálculo.
 **Oráculo contra:** `TabelaFiscalFake` (fixture de teste, alíquotas **reais** de 2033; espelha o seed de
@@ -114,6 +114,19 @@ Coluna **Teste**: ✅ já em `MotorFiscalServiceTest`; ➕ novo (candidato a inc
 | valorIs / valorIbs / valorCbs | 0 / 0 / 0 | cesta básica zera **independe** de CFOP/1ª etapa |
 | baseCalculo | 1234.56 | |
 | regimeAplicado | ANEXO_I_ZERO | |
+
+### B3 — Conflito entre anexos: cClassTrib declarado vence o NCM ➕
+NCM em dois anexos (Anexo I 100% × Anexo VI 60%). O NCM guarda a **retaguarda**; a alíquota zero
+só vem se o contribuinte declarar o `cClassTrib` do anexo mais benéfico (princípio da
+especialidade — ver `spec/fiscal/anexos-lc214-revisar.md`).
+
+`cfop=5102, ncm=21069090, ibgeDestino=3550308, valorOperacao=1000, regime=LUCRO_REAL`
+
+| cClassTrib declarado | regimeAplicado | valorIbs | valorCbs | Nota |
+|---|---|---|---|---|
+| _(nenhum)_ | ANEXO_VI_60 | 74.00 | 34.00 | retaguarda: 18,50% e 8,50% com 60% de redução |
+| `200001` (Anexo I) | ANEXO_I_ZERO | 0 | 0 | memória registra que o declarado venceu o NCM |
+| `999999` (sem linha) | ANEXO_VI_60 | 74.00 | 34.00 | código sem linha não vira PADRAO: cai no NCM |
 
 ---
 

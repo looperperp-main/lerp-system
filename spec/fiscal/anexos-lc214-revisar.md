@@ -8,10 +8,11 @@ aqui é um item cuja regra **não é decidível só pelo código** — carregá-
 imposto em silêncio. Resolver um item = decidir o(s) código(s) e acrescentar a linha num changeset
 novo.
 
-Total pendente: **40** itens — soma real das seções abaixo (240 originais − 44 resolvidos em 01 de
-setembro de 2026 − 143 serviços dos Anexos II/III/X/XI − 20 itens de produto resolvidos em 20 de
-setembro de 2026; a diferença para 240 são linhas que o extrator duplicou entre seções).
-Carregados: **247** códigos na carga automática + os changesets manuais `fiscal-037` a `fiscal-051`.
+Total pendente: **33** itens — soma real das seções abaixo (240 originais − 44 resolvidos em 01 de
+setembro de 2026 − 143 serviços dos Anexos II/III/X/XI − 20 itens de produto e − 7 conflitos entre
+anexos resolvidos em 20 de setembro de 2026; a diferença para 240 são linhas que o extrator
+duplicou entre seções). Carregados: **247** códigos na carga automática + os changesets manuais
+`fiscal-037` a `fiscal-052`.
 
 ## ✅ Resolvido em 01 de setembro de 2026 (changesets `fiscal-037` a `fiscal-048`)
 
@@ -205,7 +206,42 @@ chegando pronta em `valorOperacao`, por conta de quem chama o motor.
 | XVII |  | Bens minerais |
 | XVII |  | Concursos de prognósticos e _Fantasy_ _sport_ |
 
-## NCM em mais de um anexo com reduções diferentes: ANEXO_IV_60=60%, ANEXO_XII_ZERO=100% — 4 itens
+## ✅ Resolvido em 20 de setembro de 2026 — NCM em mais de um anexo (7 itens, 3 seções)
+
+> **A regra: princípio da especialidade.** Quando o mesmo NCM aparece em dois anexos da LC 214 com
+> reduções diferentes, vence o anexo de **maior benefício** — mas só se o produto atender
+> **estritamente à descrição textual** dele. O anexo de menor benefício é a **regra geral de
+> retaguarda** para todos os demais produtos daquele código. Não é escolha nossa: é a aplicação do
+> princípio da especialidade sobre a descrição do produto, não sobre o código.
+>
+> **Como isso vira software.** Quem sabe se o item atende à descrição é o contribuinte, e ele
+> afirma isso declarando o `cClassTrib` no documento — exatamente como já faz na NF-e. A divisão
+> ficou:
+>
+> | Tabela | O que guarda | Quando vale |
+> |---|---|---|
+> | `regime_dif_ncm` | a **retaguarda** (anexo de menor benefício) | default, sem ninguém declarar nada |
+> | `regime_cclasstrib` | a via do **anexo mais benéfico** | só quando o `cClassTrib` vem no documento |
+>
+> Implementado em `MotorFiscalService#regimeDoItem`: em **produto**, o `cClassTrib` declarado passa
+> a prevalecer sobre o NCM (antes só valia para serviço); sem declaração — ou declarando código sem
+> linha na tabela — vale o NCM, que carrega a retaguarda. Quando o declarado vence, a memória de
+> cálculo registra `FISCAL_MEMORIA_CCLASSTRIB_VENCE_NCM` (não é anomalia: é a via legítima).
+>
+> **Por que o default é o menor benefício.** Errar para a retaguarda tributa a mais: erro *contra* o
+> contribuinte, que ele corrige declarando. Errar para o benefício concede redução sem prova: erro
+> *a favor*, que vira autuação no cliente. Entre os dois, só o primeiro é aceitável como silêncio.
+>
+> **Pendência que sobra:** `regime_cclasstrib` hoje só tem códigos de **serviço**
+> (`fiscal-schema-007`/`-013`). Enquanto os `cClassTrib` de produto dos Anexos I/XII/XIII não forem
+> semeados, a via de 100% não tem como ser declarada e os 7 itens ficam na retaguarda — que é o
+> comportamento seguro, mas tributa a mais quem teria direito à alíquota zero. A carga depende da
+> tabela oficial de `cClassTrib` de produto (NT da NF-e), que ainda não está no repositório.
+
+## ANEXO_IV_60=60% × ANEXO_XII_ZERO=100% — 4 itens (retaguarda já correta)
+
+> Já carregados como `ANEXO_IV_60`, que é exatamente a retaguarda — **nenhum changeset necessário**.
+> Só falta o `cClassTrib` do Anexo XII para habilitar a via de 100%.
 
 | Anexo | Item | Descrição |
 |---|---|---|
@@ -234,14 +270,24 @@ chegando pronta em `valorOperacao`, por conta de quem chama o motor.
 | XVII | 2202.10.00 | (código de continuação do item acima, que não entrou na carga) |
 | XVII | 2709.00.10 2711.11.00 2711.21.00 | (código de continuação do item acima, que não entrou na carga) |
 
-## NCM em mais de um anexo com reduções diferentes: ANEXO_I_ZERO=100%, ANEXO_VI_60=60% — 2 itens
+## ANEXO_I_ZERO=100% × ANEXO_VI_60=60% — 2 itens (retaguarda carregada no `fiscal-052`)
+
+> Únicos dos 7 que precisaram de changeset, porque o default estava errado nos dois:
+> `21069090` herdava `ANEXO_I_ZERO, 100` do prefixo curto `2106` (alíquota zero para qualquer
+> preparação alimentícia — erro a favor do contribuinte) e `25010090` não tinha linha nenhuma
+> (caía em `PADRAO`). O `fiscal-schema-017.yaml` insere os dois como `ANEXO_VI_60`/60; a linha de 8
+> dígitos vence o prefixo no casamento do `SQL_REGIME_NCM`.
 
 | Anexo | Item | Descrição |
 |---|---|---|
 | I/VI | 21069090 | Fórmulas infantis, em conformidade com os requisitos da legislação específica, classificadas nos códigos 1901.10.10, 1901.10.90 e 2106.90.90 da NCM/SH \|\|\| Fórmula para dieta isenta de fenilalanina \|\|\| Fórmula para dieta isenta demetionina \|\|\| Fórmula para dieta isenta de lisina e pobre d... |
 | I/VI | 25010090 | Sal em conformidade com os requisitos da legislação específica relativos ao teor de iodo enquadrado nos limites próprios para consumo humano classificado nos códigos 2501.00.20 e 2501.00.90 da NCM/SH \|\|\| Cloreto de sódio |
 
-## NCM em mais de um anexo com reduções diferentes: ANEXO_IV_60=60%, ANEXO_XIII_ZERO=100% — 1 itens
+## ANEXO_IV_60=60% × ANEXO_XIII_ZERO=100% — 1 item (retaguarda já correta)
+
+> `90219019` já está como `ANEXO_IV_60` — retaguarda correta, **nenhum changeset necessário**. A
+> alíquota zero do Anexo XIII (válvula de hidrocefalia, implante coclear) depende do `cClassTrib`
+> daquele anexo, ainda não semeado.
 
 | Anexo | Item | Descrição |
 |---|---|---|

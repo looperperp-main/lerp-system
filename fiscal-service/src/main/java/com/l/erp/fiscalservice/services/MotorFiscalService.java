@@ -158,9 +158,7 @@ public class MotorFiscalService {
 
         // Serviço (NFS-e): IBS é pelo LOCAL DA PRESTAÇÃO, não pelo tomador (§1.4.5)
         String ibgeDestino = servico ? req.getIbgeLocalPrestacao() : req.getIbgeDestino();
-        RegimeDiferenciado regime = servico
-                ? tabela.regimeCClassTrib(req.getCClassTrib(), req.getDataCompetencia())
-                : tabela.regimeNcm(req.getNcm(), req.getDataCompetencia());
+        RegimeDiferenciado regime = regimeDoItem(req, servico, memoria);
 
         // PADRAO aqui não é classificação declarada (isso é INTEGRAL): é ausência de linha em
         // regime_dif_ncm/regime_cclasstrib. O motor segue e tributa cheio — erro contra o
@@ -340,6 +338,39 @@ public class MotorFiscalService {
 
     private static boolean preenchido(String valor) {
         return valor != null && !valor.isBlank();
+    }
+
+    /**
+     * Regime diferenciado do item, resolvendo o conflito de um mesmo NCM aparecer em dois anexos
+     * da LC 214 com reduções diferentes (ex.: {@code 21069090} em Anexo I 100% e Anexo VI 60%).
+     *
+     * <p>Princípio da especialidade: vence o anexo de maior benefício <b>desde que</b> o produto
+     * atenda estritamente à descrição textual dele; o anexo de menor benefício é a regra geral de
+     * retaguarda para todos os demais produtos do mesmo NCM. Só o contribuinte sabe qual dos dois
+     * é o caso, e ele afirma isso declarando o {@code cClassTrib} no documento — exatamente como
+     * na NF-e. Por isso, em produto, o {@code cClassTrib} declarado prevalece sobre o NCM; sem
+     * declaração (ou declarando código sem linha na tabela) vale o NCM, que carrega a redução de
+     * retaguarda. Em serviço não há NCM: o {@code cClassTrib} é a única chave.
+     *
+     * <p>Em produto o código declarado não passa por checagem de admissibilidade — a do Anexo VIII
+     * é por item da LC 116, só existe para serviço. Declarar código indevido é responsabilidade do
+     * emitente, como na NF-e; por isso a linha na memória de cálculo, que deixa a escolha visível.
+     */
+    private RegimeDiferenciado regimeDoItem(MotorFiscalRequest req, boolean servico,
+                                            List<String> memoria) {
+        if (servico) {
+            return tabela.regimeCClassTrib(req.getCClassTrib(), req.getDataCompetencia());
+        }
+        if (preenchido(req.getCClassTrib())) {
+            RegimeDiferenciado declarado =
+                    tabela.regimeCClassTrib(req.getCClassTrib(), req.getDataCompetencia());
+            if (!Constants.REGIME_DIF_PADRAO.equals(declarado.name())) {
+                memoria.add(Constants.FISCAL_MEMORIA_CCLASSTRIB_VENCE_NCM
+                        .formatted(declarado.name(), req.getCClassTrib(), req.getNcm()));
+                return declarado;
+            }
+        }
+        return tabela.regimeNcm(req.getNcm(), req.getDataCompetencia());
     }
 
     /** Fator multiplicador da redução de alíquota: (1 − redução/100). */
@@ -529,9 +560,7 @@ public class MotorFiscalService {
         }
 
         String ibgeDestino = servico ? req.getIbgeLocalPrestacao() : req.getIbgeDestino();
-        RegimeDiferenciado regime = servico
-                ? tabela.regimeCClassTrib(req.getCClassTrib(), req.getDataCompetencia())
-                : tabela.regimeNcm(req.getNcm(), req.getDataCompetencia());
+        RegimeDiferenciado regime = regimeDoItem(req, servico, memoria);
 
         int ano = req.getDataCompetencia().getYear();
         AliquotaIbs aliqIbs = tabela.aliquotaIbs(ibgeDestino, ano)

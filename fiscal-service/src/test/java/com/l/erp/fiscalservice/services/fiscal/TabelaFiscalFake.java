@@ -51,6 +51,9 @@ public class TabelaFiscalFake implements TabelaFiscal {
 
         ncmMap.put("10063021", RegimeDiferenciado.de("ANEXO_I_ZERO", new BigDecimal("100"))); // arroz
         ncmMap.put("24022000", RegimeDiferenciado.de(Constants.REGIME_DIF_MONOFASICO, BigDecimal.ZERO));
+        // Conflito entre anexos (fiscal-052): o NCM guarda a RETAGUARDA de 60%; a alíquota zero do
+        // Anexo I só é alcançada se o contribuinte declarar o cClassTrib dela.
+        ncmMap.put("21069090", RegimeDiferenciado.de("ANEXO_VI_60", new BigDecimal("60")));
 
         // 200029 = "Redução de 60% ... (Anexo III)" — serviços de saúde do item 4.01 da LC 116.
         servicoMap.put("200029", RegimeDiferenciado.de("ANEXO_III_60", new BigDecimal("60")));
@@ -59,6 +62,10 @@ public class TabelaFiscalFake implements TabelaFiscal {
         // logo o regime aplicado é INTEGRAL — não PADRAO, que é o fallback de cClassTrib SEM linha lá.
         servicoMap.put("000001", RegimeDiferenciado.de("INTEGRAL", BigDecimal.ZERO));
         paresAdmitidos.add(par("1.01", "000001"));   // Anexo VIII: análise/desenvolvimento de sistemas
+        // cClassTrib de PRODUTO (Anexo I, alíquota zero). Não tem par admitido: a checagem do
+        // Anexo VIII é por item LC 116, ou seja, só existe para serviço. Em produto o código é
+        // declaração do contribuinte, como na NF-e.
+        servicoMap.put("200001", RegimeDiferenciado.de("ANEXO_I_ZERO", new BigDecimal("100")));
 
         // 2033 = regime permanente, com as alíquotas REAIS do portal do piloto CBS (16,0 + 2,5 de
         // IBS e 8,5 de CBS; ver fiscal-022). Não é 2027 de propósito: na transição a referência é

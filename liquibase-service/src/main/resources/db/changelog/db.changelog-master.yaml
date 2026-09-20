@@ -267,6 +267,9 @@ databaseChangeLog:
   - include:
       file: fiscal/fiscal-schema-016.yaml
       relativeToChangelogFile: true
+  - include:
+      file: fiscal/fiscal-schema-017.yaml
+      relativeToChangelogFile: true
 
   # 7. Schema de Vendas — O2C (operacoes-service)
   - include:
