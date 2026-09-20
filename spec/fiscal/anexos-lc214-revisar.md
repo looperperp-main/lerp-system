@@ -1,11 +1,17 @@
 # Anexos da LC 214/2025 — itens NÃO carregados em `fiscal.regime_dif_ncm`
 
-Gerado por `extrai-anexos-v2.ps1` a partir de `spec/ANEXOS.md`. Cada linha aqui é um item cuja
-regra **não é decidível só pelo código** — carregá-la automaticamente erraria imposto em
-silêncio. Resolver um item = decidir o(s) código(s) e acrescentar a linha num changeset novo.
+Gerado originalmente por `extrai-anexos-v2.ps1` a partir de `spec/fiscal/ANEXOS.md`. O script foi
+efêmero e nunca chegou a ser versionado no repositório — a partir daqui este documento é mantido
+À MÃO. Não regerar por script: ele descartava a coluna NBS dos anexos (que a fonte tem), e a
+regeração apagaria as seções mantidas manualmente ("✅ Resolvido" e as ressalvas de `cClassTrib`). Cada linha
+aqui é um item cuja regra **não é decidível só pelo código** — carregá-la automaticamente erraria
+imposto em silêncio. Resolver um item = decidir o(s) código(s) e acrescentar a linha num changeset
+novo.
 
-Total pendente: **196** itens (240 originais − 44 resolvidos/corrigidos em 01 de setembro de 2026,
-ver seção abaixo). Carregados automaticamente: **247** códigos.
+Total pendente: **40** itens — soma real das seções abaixo (240 originais − 44 resolvidos em 01 de
+setembro de 2026 − 143 serviços dos Anexos II/III/X/XI − 20 itens de produto resolvidos em 20 de
+setembro de 2026; a diferença para 240 são linhas que o extrator duplicou entre seções).
+Carregados: **247** códigos na carga automática + os changesets manuais `fiscal-037` a `fiscal-051`.
 
 ## ✅ Resolvido em 01 de setembro de 2026 (changesets `fiscal-037` a `fiscal-048`)
 
@@ -95,186 +101,61 @@ assistência, bens imóveis) têm regra de **base de cálculo** própria na LC 2
 repasses, provisões técnicas, sinistros. O `fiscal-021` carrega só a alíquota; a base continua
 chegando pronta em `valorOperacao`, por conta de quem chama o motor.
 
-## Serviço com código NBS; o motor casa por código LC 116 — falta o de/para NBS<->LC116 — 143 itens
+## ✅ Resolvido em 20 de setembro de 2026 — serviços dos Anexos II/III/X/XI (143 itens)
 
-| Anexo | Item | Descrição |
-|---|---|---|
-| II | 1 | Ensino Infantil, inclusive creche e pré-escola |
-| II | 2 | Ensino Fundamental |
-| II | 3 | Ensino Médio |
-| II | 4 | Ensino Técnico de Nível Médio |
-| II | 5 | Ensino para jovens e adultos destinado àqueles que não tiveram acesso ou continuidade de estudos no ensino fundamental e médio na idade própria |
-| II | 6 | Ensino Superior, compreendidos os cursos e programas de graduação, pós-graduação, de extensão e cursos sequenciais |
-| II | 7 | Ensino de sistemas linguísticos de natureza visomotora e de escrita tátil |
-| II | 8 | Ensino de línguas nativas de povos originários |
-| II | 9 | Educação especial destinada a pessoas com deficiência, transtornos globais do desenvolvimento e altas habilidades ou superdotação, de modo isolado ou agregado a qualquer das etapas de educação tratadas neste Anexo |
-| III | 1 | Serviços cirúrgicos |
-| III | 2 | Serviços ginecológicos e obstétricos |
-| III | 3 | Serviços psiquiátricos |
-| III | 4 | Serviços prestados em Unidades de Terapia Intensiva |
-| III | 5 | Serviços de atendimento de urgência |
-| III | 6 | Serviços hospitalares não classificados em subposições anteriores |
-| III | 7 | Serviços de clínica médica |
-| III | 8 | Serviços médicos especializados |
-| III | 9 | Serviços odontológicos |
-| III | 10 | Serviços de enfermagem |
-| III | 11 | Serviços de fisioterapia |
-| III | 12 | Serviços laboratoriais |
-| III | 13 | Serviços de diagnóstico por imagem |
-| III | 14 | Serviços de bancos de material biológico humano |
-| III | 15 | Serviços de ambulância |
-| III | 16 | Serviços de assistência ao parto e pós-parto |
-| III | 17 | Serviços de psicologia |
-| III | 18 | Serviços de vigilância sanitária |
-| III | 19 | Serviços de epidemiologia |
-| III | 20 | Serviços de vacinação |
-| III | 21 | Serviços de fonoaudiologia |
-| III | 22 | Serviços de nutrição |
-| III | 23 | Serviços de optometria |
-| III | 24 | Serviços de instrumentação cirúrgica |
-| III | 25 | Serviços de biomedicina |
-| III | 26 | Serviços farmacêuticos |
-| III | 27 | Serviços de cuidado e assistência a idosos e pessoas com deficiência em unidades de acolhimento |
-| III | 28 | Serviços domiciliares de apoio a pessoas adultas, idosas, crianças, adolescentes, pessoas com transtornos mentais e com deficiências |
-| III | 29 | Serviços de esterilização |
-| III | 30 | Serviços funerários, de cremação e de embalsamamento |
-| X | 1 | Licenciamento de direitos de autor e de direitos conexos |
-| X | 2 | Licenciamento de direitos de obras literárias |
-| X | 3 | Licenciamento de direitos de autor de obras cinematográficas |
-| X | 4 | Licenciamento de direitos de autor de obras jornalísticas |
-| X | 5 | Licenciamento de direitos conexos de artistas intérpretes ou executantes em obras audiovisuais |
-| X | 6 | Licenciamento de direitos conexos de produtores de obras audiovisuais |
-| X | 7 | Licenciamento de direitos de obras audiovisuais destinadas à televisão |
-| X | 8 | Licenciamento de direitos de obras musicais e fonogramas |
-| X | 9 | Cessão temporária de direitos de obras literárias |
-| X | 10 | Cessão temporária de direitos de autor de obras cinematográficas |
-| X | 11 | Cessão temporária de direitos de autor de obras jornalísticas |
-| X | 12 | Cessão temporária de direitos conexos de artistas intérpretes ou executantes em obras audiovisuais |
-| X | 13 | Cessão temporária de direitos conexos de produtores de obras audiovisuais |
-| X | 14 | Cessão temporária de direitos de obras audiovisuais destinadas à televisão |
-| X | 15 | Cessão temporária de direitos de obras musicais e fonogramas |
-| X | 16 | Cessão definitiva de direitos de obras literárias |
-| X | 17 | Cessão definitiva de direitos de obras cinematográficas |
-| X | 18 | Cessão definitiva de direitos de obras jornalísticas |
-| X | 19 | Cessão definitiva de direitos de obras musicais e fonogramas |
-| X | 20 | Serviços de agências de notícias para jornais e periódicos |
-| X | 21 | [Serviços de agências de notícias para mídia audiovisual](http://nbs.economia.gov.br/pt/concepts/servicos-de-agencias-de-noticias-para-midia-audiovisual/glance.html) |
-| X | 22 | Serviços de assistência e organização de convenções, feiras de negócios, exposições e outros eventos |
-| X | 23 | Serviços de gravação de som em estúdio destinados diretamente às produções nacionais artísticas, culturais e audiovisuais |
-| X | 24 | Serviços de gravação de som ao vivo destinados diretamente às produções nacionais artísticas, culturais e audiovisuais |
-| X | 25 | Serviços de produção de programas de televisão, videoteipes e filmes |
-| X | 26 | Serviços de produção de programas de rádio |
-| X | 27 | Serviços de edição de obras audiovisuais destinados diretamente às produções nacionais artísticas, culturais e audiovisuais |
-| X | 28 | Serviços de duplicação e transferência de obras audiovisuais destinados diretamente às produções nacionais artísticas, culturais e audiovisuais |
-| X | 29 | Serviços de correção de cor e restauração digital de obras audiovisuais destinados diretamente às produções nacionais artísticas, culturais e audiovisuais |
-| X | 30 | Serviços de efeitos visuais em obras audiovisuais destinados diretamente às produções nacionais artísticas, culturais e audiovisuais |
-| X | 31 | Serviços de animação destinados diretamente às produções nacionais artísticas, culturais e audiovisuais |
-| X | 32 | Serviços de legendas, títulos e dublagem em obras audiovisuais destinados diretamente às produções nacionais artísticas, culturais e audiovisuais |
-| X | 33 | Serviços de projeto e edição de som em obras audiovisuais destinados diretamente às produções nacionais artísticas, culturais e audiovisuais |
-| X | 34 | Serviços de projeção de filmes |
-| X | 35 | Serviços de produção audiovisual, de apoio e relacionados não classificados em subposições anteriores |
-| X | 36 | [Serviços de organização e promoção de atuações artísticas ao vivo](http://nbs.economia.gov.br/pt/concepts/servicos-de-organizacao-e-promocao-de-atuacoes-artisticas-ao-vivo/glance.html) |
-| X | 37 | [Serviços de produção e apresentação de atuações artísticas ao vivo,](http://nbs.economia.gov.br/pt/concepts/servicos-de-producao-e-apresentacao-de-atuacoes-artisticas-ao-vivo/glance.html) inclusive os ingressos relativos a estes serviços |
-| X | 38 | Serviços de atuação artística |
-| X | 39 | Serviços de autores, compositores, escultores, pintores e outros artistas, exceto os de atuação artística |
-| X | 40 | Serviços de museus, inclusive serviços relativos a mostras e coleções de arte |
-| X | 41 | Serviços de reservas de ingressos para eventos de produções nacionais artísticas, culturais e audiovisuais |
-| X | 42 | Fotografias artísticas originais |
-| X | 43 | Quadros, pinturas e desenhos, artísticos originais |
-| X | 44 | Gravuras, estampas e litografias, artísticas originais |
-| X | 45 | Produções originais de arte estatutária ou de escultura |
-| X | 46 | Licenciamento de direitos conexos de artistas intérpretes ou executantes |
-| X | 47 | Cessão temporária de direitos de autor e de direitos conexos |
-| X | 48 | Cessão temporária de direitos conexos de artistas intérpretes ou executantes |
-| X | 49 | Licenciamento de direitos de autor de obras teatrais |
-| X | 50 | Licenciamento de direitos conexos de produtores de obras teatrais |
-| X | 51 | Licenciamento de direitos conexos de artistas intérpretes ou executantes em obras teatrais |
-| X | 52 | Cessão temporária de direitos de autor de obras teatrais |
-| X | 53 | Cessão temporária de direitos conexos de artistas intérpretes ou executantes em obras teatrais |
-| X | 54 | Cessão temporária de direitos conexos de produtores intérpretes ou executantes em obras teatrais |
-| X | 55 | Serviços de sonorização, iluminação, figurino, videografia e cenografia para atuações artísticas ao vivo, destinados às produções de que trata o art. 139 desta Lei Complementar |
-| X | 56 | Serviços de locação, montagem e desmontagem de palcos, destinados às produções de que trata o art. 139 desta Lei Complementar |
-| X | 57 | Serviços de apresentação e promoção de atuações artísticas, inclusive gestão de espaços destinados a apresentações de exposições de artes cênicas, espetáculos e demais produções de que trata o art. 139 desta Lei Complementar |
-| XI |  | NBS / NCM/SH |
-| XI | 1 | SERVIÇOS RELACIONADOS À SOBERANIA E À SEGURANÇA NACIONAL, À SEGURANÇA DA INFORMAÇÃO E À SEGURANÇA CIBERNÉTICA |
-| XI |  | Segurança em Tecnologia da Informação (TI) |
-| XI |  | Serviços de projeto e desenvolvimento de aplicativos e programas em Tecnologia da Informação (TI) não classificados em subposições anteriores |
-| XI |  | Serviços de Tecnologia da Informação (TI) não classificados em subposições anteriores |
-| XI |  | (VETADO) |
-| XI |  | (VETADO) |
-| XI |  | Serviço de localização de dispositivo perdido ou furtado, para proteção de informações pessoais |
-| XI |  | Serviço de bloqueio de dispositivo perdido ou furtado, para proteção de informações pessoais |
-| XI |  | pendente de classificação |
-| XI |  | pendente de classificação |
-| XI |  | Serviço de monitoramento de uso de dados pessoais e corporativos em redes do tipo onion |
-| XI |  | Serviço de conexão protegida e criptografada para dispositivos |
-| XI |  | Identificação e alerta de arquivos maliciosos ou alterações indevidas em dispositivos, que permitam o acesso a informações |
-| XI |  | Serviços de manutenção e reparação de veículos militares para uso pela segurança nacional |
-| XI |  | Serviços de manutenção e reparação de equipamentos militares para uso pela segurança nacional |
-| XI | 2 | BENS RELACIONADOS À SOBERANIA E À SEGURANÇA NACIONAL, À SEGURANÇA DA INFORMAÇÃO E À SEGURANÇA CIBERNÉTICA |
-| XI | 8709 | Viatura operacional militar e também suas partes e peças |
-| XI |  | Carro blindado e carro de combate, terrestre ou anfíbio, sobre lagartas ou rodas, com ou sem armamento e também suas partes e peças |
-| XI | 8709 | Outros veículos de qualquer tipo, para uso pelos órgãos de Segurança Pública e das Forças Armadas, com especificação própria dos Órgãos Militares e de Segurança Pública e também suas partes e peças |
-| XI |  | Simuladores de veículos militares |
-| XI | 8701 | Tratores de baixa ou de alta velocidades, para uso pelos órgãos de Segurança Pública e das Forças Armadas, sobre lagartas ou rodas, destinados às unidades de engenharia ou de artilharia, para obras ou para rebocar equipamentos pesados e também suas partes e peças |
-| XI |  | Radares para uso militar |
-| XI |  | Foguetes para uso militar |
-| XI |  | Explosivos de emprego militar |
-| XI |  | Optrônicos |
-| XI |  | Rações operacionais |
-| XI | 9306 | Minas marítimas |
-| XI |  | Cartuchos de munição naval e de artilharia e seus componentes (projétil, estojo, estopilha, espoleta, traçador, pólvora e alto-explosivo), de calibre igual ou superior a 40 mm de diâmetro interno de tubo da arma |
-| XI | 9306 | Bombas, torpedos, minas, mísseis, foguetes e seus componentes |
-| XI |  | Aeronaves, inclusive Veículo Aéreo Não Tripulado (VANT) para uso pela segurança nacional e também suas partes e peças |
-| XI |  | Veículos espaciais para uso pela segurança nacional |
-| XI |  | Paraquedas para uso pela segurança nacional |
-| XI |  | Aparelhos e dispositivos para lançamento e aterrissagem de veículos aéreos e espaciais para uso pela segurança nacional |
-| XI |  | Simuladores de voo e similares para uso pela segurança nacional |
-| XI | 8805 | Equipamentos de apoio no solo para uso pela segurança nacional |
-| XI |  | Equipamentos de auxílio à comunicação, navegação e controle de tráfego aéreo para uso pela segurança nacional |
-| XI |  | Embarcações construídas no País suas peças, partes e componentes utilizados no reparo, conserto e reconstrução de embarcações |
-| XI |  | Dispositivos destinados a prover a segurança da informação do tipo Prevenção de Intrusão (IPS) |
-| XI |  | Dispositivos destinados a prover a segurança da informação do tipo de Detecção de Intrusão (IDS) |
-| XI |  | Dispositivos de Autenticação (tokens, leitores biométricos) que garantam a segurança da informação/cibernética |
-| XI |  | Equipamentos para criptografia para a segurança da informação/cibernética |
-| XI |  | Firewalls para a segurança da informação/cibernética |
-| XI |  | Switches e roteadores seguros para a segurança da informação/cibernética |
-| XI |  | Dispositivos de comunicação criptografada para a segurança da informação/cibernética |
-| XI |  | Unidades de armazenamento criptografadas para a segurança da informação/cibernética |
-| XI |  | Servidores de armazenamento seguro para a segurança da informação/cibernética |
+> Esta seção listava 143 itens de serviço como pendentes de um de/para NBS <-> LC 116. A pendência
+> não existe mais: ela descrevia um desenho do motor que já foi substituído.
+>
+> - **A premissa caiu no `fiscal-020`.** Serviço era gravado em `regime_dif_ncm.nbs` e casado por
+>   prefixo contra o código LC 116 da requisição; esse changeset dropou a coluna. Hoje o regime do
+>   serviço vem do **cClassTrib declarado no documento** (`TabelaFiscal.regimeCClassTrib`), igual à
+>   NF-e — não é deduzido do cadastro, nem por NBS nem por LC 116.
+> - **Os quatro anexos já saem com a redução correta** por `fiscal.regime_cclasstrib` (`fiscal-019`):
+>   `200028` → `ANEXO_II_60` (educação), `200029` → `ANEXO_III_60` (saúde), `200039` → `ANEXO_X_60`
+>   (cultura), `200043`/`200044` → `ANEXO_XI_60` (segurança nacional). A redução é por anexo, não
+>   item a item — os 143 itens não precisam virar linha nenhuma.
+> - **O de/para pedido existe**: `fiscal.servico_nbs` (`fiscal-017`, `data/servico-nbs.csv`, 895
+>   linhas item LC 116 ↔ NBS do Anexo VIII) e `fiscal.servico_cclasstrib`, com validação em
+>   `TabelaFiscal.cClassTribAdmitido(itemLc116, cClassTrib)`.
+> - **O NBS nunca faltou na origem**: `spec/fiscal/ANEXOS.md` traz o código na 3ª coluna (linha 42,
+>   Ensino Infantil `1.2201.1`; linha 58, Serviços cirúrgicos `1.2301.11.00`; linha 417,
+>   Licenciamento de direitos de autor `1.1103`). A tabela desta seção saiu sem ele porque o
+>   `extrai-anexos-v2.ps1` só capturou as colunas Anexo/Item/Descrição.
+>
+> **Risco residual** (mesma classe da ressalva do `200045` acima): item cujo percentual difira do
+> cabeçalho do seu anexo sai com o percentual do cabeçalho — o cClassTrib declarado é o único
+> discriminador que o motor tem.
 
-## Sem referência a código NCM na descrição e sem coluna NCM/SH — 22 itens
+## Sem referência a código NCM na descrição e sem coluna NCM/SH — 4 itens
 
-> Resolvidos em 01/09/2026 (ver seção "✅ Resolvido" acima) e removidos desta lista: V (relógio
-> braille, calculadora falante), V (despertador vibratório), VI itens 26/27/29/81, IX itens
-> 2/5/6/11/14/15, XII item 1, XIII item 2.
+> **20 itens saíram daqui em 20 de setembro de 2026.** A coluna NCM/SH desses anexos foi recuperada
+> do texto oficial (o extrator a perdia nas células multi-linha) e cruzada contra
+> `data/regime-lc214-v2.csv`. Quase tudo já estava carregado:
+>
+> - **Falso positivo do extrator** — a linha era o **cabeçalho de grupo** dos subitens, não item
+>   próprio, e os subitens já estão na carga: Anexo V item 1 (`87089910`, `87082999`, `84289090`,
+>   `84253110`), item 2 (`66020000`, `90251990`, `85437099`, `90172000`, `84716090`, `84729099`,
+>   `84433222`, `84718000` + relógio/calculadora do `fiscal-039`) e item 3 (`85171`, `84716053` +
+>   despertador do `fiscal-039`) — todos `ANEXO_V_60`; Anexo XII item 1 (`90181100`, `90181980`,
+>   `ANEXO_XII_ZERO`); Anexo XIII item 2 (`87131000`, `87139000`, `ANEXO_XIII_ZERO`).
+> - **Carregados agora** (`fiscal-schema-016.yaml`): Anexo VI item 67 — metionina, `2930.40.10` e
+>   `2930.40.90` (`fiscal-050`); Anexo IX item 35 — vinhaça, `2303.20.00` e `2303.30.00`
+>   (`fiscal-051`).
+> - **São serviço, não produto**: Anexo IX itens 22 a 34 (e a linha solta que era só a célula NBS
+>   do item 24). A coluna traz **NBS** (`1.1410.90.00`, `1.1405.2x`, `1.1403.x`, `1.1901.10.00`,
+>   `1.110x`), não NCM — e regime de serviço vem do `cClassTrib` declarado, não de
+>   `regime_dif_ncm` (ver seção de 20/09 acima). Nada a carregar.
+> - Já haviam saído em 01/09/2026: V (relógio braille, calculadora falante, despertador
+>   vibratório), VI itens 26/27/29/81, IX itens 2/5/6/11/14/15.
+>
+> Os 4 que sobram **já têm o código** — o bloqueio é outro, na última coluna.
 
-| Anexo | Item | Descrição |
-|---|---|---|
-| V | 1 | ACESSÓRIOS E ADAPTAÇÕES ESPECIAIS PARA SEREM INSTALADOS EM VEÍCULOS AUTOMOTORES PERTENCENTES OU QUE FOREM DESTINADOS A PESSOAS COM DEFICIÊNCIA FÍSICA |
-| V | 2 | PRODUTOS DESTINADOS A USO DE PESSOA COM DEFICIÊNCIA VISUAL |
-| V | 3 | PRODUTOS DESTINADOS AO USO DE PESSOAS COM DEFICIÊNCIA AUDITIVA |
-| VI | 67 | 2930.40.10<br><br>2930.40.90 |
-| IX | 3 | Corretivos de solo (inclusive condicionadores), remineralizadores e substratos para plantas; em conformidade com as definições e demais requisitos da legislação específica |
-| IX | 7 | Calcário, casca de coco triturada, turfa; tortas, bagaços e demais resíduos e desperdícios vegetais das indústrias alimentares; cascas, serragens e demais resíduos e desperdícios de madeira; resíduos da indústria de celulose (dregs e grits), ossos, borra de carnaúba, cinzas, resíduos agroindustri... |
-| IX | 8 | 2503.00.10 <br> 2503.00.90 <br> 2510.10.10 <br> 2510.10.90 <br> 2510.20.10 <br> 2510.20.90 <br> 2802.00.00 <br> 2806.10.20 <br> 2807.00.10 <br> 2808.00.10 <br> 2809.20.11 <br> 2809.20.19 <br> 2811.19.20 <br> 2815.11.00 <br> 2815.12.00 <br> 2836.20.10 <br> 2836.20.90 <br> 2915.21.00 |
-| IX | 10 | Semente genética, semente básica, semente nativa in natura, semente certificada de primeira geração (C1), semente certificada de segunda geração (C2), semente não certificada de primeira geração (S1), semente não certificada de segunda geração (S2) e sementes de cultivar local, tradicional ou cri... |
-| IX | 22 | Serviços agronômicos |
-| IX | 23 | Serviços de técnico agrícola, agropecuário ou em agroecologia |
-| IX | 24 | 1.1405.21.00<br><br>1.1405.22.00 1.1405.90.00 |
-| IX | 25 | Serviços de zootecnistas |
-| IX | 26 | Serviços de inseminação e fertilização de animais de criação |
-| IX | 27 | Serviços de engenharia florestal |
-| IX | 28 | Serviços de pulverização e controle de pragas |
-| IX | 29 | Serviços de semeadura, adubação, inclusive mistura de adubos, reparação de solo, plantio e colheita |
-| IX | 30 | Serviços de projetos para irrigação e fertirrigação |
-| IX | 31 | Serviços de análise laboratorial de solos, sementes e outros materiais propagativos, fitossanitários, água de produção, bromatologia e sanidade animal |
-| IX | 32 | Licenciamento de direitos sobre cultivares |
-| IX | 33 | Cessão definitiva de direitos sobre cultivares |
-| IX | 34 | Melhoramento genético de animais e plantas e biotecnologia, inclusive seus royalties |
-| IX | 35 | 2303.30.00<br><br>2303.20.00 |
-| XII | 1 | Aparelhos de eletrodiagnóstico (incluídos os aparelhos de exploração funcional e os de verificação de parâmetros fisiológicos) |
-| XIII | 2 | CADEIRA DE RODAS E OUTROS VEÍCULOS PARA DEFICIENTES, MESMO COM MOTOR OU OUTRO MECANISMO DE PROPULSÃO |
+| Anexo | Item | Descrição | Por que continua pendente |
+|---|---|---|---|
+| IX | 3 | Corretivos de solo (inclusive condicionadores), remineralizadores e substratos para plantas; em conformidade com as definições e demais requisitos da legislação específica | Capítulo 25 inteiro — mistura corretivo agrícola com cimento/cal industrial. Largo demais |
+| IX | 7 | Calcário, casca de coco, turfa, tortas, bagaços, resíduos vegetais/de madeira/de celulose, ossos, cinzas, DL-metionina, vermiculita e afins — 29 códigos: `05.06`, `1201.10.00`, `1213.00.00`, `1301.90.90`, `1302.19.9`, `1401.90.00`, `1404.90.90`, `2102.20.00`, `23.02`, `23.03`, `2304.00`, `2305.00.00`, `23.06`, `2308.00.00`, `2703.00.00`, `2839.90.10`, `2839.90.50`, `2922.4`, `2930.40`, `33.01`, `3802.90.40`, `3804.00`, `3824.99.71`, `4401.39.00`, `4401.4`, `4402.90.00`, `4701.00.00`, `5305.00.90`, `6806.20.00` | **Destinação, não código**: só vale "destinados diretamente à fabricação de biofertilizantes/corretivos". Os mesmos `23.02`–`23.08` são os farelos do item 20 (pendente por uso). Carregar daria 60% a qualquer farelo/resíduo do país — erro **a favor** do contribuinte, que vira autuação no cliente |
+| IX | 8 | Ácido nítrico, sulfúrico, fosfórico, clorídrico, fosforoso e acético, fosfatos de cálcio naturais, enxofre, hidróxido de sódio e carbonato dissódico — `2503.00.10/90`, `2510.10.10/90`, `2510.20.10/90`, `2802.00.00`, `2806.10.20`, `2807.00.10`, `2808.00.10`, `2809.20.11/19`, `2811.19.20`, `2815.11.00`, `2815.12.00`, `2836.20.10/90`, `2915.21.00` | Mesma trava do item 7 ("todos destinados diretamente à fabricação de fertilizantes") — são químicos de uso industrial amplo. Dos 18 códigos só `2915.21.00` já está carregado, via Anexo VI, com os mesmos 60% |
+| IX | 10 | Semente genética, básica, nativa in natura, certificada (C1/C2), não certificada (S1/S2) e de cultivar local, tradicional ou crioula | Sem coluna NCM na fonte, e a distinção é por **categoria de registro da semente**, não por código |
 
 ## Redação exclui parte dos códigos citados (exceto/ressalvado) — decidir a lista à mão — 6 itens
 

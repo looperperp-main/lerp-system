@@ -1,0 +1,12 @@
+$(function () {
+	$("#frmBuscaGeral").on("show.bs.collapse", function() {
+		if ($("#menuPrincipal").hasClass("in")) {
+			$("#menuPrincipal").collapse('hide');
+		}                                
+	});
+	$("#menuPrincipal").on("show.bs.collapse", function() {
+		if ($("#frmBuscaGeral").hasClass("in")) {
+			$("#frmBuscaGeral").collapse('hide');
+		}                                
+	});  
+});

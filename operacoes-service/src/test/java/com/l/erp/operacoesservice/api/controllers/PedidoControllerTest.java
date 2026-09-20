@@ -1,6 +1,7 @@
 package com.l.erp.operacoesservice.api.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.l.erp.common.exception.custom.BusinessException;
 import com.l.erp.common.util.Constants;
 import com.l.erp.operacoesservice.api.dto.CancelarPedidoRequestDTO;
 import com.l.erp.operacoesservice.api.dto.ExpedirPedidoRequestDTO;
@@ -13,8 +14,6 @@ import com.l.erp.operacoesservice.domain.vendas.Pedido;
 import com.l.erp.operacoesservice.domain.vendas.PedidoItem;
 import com.l.erp.operacoesservice.domain.vendas.enumerators.ModalidadeFrete;
 import com.l.erp.operacoesservice.domain.vendas.enumerators.StatusPedido;
-import com.l.erp.operacoesservice.infra.client.CadastroServiceClient;
-import com.l.erp.operacoesservice.infra.client.FiscalServiceClient;
 import com.l.erp.operacoesservice.services.vendas.PedidoService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +22,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.hateoas.Link;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -53,10 +53,6 @@ class PedidoControllerTest {
 
     @MockitoBean
     private PedidoService service;
-    @MockitoBean
-    private CadastroServiceClient cadastroServiceClient;
-    @MockitoBean
-    private FiscalServiceClient fiscalServiceClient;
     @MockitoBean
     private PedidoMapper mapper;
     @MockitoBean
@@ -90,8 +86,6 @@ class PedidoControllerTest {
         when(mapper.toItemEntities(any())).thenReturn(List.of(
                 PedidoItem.builder().produtoId(UUID.randomUUID()).quantidade(BigDecimal.ONE)
                         .precoUnitario(BigDecimal.TEN).build()));
-        when(cadastroServiceClient.buscarProduto(any(), eq(TENANT_ID), eq(USER_ID)))
-                .thenReturn(new CadastroServiceClient.ProdutoRef("MERCADORIA", null, true, null, null, "Produto Teste"));
         when(service.criarOrcamento(any(), any(), eq(TENANT_ID), eq(USER_ID))).thenReturn(pedido(id));
         when(assembler.toDetailModel(any(), any(), any())).thenReturn(responseDto(id));
 
@@ -122,8 +116,6 @@ class PedidoControllerTest {
         when(mapper.toItemEntities(any())).thenReturn(List.of(
                 PedidoItem.builder().produtoId(UUID.randomUUID()).quantidade(BigDecimal.ONE)
                         .precoUnitario(BigDecimal.TEN).build()));
-        when(cadastroServiceClient.buscarProduto(any(), eq(TENANT_ID), eq(USER_ID)))
-                .thenReturn(new CadastroServiceClient.ProdutoRef("MERCADORIA", null, true, null, null, "Produto Teste"));
         when(service.atualizar(eq(id), eq(TENANT_ID), eq(USER_ID), any(), any())).thenReturn(pedido(id));
         when(assembler.toDetailModel(any(), any(), any())).thenReturn(responseDto(id));
 
@@ -133,23 +125,6 @@ class PedidoControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(requestDto())))
                 .andExpect(status().isOk());
-    }
-
-    @Test
-    @WithMockUser(authorities = "PEDIDO_ESCRITA")
-    void criarComProdutoInativoDeveRetornar400() throws Exception {
-        when(mapper.toItemEntities(any())).thenReturn(List.of(
-                PedidoItem.builder().produtoId(UUID.randomUUID()).quantidade(BigDecimal.ONE)
-                        .precoUnitario(BigDecimal.TEN).build()));
-        when(cadastroServiceClient.buscarProduto(any(), eq(TENANT_ID), eq(USER_ID)))
-                .thenReturn(new CadastroServiceClient.ProdutoRef("MERCADORIA", null, false, null, null, "Produto Inativo"));
-
-        mockMvc.perform(post("/api/v1/pedidos")
-                        .header(Constants.HEADER_TENANT_ID, TENANT_ID)
-                        .header(Constants.HEADER_USER_ID, USER_ID)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(requestDto())))
-                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -182,9 +157,7 @@ class PedidoControllerTest {
     @WithMockUser(authorities = "PEDIDO_CONFIRMACAO")
     void confirmarDeveRetornar200() throws Exception {
         UUID id = UUID.randomUUID();
-        when(service.buscarPorId(id, TENANT_ID)).thenReturn(pedido(id));
-        when(cadastroServiceClient.buscarLimiteCredito(CLIENTE_ID, TENANT_ID, USER_ID)).thenReturn(BigDecimal.TEN);
-        when(service.confirmar(eq(id), eq(TENANT_ID), eq(USER_ID), eq(false), any())).thenReturn(pedido(id));
+        when(service.confirmar(eq(id), eq(TENANT_ID), eq(USER_ID), eq(false))).thenReturn(pedido(id));
         when(assembler.toDetailModel(any(), any(), any())).thenReturn(responseDto(id));
 
         mockMvc.perform(post("/api/v1/pedidos/{id}/confirmar", id)
@@ -216,11 +189,9 @@ class PedidoControllerTest {
         UUID condicaoId = UUID.randomUUID();
         Pedido pedidoComCondicao = Pedido.builder().id(id).clienteId(CLIENTE_ID)
                 .status(StatusPedido.EXPEDIDO).condicaoPagamentoId(condicaoId).build();
-        when(service.buscarPorId(id, TENANT_ID)).thenReturn(pedidoComCondicao);
-        when(cadastroServiceClient.buscarParcelas(condicaoId, TENANT_ID, USER_ID)).thenReturn(List.of());
         when(service.listarItens(id)).thenReturn(List.of());
         when(service.listarHistorico(id)).thenReturn(List.of());
-        when(service.faturar(eq(id), eq(TENANT_ID), eq(USER_ID), any(), any()))
+        when(service.faturar(id, TENANT_ID, USER_ID))
                 .thenReturn(new PedidoService.FaturamentoResultado(pedidoComCondicao, List.of()));
         when(assembler.toFaturamentoModel(any(), any(), any())).thenReturn(responseDto(id));
 
@@ -234,7 +205,8 @@ class PedidoControllerTest {
     @WithMockUser(authorities = "PEDIDO_FATURAMENTO")
     void faturarSemCondicaoPagamentoDeveRetornar400() throws Exception {
         UUID id = UUID.randomUUID();
-        when(service.buscarPorId(id, TENANT_ID)).thenReturn(pedido(id));
+        when(service.faturar(id, TENANT_ID, USER_ID))
+                .thenThrow(new BusinessException(Constants.PEDIDO_CONDICAO_PAGAMENTO_OBRIGATORIA, HttpStatus.BAD_REQUEST));
 
         mockMvc.perform(post("/api/v1/pedidos/{id}/faturar", id)
                         .header(Constants.HEADER_TENANT_ID, TENANT_ID)

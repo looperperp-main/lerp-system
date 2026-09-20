@@ -1,0 +1,119 @@
+﻿
+.modal-header {
+    font-family: CerebriSans-Bold, -apple-system, system-ui, Roboto, sans-serif;
+    font-size: 27px;
+    display: flex;
+    justify-content: center;
+    box-shadow: rgba(0, 0, 0, 0.16) 1px 1px 2px, rgb(51, 51, 51) 0px 0px 2px 2px;
+    font-weight: 500;
+    margin-top: 2%;
+    margin-left: 3%;
+    margin-right: 3%;
+    border-radius: 5px;
+}
+
+.area-modal-form {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: rgba(0, 0, 0, 0.16) 1px 1px 2px, rgb(51, 51, 51) 0px 0px 2px 2px;
+    border-radius: 4px;
+    background-color: rgb(245, 242, 242);
+    margin-bottom: 2%;
+    padding: 2% 1%;
+}
+
+#tipo-de-sistema {
+    margin-top: 5px;
+    font-size: 20px;
+    font-family: CerebriSans-Bold, -apple-system, system-ui, Roboto, sans-serif;
+}
+
+.seletor-tipo {
+    border-radius: 10px;
+    padding: 5px;
+    outline:0;
+}
+
+.svgMapContainer {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    padding-bottom: 10px;
+    background-color: #f4f4f4;
+    margin-top: 1%;
+    color: white;
+    border-radius: 4px;
+    margin-top: 2%;
+    box-shadow: rgba(0, 0, 0, 0.16) 1px 1px 2px, rgb(51, 51, 51) 0px 0px 2px 2px;
+}
+
+path {
+    fill: #a6a6a6;
+    stroke: #fff;
+    stroke-width: 0.5px;
+}
+
+.tooltip-mapa {
+    pointer-events: none;
+    position: absolute;
+    font-size: 15px;
+    text-align: center;
+    background: #fff;
+    height: 10%;
+    padding: 10px 15px;
+    z-index: 5;
+    margin: 0 auto;
+    line-height: 30px;
+    color: #21669e;
+    border-radius: 5px;
+    transform: translate(-50%);
+    display: none;
+}
+
+.tooltip-mapa.active {
+    display: block;
+}
+
+.tooltip-mapa::after {
+    content: "";
+    position: absolute;
+    left: 0%;
+    top: 100%;
+    width: 0;
+    height: 0;
+    margin-left: -10px;
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-top: 10px solid transparent;
+}
+
+.qtd-tabela {
+    margin-top: 2%;    
+    color: black;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+    background-color: rgb(245, 242, 242);
+    padding: 2px 5px;
+    border-radius: 5px;
+    box-shadow: rgba(0, 0, 0, 0.16) 1px 1px 2px, rgb(51, 51, 51) 0px 0px 2px 2px;
+    
+}
+
+.table {
+    font-weight: 700;
+    letter-spacing: 0.25px;
+    text-align: left;
+    padding: 0 10px;
+}
+
+.titulo-tabela {
+    height: 56px;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.25px;
+    text-align: left;
+}

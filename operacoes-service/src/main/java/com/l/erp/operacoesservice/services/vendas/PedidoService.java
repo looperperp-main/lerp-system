@@ -11,6 +11,7 @@ import com.l.erp.operacoesservice.domain.vendas.enumerators.ModalidadeFrete;
 import com.l.erp.operacoesservice.domain.vendas.enumerators.StatusPedido;
 import com.l.erp.operacoesservice.domain.vendas.enumerators.TipoItemPedido;
 import com.l.erp.operacoesservice.infra.client.CadastroServiceClient;
+import com.l.erp.operacoesservice.infra.client.FiscalServiceClient;
 import com.l.erp.operacoesservice.repository.vendas.PedidoItemRepository;
 import com.l.erp.operacoesservice.repository.vendas.PedidoRepository;
 import com.l.erp.operacoesservice.repository.vendas.PedidoStatusHistoricoRepository;
@@ -39,9 +40,7 @@ import java.util.UUID;
  * <p>ponytail: item sem {@code precoUnitario} informado é resolvido via motor de preço
  * (spec/modulos/precos/motor-resolucao-preco.md, {@link CadastroServiceClient#resolverPreco}); a validação em lote de
  * referências no cadastro-service (§2: endpoint {@code /interno/referencias/validar} ainda não existe,
- * pendência registrada na Fase 0 do spec) continua pendente. Dados que viriam do cadastro-service por
- * HTTP (limite de crédito do cliente, parcelas da condição de pagamento) entram como parâmetro —
- * resolvidos pelo chamador (Fase 4/controller).</p>
+ * pendência registrada na Fase 0 do spec) continua pendente.</p>
  */
 @Service
 public class PedidoService {
@@ -64,6 +63,7 @@ public class PedidoService {
     private final PedidoNumeroService pedidoNumeroService;
     private final ApplicationEventPublisher eventPublisher;
     private final CadastroServiceClient cadastroServiceClient;
+    private final FiscalServiceClient fiscalServiceClient;
     private final EstoqueService estoqueService;
 
     public PedidoService(PedidoRepository pedidoRepository,
@@ -72,6 +72,7 @@ public class PedidoService {
                           PedidoNumeroService pedidoNumeroService,
                           ApplicationEventPublisher eventPublisher,
                           CadastroServiceClient cadastroServiceClient,
+                          FiscalServiceClient fiscalServiceClient,
                           EstoqueService estoqueService) {
         this.pedidoRepository = pedidoRepository;
         this.pedidoItemRepository = pedidoItemRepository;
@@ -79,6 +80,7 @@ public class PedidoService {
         this.pedidoNumeroService = pedidoNumeroService;
         this.eventPublisher = eventPublisher;
         this.cadastroServiceClient = cadastroServiceClient;
+        this.fiscalServiceClient = fiscalServiceClient;
         this.estoqueService = estoqueService;
     }
 
@@ -91,6 +93,7 @@ public class PedidoService {
         }
         aplicarCabecalhoPadrao(pedido);
 
+        resolverTiposDosItens(itens, tenantId, userId);
         validarItensSemDuplicidade(itens);
         Instant agora = Instant.now();
         for (PedidoItem item : itens) {
@@ -112,6 +115,21 @@ public class PedidoService {
 
         registrarHistorico(salvo, null, StatusPedido.ORCAMENTO, null, userId, agora);
         return salvo;
+    }
+
+    /**
+     * Resolve o tipo (mercadoria/serviço) de cada item junto ao cadastro-service e rejeita produto
+     * inativo — precisa acontecer antes da validação de item, que já espera tipoItem setado. Tipo
+     * nunca vem do request: é sempre resolvido aqui, fonte única de verdade (cadastro-service).
+     */
+    private void resolverTiposDosItens(List<PedidoItem> itens, Long tenantId, UUID userId) {
+        for (PedidoItem item : itens) {
+            CadastroServiceClient.ProdutoRef ref = cadastroServiceClient.buscarProduto(item.getProdutoId(), tenantId, userId);
+            if (Boolean.FALSE.equals(ref.ativo())) {
+                throw new BusinessException(String.format(Constants.PEDIDO_PRODUTO_INATIVO, ref.nome()), HttpStatus.BAD_REQUEST);
+            }
+            item.setTipoItem(TipoItemPedido.valueOf(ref.tipo()));
+        }
     }
 
     private void validarItensSemDuplicidade(List<PedidoItem> itens) {
@@ -194,8 +212,7 @@ public class PedidoService {
     // ---------------------------------------------------------------- transições de estado (§4)
 
     @Transactional
-    public Pedido confirmar(UUID pedidoId, Long tenantId, UUID userId, boolean temPermissaoSemLimite,
-                             BigDecimal limiteCredito) {
+    public Pedido confirmar(UUID pedidoId, Long tenantId, UUID userId, boolean temPermissaoSemLimite) {
         Pedido pedido = buscarPedido(pedidoId, tenantId);
         StatusPedido statusAtual = pedido.getStatus();
         if (statusAtual != StatusPedido.ORCAMENTO && statusAtual != StatusPedido.BLOQUEADO_CREDITO) {
@@ -212,7 +229,8 @@ public class PedidoService {
 
         // ponytail: exposição soma só pedidos locais (CONFIRMADO/EXPEDIDO ainda não faturados); o AR
         // do financeiro-service (§7) entra na soma quando esse serviço existir — hoje não existe no
-        // monorepo. limiteCredito vem por parâmetro (Cliente.limiteCredito, via API — Fase 4).
+        // monorepo.
+        BigDecimal limiteCredito = cadastroServiceClient.buscarLimiteCredito(pedido.getClienteId(), tenantId, userId);
         BigDecimal exposicaoLocal = pedidoRepository.somaValorTotalPorStatus(
                 tenantId, pedido.getClienteId(), STATUS_EXPOSICAO_CREDITO, pedido.getId());
         BigDecimal exposicao = pedido.getValorTotal().add(exposicaoLocal);
@@ -300,10 +318,11 @@ public class PedidoService {
     }
 
     @Transactional
-    public FaturamentoResultado faturar(UUID pedidoId, Long tenantId, UUID userId,
-                                         List<ParcelaDefinicao> parcelasDefinicao,
-                                         ResultadoFiscalAgregado fiscal) {
+    public FaturamentoResultado faturar(UUID pedidoId, Long tenantId, UUID userId) {
         Pedido pedido = buscarPedido(pedidoId, tenantId);
+        if (pedido.getCondicaoPagamentoId() == null) {
+            throw new BusinessException(Constants.PEDIDO_CONDICAO_PAGAMENTO_OBRIGATORIA, HttpStatus.BAD_REQUEST);
+        }
         // Pedido só-serviço fatura direto de CONFIRMADO (D3, spec/modulos/o2c-vendas/o2c-vendas.md) — não passa por
         // EXPEDIDO porque não existe estoque pra dar baixa. Pedido com mercadoria segue a tabela normal.
         boolean faturamentoDiretoDeServico = pedido.getStatus() == StatusPedido.CONFIRMADO && somenteServicos(pedido);
@@ -311,6 +330,8 @@ public class PedidoService {
             validarTransicao(pedido.getStatus(), StatusPedido.FATURADO);
         }
 
+        List<ParcelaDefinicao> parcelasDefinicao =
+                cadastroServiceClient.buscarParcelas(pedido.getCondicaoPagamentoId(), tenantId, userId);
         BigDecimal somaPercentuais = parcelasDefinicao.stream()
                 .map(ParcelaDefinicao::percentual)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -320,6 +341,10 @@ public class PedidoService {
                     HttpStatus.BAD_REQUEST);
         }
 
+        // D4: agregado de POST /fiscal/calcular por item (fiscal-service) — valorTotalNf é a base da
+        // nota fiscal (spec/modulos/o2c-vendas/o2c-vendas.md §8).
+        ResultadoFiscalAgregado fiscal = calcularFiscal(pedido, tenantId, userId);
+
         StatusPedido statusAnterior = pedido.getStatus();
         Instant agora = Instant.now();
         LocalDate dataFaturamento = LocalDate.now();
@@ -327,8 +352,6 @@ public class PedidoService {
         pedido.setDataFaturamento(agora);
         pedido.setUpdatedAt(agora);
         pedido.setLastUpdatedBy(userId);
-        // D4: agregado de POST /fiscal/calcular por item (fiscal-service), montado pelo controller
-        // antes de chamar faturar() — valorTotalNf é a base da nota fiscal (spec/modulos/o2c-vendas/o2c-vendas.md §8).
         BigDecimal valorTotalNf = pedido.getValorTotal()
                 .add(fiscal.valorIbs()).add(fiscal.valorCbs()).add(fiscal.valorIs()).add(fiscal.valorIss());
         pedido.setValorTotalNf(valorTotalNf);
@@ -345,6 +368,36 @@ public class PedidoService {
         List<PedidoItem> itens = pedidoItemRepository.findAllByPedidoId(pedido.getId());
         eventPublisher.publishEvent(new PedidoFaturadoEvent(pedido, itens, parcelas));
         return new FaturamentoResultado(pedido, parcelas);
+    }
+
+    /**
+     * D4: chama POST /fiscal/calcular (fiscal-service) por item do pedido e soma o resultado —
+     * dataCompetencia = hoje, já que o cálculo só acontece no momento do faturamento (§8). UF/IBGE de
+     * destino vêm do endereço fiscal do cliente; UF de origem vem do endereço fiscal do estabelecimento
+     * "próprio" do tenant (spec/estabelecimentos-filiais.md §6.1).
+     */
+    private ResultadoFiscalAgregado calcularFiscal(Pedido pedido, Long tenantId, UUID userId) {
+        LocalDate dataCompetencia = LocalDate.now();
+        UUID pessoaId = cadastroServiceClient.buscarClientePessoaId(pedido.getClienteId(), tenantId, userId);
+        CadastroServiceClient.EnderecoFiscalRef endereco = pessoaId != null
+                ? cadastroServiceClient.buscarEnderecoFiscal(pessoaId, tenantId, userId) : null;
+        UUID pessoaIdProprio = cadastroServiceClient.buscarPessoaIdEstabelecimentoProprio(tenantId, userId);
+        CadastroServiceClient.EnderecoFiscalRef enderecoOrigem = pessoaIdProprio != null
+                ? cadastroServiceClient.buscarEnderecoFiscal(pessoaIdProprio, tenantId, userId) : null;
+        String ufOrigem = enderecoOrigem != null ? enderecoOrigem.uf() : null;
+        BigDecimal ibs = BigDecimal.ZERO, cbs = BigDecimal.ZERO, is = BigDecimal.ZERO,
+                iss = BigDecimal.ZERO, retencoes = BigDecimal.ZERO;
+        for (PedidoItem item : pedidoItemRepository.findAllByPedidoId(pedido.getId())) {
+            CadastroServiceClient.ProdutoRef produto = cadastroServiceClient.buscarProduto(item.getProdutoId(), tenantId, userId);
+            FiscalServiceClient.ResultadoFiscalItem r =
+                    fiscalServiceClient.calcularItem(item, produto, dataCompetencia, tenantId, endereco, ufOrigem);
+            ibs = ibs.add(r.valorIbs());
+            cbs = cbs.add(r.valorCbs());
+            is = is.add(r.valorIs());
+            iss = iss.add(r.valorIss());
+            retencoes = retencoes.add(r.valorRetencoes());
+        }
+        return new ResultadoFiscalAgregado(ibs, cbs, is, iss, retencoes);
     }
 
     @Transactional
@@ -404,6 +457,7 @@ public class PedidoService {
         pedido.setObservacao(dados.getObservacao());
         aplicarCabecalhoPadrao(pedido);
 
+        resolverTiposDosItens(itens, tenantId, userId);
         validarItensSemDuplicidade(itens);
         Map<UUID, PedidoItem> existentesPorProduto = pedidoItemRepository.findAllByPedidoId(pedidoId).stream()
                 .collect(java.util.stream.Collectors.toMap(PedidoItem::getProdutoId, item -> item));
@@ -587,7 +641,7 @@ public class PedidoService {
     public record FaturamentoResultado(Pedido pedido, List<ParcelaFaturamento> parcelas) {
     }
 
-    /** Agregado das chamadas a POST /fiscal/calcular por item, montado pelo controller (D4, §8). */
+    /** Agregado das chamadas a POST /fiscal/calcular por item (D4, §8). */
     public record ResultadoFiscalAgregado(BigDecimal valorIbs, BigDecimal valorCbs, BigDecimal valorIs,
                                            BigDecimal valorIss, BigDecimal valorRetencoes) {
         public static ResultadoFiscalAgregado zero() {

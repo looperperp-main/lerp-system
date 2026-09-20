@@ -1,0 +1,64 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # Continuação da carga de regime por NCM — spec/fiscal/anexos-lc214-revisar.md, item 7.5.
+  #
+  # Leva de 20/09/2026: o backlog listava esses itens como "sem referência a código NCM na
+  # descrição" porque o extrator original perdeu a coluna NCM/SH das células multi-linha. A coluna
+  # foi recuperada do texto oficial dos anexos; com o código em mãos, o cruzamento contra
+  # data/regime-lc214-v2.csv mostrou que a maioria dos itens JÁ estava carregada (falso positivo do
+  # extrator, ver o doc). Sobraram só estes dois, que de fato faltavam.
+  #
+  # NÃO entram aqui (a falta de código nunca foi o bloqueio deles):
+  #   - Anexo IX itens 7 e 8: os NCM agora são conhecidos, mas a lei condiciona a redução à
+  #     DESTINAÇÃO ("todos destinados diretamente à fabricação de fertilizantes/biofertilizantes").
+  #     São códigos de química e resíduo de uso industrial amplo (ácido sulfúrico 2807.00.10,
+  #     soda 2815.11/12, farelos 23.02-23.08). Carregar daria 60% a qualquer ácido sulfúrico ou
+  #     farelo do país — erro A FAVOR do contribuinte, o que vira autuação no cliente. Sem campo de
+  #     destinação no cadastro de produto, continua indecidível.
+  #   - Anexo IX itens 22-34: são SERVIÇOS (a coluna traz NBS, não NCM). Regime de serviço vem do
+  #     cClassTrib declarado no documento, não de regime_dif_ncm — nada a carregar aqui.
+  # ──────────────────────────────────────────
+
+  # Anexo VI item 67 — Metionina. Vizinhos do mesmo anexo já carregados na leva original
+  # (29309039, 2922.4x), só o 2930.40 tinha ficado de fora.
+  - changeSet:
+      id: fiscal-050-seed-anexo-vi-metionina
+      author: vitor-fernandes
+      comment: Anexo VI item 67 — metionina (2930.40.10/90), faltante na carga original
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.regime_dif_ncm (ncm, descricao, regime, percentual_reducao, vigente_de) VALUES
+                ('29304010', 'Metionina - Anexo VI item 67', 'ANEXO_VI_60', 60, DATE '2027-01-01'),
+                ('29304090', 'Metionina - Anexo VI item 67', 'ANEXO_VI_60', 60, DATE '2027-01-01');
+      rollback:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              DELETE FROM fiscal.regime_dif_ncm WHERE ncm IN ('29304010','29304090');
+
+  # Anexo IX item 35 — Vinhaça. Códigos de 8 dígitos exatos, como o texto da lei cita: carregar o
+  # prefixo '2303' inteiro pegaria também os farelos do item 20, que continuam pendentes por USO
+  # ("exceto animais domésticos").
+  - changeSet:
+      id: fiscal-051-seed-anexo-ix-vinhaca
+      author: vitor-fernandes
+      comment: Anexo IX item 35 — vinhaça (2303.20.00/2303.30.00), faltante na carga original
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.regime_dif_ncm (ncm, descricao, regime, percentual_reducao, vigente_de) VALUES
+                ('23032000', 'Vinhaça (desperdícios da indústria do açúcar) - Anexo IX item 35', 'ANEXO_IX_60', 60, DATE '2027-01-01'),
+                ('23033000', 'Vinhaça (borras e desperdícios de destilaria) - Anexo IX item 35', 'ANEXO_IX_60', 60, DATE '2027-01-01');
+      rollback:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              DELETE FROM fiscal.regime_dif_ncm WHERE ncm IN ('23032000','23033000');

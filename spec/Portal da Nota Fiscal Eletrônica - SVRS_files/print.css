@@ -1,0 +1,86 @@
+/*apenas coluna principal é impressa, escondendo demais áreas*/
+#conterBarraBG,
+#cabecalho,
+.artigo__ferramentas,
+.box,
+.redes-sociais__lista-redes,
+.colunaLateral,
+.panel--matriz,
+.matriz-ui-video-player,
+.matriz-ui-pagedlist-filter,
+.rodape, .barra-estado, .banner-rotativo, .artigo__audio, .artigo__video
+{
+    display: none !important;
+    visibility: hidden;
+}
+.relacionados__locais {
+    display: block !important;
+    visibility: visible;
+}
+/*URLs exibidas apenas nos links do corpo de texto dos artigos*/
+.artigo__texto a[href]:after {
+    content: " (" attr(href) ")";
+}
+.artigo__texto .textmidia-image-carousel a[href]:after, .artigo__ilustracao a[href]:after, .artigo__ilustracao--esquerda a[href]:after, .artigo__ilustracao--direita a[href]:after {
+    content: "";
+}
+a[href]:after {
+    content: "";
+}
+a,
+a:visited {
+text-decoration: underline;
+}
+/*aplicando fonte serifada ao conteudo*/
+.breadcrumb{
+    border-top: 1px solid #858585;
+    border-bottom: 0;
+    font-size: 9pt;
+    margin: 1% 5% 0% 0% ;
+}
+/*cabeçalho  e rodape de impressao*/
+.cabecalhoImpressao {
+    display : block;  
+    visibility: visible; 
+}
+#printlogo{
+    margin: 3rem 0 0 1rem;
+    float: left;
+}
+#printlogo img{
+    width: 97px;
+    height: 85px;  
+}
+#printtitulo {
+    font-weight: 800;
+    font-size: 1.5rem;
+    margin: 4.5rem 0 0 2rem;
+    float: left;
+    width: 75%;
+}
+
+#printBrasao{
+    display:none;
+}
+.rodapeImpressao {
+    margin: 10% 5% 0% 5% ;
+    border-top: 1px solid #ccc;
+    display : block;
+    visibility: visible;
+    text-align: center;
+}
+.artigo__cabecalho
+{
+    font-size: 15pt;
+    text-align: left;
+    margin: 5% 10% 5% 5%;
+}
+.artigo__texto
+{
+    font-family: Cambria, "Times New Roman", "Courier New";
+    text-align: left;
+    font-size: 12pt;
+    margin: 5% 10% 5% 5%;
+    box-sizing: border-box;
+    text-align:justify;
+}

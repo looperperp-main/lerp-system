@@ -9,6 +9,7 @@ import com.l.erp.operacoesservice.domain.vendas.enumerators.ModalidadeFrete;
 import com.l.erp.operacoesservice.domain.vendas.enumerators.StatusPedido;
 import com.l.erp.operacoesservice.domain.vendas.enumerators.TipoItemPedido;
 import com.l.erp.operacoesservice.infra.client.CadastroServiceClient;
+import com.l.erp.operacoesservice.infra.client.FiscalServiceClient;
 import com.l.erp.operacoesservice.repository.vendas.PedidoItemRepository;
 import com.l.erp.operacoesservice.repository.vendas.PedidoRepository;
 import com.l.erp.operacoesservice.repository.vendas.PedidoStatusHistoricoRepository;
@@ -54,6 +55,8 @@ class PedidoServiceTest {
     @Mock
     private CadastroServiceClient cadastroServiceClient;
     @Mock
+    private FiscalServiceClient fiscalServiceClient;
+    @Mock
     private EstoqueService estoqueService;
 
     @InjectMocks
@@ -70,6 +73,12 @@ class PedidoServiceTest {
                 .quantidade(quantidade)
                 .precoUnitario(precoUnitario)
                 .build();
+    }
+
+    /** resolverTiposDosItens (chamado por criarOrcamento/atualizar) sempre busca o tipo no cadastro-service. */
+    private void stubTipoMercadoria(UUID produtoId) {
+        when(cadastroServiceClient.buscarProduto(produtoId, TENANT_ID, USER_ID))
+                .thenReturn(new CadastroServiceClient.ProdutoRef("MERCADORIA", null, true, null, null, "Produto Teste"));
     }
 
     /**
@@ -112,6 +121,7 @@ class PedidoServiceTest {
         UUID tabelaPrecoId = UUID.randomUUID();
         PedidoItem semPreco = PedidoItem.builder().produtoId(UUID.randomUUID())
                 .tipoItem(TipoItemPedido.MERCADORIA).quantidade(new BigDecimal("2")).build();
+        stubTipoMercadoria(semPreco.getProdutoId());
         when(cadastroServiceClient.resolverPreco(semPreco.getProdutoId(), CLIENTE_ID, TENANT_ID, USER_ID))
                 .thenReturn(new CadastroServiceClient.PrecoResolvidoRef(tabelaPrecoId, "CLIENTE", new BigDecimal("15.00")));
         when(pedidoNumeroService.proximoNumero(TENANT_ID)).thenReturn(1L);
@@ -136,6 +146,7 @@ class PedidoServiceTest {
                 .precoUnitario(BigDecimal.TEN).build();
         PedidoItem item2 = PedidoItem.builder().produtoId(produtoId).quantidade(BigDecimal.ONE)
                 .precoUnitario(BigDecimal.TEN).build();
+        stubTipoMercadoria(produtoId);
 
         assertThatThrownBy(() -> pedidoService.criarOrcamento(
                 Pedido.builder().clienteId(CLIENTE_ID).build(), List.of(item1, item2), TENANT_ID, USER_ID))
@@ -146,6 +157,7 @@ class PedidoServiceTest {
     void deveAceitarPrecoManualECalcularTotais() {
         PedidoItem item = item(new BigDecimal("2"), new BigDecimal("10.00"));
         Pedido pedido = Pedido.builder().clienteId(CLIENTE_ID).build();
+        stubTipoMercadoria(item.getProdutoId());
         when(pedidoNumeroService.proximoNumero(TENANT_ID)).thenReturn(1L);
         when(pedidoRepository.save(any(Pedido.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -176,7 +188,7 @@ class PedidoServiceTest {
         pedido.setStatus(StatusPedido.FATURADO);
         when(pedidoRepository.findByIdAndTenantId(pedido.getId(), TENANT_ID)).thenReturn(Optional.of(pedido));
 
-        assertThatThrownBy(() -> pedidoService.confirmar(pedido.getId(), TENANT_ID, USER_ID, false, null))
+        assertThatThrownBy(() -> pedidoService.confirmar(pedido.getId(), TENANT_ID, USER_ID, false))
                 .isInstanceOf(BusinessException.class);
     }
 
@@ -184,10 +196,11 @@ class PedidoServiceTest {
     void deveConfirmarSemLimiteDefinido() {
         Pedido pedido = pedidoParaConfirmar(new BigDecimal("100.00"));
         when(pedidoRepository.findByIdAndTenantId(pedido.getId(), TENANT_ID)).thenReturn(Optional.of(pedido));
+        when(cadastroServiceClient.buscarLimiteCredito(CLIENTE_ID, TENANT_ID, USER_ID)).thenReturn(null);
         when(pedidoRepository.somaValorTotalPorStatus(eq(TENANT_ID), eq(CLIENTE_ID), anyCollection(), eq(pedido.getId())))
                 .thenReturn(BigDecimal.ZERO);
 
-        Pedido resultado = pedidoService.confirmar(pedido.getId(), TENANT_ID, USER_ID, false, null);
+        Pedido resultado = pedidoService.confirmar(pedido.getId(), TENANT_ID, USER_ID, false);
 
         assertThat(resultado.getStatus()).isEqualTo(StatusPedido.CONFIRMADO);
     }
@@ -196,10 +209,11 @@ class PedidoServiceTest {
     void deveConfirmarDentroDoLimite() {
         Pedido pedido = pedidoParaConfirmar(new BigDecimal("100.00"));
         when(pedidoRepository.findByIdAndTenantId(pedido.getId(), TENANT_ID)).thenReturn(Optional.of(pedido));
+        when(cadastroServiceClient.buscarLimiteCredito(CLIENTE_ID, TENANT_ID, USER_ID)).thenReturn(new BigDecimal("500.00"));
         when(pedidoRepository.somaValorTotalPorStatus(eq(TENANT_ID), eq(CLIENTE_ID), anyCollection(), eq(pedido.getId())))
                 .thenReturn(BigDecimal.ZERO);
 
-        Pedido resultado = pedidoService.confirmar(pedido.getId(), TENANT_ID, USER_ID, false, new BigDecimal("500.00"));
+        Pedido resultado = pedidoService.confirmar(pedido.getId(), TENANT_ID, USER_ID, false);
 
         assertThat(resultado.getStatus()).isEqualTo(StatusPedido.CONFIRMADO);
     }
@@ -208,10 +222,11 @@ class PedidoServiceTest {
     void deveBloquearPorCreditoQuandoEstouraLimiteSemPermissaoDeBypass() {
         Pedido pedido = pedidoParaConfirmar(new BigDecimal("600.00"));
         when(pedidoRepository.findByIdAndTenantId(pedido.getId(), TENANT_ID)).thenReturn(Optional.of(pedido));
+        when(cadastroServiceClient.buscarLimiteCredito(CLIENTE_ID, TENANT_ID, USER_ID)).thenReturn(new BigDecimal("500.00"));
         when(pedidoRepository.somaValorTotalPorStatus(eq(TENANT_ID), eq(CLIENTE_ID), anyCollection(), eq(pedido.getId())))
                 .thenReturn(BigDecimal.ZERO);
 
-        Pedido resultado = pedidoService.confirmar(pedido.getId(), TENANT_ID, USER_ID, false, new BigDecimal("500.00"));
+        Pedido resultado = pedidoService.confirmar(pedido.getId(), TENANT_ID, USER_ID, false);
 
         assertThat(resultado.getStatus()).isEqualTo(StatusPedido.BLOQUEADO_CREDITO);
     }
@@ -220,10 +235,11 @@ class PedidoServiceTest {
     void deveConfirmarComBypassMesmoEstourandoLimite() {
         Pedido pedido = pedidoParaConfirmar(new BigDecimal("600.00"));
         when(pedidoRepository.findByIdAndTenantId(pedido.getId(), TENANT_ID)).thenReturn(Optional.of(pedido));
+        when(cadastroServiceClient.buscarLimiteCredito(CLIENTE_ID, TENANT_ID, USER_ID)).thenReturn(new BigDecimal("500.00"));
         when(pedidoRepository.somaValorTotalPorStatus(eq(TENANT_ID), eq(CLIENTE_ID), anyCollection(), eq(pedido.getId())))
                 .thenReturn(BigDecimal.ZERO);
 
-        Pedido resultado = pedidoService.confirmar(pedido.getId(), TENANT_ID, USER_ID, true, new BigDecimal("500.00"));
+        Pedido resultado = pedidoService.confirmar(pedido.getId(), TENANT_ID, USER_ID, true);
 
         assertThat(resultado.getStatus()).isEqualTo(StatusPedido.CONFIRMADO);
     }
@@ -233,10 +249,11 @@ class PedidoServiceTest {
         // pedido novo de 100 + 450 já expostos em outros pedidos do cliente = 550 > limite 500 → bloqueia
         Pedido pedido = pedidoParaConfirmar(new BigDecimal("100.00"));
         when(pedidoRepository.findByIdAndTenantId(pedido.getId(), TENANT_ID)).thenReturn(Optional.of(pedido));
+        when(cadastroServiceClient.buscarLimiteCredito(CLIENTE_ID, TENANT_ID, USER_ID)).thenReturn(new BigDecimal("500.00"));
         when(pedidoRepository.somaValorTotalPorStatus(eq(TENANT_ID), eq(CLIENTE_ID), anyCollection(), eq(pedido.getId())))
                 .thenReturn(new BigDecimal("450.00"));
 
-        Pedido resultado = pedidoService.confirmar(pedido.getId(), TENANT_ID, USER_ID, false, new BigDecimal("500.00"));
+        Pedido resultado = pedidoService.confirmar(pedido.getId(), TENANT_ID, USER_ID, false);
 
         assertThat(resultado.getStatus()).isEqualTo(StatusPedido.BLOQUEADO_CREDITO);
     }
@@ -428,29 +445,32 @@ class PedidoServiceTest {
     @Test
     void deveLancarSePercentualDasParcelasNaoSoma100() {
         Pedido pedido = pedidoComTenant(Pedido.builder().id(UUID.randomUUID())
-                .status(StatusPedido.EXPEDIDO).valorTotal(new BigDecimal("100.00")).build());
+                .status(StatusPedido.EXPEDIDO).condicaoPagamentoId(UUID.randomUUID())
+                .valorTotal(new BigDecimal("100.00")).build());
         when(pedidoRepository.findByIdAndTenantId(pedido.getId(), TENANT_ID)).thenReturn(Optional.of(pedido));
         List<PedidoService.ParcelaDefinicao> parcelas = List.of(
                 new PedidoService.ParcelaDefinicao(1, 0, new BigDecimal("50"), "BOLETO"));
+        when(cadastroServiceClient.buscarParcelas(pedido.getCondicaoPagamentoId(), TENANT_ID, USER_ID))
+                .thenReturn(parcelas);
 
-        assertThatThrownBy(() -> pedidoService.faturar(pedido.getId(), TENANT_ID, USER_ID, parcelas,
-                PedidoService.ResultadoFiscalAgregado.zero()))
+        assertThatThrownBy(() -> pedidoService.faturar(pedido.getId(), TENANT_ID, USER_ID))
                 .isInstanceOf(BusinessException.class);
     }
 
     @Test
     void deveFaturarERetornarParcelasComSomaExata() {
         Pedido pedido = pedidoComTenant(Pedido.builder().id(UUID.randomUUID())
-                .status(StatusPedido.EXPEDIDO).valorTotal(new BigDecimal("100.00")).build());
+                .status(StatusPedido.EXPEDIDO).condicaoPagamentoId(UUID.randomUUID())
+                .valorTotal(new BigDecimal("100.00")).build());
         when(pedidoRepository.findByIdAndTenantId(pedido.getId(), TENANT_ID)).thenReturn(Optional.of(pedido));
         List<PedidoService.ParcelaDefinicao> definicoes = List.of(
                 new PedidoService.ParcelaDefinicao(1, 30, new BigDecimal("33.33"), "BOLETO"),
                 new PedidoService.ParcelaDefinicao(2, 60, new BigDecimal("33.33"), "BOLETO"),
                 new PedidoService.ParcelaDefinicao(3, 90, new BigDecimal("33.34"), "BOLETO"));
+        when(cadastroServiceClient.buscarParcelas(pedido.getCondicaoPagamentoId(), TENANT_ID, USER_ID))
+                .thenReturn(definicoes);
 
-        PedidoService.FaturamentoResultado resultado =
-                pedidoService.faturar(pedido.getId(), TENANT_ID, USER_ID, definicoes,
-                        PedidoService.ResultadoFiscalAgregado.zero());
+        PedidoService.FaturamentoResultado resultado = pedidoService.faturar(pedido.getId(), TENANT_ID, USER_ID);
 
         assertThat(resultado.pedido().getStatus()).isEqualTo(StatusPedido.FATURADO);
         BigDecimal soma = resultado.parcelas().stream().map(PedidoService.ParcelaFaturamento::valor)
@@ -480,18 +500,22 @@ class PedidoServiceTest {
     @Test
     void deveFaturarDiretoQuandoPedidoSoServicoEstaConfirmado() {
         Pedido pedido = pedidoComTenant(Pedido.builder().id(UUID.randomUUID())
-                .status(StatusPedido.CONFIRMADO).valorTotal(new BigDecimal("100.00")).build());
+                .status(StatusPedido.CONFIRMADO).condicaoPagamentoId(UUID.randomUUID())
+                .valorTotal(new BigDecimal("100.00")).build());
         when(pedidoRepository.findByIdAndTenantId(pedido.getId(), TENANT_ID)).thenReturn(Optional.of(pedido));
         PedidoItem itemServico = PedidoItem.builder().produtoId(UUID.randomUUID())
                 .tipoItem(TipoItemPedido.SERVICO).quantidade(BigDecimal.ONE).precoUnitario(new BigDecimal("100.00"))
                 .build();
         when(pedidoItemRepository.findAllByPedidoId(pedido.getId())).thenReturn(List.of(itemServico));
+        when(fiscalServiceClient.calcularItem(any(), any(), any(), eq(TENANT_ID), any(), any()))
+                .thenReturn(new FiscalServiceClient.ResultadoFiscalItem(BigDecimal.ZERO, BigDecimal.ZERO,
+                        BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO));
         List<PedidoService.ParcelaDefinicao> parcelas = List.of(
                 new PedidoService.ParcelaDefinicao(1, 0, new BigDecimal("100"), "BOLETO"));
+        when(cadastroServiceClient.buscarParcelas(pedido.getCondicaoPagamentoId(), TENANT_ID, USER_ID))
+                .thenReturn(parcelas);
 
-        PedidoService.FaturamentoResultado resultado =
-                pedidoService.faturar(pedido.getId(), TENANT_ID, USER_ID, parcelas,
-                        PedidoService.ResultadoFiscalAgregado.zero());
+        PedidoService.FaturamentoResultado resultado = pedidoService.faturar(pedido.getId(), TENANT_ID, USER_ID);
 
         assertThat(resultado.pedido().getStatus()).isEqualTo(StatusPedido.FATURADO);
     }
@@ -514,30 +538,30 @@ class PedidoServiceTest {
     @Test
     void deveLancarAoFaturarPedidoMistoDeConfirmado() {
         Pedido pedido = pedidoComTenant(Pedido.builder().id(UUID.randomUUID())
-                .status(StatusPedido.CONFIRMADO).valorTotal(new BigDecimal("100.00")).build());
+                .status(StatusPedido.CONFIRMADO).condicaoPagamentoId(UUID.randomUUID())
+                .valorTotal(new BigDecimal("100.00")).build());
         when(pedidoRepository.findByIdAndTenantId(pedido.getId(), TENANT_ID)).thenReturn(Optional.of(pedido));
         PedidoItem itemMercadoria = item(BigDecimal.ONE, BigDecimal.TEN);
         PedidoItem itemServico = PedidoItem.builder().produtoId(UUID.randomUUID())
                 .tipoItem(TipoItemPedido.SERVICO).quantidade(BigDecimal.ONE).precoUnitario(BigDecimal.TEN).build();
         when(pedidoItemRepository.findAllByPedidoId(pedido.getId()))
                 .thenReturn(List.of(itemMercadoria, itemServico));
-        List<PedidoService.ParcelaDefinicao> parcelas = List.of(
-                new PedidoService.ParcelaDefinicao(1, 0, new BigDecimal("100"), "BOLETO"));
 
-        assertThatThrownBy(() -> pedidoService.faturar(pedido.getId(), TENANT_ID, USER_ID, parcelas,
-                PedidoService.ResultadoFiscalAgregado.zero()))
+        assertThatThrownBy(() -> pedidoService.faturar(pedido.getId(), TENANT_ID, USER_ID))
                 .isInstanceOf(BusinessException.class);
     }
 
     @Test
-    void deveLancarAoCriarOrcamentoComItemSemTipo() {
-        PedidoItem semTipo = PedidoItem.builder().produtoId(UUID.randomUUID())
+    void deveLancarAoCriarOrcamentoComProdutoInativo() {
+        PedidoItem item = PedidoItem.builder().produtoId(UUID.randomUUID())
                 .quantidade(BigDecimal.ONE).precoUnitario(BigDecimal.TEN).build();
+        when(cadastroServiceClient.buscarProduto(item.getProdutoId(), TENANT_ID, USER_ID))
+                .thenReturn(new CadastroServiceClient.ProdutoRef("MERCADORIA", null, false, null, null, "Produto Desativado"));
 
         assertThatThrownBy(() -> pedidoService.criarOrcamento(
-                Pedido.builder().clienteId(CLIENTE_ID).build(), List.of(semTipo), TENANT_ID, USER_ID))
+                Pedido.builder().clienteId(CLIENTE_ID).build(), List.of(item), TENANT_ID, USER_ID))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("Tipo do item");
+                .hasMessageContaining("Produto Desativado");
     }
 
     // ---------------------------------------------------------------- atualizar / recalcularPrecos (Fase 4, §5/§10)
@@ -576,6 +600,7 @@ class PedidoServiceTest {
 
         Pedido dados = Pedido.builder().clienteId(CLIENTE_ID).build();
         PedidoItem novoItem = item(new BigDecimal("3"), new BigDecimal("15.00"));
+        stubTipoMercadoria(novoItem.getProdutoId());
 
         Pedido resultado = pedidoService.atualizar(pedido.getId(), TENANT_ID, USER_ID, dados, List.of(novoItem));
 
@@ -597,6 +622,7 @@ class PedidoServiceTest {
         UUID novaTabelaId = UUID.randomUUID();
         when(cadastroServiceClient.resolverPreco(produtoId, CLIENTE_ID, TENANT_ID, USER_ID))
                 .thenReturn(new CadastroServiceClient.PrecoResolvidoRef(novaTabelaId, "PADRAO", new BigDecimal("9.00")));
+        stubTipoMercadoria(produtoId);
 
         Pedido dados = Pedido.builder().clienteId(CLIENTE_ID).build();
         PedidoItem itemReenviado = PedidoItem.builder().produtoId(produtoId)

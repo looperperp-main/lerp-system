@@ -2,10 +2,10 @@
 
 **Status:** Draft técnico
 **Autor:** Vitor
-**Última atualização:** 5 de agosto de 2026
+**Última atualização:** 20 de setembro de 2026
 **Documento relacionado:** `migracao-dados-syax.md`
 **Serviço:** `migracao-service` (mesmo serviço do doc de import — novo, fora do MVP inicial). Registra no Eureka e fica atrás do gateway — reusa validação de JWT e resolução de tenant (`SecurityUtils`) dos demais serviços, não reimplementa auth do zero.
-**Infra alvo:** VPS própria (Hostgator ou similar) — sem dependência de bucket/object storage; deploy provavelmente segue o mesmo pipeline Docker/Jenkins dos demais serviços (ver CLAUDE.md), não systemd standalone — a decisão de disco local (vs. S3) continua valendo, só muda para volume montado no container
+**Infra alvo:** OCI (Oracle Cloud Infrastructure) — mesma instância Compute dos demais serviços do monorepo, sem dependência de bucket/object storage; deploy segue o mesmo pipeline Docker/Jenkins dos demais serviços (ver CLAUDE.md), não systemd standalone — a decisão de disco local (vs. OCI Object Storage) continua valendo, só muda para volume montado no container
 
 ---
 
@@ -31,14 +31,14 @@ flowchart TD
     A[Cliente solicita export] --> B[Seleciona entidades e período]
     B --> C[Job assíncrono de extração]
     C --> D[Gera arquivo por entidade - mesmo schema do template de import]
-    D --> E[Grava em disco local da VPS - /var/syax/exports/tenant_id/batch_id/]
+    D --> E[Grava em disco local da instância OCI - /var/syax/exports/tenant_id/batch_id/]
     E --> F[Cliente recebe token de download self-service]
     F --> G{Cliente confirma recebimento?}
     G -->|Não faz nada| H[Arquivo expira em 7 dias - job de limpeza local]
     G -->|Baixa| I[Log de export registrado para auditoria]
 ```
 
-**Decisão de infra:** armazenamento é disco local da própria VPS, não object storage (S3/GCS). Numa VPS single-node com acesso root, isso elimina uma dependência externa inteira sem perder nenhuma capacidade — o "link temporário" vira um token validado pelo próprio backend, e o "lifecycle policy do bucket" vira um `@Scheduled` job. Ver seção 12 para detalhes de infra e o cenário em que valeria migrar para S3.
+**Decisão de infra:** armazenamento é disco local da própria instância OCI, não object storage (OCI Object Storage/S3/GCS). Numa instância Compute single-node com acesso root, isso elimina uma dependência externa inteira sem perder nenhuma capacidade — o "link temporário" vira um token validado pelo próprio backend, e o "lifecycle policy do bucket" vira um `@Scheduled` job. Ver seção 12 para detalhes de infra e o cenário em que valeria migrar para OCI Object Storage.
 
 **"Job assíncrono" e "fila assíncrona" no fluxograma acima são `@Async` do Spring, não um broker externo** — mesmo modelo do import (`migracao-dados-syax.md`, seção 3.2), pelo mesmo motivo: extração roda dentro do próprio `migracao-service`, sem consumidor externo do evento. `Q` no diagrama é o `TaskExecutor` interno do serviço, não uma fila de mensageria.
 
@@ -88,7 +88,7 @@ CREATE TABLE export_audit_log (
 
 ### 5.2 Expiração, período default e dedupe
 
-- **Expiração:** `expires_at = ready_at + 7 dias`, configurável via `syax.export.retention-days` (default 7). Sete dias é o mesmo valor do lifecycle do bucket na alternativa S3 (seção 12.2) — manter os dois iguais evita que a política mude de significado se um dia migrar de disco local para S3.
+- **Expiração:** `expires_at = ready_at + 7 dias`, configurável via `syax.export.retention-days` (default 7). Sete dias é o mesmo valor do lifecycle do bucket na alternativa OCI Object Storage (seção 12.2) — manter os dois iguais evita que a política mude de significado se um dia migrar de disco local para object storage.
 - **Período default:** `date_from`/`date_to` omitidos no `scope` significam **todo o histórico do tenant**. Export de dado bruto tem que ser completo por default; obrigar o cliente a adivinhar um período para não receber dado parcial é o tipo de pegadinha que a seção 2 rejeita.
 - **Dedupe:** antes de criar um novo batch, `POST /exports` procura por `(tenant_id, scope_hash, status=READY, expires_at > now())`. Se existe, retorna o batch existente em vez de gerar de novo. `scope_hash` é o SHA-256 do `scope` normalizado (entidades ordenadas, datas resolvidas para o default). Evita que um duplo clique ou um cliente ansioso gere N cópias idênticas do mesmo dump ocupando disco.
 
@@ -120,7 +120,7 @@ stateDiagram-v2
     EXPIRED --> [*]
 ```
 
-**Teto de retentativa:** cada transição `FAILED --> REQUESTED` incrementa `attempt_count`. Ao chegar em 3, o batch para em `FAILED` definitivo e dispara alerta interno — o cliente vê "falha ao gerar, já avisamos o time" em vez de um spinner que nunca resolve. Retry automático sem teto contra um erro determinístico (dado corrompido, disco cheio) roda para sempre e consome a VPS inteira.
+**Teto de retentativa:** cada transição `FAILED --> REQUESTED` incrementa `attempt_count`. Ao chegar em 3, o batch para em `FAILED` definitivo e dispara alerta interno — o cliente vê "falha ao gerar, já avisamos o time" em vez de um spinner que nunca resolve. Retry automático sem teto contra um erro determinístico (dado corrompido, disco cheio) roda para sempre e consome a instância inteira.
 
 **Retenção depois do download:** `DOWNLOADED` também expira. O arquivo é apagado pelo mesmo job de limpeza (seção 12.1) — sem isso, todo export já baixado ficaria em disco para sempre.
 
@@ -140,7 +140,7 @@ sequenceDiagram
     participant UI as SYAX UI
     participant API as Export Service
     participant Q as Fila assíncrona
-    participant D as Disco local (VPS)
+    participant D as Disco local (OCI)
 
     participant L as export_audit_log
 
@@ -246,9 +246,9 @@ Acompanhar `reason=CANCELLATION` em `export_batch` ao longo do tempo como proxy 
 
 ## 12. Infraestrutura — disco local vs. object storage
 
-### 12.1 Decisão para o MVP: disco local na VPS
+### 12.1 Decisão para o MVP: disco local na instância OCI
 
-Numa VPS single-node com acesso root (ex: Hostgator VPS 16GB/400GB), armazenar os arquivos de export no próprio filesystem elimina a dependência de S3/GCS sem perder funcionalidade — bucket só se justifica quando a aplicação escala para múltiplas instâncias sem disco compartilhado, o que não é o cenário do MVP.
+Numa instância Compute OCI single-node com acesso root (ex: `VM.Standard.A1.Flex`, Ampere ARM64 — camada Always Free cobre até 4 OCPU/24GB RAM/200GB block storage; shape paga equivalente se o Always Free não bastar), armazenar os arquivos de export no próprio filesystem elimina a dependência de object storage sem perder funcionalidade — bucket só se justifica quando a aplicação escala para múltiplas instâncias sem disco compartilhado, o que não é o cenário do MVP.
 
 **Estrutura de diretórios**, isolada por usuário de serviço dedicado (não rodar a JVM como root):
 
@@ -301,6 +301,8 @@ server {
     }
 }
 ```
+
+Diferente de uma VPS tradicional, na OCI as portas 80/443 também precisam estar liberadas na Security List (ou Network Security Group) da VCN da instância, além do `iptables`/`firewalld` local — esquecer essa regra é a causa mais comum de "nginx no ar mas ninguém acessa de fora" em Compute OCI.
 
 **Limpeza de arquivos expirados** — job Spring, mantém a lógica junto do código em vez de espalhada em cron externo. Filtra por `expires_at` com status em `{READY, DOWNLOADED, FAILED}`: batch baixado também precisa ser limpo (senão o arquivo fica em disco para sempre), e batch que falhou pode ter deixado arquivos parciais.
 
@@ -359,20 +361,20 @@ find "$DEST" -name 'syax_*.sql.gz' -mtime +30 -delete   # rotação: mantém 30 
 0 2 * * * postgres /usr/local/bin/pg-backup.sh
 ```
 
-Os dois detalhes não são preciosismo: sem `pipefail`, o exit code do pipe é o do `gzip`, então um `pg_dump` que morre no meio produz um `.gz` truncado marcado como sucesso — o backup só se revela inútil no dia do restore. E sem rotação, o diretório de backup cresce até encher o disco, que na VPS single-node derruba a aplicação inteira (o mesmo risco da seção de monitoramento acima).
+Os dois detalhes não são preciosismo: sem `pipefail`, o exit code do pipe é o do `gzip`, então um `pg_dump` que morre no meio produz um `.gz` truncado marcado como sucesso — o backup só se revela inútil no dia do restore. E sem rotação, o diretório de backup cresce até encher o disco, que na instância single-node derruba a aplicação inteira (o mesmo risco da seção de monitoramento acima).
 
-Mandar essa cópia para fora da VPS (ex: `rclone`/`restic` para um storage barato só de disaster recovery) é o único ponto onde vale ter algo "fora da VPS" — não é infra de produto, é seguro contra perda total da máquina.
+Mandar essa cópia para fora da instância (ex: `rclone`/`restic` para o OCI Object Storage — a camada Always Free já inclui 10GB, suficiente pra esse uso — ou outro storage barato só de disaster recovery) é o único ponto onde vale ter algo "fora da instância" — não é infra de produto, é seguro contra perda total da máquina.
 
-### 12.2 Alternativa: S3 standalone (sem precisar de EC2/RDS/resto da AWS)
+### 12.2 Alternativa: OCI Object Storage standalone
 
-S3 pode ser contratado isoladamente — não exige o resto do ecossistema AWS. Vale considerar se, no futuro, a aplicação escalar para múltiplas instâncias sem disco compartilhado, ou se quiser tirar do código a responsabilidade de lifecycle/backup.
+Object Storage pode ser contratado isoladamente dentro do mesmo tenancy OCI — não exige mudar a topologia dos demais serviços. Vale considerar se, no futuro, a aplicação escalar para múltiplas instâncias sem disco compartilhado, ou se quiser tirar do código a responsabilidade de lifecycle/backup.
 
-- **Custo:** ~$0.023/GB/mês de storage + ~$0.09/GB de egress no download — para volume de export de ERP (arquivos pequenos por tenant), fica na casa de poucos dólares/mês, dentro do free tier no primeiro ano.
-- **Lifecycle policy do bucket** substitui o `@Scheduled` de limpeza:
+- **Custo:** ~$0,0255/GB/mês de storage (tier Standard) + egress — a OCI libera **10 TB/mês de saída de dados gratuitos**, bem acima do volume esperado de export de ERP (arquivos pequenos por tenant), o que na prática zera o custo de egress que pesa em alternativas como S3; storage fica na casa de centavos/mês no volume do MVP.
+- **Lifecycle policy do bucket** (Object Lifecycle Management, mesmo conceito do S3) substitui o `@Scheduled` de limpeza:
   ```json
-  { "Rules": [{ "ID": "expire-exports", "Status": "Enabled", "Expiration": { "Days": 7 } }] }
+  { "rules": [{ "name": "expire-exports", "isEnabled": true, "action": "DELETE", "timeAmount": 7, "timeUnit": "DAYS" }] }
   ```
-- **IAM restrito** — usuário/role com `s3:PutObject`, `s3:GetObject`, `s3:DeleteObject` limitado ao bucket específico, nunca a chave root da conta.
-- **Presigned URL** tira a carga de download da própria VPS: o cliente baixa direto do S3, não pela aplicação Spring Boot.
+- **IAM restrito** — política OCI IAM (ex.: `allow group ExportService to manage objects in compartment syax where target.bucket.name='syax-exports'`) limitada ao bucket específico, nunca ao tenancy inteiro.
+- **Pre-Authenticated Request (PAR)** — equivalente OCI à presigned URL da S3 — tira a carga de download da própria instância: o cliente baixa direto do Object Storage, não pela aplicação Spring Boot.
 
-Para o estágio atual (MVP, onboarding em andamento), disco local é a escolha mais simples — uma dependência a menos para gerenciar, com espaço de sobra na VPS contratada. Migrar para S3 é decisão a revisitar quando a arquitetura mudar (múltiplas instâncias) ou o volume justificar, não uma otimização prematura agora.
+Para o estágio atual (MVP, onboarding em andamento), disco local é a escolha mais simples — uma dependência a menos para gerenciar, com espaço de sobra no block storage da instância contratada. Migrar para OCI Object Storage é decisão a revisitar quando a arquitetura mudar (múltiplas instâncias) ou o volume justificar, não uma otimização prematura agora.

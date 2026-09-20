@@ -1,0 +1,640 @@
+/**
+ * Brasil Interactive Map
+ * @author  Gustavo Adrián Salvini
+ * @date 20160322
+ * @Alterado Elandro Wozeak Caniela
+ * @date 20231226
+ */
+
+
+let lista = [];
+let houveFiltro = false;
+let somaTotal = 0;
+var listaOrdenada = [];
+
+const siglaUf = {
+    RO: 11,
+    AC: 12,
+    AM: 13,
+    RR: 14,
+    PA: 15,
+    AP: 16,
+    TO: 17,
+    MA: 21,
+    PI: 22,
+    CE: 23,
+    RN: 24,
+    PB: 25,
+    PE: 26,
+    AL: 27,
+    SE: 28,
+    BA: 29,
+    MG: 31,
+    ES: 32,
+    RJ: 33,
+    SP: 35,
+    PR: 41,
+    SC: 42,
+    RS: 43,
+    MS: 50,
+    MT: 51,
+    GO: 52,
+    DF: 53
+};
+const codUf = {
+    11: 'RO',
+    12: 'AC',
+    13: 'AM',
+    14: 'RR',
+    15: 'PA',
+    16: 'AP',
+    17: 'TO',
+    21: 'MA',
+    22: 'PI',
+    23: 'CE',
+    24: 'RN',
+    25: 'PB',
+    26: 'PE',
+    27: 'AL',
+    28: 'SE',
+    29: 'BA',
+    31: 'MG',
+    32: 'ES',
+    33: 'RJ',
+    35: 'SP',
+    41: 'PR',
+    42: 'SC',
+    43: 'RS',
+    50: 'MS',
+    51: 'MT',
+    52: 'GO',
+    53: 'DF'
+};
+
+const description = document.querySelector(".tooltip-mapa");
+
+
+function openURwithTarget(url, target) {
+    var win = window.open(url, target);
+    win.focus();
+}
+
+window.onload = function () {
+
+
+    /** Regions variaveis para os DFes */
+
+    var listaFiltrada = [];
+
+    //dependendo do sistema ele vai pegar a cor dessa constante
+    const coloracao = {
+        55: '#EFCB92'
+    }
+
+    var grupo = document.querySelector("#grupoUfs");
+
+    var s = Snap("#svgMap");
+    var map_x_offset = 0, map_y_offset = 15;
+    var isFullyCompatibleBrowser = true; //!($.browser.msie || $.browser.msedge || $.browser["windows phone"]);
+    var shadow = s.filter(Snap.filter.shadow(0, 2, 3));
+
+    var noShadow = s.filter(Snap.filter.shadow(0, 0, 0));
+    var invert = s.filter(Snap.filter.invert(1.0));
+
+    var noInvert = s.filter(Snap.filter.invert(0));
+    var saturate = s.filter(Snap.filter.saturate(1.5));
+    var saturateFilterChild = saturate.node.firstChild;
+
+    var activeBounds = {};
+
+    var defaultRegionURL = '#';
+    var regionsMetadata = {};
+
+    Snap.plugin(function (Snap, Element, Paper, global) {
+        Element.prototype.addTransform = function (t) {
+            return this.transform(this.transform().localMatrix.toTransformString() + t);
+        };
+    });
+
+    Snap.load("Content/svgs/MapaBrasil.svg", function (f) {
+        
+        /**
+         * [mouseOutSVG description]
+         * @param  {[type]} event [description]
+         * @return {[type]}       [description]
+         */
+        function mouseOutSVG(event) {
+            // console.log('Out of SVG!!!!!');
+            // console.log(event.target);
+        }
+
+
+
+        /**
+         * [hoverRegion description]
+         * @param  {[type]} event [description]
+         * @return {[type]}       [description]
+         */
+        function hoverRegion(event) {
+
+            if (isFullyCompatibleBrowser) {
+
+                if (weakOverlays != null) weakOverlays.animate({ 'opacity': '0' }, 200, mina.easeout);
+
+                var $lastChild = $('#regions').children().last();
+
+                var lastSnapObject = s.select('#' + $lastChild.attr('id'));
+                lastSnapObject.after(this);
+
+                /* regions labels */
+                var label_hover_x = 0,
+                    label_hover_y = 0;
+
+                if (typeof regionsMetadata[this.attr('id')] != 'undefined') {
+
+                    if (typeof regionsMetadata[this.attr('id')]['label_hover_offset_x'] != 'undefined')
+                        label_hover_x = regionsMetadata[this.attr('id')]['label_hover_offset_x'];
+
+                    if (typeof regionsMetadata[this.attr('id')]['label_hover_offset_y'] != 'undefined')
+                        label_hover_y = regionsMetadata[this.attr('id')]['label_hover_offset_y'];
+
+                }
+                //console.log( 'Original BBox for:', this );
+                //console.log( regions[ this.attr('id') ].originalBBox);
+                
+                document.onmousemove = (e) => {
+                    description.style.left = (e.offsetX + 100) + "px";
+                    description.style.top = (e.offsetY + 80) + "px";
+                }
+
+                event.target.className = ("enabled");
+                description.classList.add("active");
+
+                //var boxSelecionado = document.getElementById('selectTipoDfes').value;
+                //if (boxSelecionado == 1) {
+                //    carregarFiltro(boxSelecionado);
+                //}
+
+                event.target.style.cssText =
+                    'fill:' + ' RGB(162, 197, 204);' +
+                    'stroke: black;' +
+                    'stroke-width: 1px;' +
+                    'cursor: pointer;' +
+                    'transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);'
+                    ;
+                listaFiltrada = lista.filter(o => o.CodUf == siglaUf[event.target.id]);
+                                
+                if (listaFiltrada[0].QtdDfe != 0) {
+
+                 
+                     
+
+                    description.innerHTML = listaFiltrada[0].QtdDfe.toLocaleString('pt-br');
+
+                    var originalBBox = regions[this.attr('id')].originalBBox;
+                    var originalTransform = regions[this.attr('id')].originalTransform;
+
+                    var that = this;
+
+                    that.attr({ filter: shadow }).animate({ transform: "s1.6,1.6," + originalBBox.cx + "," + originalBBox.cy }, 600, mina.elastic);
+
+                    regions[this.attr('id')].snapLabel.animate({ 'opacity': '1', 'fill': 'black' }, 300, mina.easeout);                   
+
+                    //console.log( 'On Hover BBox:', that.getBBox() );
+                    
+                } else {
+                    description.classList.remove("active");
+                    event.target.style.cssText =
+                        'fill: #a6a6a6;'+
+                        'stroke: #fff;'+
+                        'stroke-width: 0.5px;'
+                        ;
+                    
+                }
+                regions[this.attr('id')].snapLabel.addTransform('t' + label_hover_x + ',' + label_hover_y).addTransform('s1.6,1.6');
+               
+
+
+
+            }
+            else // not fully compatible browser
+            {
+                this.attr({ filter: invert });
+            }
+        }
+
+        /**
+         * [removeBounds description]
+         * @return {[type]} [description]
+         */
+        function removeBounds() {
+
+            // cleans the activeBounds Queue
+            var nActiveBounds = Object.keys(activeBounds).length;
+            // console.log('#Regions with Active Bounds:', nActiveBounds );
+            if (nActiveBounds > 0) {
+                // console.log('There are things to be cleaned!');
+                for (var region in activeBounds) {
+                    // console.log('#-# region: ', region);
+                    for (var i = 0; i < activeBounds[region].length; i++) {
+                        activeBounds[region][i].remove();
+                    }
+                    activeBounds[region] = [];
+                }
+            }
+        }
+
+
+        /**
+         * [noHoverRegion description]
+         * @param  {[type]} event [description]
+         * @return {[type]}       [description]
+         */
+        function noHoverRegion(event) {
+            // console.log('mouseOut:', this.attr('id'));
+            // setTimeout( function() { removeBounds() }, 2000 );
+            if (weakOverlays != null) weakOverlays.animate({ 'opacity': '1' }, 200, mina.easeout);
+
+            if (isFullyCompatibleBrowser) {
+
+                /* regions labels */
+                var label_hover_x = 0;
+                var label_hover_y = 0;
+
+                if (typeof regionsMetadata[this.attr('id')] != 'undefined') {
+                    if (typeof regionsMetadata[this.attr('id')]['label_hover_offset_x'] != 'undefined')
+                        label_hover_x = -1 * regionsMetadata[this.attr('id')]['label_hover_offset_x'];
+
+                    if (typeof regionsMetadata[this.attr('id')]['label_hover_offset_y'] != 'undefined')
+                        label_hover_y = -1 * regionsMetadata[this.attr('id')]['label_hover_offset_y'];
+
+                }
+
+                var originalBBox = regions[this.attr('id')].originalBBox;
+                var originalTransform = regions[this.attr('id')].originalTransform;
+
+                this.animate({ transform: "s1,1," + originalBBox.cx + "," + originalBBox.cy }, 700, mina.elastic).attr({ filter: noShadow });
+
+                // console.log( 'Original Transform for:', this );
+                // console.log( regions[ this.attr('id') ].originalTransform );
+                // this.addTransform( regions[ this.attr('id') ].originalTransform['string'] );
+                description.classList.remove("active");
+                event.target.style.cssText = (
+                    'stroke: white;' +
+                    'stroke-width: 1px;' +
+                    'transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);' +
+                    'transition: fill 0.4s;' +
+                    'cursor: pointer;'
+                );
+                regions[this.attr('id')].snapLabel.animate({ 'opacity': '0.75' }, 300, mina.easeout);
+                regions[this.attr('id')].snapLabel.addTransform('s0.625,0.625').addTransform('t' + label_hover_x + ',' + label_hover_y);
+
+                carregarFiltroMapa(lista);
+            }
+            else {
+                this.animate({ transform: "s1,1" }, 700, mina.elastic).attr({ filter: noInvert });
+            }
+        }
+
+        /* Main callback code for Snap.load ************************************************************************/
+
+        var regionsContainer = f.select("#regions");
+        s.append(regionsContainer);
+        var weakOverlays = f.select("#weak-overlays");
+
+        if (weakOverlays != null) {
+            s.append(weakOverlays);
+            weakOverlays.attr({ 'pointer-events': 'none' });
+        }
+
+        // var	elemRegions		= document.querySelectorAll('#regions > path'),
+        var elemRegions = $('#regions').children(),
+            regions = {};
+
+        // console.log( 'Regiones:', elemRegions.length );
+
+        s.mouseout(function (event) {
+            mouseOutSVG(event);
+        });
+
+        var regionBBox;
+
+        for (var i = 0; i < elemRegions.length; i++) {
+            regions[elemRegions[i].id] = {};
+            regions[elemRegions[i].id].id = elemRegions[i].id;
+            var regionId = regions[elemRegions[i].id].id;
+            // regions[ elemRegions[i].id ].name = elemRegions[i].getAttribute('data-name');
+            regions[elemRegions[i].id].snapObject = s.select('#' + elemRegions[i].id);
+            regions[elemRegions[i].id].pathLength = Snap.path.getTotalLength(regions[elemRegions[i].id].snapObject);
+            regions[elemRegions[i].id].originalBBox = regions[elemRegions[i].id].snapObject.getBBox();
+            regions[elemRegions[i].id].originalTransform = regions[elemRegions[i].id].snapObject.transform();
+
+            // console.log ( elemRegions[i].id,':', regions[ elemRegions[i].id ].originalTransform );
+
+            /* region bounding box */
+            var regionBBox = regions[elemRegions[i].id].snapObject.getBBox();
+
+            var x_center = (regionBBox.x2 + regionBBox.x) / 2 + map_x_offset;
+            var y_center = (regionBBox.y2 + regionBBox.y) / 2 + map_y_offset;
+
+            /* event handlers */
+            regions[elemRegions[i].id].snapObject.hover(hoverRegion, noHoverRegion);
+            /* regions labels */
+            var label_x = x_center;
+            var label_y = y_center;
+            var label_text = regionId;
+            var label_rotation = 0;
+
+            if (typeof regionsMetadata[elemRegions[i].id] != 'undefined') {
+                if (typeof regionsMetadata[elemRegions[i].id]['label_offset_x'] != 'undefined')
+                    label_x += regionsMetadata[elemRegions[i].id]['label_offset_x'];
+
+                if (typeof regionsMetadata[elemRegions[i].id]['label_offset_y'] != 'undefined')
+                    label_y += regionsMetadata[elemRegions[i].id]['label_offset_y'];
+
+                if (typeof regionsMetadata[elemRegions[i].id]['text'] != 'undefined')
+                    label_text = regionsMetadata[elemRegions[i].id]['text'];
+
+                if (typeof regionsMetadata[elemRegions[i].id]['rotation'] != 'undefined')
+                    label_rotation = regionsMetadata[elemRegions[i].id]['rotation'];
+
+            }
+
+
+            var label = s.text(label_x, label_y, label_text);
+
+            // var label1 		= s.multitext(label_x, label_y, label_text, 200, { "font-size": "10px" });
+
+            var labelBBox = label.getBBox();
+            label.transform('t-' + labelBBox.width / 2 + ',-' + labelBBox.height / 2 + ' r' + label_rotation);
+            label.attr({ 'pointer-events': 'none' });
+            regions[elemRegions[i].id].snapLabel = label;
+            // regions[ elemRegions[i].id ].snapLabel.remove();
+            regions[elemRegions[i].id].snapLabel.attr({ 'font-size': '16px', 'opacity': '0.75', 'fill': 'black' });
+
+            regions[elemRegions[i].id].snapLabelTransform = regions[elemRegions[i].id].snapLabel.transform();
+            // console.log( 'current label transform:', regions[ elemRegions[i].id ].snapLabelTransform ); 
+
+
+            // s.append(regions[ elemRegions[i].id ].snapLabel );
+
+        }
+        /* /End Main callback code for Snap.load ************************************************************************/
+
+
+    });
+
+
+};
+
+function carregarFiltroMapa(lista) {
+    console.log(lista);
+    
+    listaOrdenada.forEach((list) => {
+        switch (list.Modelo) {
+            case "NFE":
+                if (list.QtdDfe != 0) {
+                    document.getElementById(codUf[list.CodUf]).style.cssText =
+
+                        'fill: #EFCB92;';                        
+                }
+            break;
+            case "BPE":
+                if (list.QtdDfe != 0) {
+                    document.getElementById(codUf[list.CodUf]).style.cssText =
+
+                     'fill: #009788;';
+                }
+                break;
+            case "CTE":
+                if (list.QtdDfe != 0) {
+                    document.getElementById(codUf[list.CodUf]).style.cssText =
+                        
+                        'fill: #D29B5E;';
+                }
+                break;
+            case "MDF":
+                if (list.QtdDfe != 0) {
+                    document.getElementById(codUf[list.CodUf]).style.cssText =
+
+                        'fill: #6F8F70;';
+                }
+                break;
+            case "NFC":
+                if (list.QtdDfe != 0) {
+                    document.getElementById(codUf[list.CodUf]).style.cssText =
+
+                        'fill: #0D80BF;';
+                }
+                break;
+            case "NF3E":
+                if (list.QtdDfe != 0) {
+                    document.getElementById(codUf[list.CodUf]).style.cssText =
+
+                        'fill: #242494;' +
+                        'opacity: 80%;';
+                }
+                break; 
+            case "NFCOM":
+                if (list.QtdDfe != 0) {
+                    document.getElementById(codUf[list.CodUf]).style.cssText =
+                        'fill: #D57B7F;';
+                }
+
+        }
+    });
+
+    ////if (a == 1) {
+    ////    //tenho a listaOrdenada quanto maior o numero de dfes menor eh o numero do RGB  cor para 0% 34, 179, 44 100% 179, 34, 34
+    ////    //document.querySelector('.svgMapContainer').style.cssText =
+    ////    //    ' background-color: #4f4f4f;';
+    ////    houveFiltro = true;
+    ////    listaOrdenada.forEach((list) => {
+
+    ////        var resultado = (list.QtdDfe * 100) / listaOrdenada[26].QtdDfe;
+    ////        resultado = resultado.toFixed(2);
+    ////        var opactity = resultado;
+
+    ////        if (opactity < 40) {
+    ////            opactity = 25;
+    ////        }
+
+    ////        if (list.QtdDfe != 0) {
+
+    ////            document.getElementById(codUf[list.CodUf]).style.cssText =
+    ////                'fill:RGB(187,15,15);' +
+    ////                'opacity:' + opactity + '%;' +
+    ////                'transition: 400ms linear;' +
+    ////                'stroke: black;' +
+    ////                'stroke - width: 1.8px; ';
+    ////        }
+    ////        else {
+    ////            document.getElementById(codUf[list.CodUf]).style.cssText =
+    ////                'fill:#5D5A56;' +
+    ////                'opacity: 55%;' +
+    ////                'transition:400ms linear;' +
+    ////                'stroke: black;' +
+    ////                'stroke - width: 0.8px; ';
+    ////        }
+    ////    });
+
+    ////} else if (a == 0) {
+    ////    lista.forEach((lista) => {
+    ////        document.getElementById(codUf[lista.CodUf]).style.cssText =
+    ////            ' fill: #5D5A56;' +
+    ////            'transition:300ms linear';
+    ////    });
+    ////    document.querySelector('.svgMapContainer').style.cssText =
+    ////        ' background-color: #CCC;';
+    ////    houveFiltro = false;
+    ////}
+}
+
+function fecharModal() {
+    var l = 0;
+    //reset do form e do mapa
+    lista.forEach((lista) => {
+        document.getElementById(Object.keys(siglaUf)[l++]).style.cssText =
+            'fill:#5D5A56;' +
+            'transition:500ms linear';
+    });
+    document.querySelector('.svgMapContainer').style.cssText =
+        ' background-color: #CCC;';
+    houveFiltro = false;
+    $("#selectTipoDfes").val('0');
+}
+function carregaTabela() {
+
+    for (var i = 26; i > 0; i--) {
+        if (i >= 24) {
+            var ultimoElemento = listaOrdenada[i];
+            var resultadoPorcentagem = ((ultimoElemento.QtdDfe * 100) / somaTotal).toPrecision(4)
+            document.querySelector('.codUf' + i).innerHTML = codUf[ultimoElemento.CodUf];
+            document.querySelector('.qtdDfes' + i).innerHTML = abreviaValores(ultimoElemento.QtdDfe)//.toLocaleString('pt-br') + ",00";
+            document.querySelector('.porcertagemDfes' + i).innerHTML = resultadoPorcentagem > 0 ? resultadoPorcentagem + '%' : '0%';
+        }
+    }
+}
+
+function listaComDfeSelecionado(sistema, lista) {
+    //quando vier a lista refazer com uma unica coluna com as qtds de Dfes emitidos fica mais facil de programar
+    var propriedade = {}
+    var listaNova = lista.map(item => {
+        switch (sistema) {
+            case "Nfe":
+                propriedade = {
+                    "QtdDfe": item.QtdAutoizNfe,
+                    "CodUf": item.CodUf,
+                    "Modelo": item.Modelo
+                };
+                break;
+            case "Cte":
+                propriedade = {
+                    "QtdDfe": item.QtdAutoizCte,
+                    "CodUf": item.CodUf,
+                    "Modelo": item.Modelo
+                };
+                break;
+            case "Nfcom":
+                propriedade = {
+                    "QtdDfe": item.QtdAutorizNfcom,
+                    "CodUf": item.CodUf,
+                    "Modelo": item.Modelo
+                };
+                break;
+            case "Bpe":
+                propriedade = {
+                    "QtdDfe": item.QtdAutoizBpe,
+                    "CodUf": item.CodUf,
+                    "Modelo": item.Modelo
+                };
+                break;
+            case "Nf3e":
+                propriedade = {
+                    "QtdDfe": item.QtdAutoizNf3e,
+                    "CodUf": item.CodUf,
+                    "Modelo": item.Modelo
+                };
+                break;
+            case "Mdfe":
+                propriedade = {
+                    "QtdDfe": item.QtdAutoizMdf,
+                    "CodUf": item.CodUf,
+                    "Modelo": item.Modelo
+                };
+                break;
+            case "Nfce":
+                propriedade = {
+                    "QtdDfe": item.QtdAutorizNfc,
+                    "CodUf": item.CodUf,
+                    "Modelo": item.Modelo
+                };
+                break;
+            case "Gtve":
+                propriedade = {
+                    "QtdDfe": item.QtdAutoizMdf,
+                    "CodUf": item.CodUf,
+                    "Modelo": item.Modelo
+                };
+                break;
+
+            default:
+        }
+        return propriedade;
+
+    });
+    return listaNova;
+
+}
+function abreviaValores(num, fixed) {
+    if (num === null || num === undefined) { return null; }
+    if (num === 0) { return '0'; }
+    if (num <= 1000000) { return (num).toLocaleString('pt-BR', { minimumFractionDigits: fixed }); }
+    fixed = (!fixed || fixed < 0) ? 0 : fixed;
+    var b = (num).toPrecision(2).split("e"),
+        k = b.length === 1 ? 0 : Math.floor(Math.min(b[1].slice(1), 14) / 3), // floor at decimals, ceiling at trillions
+        c = k < 1 ? num.toFixed(0 + fixed) : (num / Math.pow(10, k * 3)).toFixed(1 + fixed), // divide by power
+        d = c < 0 ? c : Math.abs(c), // enforce -0 is 0
+        e = d + ['', '', 'Mi', 'Bi', 'Tri'][k]; // append power
+    return e;
+}
+function ResumoSistemasDfes(sistema) {
+    $.ajax({
+        type: "Get",
+        url: sistema + "/ListarResumoDfes",
+        data: {
+            sistema: sistema,
+            ambiente: 1
+        },
+        success: function (data) {
+            var obj = JSON.parse(data);
+            if (!obj.msgErro) {
+                if (obj.lista) {
+
+                    lista = obj.lista;
+                    //console.log(lista);
+                    console.log(sistema);
+
+                    lista = listaComDfeSelecionado(sistema, lista);
+                    somaTotal = lista.reduce(function (accumulator, object) {
+                        return accumulator + object.QtdDfe;
+                    }, 0);
+
+                    document.querySelector('.numero-de-dfes').innerHTML = abreviaValores(somaTotal)//.toLocaleString('pt-br') + ",00";
+                    listaOrdenada = lista.sort(function (a, b) {
+                        return a.QtdDfe - b.QtdDfe;
+                    });
+                   //carregarFiltroMapa(lista);
+                    carregaTabela();
+                }
+            } else {
+                console.log(obj.msgErro);
+            }
+        }
+    })
+}
+
+
+
+
+
