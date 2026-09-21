@@ -56,6 +56,7 @@ CREATE TABLE export_batch (
     schema_version  VARCHAR(10) NOT NULL DEFAULT '1.0',
     status          VARCHAR(20) NOT NULL DEFAULT 'REQUESTED', -- REQUESTED, PROCESSING, READY, DOWNLOADED, EXPIRED, FAILED
     file_paths      JSONB,                   -- {"CUSTOMER": "/var/syax/exports/{tenant_id}/{batch_id}/customer.xlsx", ...}
+    total_bytes     BIGINT,                  -- soma em bytes dos arquivos gerados; medido na geração (ver 5.4)
     download_token  VARCHAR(64) UNIQUE,      -- token opaco exposto ao cliente; nunca o path real (ver 5.3)
     attempt_count   SMALLINT NOT NULL DEFAULT 0, -- tentativas de extração; teto de 3 (ver seção 6)
     reason          VARCHAR(50),             -- 'ROUTINE_BACKUP', 'CANCELLATION', 'AUDIT', 'OTHER' - opcional, não bloqueante
@@ -103,6 +104,25 @@ CREATE TABLE export_audit_log (
 - **Auditoria:** toda tentativa de download com token inválido, expirado ou de outro tenant gera linha em `export_audit_log` com `action='DOWNLOAD_DENIED'`. É o sinal que denuncia enumeração de token.
 
 **Razão:** um link de posse pura sem sessão é o modelo de menor atrito, mas transforma qualquer vazamento de URL (histórico de navegador, log de proxy, e-mail encaminhado) em vazamento do dump completo do tenant — e o dump contém CPF/CNPJ de terceiros. Exigir sessão devolve o custo de segurança para onde ele é barato (o cliente já está logado quando pede o export) sem tirar nada da promessa de self-service.
+
+### 5.4 `total_bytes` — consumo de disco por tenant
+
+**Decisão:** ao terminar a extração, o job grava em `total_bytes` a soma em bytes dos arquivos que acabou de gerar (`Files.size()` de cada path em `file_paths`), no mesmo `UPDATE` que marca `READY`. Nunca é recalculado depois — o arquivo não muda, e medir de novo só introduz divergência.
+
+Com isso, o consumo de disco de um tenant é uma pergunta de banco, não de filesystem:
+
+```sql
+SELECT tenant_id, sum(total_bytes) AS bytes_em_disco
+FROM export_batch
+WHERE status IN ('READY', 'DOWNLOADED')
+GROUP BY tenant_id;
+```
+
+**O filtro de status é a parte que importa:** batch `EXPIRED` já teve os arquivos apagados pelo job de limpeza (seção 12.1) e `FAILED` pode nunca ter gravado nada — somar tudo indiscriminadamente reporta como ocupado um espaço que foi liberado há semanas. `total_bytes` é preservado no batch expirado de propósito: serve de histórico de volume exportado (métrica de produto), não de ocupação atual.
+
+**Por que medir na geração e não varrer o disco:** um `du -sh` por tenant ou um `ListObjects` por prefixo (no cenário da seção 12.2) é I/O proporcional ao número de arquivos, disparado toda vez que alguém abre a tela — e no caso do object storage, chamada de API paga e sujeita a rate limit. O tamanho já está na mão no momento em que o arquivo é escrito; não gravá-lo ali é jogar fora a informação para depois pagar caro por ela.
+
+Esse valor é o insumo do painel de consumo por tenant do portal admin. O lado do **banco de dados** (linhas/bytes por `tenant_id` nas tabelas transacionais) não é coberto por este documento — depende de snapshot periódico próprio, já que em schema compartilhado não existe métrica nativa por tenant.
 
 ## 6. Estados do batch de export
 
@@ -153,7 +173,7 @@ sequenceDiagram
     API->>Q: Enfileira job de extração
     Q->>Q: Extrai dado por entidade, gera XLSX/CSV
     Q->>D: Grava arquivos em /var/syax/exports/{tenant_id}/{batch_id}/
-    Q->>API: UPDATE export_batch (status=READY, file_paths, download_token, expires_at)
+    Q->>API: UPDATE export_batch (status=READY, file_paths, total_bytes, download_token, expires_at)
     Q->>L: action=GENERATED
     Q->>C: E-mail "seu export está pronto" (com link, não só notificação na UI)
     UI->>API: GET /exports/{batch_id}/status
@@ -375,6 +395,7 @@ Object Storage pode ser contratado isoladamente dentro do mesmo tenancy OCI — 
   { "rules": [{ "name": "expire-exports", "isEnabled": true, "action": "DELETE", "timeAmount": 7, "timeUnit": "DAYS" }] }
   ```
 - **IAM restrito** — política OCI IAM (ex.: `allow group ExportService to manage objects in compartment syax where target.bucket.name='syax-exports'`) limitada ao bucket específico, nunca ao tenancy inteiro.
+- **Consumo por tenant continua vindo de `total_bytes`** (seção 5.4), nunca de `ListObjects` por prefixo: o serviço grava o tamanho no momento do upload, exatamente como faz no disco local. A migração troca o destino do arquivo, não a fonte da métrica.
 - **Pre-Authenticated Request (PAR)** — equivalente OCI à presigned URL da S3 — tira a carga de download da própria instância: o cliente baixa direto do Object Storage, não pela aplicação Spring Boot.
 
 Para o estágio atual (MVP, onboarding em andamento), disco local é a escolha mais simples — uma dependência a menos para gerenciar, com espaço de sobra no block storage da instância contratada. Migrar para OCI Object Storage é decisão a revisitar quando a arquitetura mudar (múltiplas instâncias) ou o volume justificar, não uma otimização prematura agora.
