@@ -4,8 +4,10 @@
 **Autor:** Vitor
 **Última atualização:** 20 de setembro de 2026
 **Documento relacionado:** `migracao-dados-syax.md`
-**Serviço:** `migracao-service` (mesmo serviço do doc de import — novo, fora do MVP inicial). Registra no Eureka e fica atrás do gateway — reusa validação de JWT e resolução de tenant (`SecurityUtils`) dos demais serviços, não reimplementa auth do zero.
-**Infra alvo:** OCI (Oracle Cloud Infrastructure) — mesma instância Compute dos demais serviços do monorepo, sem dependência de bucket/object storage; deploy segue o mesmo pipeline Docker/Jenkins dos demais serviços (ver CLAUDE.md), não systemd standalone — a decisão de disco local (vs. OCI Object Storage) continua valendo, só muda para volume montado no container
+**Serviço:** `migracao-service` (mesmo serviço do doc de import — novo, fora do MVP inicial). Registra no Eureka e fica atrás do gateway sob o prefixo `/migracao/**` — reusa validação de JWT e resolução de tenant (`SecurityUtils`) dos demais serviços, não reimplementa auth do zero. A única exceção é o download por token de posse do tenant em encerramento, que roda em rota pública e resolve o tenant pelo próprio batch (seções 5.5 e 10.1).
+**Infra alvo:** OCI (Oracle Cloud Infrastructure) — mesma instância Compute dos demais serviços do monorepo, sem dependência de bucket/object storage; deploy segue o mesmo pipeline Docker/Jenkins dos demais serviços (ver CLAUDE.md), não systemd standalone. A decisão de disco local (vs. OCI Object Storage) continua valendo, só muda para **volume Docker nomeado** montado no container (seção 12.1).
+
+**Paridade dev/produção:** o único delta entre rodar local (máquina de desenvolvimento Windows ou Linux) e rodar no OCI é o **valor de uma variável de ambiente** — `SYAX_EXPORT_DIR`. Não existe código condicional por sistema operacional em lugar nenhum deste pipeline; ver seção 12.0.
 
 ---
 
@@ -38,7 +40,9 @@ flowchart TD
     G -->|Baixa| I[Log de export registrado para auditoria]
 ```
 
-**Decisão de infra:** armazenamento é disco local da própria instância OCI, não object storage (OCI Object Storage/S3/GCS). Numa instância Compute single-node com acesso root, isso elimina uma dependência externa inteira sem perder nenhuma capacidade — o "link temporário" vira um token validado pelo próprio backend, e o "lifecycle policy do bucket" vira um `@Scheduled` job. Ver seção 12 para detalhes de infra e o cenário em que valeria migrar para OCI Object Storage.
+**Decisão de infra:** armazenamento é disco local da própria instância OCI, não object storage (OCI Object Storage/S3/GCS). Numa instância Compute single-node, isso elimina uma dependência externa inteira sem perder nenhuma capacidade — o "link temporário" vira um token validado pelo próprio backend, e o "lifecycle policy do bucket" vira um `@Scheduled` job. Ver seção 12 para detalhes de infra e o cenário em que valeria migrar para OCI Object Storage.
+
+`/var/syax/exports/...` aparece neste documento como o valor **de produção** de `syax.export.base-dir` (seção 12.0), nunca como caminho fixo em código. Em desenvolvimento o mesmo pipeline grava sob o temp dir da máquina, e nos testes sob um `@TempDir`.
 
 **"Job assíncrono" e "fila assíncrona" no fluxograma acima são `@Async` do Spring, não um broker externo** — mesmo modelo do import (`migracao-dados-syax.md`, seção 3.2), pelo mesmo motivo: extração roda dentro do próprio `migracao-service`, sem consumidor externo do evento. `Q` no diagrama é o `TaskExecutor` interno do serviço, não uma fila de mensageria.
 
@@ -46,7 +50,10 @@ flowchart TD
 
 O pipeline de export **não espelha** `import_batch`/`raw_import_row` — a semelhança é só de nome. `raw_import_row` é uma **staging table**: guarda o dado do cliente em trânsito, com validação por linha e estado próprio antes de virar dado real. O export não tem staging nenhum: a extração vai direto do dado transacional (que já é válido, é o próprio sistema) para o arquivo final. E `export_audit_log` não é o equivalente de `raw_import_row` — é um **log de eventos**, coisa que o import não tem nem precisa (ver `migracao-dados-syax.md`, seção 4.2).
 
+**O DDL abaixo é referência de modelagem, não o artefato de migração.** As duas tabelas nascem no schema `migracao` via changeset no `liquibase-service` (`src/main/resources/db/changelog/migracao/migracao-schema-001.yaml`, incluído no `db.changelog-master.yaml`), como todo o resto do schema do projeto — `ddl-auto` fica em `validate` e nenhum `CREATE TABLE` roda a partir do serviço. O schema `migracao` precisa ser adicionado ao `init/000-initial-schemas.yaml` antes do primeiro changeset.
+
 ```sql
+-- schema: migracao
 CREATE TABLE export_batch (
     id              UUID PRIMARY KEY,
     tenant_id       UUID NOT NULL,
@@ -89,7 +96,7 @@ CREATE TABLE export_audit_log (
 
 ### 5.2 Expiração, período default e dedupe
 
-- **Expiração:** `expires_at = ready_at + 7 dias`, configurável via `syax.export.retention-days` (default 7). Sete dias é o mesmo valor do lifecycle do bucket na alternativa OCI Object Storage (seção 12.2) — manter os dois iguais evita que a política mude de significado se um dia migrar de disco local para object storage.
+- **Expiração:** `expires_at = ready_at + 7 dias`, configurável via `syax.export.retention-days` (default 7). Sete dias é o mesmo valor do lifecycle do bucket na alternativa OCI Object Storage (seção 12.3) — manter os dois iguais evita que a política mude de significado se um dia migrar de disco local para object storage.
 - **Período default:** `date_from`/`date_to` omitidos no `scope` significam **todo o histórico do tenant**. Export de dado bruto tem que ser completo por default; obrigar o cliente a adivinhar um período para não receber dado parcial é o tipo de pegadinha que a seção 2 rejeita.
 - **Dedupe:** antes de criar um novo batch, `POST /exports` procura por `(tenant_id, scope_hash, status=READY, expires_at > now())`. Se existe, retorna o batch existente em vez de gerar de novo. `scope_hash` é o SHA-256 do `scope` normalizado (entidades ordenadas, datas resolvidas para o default). Evita que um duplo clique ou um cliente ansioso gere N cópias idênticas do mesmo dump ocupando disco.
 
@@ -120,9 +127,34 @@ GROUP BY tenant_id;
 
 **O filtro de status é a parte que importa:** batch `EXPIRED` já teve os arquivos apagados pelo job de limpeza (seção 12.1) e `FAILED` pode nunca ter gravado nada — somar tudo indiscriminadamente reporta como ocupado um espaço que foi liberado há semanas. `total_bytes` é preservado no batch expirado de propósito: serve de histórico de volume exportado (métrica de produto), não de ocupação atual.
 
-**Por que medir na geração e não varrer o disco:** um `du -sh` por tenant ou um `ListObjects` por prefixo (no cenário da seção 12.2) é I/O proporcional ao número de arquivos, disparado toda vez que alguém abre a tela — e no caso do object storage, chamada de API paga e sujeita a rate limit. O tamanho já está na mão no momento em que o arquivo é escrito; não gravá-lo ali é jogar fora a informação para depois pagar caro por ela.
+**Por que medir na geração e não varrer o disco:** um `du -sh` por tenant ou um `ListObjects` por prefixo (no cenário da seção 12.3) é I/O proporcional ao número de arquivos, disparado toda vez que alguém abre a tela — e no caso do object storage, chamada de API paga e sujeita a rate limit. O tamanho já está na mão no momento em que o arquivo é escrito; não gravá-lo ali é jogar fora a informação para depois pagar caro por ela.
 
-Esse valor é o insumo do painel de consumo por tenant do portal admin. O lado do **banco de dados** (linhas/bytes por `tenant_id` nas tabelas transacionais) não é coberto por este documento — depende de snapshot periódico próprio, já que em schema compartilhado não existe métrica nativa por tenant.
+Esse valor é o insumo do painel de consumo por tenant do portal admin (`modelo-de-planos.md`, seção 7). O lado do **banco de dados** (linhas/bytes por `tenant_id` nas tabelas transacionais) não é coberto por este documento — depende de snapshot periódico próprio, já que em schema compartilhado não existe métrica nativa por tenant.
+
+### 5.5 Exposição no gateway
+
+Os endpoints deste documento aparecem em forma curta (`POST /exports`, `GET /exports/download/{token}`) por legibilidade. **O path real é prefixado por serviço**, como todos os demais do monorepo: o `gateway` roteia por prefixo (`/auth/**`, `/partner/**`, `/billing/**`, `/fiscal/**`, e `/api/**` para o `cadastro-service`), então um `/exports` sem prefixo não casa com predicate nenhum e morre em 404 antes de chegar ao serviço.
+
+```yaml
+# gateway/src/main/resources/application.yml
+- id: migracao-service
+  uri: lb://migracao-service
+  predicates:
+    - Path=/migracao/**
+```
+
+Isso dá `POST /migracao/exports` e `GET /migracao/exports/download/{token}`.
+
+**Dois modos de autorização, dois caminhos no `SecurityFilter`:**
+
+| Caminho | Filtro do gateway | Como o serviço resolve o tenant |
+|---|---|---|
+| Fluxo normal (seção 5.3) — sessão autenticada | JWT validado, headers `X-Tenant-Id`/`X-Is-Owner` injetados | `SecurityUtils.getCurrentTenantId()`, como os demais serviços |
+| Tenant em encerramento (seção 10.1) — token de posse | entrada em `PUBLIC_PREFIXES`: `/migracao/exports/download/` | **pelo próprio `export_batch`**, via `download_token` |
+
+O segundo caminho tem uma consequência que precisa estar explícita: em rota pública o gateway injeta apenas `X-Internal-Secret`, **nunca** `X-Tenant-Id` — não há JWT de onde extrair o tenant. Logo o endpoint de download não pode depender de `SecurityUtils`; ele carrega o batch pelo token e usa o `tenant_id` da própria linha. No fluxo autenticado, os dois são comparados (token e sessão precisam apontar para o mesmo tenant, sob pena de 404, conforme 5.3).
+
+O prefixo em `PUBLIC_PREFIXES` termina em `/` de propósito, seguindo a convenção já usada em `/partner/api/v1/partners/cnpj/` — sem a barra terminal, qualquer rota futura que só compartilhe o prefixo (`/migracao/exports/download-all`, por exemplo) entraria pública por acidente.
 
 ## 6. Estados do batch de export
 
@@ -256,6 +288,8 @@ Cenário concreto e nada raro: o cliente pede o export com `reason=CANCELLATION`
 2. o e-mail vai para o endereço que já estava cadastrado **antes** do pedido de cancelamento, nunca para um informado no momento do pedido;
 3. todo acesso por esse caminho grava `export_audit_log` com `action='DOWNLOADED'` e o IP de origem.
 
+Esse é o único endpoint público do serviço, e a mecânica dele no gateway (entrada em `PUBLIC_PREFIXES`, tenant resolvido pelo batch e não por `SecurityUtils`) está na seção 5.5.
+
 O prazo de 7 dias e o e-mail de aviso 24h antes de expirar (seção 7) valem igual — e são especialmente importantes aqui, porque é o cliente que menos volta na UI.
 
 O touchpoint humano roda em paralelo ao export, nunca como bloqueio dele. Condicionar a entrega do dado a uma conversa de retenção é exatamente o tipo de prática que gera reclamação e desgasta a marca — a conversa acontece porque é boa prática de CS, não porque o cliente precisa "passar por ela" para conseguir os dados.
@@ -266,69 +300,68 @@ Acompanhar `reason=CANCELLATION` em `export_batch` ao longo do tempo como proxy 
 
 ## 12. Infraestrutura — disco local vs. object storage
 
+### 12.0 Diretório de trabalho: uma property, dois ambientes
+
+Todo caminho de arquivo deste pipeline sai de uma única property; **nenhum path é literal no código Java**, e não existe ramo condicional por sistema operacional em lugar nenhum.
+
+```yaml
+# migracao-service/src/main/resources/application.yml
+syax:
+  export:
+    base-dir: ${SYAX_EXPORT_DIR:${java.io.tmpdir}/syax-exports}
+    retention-days: ${SYAX_EXPORT_RETENTION_DAYS:7}
+```
+
+| Ambiente | `SYAX_EXPORT_DIR` | Efeito |
+|---|---|---|
+| Desenvolvimento (Windows ou Linux) | não definida | cai no default: temp dir da máquina |
+| Teste automatizado | não definida | sobrescrita por `@TempDir` do JUnit (ver 12.2) |
+| OCI | `/var/syax/exports` | volume Docker nomeado (ver 12.1) |
+
+O serviço monta os caminhos com `Path.of(baseDir, tenantId, batchId)` — `Path` já resolve o separador do sistema, então o mesmo código grava em `C:\Users\...\Temp\syax-exports\...` na máquina do desenvolvedor e em `/var/syax/exports/...` no container. Usar `"/var/syax/exports/" + tenantId` como string concatenada é o que quebraria a paridade, e é justamente o que a property elimina.
+
+Vale notar que `file_paths` guarda caminho absoluto do ambiente que gerou o batch. Isso é aceitável porque o arquivo é transiente (7 dias) e regenerável — mas significa que um dump de banco restaurado de produção em desenvolvimento traz paths que não existem ali. O download nesse caso falha com "arquivo não encontrado", não com stacktrace: o endpoint checa `Files.exists()` antes de abrir o stream e trata a ausência como batch expirado.
+
 ### 12.1 Decisão para o MVP: disco local na instância OCI
 
-Numa instância Compute OCI single-node com acesso root (ex: `VM.Standard.A1.Flex`, Ampere ARM64 — camada Always Free cobre até 4 OCPU/24GB RAM/200GB block storage; shape paga equivalente se o Always Free não bastar), armazenar os arquivos de export no próprio filesystem elimina a dependência de object storage sem perder funcionalidade — bucket só se justifica quando a aplicação escala para múltiplas instâncias sem disco compartilhado, o que não é o cenário do MVP.
+Numa instância Compute OCI single-node (ex: `VM.Standard.A1.Flex`, Ampere ARM64 — camada Always Free cobre até 4 OCPU/24GB RAM/200GB block storage; shape paga equivalente se o Always Free não bastar), armazenar os arquivos de export no próprio filesystem elimina a dependência de object storage sem perder funcionalidade — bucket só se justifica quando a aplicação escala para múltiplas instâncias sem disco compartilhado, o que não é o cenário do MVP.
 
-**Estrutura de diretórios**, isolada por usuário de serviço dedicado (não rodar a JVM como root):
+**O serviço roda em container**, no mesmo pipeline Docker/Jenkins dos outros sete serviços do monorepo (CLAUDE.md) — não há systemd, `useradd` de host nem nginx próprio nesta topologia: TLS e roteamento são do `gateway` (porta 8090), e o processo é supervisionado pelo Docker (`restart: unless-stopped`), não por unit file. O `Dockerfile` segue exatamente o dos demais (multi-stage `eclipse-temurin:25`, usuário não-root `spring`), com uma linha a mais para o diretório de exports:
 
-```bash
-sudo useradd -r -m -d /opt/syax -s /usr/sbin/nologin syax
-sudo mkdir -p /var/syax/exports /var/syax/imports
-sudo chown -R syax:syax /var/syax
-sudo chmod 750 /var/syax
+```dockerfile
+# ... mesmo multi-stage dos demais serviços, usuário spring:spring
+RUN mkdir -p /var/syax/exports && chown spring:spring /var/syax/exports
+USER spring:spring
+EXPOSE 8094
 ```
 
-`/var/syax/imports` é criado aqui mas a política de retenção e o job de purga dele são do outro lado do pipeline — ver `migracao-dados-syax.md`, seção 12. Diretório de staging de import guarda dado pessoal de terceiros e tem TTL próprio (30 dias); não é coberto pelo job de limpeza de export.
+**Persistência via volume Docker nomeado**, não bind mount de diretório do host:
 
-**Processo gerenciado via systemd**, não `java -jar` solto — dá restart automático, logs via `journalctl`, start no boot:
-
-```ini
-# /etc/systemd/system/migracao-service.service
-[Unit]
-Description=SYAX - migracao-service (import + export de dados)
-After=network.target postgresql.service
-
-[Service]
-User=syax
-Group=syax
-WorkingDirectory=/opt/syax/migracao-service
-ExecStart=/usr/bin/java -Xmx8g -Xms2g -jar /opt/syax/migracao-service/app.jar
-Restart=on-failure
-RestartSec=5
-Environment=SPRING_PROFILES_ACTIVE=prod
-
-[Install]
-WantedBy=multi-user.target
+```yaml
+migracao-service:
+  image: vitorff1234/migracao-service:latest
+  environment:
+    SYAX_EXPORT_DIR: /var/syax/exports
+  volumes:
+    - syax_exports:/var/syax/exports
 ```
 
-Porta HTTP sugerida: `8094`, seguindo a numeração dos demais serviços do CLAUDE.md (`fiscal-service` usa 8093) — a confirmar quando o serviço for de fato aberto no MVP posterior.
+A escolha por volume nomeado não é estética. Num bind mount, o diretório do host pertence ao UID que o criou, enquanto o processo dentro do container é o usuário `spring` (UID de sistema atribuído pelo `adduser -S` do Alpine) — a primeira escrita falha com `AccessDeniedException` até alguém acertar o `chown` com o UID certo, que ninguém lembra qual é. Um volume nomeado herda dono e permissão do diretório que já existe na imagem no primeiro mount, então o `chown spring:spring` do `Dockerfile` resolve o problema de uma vez, e continua valendo em toda máquina que subir a imagem.
 
-**Nginx na frente da JVM**, com TLS via Let's Encrypt/certbot:
+**Sem o volume, o export desaparece no deploy seguinte** — o filesystem do container é efêmero, e o pipeline publica `:latest` a cada build. Esse é o modo de falha mais provável de toda esta seção: um batch em `READY`, com `download_token` válido no banco, apontando para um arquivo que o `docker run` anterior levou junto. O cliente vê "arquivo não encontrado" no que deveria ser o caminho feliz.
 
-```nginx
-server {
-    listen 443 ssl;
-    server_name app.syax.com.br;
-    ssl_certificate     /etc/letsencrypt/live/app.syax.com.br/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/app.syax.com.br/privkey.pem;
-    client_max_body_size 50M;
+O staging de import (`/var/syax/imports`) é um volume separado, com TTL próprio de 30 dias e job de purga do outro lado do pipeline — ver `migracao-dados-syax.md`, seção 12. Guarda dado pessoal de terceiros e não é coberto pelo job de limpeza de export.
 
-    location / {
-        proxy_pass http://127.0.0.1:8080;
-        proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    }
-}
-```
-
-Diferente de uma VPS tradicional, na OCI as portas 80/443 também precisam estar liberadas na Security List (ou Network Security Group) da VCN da instância, além do `iptables`/`firewalld` local — esquecer essa regra é a causa mais comum de "nginx no ar mas ninguém acessa de fora" em Compute OCI.
+Porta HTTP: `8094`, seguindo a numeração dos demais serviços do CLAUDE.md (`fiscal-service` usa 8093). Exposição externa é só pelo gateway (seção 5.5) — a porta do container não precisa estar aberta na Security List da VCN, apenas alcançável na rede interna do Docker. A regra de Security List/NSG vale para as portas do gateway; esquecê-la é a causa mais comum de "serviço no ar mas ninguém acessa de fora" em Compute OCI.
 
 **Limpeza de arquivos expirados** — job Spring, mantém a lógica junto do código em vez de espalhada em cron externo. Filtra por `expires_at` com status em `{READY, DOWNLOADED, FAILED}`: batch baixado também precisa ser limpo (senão o arquivo fica em disco para sempre), e batch que falhou pode ter deixado arquivos parciais.
 
 ```java
 private static final Set<ExportStatus> LIMPAVEIS = EnumSet.of(READY, DOWNLOADED, FAILED);
 
+// ponytail: sem lock distribuído — instância única no MVP. Se o serviço escalar
+// (mesmo gatilho que move o storage para o bucket, 12.3), envolver com o
+// DistributedLockService do billing-service, senão N instâncias apagam em paralelo.
 @Scheduled(cron = "0 0 3 * * *") // 3h da manhã, todo dia
 public void cleanupExpiredExports() {
     List<ExportBatch> expired = exportBatchRepo
@@ -356,14 +389,17 @@ public void cleanupExpiredExports() {
 
 O mesmo job faz a varredura de timeout da seção 6.1 (`PROCESSING` há mais de 30min → `FAILED`) e a checagem de deadline da fila concierge do import (`migracao-dados-syax.md`, seção 8).
 
-**Monitoramento de disco** — diferente de bucket, aqui disco cheio derruba a aplicação inteira, não só o export. Vale expor via Spring Boot Actuator (`diskSpace` health indicator já vem pronto) e alertar cedo:
+**Monitoramento de disco** — diferente de bucket, aqui disco cheio derruba a aplicação inteira, não só o export. Isso **não** precisa de cron nem de webhook próprio: o `diskSpace` health indicator do Actuator já vem pronto, o Prometheus já raspa `/actuator/prometheus` de cada serviço e o Grafana já está de pé (CLAUDE.md, Observabilidade). Basta apontar o indicador para o diretório de exports e criar a regra de alerta no stack que existe:
 
-```bash
-# /etc/cron.d/disk-check — roda a cada 30min
-*/30 * * * * root df -h /var/syax | awk 'NR==2{print $5}' | tr -d '%' | \
-  awk '{if ($1 > 85) print "ALERTA: disco em " $1 "%"}' | \
-  xargs -I{} curl -X POST -H 'Content-Type: application/json' -d '{"text":"{}"}' https://hooks.slack.com/services/SEU/WEBHOOK
+```yaml
+management:
+  health:
+    diskspace:
+      path: ${syax.export.base-dir}
+      threshold: 2GB        # health DOWN abaixo disso
 ```
+
+O alerta de "disco acima de 85%" vira uma regra Prometheus sobre `disk_free_bytes`, no mesmo canal dos alertas de SLA de geração (seção 6.1) e do `job_segundos_desde_ok` do billing. Um cron com `curl` para webhook seria um segundo caminho de alerta para manter, monitorando o mesmo número que o Actuator já publica.
 
 **Backup** — os arquivos de export são transientes e regeneráveis a partir do banco a qualquer momento, então não precisam de backup próprio. O que precisa é o Postgres:
 
@@ -372,20 +408,32 @@ O mesmo job faz a varredura de timeout da seção 6.1 (`PROCESSING` há mais de 
 #!/bin/bash
 set -euo pipefail          # sem pipefail, pg_dump falhando + gzip OK = "sucesso" com dump vazio
 DEST=/var/backups/syax
-pg_dump syax_prod | gzip > "$DEST/syax_$(date +%F).sql.gz"
+# Postgres roda em container (compose.yaml): dump por docker exec, não pg_dump no host.
+docker exec -i postgres pg_dump -U "$DB_USER" loop-erp | gzip > "$DEST/syax_$(date +%F).sql.gz"
 find "$DEST" -name 'syax_*.sql.gz' -mtime +30 -delete   # rotação: mantém 30 dias
 ```
 
 ```bash
 # /etc/cron.d/pg-backup
-0 2 * * * postgres /usr/local/bin/pg-backup.sh
+0 2 * * * root /usr/local/bin/pg-backup.sh   # precisa de acesso ao socket do Docker
 ```
 
 Os dois detalhes não são preciosismo: sem `pipefail`, o exit code do pipe é o do `gzip`, então um `pg_dump` que morre no meio produz um `.gz` truncado marcado como sucesso — o backup só se revela inútil no dia do restore. E sem rotação, o diretório de backup cresce até encher o disco, que na instância single-node derruba a aplicação inteira (o mesmo risco da seção de monitoramento acima).
 
 Mandar essa cópia para fora da instância (ex: `rclone`/`restic` para o OCI Object Storage — a camada Always Free já inclui 10GB, suficiente pra esse uso — ou outro storage barato só de disaster recovery) é o único ponto onde vale ter algo "fora da instância" — não é infra de produto, é seguro contra perda total da máquina.
 
-### 12.2 Alternativa: OCI Object Storage standalone
+### 12.2 Como isso se testa localmente
+
+O pipeline inteiro é testável sem OCI, sem bucket e sem tocar em disco real — o que mantém a regra do projeto de que teste não depende de `curl` nem de infra externa:
+
+- **Geração e limpeza:** `@TempDir` do JUnit 5 sobrescrevendo `syax.export.base-dir` via `@DynamicPropertySource`. O job da seção 12.1 é verificável criando dois batches (um expirado, um vigente) e afirmando que só o primeiro sumiu do diretório e virou `EXPIRED` — o teto de `attempt_count`, o timeout de 30min em `PROCESSING` e o `total_bytes` entram no mesmo teste de serviço.
+- **Endpoints:** `@WebMvcTest` + `MockMvc`, como no `auth-service`. O caso que mais importa cobrir é o da seção 5.3: token válido apresentado com sessão de **outro** tenant tem que devolver 404 (nunca 403) e gravar `DOWNLOAD_DENIED`.
+- **Dedupe:** `scope_hash` é função pura do `scope` normalizado — teste unitário direto, sem Spring.
+- **Infra local:** Postgres e Kafka já sobem pelo `compose.yaml` do repositório; este serviço não acrescenta nenhuma dependência de infra nova. Redis só entraria junto com o lock distribuído, que o MVP não usa.
+
+O que **não** dá para validar localmente, e portanto só se confirma no primeiro deploy: a permissão de escrita no volume nomeado e a sobrevivência dos arquivos a um redeploy. Os dois se verificam em um minuto na instância — gerar um export, rodar `docker compose up -d --force-recreate migracao-service`, baixar o mesmo token.
+
+### 12.3 Alternativa: OCI Object Storage standalone
 
 Object Storage pode ser contratado isoladamente dentro do mesmo tenancy OCI — não exige mudar a topologia dos demais serviços. Vale considerar se, no futuro, a aplicação escalar para múltiplas instâncias sem disco compartilhado, ou se quiser tirar do código a responsabilidade de lifecycle/backup.
 
