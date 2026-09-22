@@ -15,9 +15,10 @@ ficaria condicionada a duas coisas que ainda não existiam — entidade de
 Duas coisas mudaram desde então:
 
 - `spec/modulos/estabelecimentos/estabelecimentos-filiais.md` — Fases 1-6
-  **escritas** (não testadas): existe entidade `Estabelecimento`, a Fase 6 já
-  resolve `ufOrigem` do emitente próprio e o consome no `operacoes-service` /
-  `fiscal-service`. O bloqueio de "não existe emitente" **deixou de valer**.
+  **escritas e testadas** (confirmado pelo usuário, 22/09/2026): existe
+  entidade `Estabelecimento`, a Fase 6 já resolve `ufOrigem` do emitente
+  próprio e o consome no `operacoes-service` / `fiscal-service`. O bloqueio
+  de "não existe emitente" **deixou de valer**.
 - A matriz da transição (item 3 do doc acima) está **código-completa e verde**
   desde 27 de agosto de 2026.
 
@@ -25,8 +26,8 @@ Este doc reabre o item 7 daquele roadmap (emissão), a pedido explícito, e
 **amplia o escopo** além do que estava desenhado: não só NF-e/NFC-e, mas
 CT-e, NFS-e (padrão nacional), NFCom (NF-telecom) e NF3e.
 
-**Isto não decide se emissão deve entrar antes de AR/O2C ou P2P no roadmap geral**
-— só planeja o que a emissão em si exige, para quando for priorizada.
+**A ordem de priorização foi resolvida na prática: emissão entrou depois de
+O2C e de P2P** (confirmado pelo usuário, 22/09/2026) — ver §8.
 
 ## 1. Escopo e não-escopo
 
@@ -213,34 +214,17 @@ alinhado com a exigência do §7 de não introduzir lock-in.
       mencionam o `crt` novo. Corrigir os dois pontos na próxima vez que
       alguém mexer naquele doc.
 
-    **Ainda em aberto — é o que falta de fato da Etapa 0, e trava a Etapa 2:**
-    - **CST/CSOSN por item.** `OperacaoFiscalDTO.java:59-67` já reserva os
-      campos `cst`/`cstIcms`/`csosn`, mas eles ficam **sempre `null`** —
-      comentário no próprio código registra que "não têm fonte resolvida
-      internamente… ficam sempre null até existir uma tabela real de
-      resolução". CST é obrigatório no grupo de imposto do XML da NF-e; sem
-      ele a Etapa 2 trava no primeiro XML — exatamente o motivo que criou a
-      Etapa 0. **Decisão (22 de setembro de 2026): resolvido em tabela
-      própria no `fiscal-service`** (`fiscal.cst_*`), mesmo padrão de
-      `fiscal.aliq_iss_municipio`/`fiscal.ncm` já em uso — coerente com "o
-      `fiscal-service` é o único dono de regra tributária" (§1/§2). A
-      alternativa (resolver no `emissao-fiscal-service`) foi descartada por
-      contradizer essa separação.
-    - **CFOP real por item.** Hoje é um default fixo hardcoded em
-      `FiscalServiceClient.java:45-46`
-      (`Constants.PEDIDO_FISCAL_CFOP_MERCADORIA_DEFAULT`/`_SERVICO_DEFAULT`),
-      e o `regimeEmpresa` enviado também é fixo
-      (`Constants.REGIME_LUCRO_PRESUMIDO`) — o ponytail em
-      `FiscalServiceClient.java:23-27` que justificava isso ("tenant ainda
-      não modela regime tributário real") **não vale mais**, porque
-      `Estabelecimento.crt` já existe; esse default virou dívida a fechar
-      junto da Etapa 0. CFOP errado é rejeição ou autuação — gap maior que o
-      do CRT. **Decisão (22 de setembro de 2026): mesmo padrão do CST** —
-      tabela de regra `fiscal.cfop_regra` no `fiscal-service`, chaveada por
-      tipo de operação (venda/devolução/transferência) + UF origem/destino +
-      contribuinte/não contribuinte. O `operacoes-service` só informa o tipo
-      de operação que já conhece (regra comercial); o `fiscal-service`
-      resolve o código.
+    **Ainda em aberto — o que resta de fato da Etapa 0:**
+    - ~~**CST/CSOSN por item.**~~ **Resolvido (commit `20209a6`, 22/09/2026,
+      confirmado verde — 123 testes):** tabela `fiscal.cst_icms_regra` no
+      `fiscal-service`, resolvida em `TabelaFiscal.resolverCstIcms`/
+      `MotorFiscalService` — detalhe completo em §10/§11 ("fiscal-service —
+      CST e CFOP").
+    - ~~**CFOP real por item.**~~ **Resolvido (commit `20209a6`, 22/09/2026,
+      confirmado verde):** tabela `fiscal.cfop_regra` no `fiscal-service`,
+      chaveada por natureza de operação × âmbito × tipo de operação — detalhe
+      completo em §10/§11. `FiscalServiceClient.java` (operacoes-service) já
+      consome via `naturezaOperacao`, em vez do CFOP `5102` fixo.
     - **Quem carrega CST/CFOP/percentuais até o XML — ainda em aberto,
       consequência das duas decisões acima.** O consumidor de hoje
       (`operacoes-service/.../infra/client/FiscalServiceClient.java:84-88`)
@@ -376,9 +360,9 @@ alinhado com a exigência do §7 de não introduzir lock-in.
   código novo. Isso muda a ordem de prioridade dentro da NF-e (ver §5).
 - Endpoint é dado, não hardcode — resolução em runtime pelo desenho do §3,
   item 12.
-- Depende de: `Estabelecimento` como emitente (✅ escrito, Fase 6), matriz da
-  transição para o lado legado ICMS (✅ código-completa), cálculo IBS/CBS novo
-  (✅ pronto, `fiscal-service`).
+- Depende de: `Estabelecimento` como emitente (✅ escrito e testado, Fase 6),
+  matriz da transição para o lado legado ICMS (✅ código-completa), cálculo
+  IBS/CBS novo (✅ pronto, `fiscal-service`).
 
 ### 4.2 NFC-e (modelo 65) — SP, MG, RJ, DF, SC
 
@@ -492,7 +476,7 @@ NF-e sem generalizar para os outros documentos:**
 
 | Etapa | Entrega | Depende de |
 |---|---|---|
-| 0 | `fiscal-service` passa a devolver, por item, os campos que faltam para montar o XML — CST, `cClassTrib` (eco), base e alíquota separadas (`pIBSUF`/`pIBSMun`/`pCBS`), percentual de redução aplicado; no legado, CST/CSOSN + `vBC` reduzida + `pICMS` nominal. **~85% pronto** (§3, item 11) — cadastro-service e os percentuais do `fiscal-service` foram implementados no commit `d313921` (15/09/2026); falta só CST/CSOSN e CFOP real (ambos decididos nesta revisão como tabela própria no `fiscal-service`). **Fora desta etapa, por decisão já registrada** (`motor-fiscal-proximos-passos.md`): PIS/COFINS/IPI/ICMS-ST/FCP/DIFAL continuam sem cálculo — o MVP de emissão se restringe a operações sem substituição tributária | — |
+| 0 | `fiscal-service` passa a devolver, por item, os campos que faltam para montar o XML — CST, `cClassTrib` (eco), base e alíquota separadas (`pIBSUF`/`pIBSMun`/`pCBS`), percentual de redução aplicado; no legado, CST/CSOSN + `vBC` reduzida + `pICMS` nominal. **✅ 100% pronto e verde** (§3, item 11; §10/§11) — cadastro-service e os percentuais do `fiscal-service` no commit `d313921` (15/09/2026); CST/CSOSN e CFOP real no commit `20209a6` (22/09/2026, 123 testes). Só falta decidir quem carrega esses campos até o XML (§3 item 11, último bullet) — não bloqueia mais a Etapa 2. **Fora desta etapa, por decisão já registrada** (`motor-fiscal-proximos-passos.md`): PIS/COFINS/IPI/ICMS-ST/FCP/DIFAL continuam sem cálculo — o MVP de emissão se restringe a operações sem substituição tributária | — |
 | 1 | Infra comum (§3): envelope encryption do certificado, assinatura XML, cliente SOAP genérico, numeração/série (lock via `SELECT FOR UPDATE`, não Redis), persistência do documento, máquina de estados assíncrona com idempotency key (§3, item 10), UI de credenciamento/certificado — **sem emitir nada ainda** | 0 |
 | 2 | NF-e em homologação, **via SVRS** (RJ, DF ou SC — a primeira UF concreta) | 1 |
 | 3 | **NF-e em produção via SVRS: autorização + cancelamento + inutilização + DANFE no mesmo pacote.** Nada vai a produção sem os três — produção sem DANFE não é utilizável, e sem cancelamento é risco fiscal do tenant | 2 |
@@ -716,14 +700,16 @@ proprietário em nenhum ponto.
 
 ## 8. O que este doc não decide
 
-Não decide se emissão deve entrar antes de AR/O2C, P2P ou da matriz de
-transição no roadmap geral — isso é chamada de priorização de produto, não de
-arquitetura de emissão. Ver `spec/fiscal/motor-fiscal-proximos-passos.md`
-("Próximos passos gerais") para o estado do resto do roadmap. A migração
-OCI→VPS **já foi decidida** (14/09/2026: permanece no OCI, ver §7) — não é
-mais item em aberto. E não inclui NFCom/NF3e (§4.5) nem manifestação do
-destinatário/DF-e (§6) — ambos fora deste plano por ora, o segundo com
-desenho próprio do usuário para uma fase futura.
+Não decide a arquitetura interna de O2C/P2P nem da matriz de transição — isso
+é escopo dos respectivos docs (`spec/modulos/o2c-vendas/o2c-vendas.md`,
+`spec/p2p-compras.md`, `spec/fiscal/motor-fiscal-proximos-passos.md`). **A
+ordem de priorização no roadmap geral já não é mais item em aberto: na
+prática, emissão entrou depois de O2C e de P2P** (confirmado pelo usuário,
+22/09/2026) — os dois já tinham backend implementado quando este doc foi
+retomado. A migração OCI→VPS **já foi decidida** (14/09/2026: permanece no
+OCI, ver §7) — também não é mais item em aberto. E não inclui NFCom/NF3e
+(§4.5) nem manifestação do destinatário/DF-e (§6) — ambos fora deste plano
+por ora, o segundo com desenho próprio do usuário para uma fase futura.
 
 ## 9. Revisão (14 de setembro de 2026)
 
@@ -817,10 +803,10 @@ que a decisão de isolar a emissão foi a certa.
 
 Detalhamento dos gaps identificados no §3 (item 11) e na Etapa 0 do §5.
 **Atualizado em 22/09/2026: cadastro-service, percentuais e a seção
-"fiscal-service — CST e CFOP" abaixo estão todos ✅ implementados** (a
-primeira leva no commit `d313921`, 15/09/2026; CST/CFOP nesta revisão,
-22/09/2026, ainda não commitado) — mantidos aqui como registro do que foi
-pedido/entregue.
+"fiscal-service — CST e CFOP" abaixo estão todos ✅ implementados e
+commitados** (a primeira leva no commit `d313921`, 15/09/2026; CST/CFOP no
+commit `20209a6`, 22/09/2026, confirmado verde — 123 testes) — mantidos aqui
+como registro do que foi pedido/entregue.
 
 ### cadastro-service — back-end (✅ implementado, `d313921`)
 
@@ -867,7 +853,7 @@ pedido/entregue.
 - `MotorFiscalServiceTest` ganhou asserts nos campos novos sobre o oráculo já
   existente (§1.4.8 do `Fin.md`), sem caso de teste novo do zero.
 
-### fiscal-service — CST e CFOP (✅ implementado nesta revisão, 22/09/2026)
+### fiscal-service — CST e CFOP (✅ implementado e commitado, `20209a6`, 22/09/2026)
 
 - **CST/CSOSN**: nova tabela `fiscal.cst_icms_regra` (changeset
   `fiscal-schema-018.yaml`, `fiscal-053`/`054`), chaveada por

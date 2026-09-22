@@ -1,11 +1,11 @@
 # Estabelecimentos / Filiais — Modelo Party + Estabelecimento (estilo TCA)
 ## Especificação de Mudança
 
-**Status:** Fases 1-6 escritas, não testadas (Fase 5 = `deposito.estabelecimento_id`; Fase 6 = `ufOrigem` no faturamento) — ver §8
+**Status:** Fases 1-6 escritas e testadas, confirmado pelo usuário (Fase 5 = `deposito.estabelecimento_id`; Fase 6 = `ufOrigem` no faturamento) — ver §8
 **Serviço primário:** `cadastro-service` (porta 8086) · schema `cadastros`
 **Serviços impactados:** `auth-service` (onboarding do tenant), `liquibase-service` (DDL), futuros módulos NF-e / motor fiscal IBS-CBS / estoque / financeiro
 **Base package:** `com.l.erp.cadastroservice`
-**Data:** 4 de setembro de 2026 (última atualização — §6.1/§8 Fase 6 marcada como escrita)
+**Data:** 22 de setembro de 2026 (última atualização — status testado confirmado; correção do §9 sobre a tela Angular de `Estabelecimento`, que já existe; coluna `crt` documentada em §4.1/§7)
 
 ---
 
@@ -110,6 +110,7 @@ docs operacionais (pedido, NF-e,   → referenciam estabelecimento (ship-to / bi
 | `proprio` | boolean NN default false | empresa do tenant (emitente) |
 | `ie` | varchar(20) | inscrição estadual (por estabelecimento) |
 | `im` | varchar(20) | inscrição municipal |
+| `crt` | enum NN | **Adicionado fora deste changelog original, no commit `d313921` (15/09/2026):** Código de Regime Tributário (`CodigoRegimeTributario`), pré-requisito de cadastro pra emissão fiscal (`emissao-fiscal.md` §3 item 11) — `cadastro-schema-016.yaml`, `cad-052`, backfill `REGIME_NORMAL` |
 | `ativo` | boolean NN default true | |
 | `created_at` / `created_by` | NN | auditoria |
 | `updated_at` / `last_updated_by` | nullable | auditoria |
@@ -299,7 +300,8 @@ aceitável enquanto o O2C não modela emissão por filial.
 
 | Artefato | Ação |
 |---|---|
-| `domain/Estabelecimento.java` | NOVO — entity (`BaseTenantEntity`), FK `pessoa` |
+| `domain/Estabelecimento.java` | NOVO — entity (`BaseTenantEntity`), FK `pessoa`. **Ganhou o campo `crt`** (commit `d313921`, 15/09/2026, fora deste changelog original — ver §4.1) |
+| `domain/enumerators/CodigoRegimeTributario.java` | NOVO (commit `d313921`, 15/09/2026) — enum do CRT, exposto em `EstabelecimentoRequestDTO`/`EstabelecimentoResponseDTO` e no form Angular |
 | `domain/Pessoa.java` | MODIFICADO — `ie`/`im` viram `@Transient` (populados via matriz), `cnpjRaiz` persistido (já era Fase 1) |
 | `domain/Endereco.java` / `Contato.java` | MODIFICADO — FK `estabelecimento` (PJ, nullable) ao lado de `pessoa` (PF, agora nullable) — XOR garantido no DB (`cad-046`/`cad-047`) |
 | `repository/EstabelecimentoRepository.java` | NOVO — `findAllByPessoaIdAndTenantId`, `findByPessoaIdAndMatrizTrueAndTenantId`, `findAllByPessoaIdInAndMatrizTrueAndTenantId` (batch) |
@@ -362,11 +364,13 @@ aceitável enquanto o O2C não modela emissão por filial.
   direto do `cad-036`. Conferido que `cadastro-schema-012.yaml` (Fase 2, ainda não alcançada)
   não repete o padrão (sem blocos `DO $$`, indentação uniforme). Não testado por mim — usuário
   precisa rodar `liquibase-service` de novo pra confirmar.
-- **Frontend não coberto por esta spec.** `Pessoa`/`Endereco`/`Contato` no Angular continuam
+- ~~**Frontend não coberto por esta spec** — não existe tela/serviço Angular para
+  `Estabelecimento`~~ **Corrigido nesta revisão (22/09/2026):** a afirmação estava
+  desatualizada — a tela **já existe** desde o commit `3bb6e19` (07/09/2026), três dias
+  depois da versão anterior deste doc. `Pessoa`/`Endereco`/`Contato` no Angular continuam
   funcionando sem mudança nenhuma (API pública inalterada — `PessoaService.java` já roteia
   `ie`/`im` pra/da matriz por baixo dos panos, mantendo os mesmos campos em
-  `PessoaRequestDTO`/`PessoaResponseDTO`). Mas **não existe nenhuma tela/serviço Angular para
-  `Estabelecimento`** (`estabelecimento.service.ts`, página de filiais) — o backend já tem CRUD
-  completo (`EstabelecimentoController`), só acessível hoje via chamada direta à API. Sem UI, um
-  tenant não consegue criar/ver/editar uma filial (`is_matriz=false`). Não está em nenhuma das
-  Fases 1-6 (todas backend); precisa virar item explícito quando a UI de filiais for priorizada.
+  `PessoaRequestDTO`/`PessoaResponseDTO`), e `Estabelecimento` ganhou CRUD completo próprio
+  em `pages/cadastros/estabelecimento/` (lista + form), na rota
+  `cadastros/pessoas/:pessoaId/estabelecimentos` — inclusive o campo `crt` (§4.1/§7) já está
+  no form. Detectado e registrado em `spec/modulos/emissao-fiscal/emissao-fiscal.md` §3 item 11.
