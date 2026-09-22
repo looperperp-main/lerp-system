@@ -164,6 +164,23 @@ public class TabelaFiscalJdbc implements TabelaFiscal {
                AND (ano_vigencia IS NULL OR ano_vigencia = :ano)
             """;
 
+    // Etapa 0 (spec/modulos/emissao-fiscal/emissao-fiscal.md §11) — match exato, sem prefixo: os
+    // dois lados (grupo/situação, natureza/âmbito) são categorias fechadas, não códigos hierárquicos.
+    private static final String SQL_CST_ICMS_REGRA = """
+            SELECT codigo
+              FROM fiscal.cst_icms_regra
+             WHERE regime_tributario = :grupo
+               AND situacao = :situacao
+            """;
+
+    private static final String SQL_CFOP_REGRA = """
+            SELECT cfop
+              FROM fiscal.cfop_regra
+             WHERE natureza_operacao = :natureza
+               AND ambito = :ambito
+               AND tipo_operacao = :tipoOperacao
+            """;
+
     private final JdbcClient jdbc;
 
     public TabelaFiscalJdbc(JdbcClient jdbc) {
@@ -305,6 +322,34 @@ public class TabelaFiscalJdbc implements TabelaFiscal {
                         rs.getString("tipo"),
                         rs.getBigDecimal("valor")))
                 .list();
+    }
+
+    @Override
+    public Optional<String> resolverCstIcms(String regimeEmpresa, RegimeDiferenciado regime) {
+        String grupo = Constants.REGIME_SIMPLES_NACIONAL.equals(regimeEmpresa)
+                ? Constants.FISCAL_CST_GRUPO_SIMPLES
+                : Constants.FISCAL_CST_GRUPO_NORMAL;
+        String situacao = regime.aliquotaZero() ? Constants.FISCAL_CST_SITUACAO_ISENTA
+                : regime.reducaoPercentual().signum() > 0 ? Constants.FISCAL_CST_SITUACAO_REDUZIDA
+                : Constants.FISCAL_CST_SITUACAO_INTEGRAL;
+        return jdbc.sql(SQL_CST_ICMS_REGRA)
+                .param("grupo", grupo)
+                .param("situacao", situacao)
+                .query(String.class)
+                .optional();
+    }
+
+    @Override
+    public Optional<String> resolverCfop(String naturezaOperacao, String ufOrigem, String ufDestino) {
+        String ambito = ufOrigem.equals(ufDestino)
+                ? Constants.FISCAL_CFOP_AMBITO_INTERNO
+                : Constants.FISCAL_CFOP_AMBITO_INTERESTADUAL;
+        return jdbc.sql(SQL_CFOP_REGRA)
+                .param("natureza", naturezaOperacao)
+                .param("ambito", ambito)
+                .param("tipoOperacao", TipoOperacaoFiscal.SAIDA.name())
+                .query(String.class)
+                .optional();
     }
 
     private static RegimeDiferenciado regimeDaLinha(ResultSet rs, int rowNum) throws SQLException {

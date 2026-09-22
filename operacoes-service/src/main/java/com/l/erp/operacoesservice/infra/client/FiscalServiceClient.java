@@ -20,11 +20,17 @@ import java.time.LocalDate;
  * Client HTTP pro fiscal-service via Eureka (D4, spec/modulos/o2c-vendas/o2c-vendas.md §8): calcula IBS/CBS/IS/ISS
  * de saída por item do pedido no momento do faturamento (POST /fiscal/calcular).
  *
- * ponytail: cfop/regimeEmpresa/tipoDocumento vêm de defaults (Constants.PEDIDO_FISCAL_CFOP_*,
- * Constants.REGIME_LUCRO_PRESUMIDO) — Tenant ainda não modela regime tributário real. ufOrigem
- * (Fase 6, spec/estabelecimentos-filiais.md §6.1) já vem do endereço fiscal do estabelecimento
- * "próprio" do tenant. cClassTrib (Produto) e UF/IBGE de destino (Endereco do cliente) já vêm de
- * dado real desde P1/P2.
+ * Mercadoria não manda cfop pronto: manda naturezaOperacao=VENDA e deixa o fiscal-service resolver
+ * o CFOP real por UF (fiscal.cfop_regra, Etapa 0 — spec/modulos/emissao-fiscal/emissao-fiscal.md
+ * §11), corrigindo o '5102' fixo que antes saía errado em toda venda interestadual. Serviço
+ * continua com cfop fixo (Constants.PEDIDO_FISCAL_CFOP_SERVICO_DEFAULT): NFS-e não tem CFOP no
+ * XML, o valor só serve de sinal interno de SAÍDA para o motor — não precisa de resolução real.
+ *
+ * ponytail: regimeEmpresa/tipoDocumento seguem de default (Constants.REGIME_LUCRO_PRESUMIDO) —
+ * Tenant ainda não modela regime tributário real no pedido (Estabelecimento.crt existe desde
+ * d313921, falta o fio até aqui). ufOrigem (Fase 6, spec/estabelecimentos-filiais.md §6.1) já vem
+ * do endereço fiscal do estabelecimento "próprio" do tenant. cClassTrib (Produto) e UF/IBGE de
+ * destino (Endereco do cliente) já vêm de dado real desde P1/P2.
  */
 @Component
 public class FiscalServiceClient {
@@ -43,7 +49,8 @@ public class FiscalServiceClient {
         String ibge = endereco != null ? endereco.ibgeCodigo() : null;
         String uf = endereco != null ? endereco.uf() : null;
         MotorFiscalRequestLocal req = new MotorFiscalRequestLocal(
-                servico ? Constants.PEDIDO_FISCAL_CFOP_SERVICO_DEFAULT : Constants.PEDIDO_FISCAL_CFOP_MERCADORIA_DEFAULT,
+                servico ? Constants.PEDIDO_FISCAL_CFOP_SERVICO_DEFAULT : null,
+                servico ? null : Constants.NATUREZA_OPERACAO_VENDA,
                 servico ? null : produto.ncm(),
                 servico ? produto.codigoServico() : null,
                 servico ? produto.classTrib() : null,
@@ -74,8 +81,8 @@ public class FiscalServiceClient {
         }
     }
 
-    private record MotorFiscalRequestLocal(String cfop, String ncm, String codigoServico, String cClassTrib,
-                                            String ibgeDestino, String ibgeLocalPrestacao,
+    private record MotorFiscalRequestLocal(String cfop, String naturezaOperacao, String ncm, String codigoServico,
+                                            String cClassTrib, String ibgeDestino, String ibgeLocalPrestacao,
                                             BigDecimal valorOperacao, LocalDate dataCompetencia,
                                             String regimeEmpresa, String tipoDocumento, String ufDestino,
                                             String ufOrigem) {

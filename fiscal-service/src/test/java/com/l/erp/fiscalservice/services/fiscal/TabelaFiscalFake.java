@@ -36,10 +36,14 @@ public class TabelaFiscalFake implements TabelaFiscal {
     private final Map<String, RegimeIcms> matrizMap = new HashMap<>();
     private final Map<String, AliquotaRetencao> retencaoMap = new HashMap<>();
     private final Map<String, List<RegimeTributoOverride>> overridesMap = new HashMap<>();
+    private final Map<String, String> cstIcmsMap = new HashMap<>();
+    private final Map<String, String> cfopRegraMap = new HashMap<>();
 
     public TabelaFiscalFake() {
         cfopMap.put("5101", new CfopInfo("5101", TipoOperacaoFiscal.SAIDA, true, true, true));
         cfopMap.put("5102", new CfopInfo("5102", TipoOperacaoFiscal.SAIDA, true, true, false));
+        // Etapa 0 (§11) — par interestadual do 5102, resolvido via fiscal.cfop_regra em testes de resolverCfop.
+        cfopMap.put("6102", new CfopInfo("6102", TipoOperacaoFiscal.SAIDA, true, true, false));
         cfopMap.put("5405", new CfopInfo("5405", TipoOperacaoFiscal.SAIDA, true, true, false));
         cfopMap.put("5933", new CfopInfo("5933", TipoOperacaoFiscal.SAIDA, true, true, false));
         // ENTRADA, com as mesmas flags do cfop.csv: compra para comercialização gera crédito de IBS
@@ -79,6 +83,9 @@ public class TabelaFiscalFake implements TabelaFiscal {
         ibsMap.put(chave("3304557", 2033),
                 new AliquotaIbs(new BigDecimal("16.00"), new BigDecimal("2.50"), true));
         cbsMap.put(chave(Constants.REGIME_LUCRO_REAL, 2033), new BigDecimal("8.50"));
+        // Etapa 0 (§11) — mesmo valor de LUCRO_REAL só para exercitar resolverCstIcms/CSOSN no
+        // caminho de cálculo completo (o fake não modela a curva real do Simples por ano).
+        cbsMap.put(chave(Constants.REGIME_SIMPLES_NACIONAL, 2033), new BigDecimal("8.50"));
         isMap.put("24022000", new BigDecimal("150"));
 
         // Curva da transição inteira (as 8 linhas do fiscal-025): aqui não vale escolher ano, é a
@@ -145,6 +152,17 @@ public class TabelaFiscalFake implements TabelaFiscal {
         overridesMap.put("SERVICO_FINANCEIRO", List.of(
                 new RegimeTributoOverride(Constants.FISCAL_TRIBUTO_TOTAL,
                         Constants.FISCAL_TIPO_ALIQUOTA_ABSOLUTA, new BigDecimal("13.50"))));
+
+        // Etapa 0 (§11) — espelha o seed de fiscal-schema-018.yaml.
+        cstIcmsMap.put(chaveCst(Constants.FISCAL_CST_GRUPO_NORMAL, Constants.FISCAL_CST_SITUACAO_INTEGRAL), "00");
+        cstIcmsMap.put(chaveCst(Constants.FISCAL_CST_GRUPO_NORMAL, Constants.FISCAL_CST_SITUACAO_REDUZIDA), "20");
+        cstIcmsMap.put(chaveCst(Constants.FISCAL_CST_GRUPO_NORMAL, Constants.FISCAL_CST_SITUACAO_ISENTA), "40");
+        cstIcmsMap.put(chaveCst(Constants.FISCAL_CST_GRUPO_SIMPLES, Constants.FISCAL_CST_SITUACAO_INTEGRAL), "102");
+        cstIcmsMap.put(chaveCst(Constants.FISCAL_CST_GRUPO_SIMPLES, Constants.FISCAL_CST_SITUACAO_REDUZIDA), "102");
+        cstIcmsMap.put(chaveCst(Constants.FISCAL_CST_GRUPO_SIMPLES, Constants.FISCAL_CST_SITUACAO_ISENTA), "400");
+
+        cfopRegraMap.put(chaveCfopRegra(Constants.NATUREZA_OPERACAO_VENDA, Constants.FISCAL_CFOP_AMBITO_INTERNO), "5102");
+        cfopRegraMap.put(chaveCfopRegra(Constants.NATUREZA_OPERACAO_VENDA, Constants.FISCAL_CFOP_AMBITO_INTERESTADUAL), "6102");
     }
 
     @Override
@@ -259,5 +277,32 @@ public class TabelaFiscalFake implements TabelaFiscal {
 
     private static String chaveRetencao(String tenantId, String tributo) {
         return tenantId + "|" + tributo;
+    }
+
+    @Override
+    public Optional<String> resolverCstIcms(String regimeEmpresa, RegimeDiferenciado regime) {
+        String grupo = Constants.REGIME_SIMPLES_NACIONAL.equals(regimeEmpresa)
+                ? Constants.FISCAL_CST_GRUPO_SIMPLES
+                : Constants.FISCAL_CST_GRUPO_NORMAL;
+        String situacao = regime.aliquotaZero() ? Constants.FISCAL_CST_SITUACAO_ISENTA
+                : regime.reducaoPercentual().signum() > 0 ? Constants.FISCAL_CST_SITUACAO_REDUZIDA
+                : Constants.FISCAL_CST_SITUACAO_INTEGRAL;
+        return Optional.ofNullable(cstIcmsMap.get(chaveCst(grupo, situacao)));
+    }
+
+    @Override
+    public Optional<String> resolverCfop(String naturezaOperacao, String ufOrigem, String ufDestino) {
+        String ambito = ufOrigem.equals(ufDestino)
+                ? Constants.FISCAL_CFOP_AMBITO_INTERNO
+                : Constants.FISCAL_CFOP_AMBITO_INTERESTADUAL;
+        return Optional.ofNullable(cfopRegraMap.get(chaveCfopRegra(naturezaOperacao, ambito)));
+    }
+
+    private static String chaveCst(String grupo, String situacao) {
+        return grupo + "|" + situacao;
+    }
+
+    private static String chaveCfopRegra(String natureza, String ambito) {
+        return natureza + "|" + ambito;
     }
 }

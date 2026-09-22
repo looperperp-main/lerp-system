@@ -1,6 +1,6 @@
 # Emissão Fiscal — NF-e, CT-e, NFS-e, NFCom, NF3e (plano)
 
-> Última atualização: 14 de setembro de 2026
+> Última atualização: 22 de setembro de 2026
 
 Escrito para ser lido do zero. Nada aqui foi implementado — é planejamento.
 
@@ -42,8 +42,8 @@ CT-e, NFS-e (padrão nacional), NFCom (NF-telecom) e NF3e.
 Fora de escopo deste doc, por não ter sido pedido:
 
 - Impressão térmica genérica de DANFE/DACTE/DANFCE (representação gráfica
-  completa fica na etapa 9 da ordem de implementação, §5).
-- Contingência SVC-AN/SVC-RS completa para NF-e/CT-e — etapa 9. A
+  completa fica na etapa 8 da ordem de implementação, §5).
+- Contingência SVC-AN/SVC-RS completa para NF-e/CT-e — etapa 8. A
   **contingência offline básica da NFC-e** não entra nessa exceção: é
   requisito da própria NFC-e (§4.2), não do backlog geral de contingência.
 
@@ -79,6 +79,13 @@ O `operacoes-service` (AR) continua dono do documento comercial e **chama**
 este novo serviço para emitir — o mesmo padrão já usado com `fiscal-service`
 (`FiscalServiceClient` via Eureka).
 
+**Confirmado nesta revisão (22 de setembro de 2026): a decisão segue firme e
+ficou mais forte, não mais fraca.** O `operacoes-service` (alternativa B
+descartada) passou a existir de fato entre 13/09 e a data desta revisão —
+vendas + compras + estoque num serviço só, 164 arquivos Java. Colocar
+assinatura/SOAP/máquina de estados dentro dele agora seria pior do que era
+quando a decisão foi tomada. Nada a mudar.
+
 ### 2.1 Build vs. terceirizar (SaaS de emissão)
 
 **Decisão (14 de setembro de 2026): não terceirizar via SaaS de emissão**
@@ -100,22 +107,34 @@ alinhado com a exigência do §7 de não introduzir lock-in.
    (token/HSM) fica de fora do MVP. Guarda da chave nunca em disco puro —
    **decisão (14 de setembro de 2026): envelope encryption** (AES-256-GCM,
    chave de proteção — KEK — fora do banco), não um serviço de secrets à
-   parte. Ver §7.2 para o raciocínio completo.
+   parte. Ver §7.2 para o raciocínio completo. **Gap identificado nesta
+   revisão (22/09/2026), sem decisão ainda:** o desenho não define rotação
+   da KEK nem versionamento do blob cifrado — uma coluna `kek_version` na
+   tabela desde o dia 1 evita migração dolorosa depois; fechar isso junto da
+   Etapa 1.
 2. **Assinatura XML** (XMLDSig, padrão SEFAZ/ENCAT) — biblioteca Java
    existente (ex. wrappers de assinatura sobre `javax.xml.crypto`) em vez de
    implementar canonicalização/assinatura do zero.
 3. **Numeração e série por documento × estabelecimento** — evita duplicidade;
-   inutilização de faixa quando pula número.
+   inutilização de faixa quando pula número. **Decisão (22 de setembro de
+   2026): lock via `SELECT ... FOR UPDATE` no Postgres**, não
+   `DistributedLockService`/Redis. Motivo: essa classe mora hoje em
+   `billing-service` (não em `common`), e reaproveitá-la aqui exigiria movê-la
+   e tornaria o Redis dependência dura do `emissao-fiscal-service` — mesmo
+   efeito de health agregado DOWN que o `CLAUDE.md` já documenta para o
+   billing quando o Redis cai. `FOR UPDATE` na linha de
+   `emissao.numeracao_documento` usa uma dependência que já é obrigatória
+   (Postgres), sem novo ponto de falha.
 4. **Cliente SOAP genérico** para os webservices de autorização — um cliente
    parametrizado por UF/endpoint, não um por UF.
-5. **Contingência** (EPEC para NF-e/CT-e, SVC-AN/SVC-RS) — etapa 9 (§5), não
+5. **Contingência** (EPEC para NF-e/CT-e, SVC-AN/SVC-RS) — etapa 8 (§5), não
    bloqueia o MVP em ambiente de homologação.
 6. **Consulta de status/protocolo, cancelamento, Carta de Correção Eletrônica
    (CC-e)** — obrigação de toda UF, não é "nice to have".
 7. **Persistência do documento emitido** (XML assinado + protocolo + status)
    — dono é este novo serviço, não o `fiscal-service` (que segue sem schema de
    escrita) nem duplicado no `operacoes-service`.
-8. **Representação gráfica** (DANFE/DACTE/DANFS-e, PDF) — etapa 9 (§5).
+8. **Representação gráfica** (DANFE/DACTE/DANFS-e, PDF) — etapa 8 (§5).
 9. **Consumo do cálculo e do cadastro** — chama `fiscal-service`
    (`POST /fiscal/calcular`) para os valores de tributo por item e o
    `cadastro-service` (`Estabelecimento`, Fase 6 de
@@ -128,6 +147,14 @@ alinhado com a exigência do §7 de não introduzir lock-in.
     - `POST /emissao/documentos` responde **202** com o id do documento; o
       desfecho sai por evento Kafka (mesmo padrão dos 11 tópicos já
       existentes) e por `GET /emissao/documentos/{id}`.
+    - **Idempotency key obrigatória no `POST` (gap identificado em
+      22/09/2026, ainda sem tabela desenhada):** o item de contingência (§3,
+      item 10 original) protege contra duplicação do lado SEFAZ (consultar
+      pela chave antes de retentar), mas não protege o `operacoes-service` de
+      chamar duas vezes por retry de rede antes de qualquer SEFAZ estar
+      envolvida — sem uma chave de negócio (ex. `pedidoId + modelo`) recebida
+      e checada nesse endpoint, dois retries criam duas emissões e queimam
+      dois números. Fechar o desenho da chave junto da Etapa 1.
     - Máquina de estados explícita: `RASCUNHO → ASSINADO → TRANSMITIDO →
       AUTORIZADO | REJEITADO | DENEGADO | CONTINGENCIA`. `DENEGADA` é estado
       próprio — nota denegada não pode ser cancelada nem reaproveitada, e o
@@ -142,28 +169,90 @@ alinhado com a exigência do §7 de não introduzir lock-in.
       mais de N minutos.
     - Ver `CLAUDE.md` — regra geral de integrações externas longas adicionada
       a partir desta decisão.
-11. **Pré-requisitos de cadastro e credenciamento.** Levantados ao revisar o
-    que o `cadastro-service` tem hoje (14 de setembro de 2026, conferido no
-    código, não só na spec):
-    - `Estabelecimento` **não tem CRT** (Código de Regime Tributário: 1
-      Simples, 2 Simples com excesso, 3 Normal, 4 MEI) — campo obrigatório do
-      grupo `emit`. Falta coluna + changeset Liquibase.
-    - `Endereco.ibge_codigo` é **nullable** hoje — `cMun` é obrigatório no
-      XML tanto para emitente quanto destinatário. Precisa virar
-      `NOT NULL` antes da Etapa 2 (ou validado na hora de emitir).
-    - `Pessoa` **não tem `indIEDest`** (1 contribuinte / 2 isento / 9 não
-      contribuinte) — campo obrigatório do grupo `dest` e fonte comum de
-      rejeição. Não existe em nenhuma entidade do `cadastro-service` hoje
-      (`ie`/`im` de `Pessoa` são `@Transient`, resolvidos do estabelecimento
-      matriz).
+11. **Pré-requisitos de cadastro e credenciamento — parte já implementada,
+    parte ainda em aberto (revisado em 22 de setembro de 2026, conferido
+    contra o código, não só contra esta spec).**
+
+    **Já implementado, no commit `d313921` (15/09/2026), um dia depois da
+    revisão anterior desta spec — a Etapa 0 do cadastro está pronta:**
+    - `Estabelecimento.crt` (CRT — Código de Regime Tributário) existe:
+      `cadastro-service/.../domain/Estabelecimento.java:81-84` (`@NotNull`,
+      enum `CodigoRegimeTributario`), enum em
+      `domain/enumerators/CodigoRegimeTributario.java:7`, changeset
+      `liquibase-service/.../cadastro/cadastro-schema-016.yaml:7-31`
+      (`cad-052`, com backfill `REGIME_NORMAL` — exatamente o desenho do §10),
+      exposto em `EstabelecimentoRequestDTO.java:16` /
+      `EstabelecimentoResponseDTO.java:25`, usado em
+      `services/EstabelecimentoService.java:93,116,142` e no form Angular
+      (`estabelecimento-form.html:29-41`).
+    - `Endereco.ibgeCodigo` segue nullable na coluna (`domain/Endereco.java:81-83`),
+      mas o gap foi fechado do jeito que o §10 desenhava: CHECK condicional
+      `NOT VALID` só quando `estabelecimento_id IS NOT NULL`
+      (`cadastro-schema-016.yaml:59-72`, `cad-054`) + validação de negócio em
+      PT-BR (`services/EnderecoService.java:124-134`). O front resolve o
+      código IBGE por lookup de CEP via ViaCEP
+      (`pessoa-form.ts:312-326`), como o §10 também pedia.
+    - `Pessoa.indIeDest` existe: `domain/Pessoa.java:84-86` (nullable, como
+      desenhado), enum `IndicadorIeDestinatario.java:7`, changeset
+      `cadastro-schema-016.yaml:33-49` (`cad-053`), exposto em
+      `PessoaRequestDTO.java:29` / `PessoaResponseDTO.java:29`.
+    - `OperacaoFiscalDTO` (`fiscal-service`) já expõe percentuais e base
+      separados por item, conforme o §10 pedia:
+      `api/dto/OperacaoFiscalDTO.java:47-75`, populado em
+      `services/MotorFiscalService.java:261-268` (saída) e `:599-602`
+      (entrada), com asserts em `MotorFiscalServiceTest.java:64,222`.
     - A tela Angular de `Estabelecimento` **já existe**
       (`pages/cadastros/estabelecimento/`, rota
       `cadastros/pessoas/:pessoaId/estabelecimentos`, commit `3bb6e19` de
       07/09/2026) — CRUD completo (lista + form), não é gap. A afirmação em
       contrário veio de uma linha desatualizada em
       `estabelecimentos-filiais.md` §9 (escrita em 04/09/2026, antes desse
-      commit); aquele doc precisa de uma correção pontual quando alguém for
-      mexer nele de novo.
+      commit); **ainda sem correção** — confirmado nesta revisão que aquele
+      doc segue afirmando "não existe nenhuma tela/serviço Angular para
+      Estabelecimento" (linhas 365-372) e que seu §4.1/§7 também não
+      mencionam o `crt` novo. Corrigir os dois pontos na próxima vez que
+      alguém mexer naquele doc.
+
+    **Ainda em aberto — é o que falta de fato da Etapa 0, e trava a Etapa 2:**
+    - **CST/CSOSN por item.** `OperacaoFiscalDTO.java:59-67` já reserva os
+      campos `cst`/`cstIcms`/`csosn`, mas eles ficam **sempre `null`** —
+      comentário no próprio código registra que "não têm fonte resolvida
+      internamente… ficam sempre null até existir uma tabela real de
+      resolução". CST é obrigatório no grupo de imposto do XML da NF-e; sem
+      ele a Etapa 2 trava no primeiro XML — exatamente o motivo que criou a
+      Etapa 0. **Decisão (22 de setembro de 2026): resolvido em tabela
+      própria no `fiscal-service`** (`fiscal.cst_*`), mesmo padrão de
+      `fiscal.aliq_iss_municipio`/`fiscal.ncm` já em uso — coerente com "o
+      `fiscal-service` é o único dono de regra tributária" (§1/§2). A
+      alternativa (resolver no `emissao-fiscal-service`) foi descartada por
+      contradizer essa separação.
+    - **CFOP real por item.** Hoje é um default fixo hardcoded em
+      `FiscalServiceClient.java:45-46`
+      (`Constants.PEDIDO_FISCAL_CFOP_MERCADORIA_DEFAULT`/`_SERVICO_DEFAULT`),
+      e o `regimeEmpresa` enviado também é fixo
+      (`Constants.REGIME_LUCRO_PRESUMIDO`) — o ponytail em
+      `FiscalServiceClient.java:23-27` que justificava isso ("tenant ainda
+      não modela regime tributário real") **não vale mais**, porque
+      `Estabelecimento.crt` já existe; esse default virou dívida a fechar
+      junto da Etapa 0. CFOP errado é rejeição ou autuação — gap maior que o
+      do CRT. **Decisão (22 de setembro de 2026): mesmo padrão do CST** —
+      tabela de regra `fiscal.cfop_regra` no `fiscal-service`, chaveada por
+      tipo de operação (venda/devolução/transferência) + UF origem/destino +
+      contribuinte/não contribuinte. O `operacoes-service` só informa o tipo
+      de operação que já conhece (regra comercial); o `fiscal-service`
+      resolve o código.
+    - **Quem carrega CST/CFOP/percentuais até o XML — ainda em aberto,
+      consequência das duas decisões acima.** O consumidor de hoje
+      (`operacoes-service/.../infra/client/FiscalServiceClient.java:84-88`)
+      desserializa só 8 campos de valor com
+      `@JsonIgnoreProperties(ignoreUnknown = true)` — todo o resto do DTO cai
+      no chão no faturamento. Falta decidir: (a) o
+      `emissao-fiscal-service` rechama `POST /fiscal/calcular` na hora de
+      emitir — determinístico, mas o cálculo depende de `dataCompetencia` e
+      tabelas com vigência, então reemissão/consulta/contingência tardia
+      pode devolver valor diferente do faturado; ou (b) o `operacoes-service`
+      passa a persistir o resultado por item no momento do faturamento e
+      repassa esse snapshot na emissão. Decidir antes da Etapa 1.
     - **Credenciamento do tenant como emissor na SEFAZ** é processo externo,
       humano, por tenant × UF × modelo (NF-e e NFC-e são credenciamentos
       separados). Proposta: tabela `emissao.credenciamento_sefaz`
@@ -238,8 +327,12 @@ alinhado com a exigência do §7 de não introduzir lock-in.
       `vigente_ate`) — carga inicial via Liquibase a partir de
       `webservices-nfe-referencia.md` (dado bruto, não plano).
     - `emissao.uf_autorizador` (`uf`, `documento`, `autorizador_normal`,
-      `autorizador_contingencia`, `vigente_de`/`vigente_ate`) — mesmo padrão
-      de vigência das tabelas de `fiscal.*`.
+      `autorizador_contingencia`, `vigente_de`/`vigente_ate`,
+      `prazo_cancelamento_horas`) — mesmo padrão de vigência das tabelas de
+      `fiscal.*`. **Corrigido nesta revisão (22/09/2026):** a coluna
+      `prazo_cancelamento_horas` já era exigida por
+      `regras-cancelamento-nfe.md:5-7`, mas não constava no desenho da
+      tabela aqui — os dois docs estavam divergentes; alinhado agora.
     - `emissao.contingencia_status` (`estabelecimento_id`, `documento`, `uf`,
       `modo` [NORMAL/CONTINGENCIA], `ativado_em`, `ativado_por`
       [AUTOMATICO/MANUAL], `motivo`) — a máquina de estados (item 10) escreve
@@ -298,15 +391,20 @@ alinhado com a exigência do §7 de não introduzir lock-in.
   - **QR Code + CSC (Código de Segurança do Contribuinte)** obrigatórios na
     representação gráfica (DANFCE). O CSC é gerado pela SEFAZ por
     estabelecimento e entra na composição do QR Code — material distinto da
-    chave de assinatura XML, precisa de cadastro próprio.
+    chave de assinatura XML, precisa de cadastro próprio. **Sem tabela
+    proposta até esta revisão (22/09/2026)** — diferente de
+    `credenciamento_sefaz`, `csrt_config` e `webservice_endpoint` (§3, item
+    11/12), o CSC não tem dono de dado desenhado; é material sensível (compõe
+    o hash do QR Code), então entra no mesmo problema de guarda do §7.2 —
+    resolver junto quando a Etapa 6 for desenhada em detalhe.
   - **Contingência offline é requisito desde o início, não do backlog geral
-    de contingência (etapa 9, §5).** Venda em PDV não pode parar por
+    de contingência (etapa 8, §5).** Venda em PDV não pode parar por
     indisponibilidade da SEFAZ: a emissão local ocorre na hora, a
     autorização pode ser transmitida depois. É por isso que a NFC-e ganha
     etapa própria na ordem de implementação, com essa contingência básica
     incluída, em vez de esperar a etapa de contingência completa.
 - DANFCE é impressão simplificada (cupom, não A4) — reaproveita o gerador de
-  representação gráfica da etapa 9, com layout próprio.
+  representação gráfica da etapa 8, com layout próprio.
 - Depende de: a mesma infra da NF-e (§4.1) — na prática o mesmo módulo
   interno, com variação de fluxo (contingência antecipada) e de
   numeração/layout de saída.
@@ -384,18 +482,24 @@ apenas para não surpreender depois; ver §8.
 ## 5. Ordem de implementação
 
 Decidida em 14 de setembro de 2026 (revista após a revisão do Opus, §9) —
-sequência, não lista solta de opções:
+sequência, não lista solta de opções. **A regra de produção da etapa 3 (nada
+vai a produção sem autorização + cancelamento + representação gráfica) vale
+igualmente para a etapa 5 (NFS-e) e a etapa 7 (CT-e) — gap identificado na
+revisão de 22/09/2026: a tabela abaixo listava as duas dependendo só da
+etapa 1, o que deixaria NFS-e/CT-e irem a produção sem DACTE/DANFS-e nem
+cancelamento, o mesmo furo que a segunda rodada já tinha corrigido para a
+NF-e sem generalizar para os outros documentos:**
 
 | Etapa | Entrega | Depende de |
 |---|---|---|
-| 0 | `fiscal-service` passa a devolver, por item, os campos que faltam para montar o XML — CST, `cClassTrib` (eco), base e alíquota separadas (`pIBSUF`/`pIBSMun`/`pCBS`), percentual de redução aplicado; no legado, CST/CSOSN + `vBC` reduzida + `pICMS` nominal. **Fora desta etapa, por decisão já registrada** (`motor-fiscal-proximos-passos.md`): PIS/COFINS/IPI/ICMS-ST/FCP/DIFAL continuam sem cálculo — o MVP de emissão se restringe a operações sem substituição tributária | — |
-| 1 | Infra comum (§3): envelope encryption do certificado, assinatura XML, cliente SOAP genérico, numeração/série, persistência do documento, máquina de estados assíncrona (§3, item 10), UI de credenciamento/certificado — **sem emitir nada ainda** | 0 |
+| 0 | `fiscal-service` passa a devolver, por item, os campos que faltam para montar o XML — CST, `cClassTrib` (eco), base e alíquota separadas (`pIBSUF`/`pIBSMun`/`pCBS`), percentual de redução aplicado; no legado, CST/CSOSN + `vBC` reduzida + `pICMS` nominal. **~85% pronto** (§3, item 11) — cadastro-service e os percentuais do `fiscal-service` foram implementados no commit `d313921` (15/09/2026); falta só CST/CSOSN e CFOP real (ambos decididos nesta revisão como tabela própria no `fiscal-service`). **Fora desta etapa, por decisão já registrada** (`motor-fiscal-proximos-passos.md`): PIS/COFINS/IPI/ICMS-ST/FCP/DIFAL continuam sem cálculo — o MVP de emissão se restringe a operações sem substituição tributária | — |
+| 1 | Infra comum (§3): envelope encryption do certificado, assinatura XML, cliente SOAP genérico, numeração/série (lock via `SELECT FOR UPDATE`, não Redis), persistência do documento, máquina de estados assíncrona com idempotency key (§3, item 10), UI de credenciamento/certificado — **sem emitir nada ainda** | 0 |
 | 2 | NF-e em homologação, **via SVRS** (RJ, DF ou SC — a primeira UF concreta) | 1 |
 | 3 | **NF-e em produção via SVRS: autorização + cancelamento + inutilização + DANFE no mesmo pacote.** Nada vai a produção sem os três — produção sem DANFE não é utilizável, e sem cancelamento é risco fiscal do tenant | 2 |
 | 4 | **MG, depois SP** (autorizador próprio, uma integração específica cada) + demais UFs da SVRS como configuração (§4.1) + CC-e | 3 |
-| 5 | NFS-e padrão nacional (ADN) — REST/JSON, mais simples que os documentos SOAP e alinhada à prioridade de mercado (serviço primeiro) | 1 + item LC 116/ISS já prontos |
-| 6 | **NFC-e** (§4.2): série própria, CSC/QR Code **dentro do XML** (não é só representação gráfica), DANFCE com gerador próprio (cupom, não A4), contingência offline desde o início | 3 |
-| 7 | CT-e — autorizador/contingência já mapeados (§4.3) | 1 |
+| 5 | NFS-e padrão nacional (ADN) — REST/JSON, mais simples que os documentos SOAP e alinhada à prioridade de mercado (serviço primeiro). **Produção exige a mesma regra da etapa 3: autorização + cancelamento + representação gráfica (DANFS-e) juntos** | 1 + item LC 116/ISS já prontos |
+| 6 | **NFC-e** (§4.2): série própria, CSC/QR Code **dentro do XML** (não é só representação gráfica; falta tabela de guarda do CSC, §4.2), DANFCE com gerador próprio (cupom, não A4), contingência offline desde o início | 3 |
+| 7 | CT-e — autorizador/contingência já mapeados (§4.3). **Produção exige a mesma regra da etapa 3: autorização + cancelamento + representação gráfica (DACTE) juntos** | 1 |
 | 8 | Contingência SVC completa (NF-e/CT-e) + EPEC | 2-7 |
 
 NFCom e NF3e saíram da tabela — ver §4.5/§8 (fora do plano até haver tenant
@@ -403,7 +507,7 @@ do setor).
 
 Mudanças em relação à primeira versão deste doc, motivadas pela revisão:
 - **Etapa 0 nova** — sem os campos por item, a Etapa 2 trava no primeiro XML.
-- **Cancelamento e DANFE entraram na etapa 3**, não mais isolados nas etapas 4/9 — não faz sentido "produção" sem os dois.
+- **Cancelamento e DANFE entraram na etapa 3**, não mais isolados nas etapas 4/8 — não faz sentido "produção" sem os dois.
 - **NFC-e não depende mais do gerador de representação gráfica** de uma etapa futura — o §4.2 já deixava claro que QR Code/CSC são requisito do XML, então o gerador de DANFCE é próprio da etapa 6, não emprestado.
 - **NFS-e subiu para antes do CT-e** — é REST (mais simples que os documentos SOAP), a cobertura do ADN já está confirmada em volume (§4.4), e o mercado-alvo é serviço.
 
@@ -436,7 +540,8 @@ dias/horas neste doc — não é verificável sem começar a implementar.
 - **CSC (Código de Segurança do Contribuinte) da NFC-e é cadastro próprio por
   estabelecimento**, obtido no ambiente da SEFAZ de cada UF, e a lista de
   autorizadores/endpoints da NFC-e **não herda automaticamente** a do NF-e
-  (§4.1) — é publicada à parte no Portal Nacional. Levantar antes da etapa 6.
+  (§4.1) — é publicada à parte no Portal Nacional. Ainda sem tabela de guarda
+  desenhada (§4.2) — levantar antes da etapa 6.
 - **Custo recorrente de manutenção, não custo de projeto.** A SEFAZ publica
   Notas Técnicas (2-3 por ano) com data de obrigatoriedade, cada uma exigindo
   atualizar XSD e código sob pena de rejeição em produção. Emissão fiscal
@@ -444,17 +549,19 @@ dias/horas neste doc — não é verificável sem começar a implementar.
 - ~~Prazos de cancelamento/CC-e não estão fixados~~ — **resolvido em dado
   (14/09/2026)**, `regras-cancelamento-nfe.md`: varia de 8h (MT) a 1440h/60
   dias (PI); as 5 UFs priorizadas são todas 24h, mas o campo precisa ser
-  configurável por UF desde já (§3, item 12), não constante no código. Fora
+  configurável por UF desde já (§3, item 12 — coluna `prazo_cancelamento_horas`
+  alinhada entre os dois docs nesta revisão), não constante no código. Fora
   da janela, o instrumento correto é nota de devolução/estorno — **ainda não
   existe** em lugar nenhum do sistema (`motor-fiscal-proximos-passos.md`,
   item 7.15), mas o Espírito Santo já tem um desenho legal pronto (NF-e de
   estorno) documentado como referência em `regras-cancelamento-nfe.md` para
   quando esse gap for priorizado — baixa urgência, as 5 UFs alvo dão 24h.
-- **Numeração exige lock de concorrência** por `(estabelecimento, modelo,
-  série)` — dois faturamentos simultâneos não podem tirar o mesmo número.
-  Reaproveitar o `DistributedLock`/Redis que o `billing-service` já usa em
-  vez de desenhar um mecanismo novo. NFC-e em PDV multi-terminal
-  provavelmente precisa de série por terminal, não só por estabelecimento.
+- ~~Numeração exige lock de concorrência~~ — **resolvido (22/09/2026):**
+  `SELECT ... FOR UPDATE` no Postgres na linha de
+  `emissao.numeracao_documento`, não `DistributedLockService`/Redis (ver §3,
+  item 3, para o motivo). NFC-e em PDV multi-terminal provavelmente precisa
+  de série por terminal, não só por estabelecimento — isso não muda o
+  mecanismo de lock, só a granularidade da chave.
 - **Convenções do projeto — decidido (14 de setembro de 2026): seguir a
   convenção já fixada, sem exceção nem desenho próprio.** Concretamente:
   schema `emissao.*` só via `liquibase-service` (nunca `ddl-auto`); camadas
@@ -472,7 +579,13 @@ dias/horas neste doc — não é verificável sem começar a implementar.
   só do tenant.** Ver plano completo em §7.3 (Postgres quente + arquivo frio
   em Object Storage) — decidido priorizando custo baixo/zero sobre pureza de
   portabilidade, com a exposição a fornecedor único mitigada pela API
-  S3-compatível.
+  S3-compatível. **Gap identificado nesta revisão (22/09/2026), sem decisão
+  ainda:** o XML de **entrada** (NF-e do fornecedor, P2P) já existe hoje em
+  `operacoes-service` (`domain/compras/RecebimentoMercadoria.java:75,84` —
+  guarda `TipoDocumentoFiscal`, série e chave), mas o §7.3 desenha a retenção
+  de 5 anos só para o XML **emitido**. A Fase 2 (DF-e/manifestação, §6) vai
+  esbarrar nisso — decidir se o arquivo frio cobre entrada também antes de
+  aquela fase começar.
 - **Adjacências fora de escopo, registradas para não surpreender depois**:
   MDF-e (modelo 58, obrigatório em transporte interestadual com frota
   própria — quem for emitir CT-e provavelmente precisa dele), CT-e OS
@@ -538,7 +651,9 @@ nenhum provedor.
    Kafka que o projeto já usa para eventos de segurança. Se um dia o audit
    granular ou a rotação automática virarem requisito real, a migração para
    Vault/OpenBao é incremental: só o ponto que lê a KEK muda, o resto do
-   desenho (blob cifrado no Postgres) continua igual.
+   desenho (blob cifrado no Postgres) continua igual. **Ainda falta**
+   (identificado em 22/09/2026, ver §3 item 1): coluna `kek_version` desde o
+   dia 1, para suportar rotação futura sem migração dolorosa.
 
 3. **Armazenamento e retenção legal do XML (5 anos) — decisão revista (14 de
    setembro de 2026), priorizando custo baixo/zero.** A guarda pelos 5 anos
@@ -658,12 +773,56 @@ manter a produção no OCI em vez de migrar pra VPS, sem alterar as escolhas de
 portabilidade do §7 (são sobre não travar o serviço, não sobre qual provedor
 usar agora).
 
-## 10. Plano de mudança — cadastro-service e fiscal-service (Etapa 0)
+## 10. Revisão (22 de setembro de 2026) — Etapa 0 no código, decisões de CST/CFOP/lock
 
-Detalhamento dos gaps já identificados no §3 (item 11) e na Etapa 0 do §5,
-pra ficar pronto pra execução quando essa fase começar.
+Nova revisão de arquitetura (agente com modelo Opus, mesmo protocolo da §9),
+pedida antes de começar a Etapa 1. Achado central: **a Etapa 0 já tinha sido
+implementada no commit `d313921` (15/09/2026), um dia depois da revisão
+anterior (§9)** — CRT, `ibgeCodigo` condicional e `indIeDest` no
+`cadastro-service`, percentuais/base separados no `OperacaoFiscalDTO` do
+`fiscal-service`. O doc ficou desatualizado no dia seguinte à própria
+revisão; corrigido nesta rodada (§3, item 11, e tabela do §5).
 
-### cadastro-service — back-end
+O que restava de fato da Etapa 0 — CST/CSOSN (sempre `null` hoje) e CFOP
+(default fixo hardcoded) — ganhou decisão nesta revisão: ambos resolvidos em
+tabela própria no `fiscal-service` (`fiscal.cst_*` e `fiscal.cfop_regra`),
+mesmo padrão das demais tabelas fiscais já existentes, mantendo a separação
+"fiscal-service é o único dono de regra tributária" (§1/§2). Lock de
+numeração de nota (§3, item 3) decidido como `SELECT ... FOR UPDATE` no
+Postgres, não `DistributedLockService`/Redis — a classe reaproveitável mora
+no `billing-service`, não em `common`, e usá-la tornaria Redis dependência
+dura do serviço novo.
+
+Gaps novos identificados, ainda sem decisão de implementação (registrados nos
+parágrafos correspondentes): quem carrega CST/CFOP/percentuais do
+`fiscal-service` até o XML — rechamada determinística vs. persistência no
+`operacoes-service` (§3, item 11); idempotency key no
+`POST /emissao/documentos` (§3, item 10); tabela de guarda do CSC da NFC-e
+(§4.2); rotação/versionamento da KEK do envelope encryption (§3, item 1;
+§7.2); se o arquivo frio de 5 anos cobre XML de entrada além do emitido
+(§6). Inconsistências de texto corrigidas: seis referências a uma "etapa 9"
+inexistente (a tabela do §5 vai até a etapa 8) trocadas para "etapa 8"; a
+regra de produção da etapa 3 (autorização + cancelamento + representação
+gráfica) propagada para as etapas 5 e 7, que antes dependiam só da etapa 1;
+`prazo_cancelamento_horas` adicionada ao desenho de `emissao.uf_autorizador`
+(§3, item 12), alinhando com `regras-cancelamento-nfe.md`.
+
+Decisões de arquitetura do §2 (serviço isolado) e §7.2 (envelope encryption)
+reavaliadas e confirmadas sem alteração — nada no restante do projeto desde
+14/09/2026 enfraqueceu nenhuma das duas; o `operacoes-service`, que seria a
+alternativa descartada no §2, só cresceu (164 arquivos Java hoje), reforçando
+que a decisão de isolar a emissão foi a certa.
+
+## 11. Plano de mudança — cadastro-service e fiscal-service (Etapa 0)
+
+Detalhamento dos gaps identificados no §3 (item 11) e na Etapa 0 do §5.
+**Atualizado em 22/09/2026: cadastro-service, percentuais e a seção
+"fiscal-service — CST e CFOP" abaixo estão todos ✅ implementados** (a
+primeira leva no commit `d313921`, 15/09/2026; CST/CFOP nesta revisão,
+22/09/2026, ainda não commitado) — mantidos aqui como registro do que foi
+pedido/entregue.
+
+### cadastro-service — back-end (✅ implementado, `d313921`)
 
 - `Estabelecimento` ganha `crt` (enum `CodigoRegimeTributario`:
   `SIMPLES_NACIONAL`=1, `SIMPLES_EXCESSO`=2, `REGIME_NORMAL`=3, `MEI`=4),
@@ -682,7 +841,7 @@ pra ficar pronto pra execução quando essa fase começar.
 - DTOs e mappers (`EstabelecimentoDTO`, `PessoaDTO`, etc.) expõem os três
   campos novos nas APIs REST existentes.
 
-### cadastro-service — front-end Angular
+### cadastro-service — front-end Angular (✅ implementado, `d313921`)
 
 - `estabelecimento-form`: novo campo CRT (select, 4 opções).
 - Form de endereço: o campo de município passa a resolver o `ibgeCodigo`
@@ -693,23 +852,66 @@ pra ficar pronto pra execução quando essa fase começar.
 - Form de pessoa: novo campo "Indicador de IE do destinatário" (select),
   visível quando a pessoa é usada como destinatário de operação fiscal.
 
-### fiscal-service — Etapa 0 (contrato XML-ready)
+### fiscal-service — percentuais/base separados (✅ implementado, `d313921`)
 
-- `OperacaoFiscalDTO` ganha, por item: `cst`, `cClassTrib` (eco do que veio
-  no request), `percentualIbsUf`, `percentualIbsMunicipal`, `percentualCbs`,
-  `percentualReducaoAplicado`; no legado: `cstIcms`/`csosn`,
-  `percentualIcmsNominal`, `percentualReducaoBaseIcms`,
-  `modalidadeBaseCalculoIcms` (`modBC`).
+- `OperacaoFiscalDTO` ganha, por item: `cClassTrib` (eco do que veio no
+  request), `percentualIbsUf`, `percentualIbsMunicipal`, `percentualCbs`,
+  `percentualReducaoAplicado`; no legado: `percentualIcmsNominal`,
+  `percentualReducaoBaseIcms`, `modalidadeBaseCalculoIcms` (`modBC`).
 - `MotorFiscalService` já resolve `RegimeCClassTrib`/`AliquotaIbs`/
   `AliquotaCbs`/`RegimeIcms` internamente para calcular o valor final — a
-  mudança é **parar de descartar** esses valores intermediários e devolvê-los
-  no DTO, não recalcular nada novo.
+  mudança foi **parar de descartar** esses valores intermediários e devolvê-
+  los no DTO, sem recalcular nada novo.
 - Sem mudança de schema — `fiscal-service` continua sem persistência, é só
   extensão de DTO + service.
-- `MotorFiscalServiceTest` ganha asserts nos campos novos sobre o oráculo já
+- `MotorFiscalServiceTest` ganhou asserts nos campos novos sobre o oráculo já
   existente (§1.4.8 do `Fin.md`), sem caso de teste novo do zero.
 
-Esforço relativo: cadastro-service é pequeno-médio (a parte que exige cuidado
-é a migração de dado existente sem CRT/`ibgeCodigo`, não o código novo em si);
-fiscal-service Etapa 0 é pequeno (extensão de contrato sobre cálculo que já
-existe).
+### fiscal-service — CST e CFOP (✅ implementado nesta revisão, 22/09/2026)
+
+- **CST/CSOSN**: nova tabela `fiscal.cst_icms_regra` (changeset
+  `fiscal-schema-018.yaml`, `fiscal-053`/`054`), chaveada por
+  `regime_tributario` (`NORMAL`/`SIMPLES`, derivado de `regimeEmpresa`) ×
+  `situacao` (`INTEGRAL`/`REDUZIDA`/`ISENTA`, derivada de
+  `RegimeDiferenciado`). `TabelaFiscal.resolverCstIcms(...)` resolve; o
+  `MotorFiscalService` popula `cstIcms`/`csosn` (só produto, ICMS não existe
+  em serviço) ANTES dos retornos antecipados de alíquota-zero/monofásico —
+  ISENTA (CST 40) é exatamente o caso mais comum que passava por `zerado()`.
+  `cst` (IBS/CBS, Anexo NT 2023.001) continua sem fonte — classificação
+  distinta, fora de escopo desta revisão.
+  **Risco aceito e registrado** (mesmo padrão do placeholder de IS/cigarro):
+  CSOSN sempre resolve `102` (sem permissão de crédito) — o cadastro não
+  modela se o contribuinte do Simples aproveita crédito (101 x 102). Rever
+  antes de emitir NF-e real para tenant que precise de 101. ST/pauta/DIFAL
+  e monofásico legado seguem fora de escopo (mesma decisão de
+  `motor-fiscal-proximos-passos.md` linha 163) — sem linha cadastrada,
+  `cstIcms`/`csosn` saem `null`, nunca um código chutado.
+- **CFOP**: nova tabela `fiscal.cfop_regra` (`fiscal-055`–`058`), chaveada
+  por `natureza_operacao` × `ambito` (`INTERNO`/`INTERESTADUAL`, derivado de
+  ufOrigem × ufDestino) × `tipo_operacao` (só `SAIDA` — CFOP de entrada
+  continua vindo pronto do chamador). `MotorFiscalRequest.cfop` deixou de
+  ser `@NotBlank`: quando ausente, `naturezaOperacao` + `ufOrigem`/
+  `ufDestino` disparam a resolução no `MotorFiscalService` (PASSO 0), com
+  validação cross-field (`@AssertTrue`) garantindo que pelo menos um dos
+  dois venha preenchido. Seed inicial (fiscal-056) tinha só `VENDA`;
+  complementado (fiscal-057, a partir de `spec/tabela_cfop.pdf`, tabela
+  oficial CFOP) com `DEVOLUCAO_COMPRA` (5202/6202), `TRANSFERENCIA`
+  (5152/6152) e `REMESSA_BONIFICACAO`/`REMESSA_AMOSTRA` (5910/6910,
+  5911/6911) — **sem consumidor Java ainda** (só `VENDA` é chamada hoje, via
+  `FiscalServiceClient`; as demais ficam prontas para quando P2P/Estoque
+  precisarem). Âmbito EXTERIOR fica de fora em todas — sem sinal de país no
+  request, seria chute.
+- **Consumo**: `FiscalServiceClient.java` (operacoes-service) corrigido —
+  mercadoria manda `naturezaOperacao=VENDA` + `cfop=null` em vez do
+  `'5102'` fixo (`Constants.PEDIDO_FISCAL_CFOP_MERCADORIA_DEFAULT`, removida
+  por ficar morta), que saía errado em toda venda interestadual. Serviço
+  mantém `cfop` fixo (`5933`) — NFS-e não tem CFOP no XML, o valor é só
+  sinal interno de SAÍDA pro motor. **Ainda não fechado**: o
+  `@JsonIgnoreProperties(ignoreUnknown = true)` do `OperacaoFiscalResultado`
+  local continua descartando CST/CFOP resolvidos — decisão deliberada de
+  não adicionar campos sem consumidor (quem persiste o que até o XML segue
+  em aberto, ver item abaixo).
+- **Testes**: `TabelaFiscalJdbcTest` (SQL real, H2) e
+  `MotorFiscalServiceTest` (oráculo com `TabelaFiscalFake`) ganharam casos
+  novos para os dois métodos de resolução, incluindo os 3 erros de validação
+  do CFOP (natureza ausente, UF ausente, natureza sem regra cadastrada).

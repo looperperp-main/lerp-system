@@ -600,6 +600,121 @@ class MotorFiscalServiceTest {
         assertEquals(Constants.FISCAL_CFOP_NAO_ENCONTRADO, ex.getCodigo());
     }
 
+    // ── Etapa 0 (§11) — CST-ICMS/CSOSN resolvido ──
+
+    @Test
+    void cstIcms_regimeNormal_integral() {
+        OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()
+                .cfop("5101").ncm("84713012").ibgeDestino(SP)   // sem linha de regime -> PADRAO -> INTEGRAL
+                .valorOperacao(new BigDecimal("10000")).dataCompetencia(COMP)
+                .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null);
+        assertEquals("00", r.getCstIcms());
+        assertNull(r.getCsosn());
+    }
+
+    @Test
+    void cstIcms_regimeNormal_reduzida() {
+        OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()
+                .cfop("5102").ncm("21069090").ibgeDestino(SP)   // retaguarda ANEXO_VI_60 (redução 60%)
+                .valorOperacao(new BigDecimal("1000")).dataCompetencia(COMP)
+                .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null);
+        assertEquals("20", r.getCstIcms());
+    }
+
+    /** ISENTA é o caso que passa pelo early-return de zerado() — precisa resolver ANTES dele. */
+    @Test
+    void cstIcms_regimeNormal_isenta_mesmoNoCaminhoZerado() {
+        OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()
+                .cfop("5102").ncm("10063021").ibgeDestino(SP)   // ANEXO_I_ZERO
+                .valorOperacao(new BigDecimal("500")).dataCompetencia(COMP)
+                .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null);
+        assertEquals("40", r.getCstIcms());
+    }
+
+    @Test
+    void csosn_simplesNacional_integral() {
+        OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()
+                .cfop("5101").ncm("84713012").ibgeDestino(SP)
+                .valorOperacao(new BigDecimal("10000")).dataCompetencia(COMP)
+                .regimeEmpresa(Constants.REGIME_SIMPLES_NACIONAL).build(), null);
+        assertEquals("102", r.getCsosn());
+        assertNull(r.getCstIcms());
+    }
+
+    @Test
+    void csosn_simplesNacional_isenta() {
+        OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()
+                .cfop("5102").ncm("10063021").ibgeDestino(SP)
+                .valorOperacao(new BigDecimal("500")).dataCompetencia(COMP)
+                .regimeEmpresa(Constants.REGIME_SIMPLES_NACIONAL).build(), null);
+        assertEquals("400", r.getCsosn());
+    }
+
+    /** Serviço não tem ICMS: CST/CSOSN saem null mesmo em regime normal integral. */
+    @Test
+    void servico_naoResolveCstIcms() {
+        OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()
+                .cfop("5933").codigoServico("1.01").cClassTrib("000001").ibgeLocalPrestacao(SP)
+                .valorOperacao(new BigDecimal("1000")).dataCompetencia(COMP)
+                .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null);
+        assertNull(r.getCstIcms());
+        assertNull(r.getCsosn());
+    }
+
+    // ── Etapa 0 (§11) — CFOP resolvido por naturezaOperacao + UF ──
+
+    @Test
+    void cfopResolvido_ambitoInterno() {
+        OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()
+                .naturezaOperacao(Constants.NATUREZA_OPERACAO_VENDA).ufOrigem("SP").ufDestino("SP")
+                .ncm("84713012").ibgeDestino(SP)
+                .valorOperacao(new BigDecimal("10000")).dataCompetencia(COMP)
+                .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null);
+        assertTrue(r.getMemoriaCalculo().stream().anyMatch(l -> l.contains("CFOP resolvido: 5102")));
+    }
+
+    @Test
+    void cfopResolvido_ambitoInterestadual() {
+        OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()
+                .naturezaOperacao(Constants.NATUREZA_OPERACAO_VENDA).ufOrigem("SP").ufDestino("RJ")
+                .ncm("84713012").ibgeDestino(SP)
+                .valorOperacao(new BigDecimal("10000")).dataCompetencia(COMP)
+                .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null);
+        assertTrue(r.getMemoriaCalculo().stream().anyMatch(l -> l.contains("CFOP resolvido: 6102")));
+    }
+
+    @Test
+    void cfopAusente_semNaturezaOperacao_lancaFiscalException() {
+        FiscalException ex = assertThrows(FiscalException.class, () -> motor.calcular(
+                MotorFiscalRequest.builder()
+                        .ncm("84713012").ibgeDestino(SP)
+                        .valorOperacao(new BigDecimal("100")).dataCompetencia(COMP)
+                        .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null));
+        assertEquals(Constants.FISCAL_NATUREZA_OPERACAO_OBRIGATORIA, ex.getCodigo());
+    }
+
+    @Test
+    void cfopAusente_semUf_lancaFiscalException() {
+        FiscalException ex = assertThrows(FiscalException.class, () -> motor.calcular(
+                MotorFiscalRequest.builder()
+                        .naturezaOperacao(Constants.NATUREZA_OPERACAO_VENDA)
+                        .ncm("84713012").ibgeDestino(SP)
+                        .valorOperacao(new BigDecimal("100")).dataCompetencia(COMP)
+                        .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null));
+        assertEquals(Constants.FISCAL_UF_OBRIGATORIA_RESOLUCAO_CFOP, ex.getCodigo());
+    }
+
+    @Test
+    void cfopAusente_naturezaSemRegraCadastrada_lancaFiscalException() {
+        FiscalException ex = assertThrows(FiscalException.class, () -> motor.calcular(
+                MotorFiscalRequest.builder()
+                        .naturezaOperacao("DEVOLUCAO").ufOrigem("SP").ufDestino("SP")
+                        .ncm("84713012").ibgeDestino(SP)
+                        .valorOperacao(new BigDecimal("100")).dataCompetencia(COMP)
+                        .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null));
+        assertEquals(Constants.FISCAL_CFOP_REGRA_NAO_ENCONTRADA, ex.getCodigo());
+    }
+
     @Test
     void memoriaCalculo_naoVazia_paraOperacaoTributada() {
         OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()

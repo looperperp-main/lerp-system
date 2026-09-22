@@ -23,6 +23,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Motor Fiscal — núcleo de cálculo IBS/CBS/IS (Fin.md Módulo I, §1.4).
@@ -58,6 +59,23 @@ public class MotorFiscalService {
 
         // PASSO 0 — CFOP determina o tipo de operação (SAÍDA/ENTRADA); vem primeiro porque o
         // split (só existe do lado da saída) e o resto da validação dependem de já saber qual é.
+        //
+        // Sem cfop pronto: resolve por naturezaOperacao + UF (Etapa 0, fiscal.cfop_regra) — só
+        // cobre SAÍDA (venda); crédito de ENTRADA continua exigindo cfop explícito do chamador.
+        // Muta req.setCfop() para que toda referência a req.getCfop() mais abaixo (memória/log)
+        // já veja o código resolvido, sem duplicar variável.
+        if (!preenchido(req.getCfop())) {
+            if (!preenchido(req.getNaturezaOperacao())) {
+                throw new FiscalException(Constants.FISCAL_NATUREZA_OPERACAO_OBRIGATORIA);
+            }
+            if (!preenchido(req.getUfOrigem()) || !preenchido(req.getUfDestino())) {
+                throw new FiscalException(Constants.FISCAL_UF_OBRIGATORIA_RESOLUCAO_CFOP);
+            }
+            String cfopResolvido = tabela.resolverCfop(req.getNaturezaOperacao(), req.getUfOrigem(), req.getUfDestino())
+                    .orElseThrow(() -> new FiscalException(Constants.FISCAL_CFOP_REGRA_NAO_ENCONTRADA));
+            req.setCfop(cfopResolvido);
+            memoria.add("CFOP resolvido: " + cfopResolvido + " (natureza=" + req.getNaturezaOperacao() + ")");
+        }
         CfopInfo cfop = tabela.cfop(req.getCfop())
                 .orElseThrow(() -> new FiscalException(Constants.FISCAL_CFOP_NAO_ENCONTRADO));
         boolean entrada = cfop.tipoOperacao() == TipoOperacaoFiscal.ENTRADA;
@@ -144,10 +162,12 @@ public class MotorFiscalService {
             memoria.add(Constants.FISCAL_AVISO_ORIGEM_ZFM);
         }
 
-        // MEI não destaca IBS/CBS/IS (MF-02, §1.4.5)
+        // MEI não destaca IBS/CBS/IS (MF-02, §1.4.5) — nem CST/CSOSN: regimeEmpresa "MEI" não é
+        // Constants.REGIME_SIMPLES_NACIONAL, então cairia no balde NORMAL por engano; mais seguro
+        // deixar de fora (mesmo escopo já estabelecido para os campos da Etapa 0 neste caminho).
         if (Constants.REGIME_MEI.equals(req.getRegimeEmpresa())) {
             memoria.add("Regime MEI: não destaca IBS/CBS/IS");
-            return zerado(valorTributavel, RegimeDiferenciado.PADRAO, memoria, splitLigado);
+            return zerado(valorTributavel, RegimeDiferenciado.PADRAO, memoria, splitLigado, null, null);
         }
 
         // Entrada (item 4, §1.4.3) — crédito, não tributo devido. Segue por cálculo próprio;
@@ -171,14 +191,32 @@ public class MotorFiscalService {
             memoria.add(aviso);
         }
 
+        // Etapa 0 (§11) — CST-ICMS/CSOSN calculado aqui, ANTES dos retornos antecipados de
+        // alíquota-zero/monofásico: ISENTA (CST 40) é exatamente o caso mais comum que passa por
+        // zerado() logo abaixo, então a resolução não pode ficar depois desses returns. Só PRODUTO
+        // (ICMS é imposto de mercadoria; NFS-e não tem esse campo).
+        String cstIcms = null;
+        String csosn = null;
+        if (!servico) {
+            Optional<String> resolvido = tabela.resolverCstIcms(req.getRegimeEmpresa(), regime);
+            if (resolvido.isPresent()) {
+                if (Constants.REGIME_SIMPLES_NACIONAL.equals(req.getRegimeEmpresa())) {
+                    csosn = resolvido.get();
+                } else {
+                    cstIcms = resolvido.get();
+                }
+                memoria.add("CST/CSOSN resolvido: " + resolvido.get());
+            }
+        }
+
         // PASSO 2 — alíquota zero (cesta básica, isento, imune) / monofásico
         if (regime.aliquotaZero()) {
             memoria.add("Regime " + regime.name() + ": alíquota zero, IBS/CBS/IS = 0 (§1.4.2 Passo 2)");
-            return zerado(valorTributavel, regime, memoria, splitLigado);
+            return zerado(valorTributavel, regime, memoria, splitLigado, cstIcms, csosn);
         }
         if (regime.monofasico() && !cfop.primeiraEtapaCadeia()) {
             memoria.add("Monofásico fora da 1ª etapa: já recolhido na origem (§1.4.2 Passo 2)");
-            return zerado(valorTributavel, regime, memoria, splitLigado);
+            return zerado(valorTributavel, regime, memoria, splitLigado, cstIcms, csosn);
         }
 
         // PASSO 3 — alíquotas vigentes pela data de competência
@@ -266,16 +304,21 @@ public class MotorFiscalService {
                 .percentualIcmsNominal(legado.percentualIcmsNominal())
                 .percentualReducaoBaseIcms(legado.percentualReducaoBaseIcms())
                 .modalidadeBaseCalculoIcms(legado.modalidadeBaseCalculoIcms())
+                .cstIcms(cstIcms)
+                .csosn(csosn)
                 .build();
     }
 
     // ponytail: MEI/alíquota-zero/monofásico não calculam legado nem retenção nesta fatia —
     // campos saem null (mesmo comportamento de antes de 3c/3e). Escopo real desses casos fica
     // pra quando um caso de teste real exigir (ex.: serviço isento com ISS retido na fonte).
-    // Mesmo raciocínio cobre os campos da Etapa 0 (cClassTrib/percentuais): esses caminhos
-    // retornam ANTES de buscar AliquotaIbs/AliquotaCbs (Passo 3), então não há valor a propagar.
+    // Mesmo raciocínio cobre cClassTrib/percentuais: esses caminhos retornam ANTES de buscar
+    // AliquotaIbs/AliquotaCbs (Passo 3), então não há valor a propagar. cstIcms/csosn são a
+    // EXCEÇÃO (parâmetros aqui, não sempre null): resolvidos antes do early-return porque ISENTA
+    // é exatamente o caso mais comum que passa por aqui — ver PASSO 2 em calcular().
     private OperacaoFiscalDTO zerado(BigDecimal valorTributavel, RegimeDiferenciado regime,
-                                     List<String> memoria, boolean splitLigado) {
+                                     List<String> memoria, boolean splitLigado,
+                                     String cstIcms, String csosn) {
         BigDecimal zero = BigDecimal.ZERO.setScale(ESCALA);
         return OperacaoFiscalDTO.builder()
                 .baseCalculo(valorTributavel)
@@ -288,6 +331,8 @@ public class MotorFiscalService {
                 .valorSplitCbs(split(splitLigado, null))
                 .regimeAplicado(regime.name())
                 .memoriaCalculo(memoria)
+                .cstIcms(cstIcms)
+                .csosn(csosn)
                 .build();
     }
 

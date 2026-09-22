@@ -128,6 +128,22 @@ class TabelaFiscalJdbcTest {
                 tipo varchar(20) NOT NULL,
                 valor numeric(5,2) NOT NULL,
                 ano_vigencia int)
+            """,
+            // Etapa 0 (§11, fiscal-schema-018) — recorte igual às demais tabelas acima.
+            """
+            CREATE TABLE fiscal.cst_icms_regra (
+                regime_tributario varchar(10) NOT NULL,
+                situacao varchar(20) NOT NULL,
+                codigo varchar(3) NOT NULL,
+                PRIMARY KEY (regime_tributario, situacao))
+            """,
+            """
+            CREATE TABLE fiscal.cfop_regra (
+                natureza_operacao varchar(20) NOT NULL,
+                ambito varchar(15) NOT NULL,
+                tipo_operacao varchar(10) NOT NULL,
+                cfop varchar(4) NOT NULL,
+                PRIMARY KEY (natureza_operacao, ambito, tipo_operacao))
             """
     };
 
@@ -220,6 +236,26 @@ class TabelaFiscalJdbcTest {
                 ('PROUNI', 'CBS', 'PERCENTUAL_REDUCAO', 100.00, NULL),
                 ('SERVICO_FINANCEIRO', 'TOTAL', 'ALIQUOTA_ABSOLUTA', 10.85, 2027),
                 ('SERVICO_FINANCEIRO', 'TOTAL', 'ALIQUOTA_ABSOLUTA', 11.00, 2029)
+            """,
+            // Etapa 0 (§11, fiscal-054/056) — mesmo seed real do Liquibase, subconjunto suficiente
+            // pra exercitar os 2 baldes de regime e o âmbito interno/interestadual.
+            """
+            INSERT INTO fiscal.cst_icms_regra (regime_tributario, situacao, codigo) VALUES
+                ('NORMAL', 'INTEGRAL', '00'),
+                ('NORMAL', 'REDUZIDA', '20'),
+                ('NORMAL', 'ISENTA', '40'),
+                ('SIMPLES', 'INTEGRAL', '102')
+            """,
+            """
+            INSERT INTO fiscal.cfop_regra (natureza_operacao, ambito, tipo_operacao, cfop) VALUES
+                ('VENDA', 'INTERNO', 'SAIDA', '5102'),
+                ('VENDA', 'INTERESTADUAL', 'SAIDA', '6102'),
+                ('DEVOLUCAO_COMPRA', 'INTERNO', 'SAIDA', '5202'),
+                ('DEVOLUCAO_COMPRA', 'INTERESTADUAL', 'SAIDA', '6202'),
+                ('TRANSFERENCIA', 'INTERNO', 'SAIDA', '5152'),
+                ('TRANSFERENCIA', 'INTERESTADUAL', 'SAIDA', '6152'),
+                ('REMESSA_BONIFICACAO', 'INTERNO', 'SAIDA', '5910'),
+                ('REMESSA_AMOSTRA', 'INTERESTADUAL', 'SAIDA', '6911')
             """
     };
 
@@ -589,5 +625,69 @@ class TabelaFiscalJdbcTest {
         // 'ANEXO_III_60' é regime real do seed (regime_cclasstrib), mas sem linha em
         // aliquota_regime_tributo — a imensa maioria dos regimes cai aqui, só com o fator único.
         assertTrue(tabela.overridesRegime("ANEXO_III_60", 2027).isEmpty());
+    }
+
+    // ── Etapa 0 (§11) — resolverCstIcms/resolverCfop ──
+
+    @Test
+    void resolverCstIcms_regimeNormal_integral() {
+        Optional<String> codigo = tabela.resolverCstIcms(Constants.REGIME_LUCRO_REAL, RegimeDiferenciado.PADRAO);
+        assertEquals("00", codigo.orElseThrow());
+    }
+
+    @Test
+    void resolverCstIcms_regimeNormal_isenta() {
+        RegimeDiferenciado isenta = RegimeDiferenciado.de("ANEXO_I_ZERO", new BigDecimal("100"));
+        assertEquals("40", tabela.resolverCstIcms(Constants.REGIME_LUCRO_PRESUMIDO, isenta).orElseThrow());
+    }
+
+    @Test
+    void resolverCstIcms_simplesNacional_integral() {
+        Optional<String> codigo = tabela.resolverCstIcms(Constants.REGIME_SIMPLES_NACIONAL, RegimeDiferenciado.PADRAO);
+        assertEquals("102", codigo.orElseThrow());
+    }
+
+    @Test
+    void resolverCstIcms_situacaoSemLinha_vazio() {
+        // Simples/REDUZIDA não está no seed deste teste (só INTEGRAL) — vazio, não um código chutado.
+        RegimeDiferenciado reduzida = RegimeDiferenciado.de("ANEXO_VI_60", new BigDecimal("60"));
+        assertTrue(tabela.resolverCstIcms(Constants.REGIME_SIMPLES_NACIONAL, reduzida).isEmpty());
+    }
+
+    @Test
+    void resolverCfop_ambitoInterno() {
+        assertEquals("5102", tabela.resolverCfop(Constants.NATUREZA_OPERACAO_VENDA, "SP", "SP").orElseThrow());
+    }
+
+    @Test
+    void resolverCfop_ambitoInterestadual() {
+        assertEquals("6102", tabela.resolverCfop(Constants.NATUREZA_OPERACAO_VENDA, "SP", "RJ").orElseThrow());
+    }
+
+    @Test
+    void resolverCfop_naturezaSemRegra_vazio() {
+        assertTrue(tabela.resolverCfop("DEVOLUCAO", "SP", "SP").isEmpty());
+    }
+
+    @Test
+    void resolverCfop_devolucaoCompra_ambitoInterno() {
+        assertEquals("5202", tabela.resolverCfop(Constants.NATUREZA_OPERACAO_DEVOLUCAO_COMPRA, "SP", "SP").orElseThrow());
+    }
+
+    @Test
+    void resolverCfop_transferencia_ambitoInterestadual() {
+        assertEquals("6152", tabela.resolverCfop(Constants.NATUREZA_OPERACAO_TRANSFERENCIA, "SP", "RJ").orElseThrow());
+    }
+
+    @Test
+    void resolverCfop_remessaBonificacao_soTemLinhaInterna() {
+        assertEquals("5910", tabela.resolverCfop(Constants.NATUREZA_OPERACAO_REMESSA_BONIFICACAO, "SP", "SP").orElseThrow());
+        assertTrue(tabela.resolverCfop(Constants.NATUREZA_OPERACAO_REMESSA_BONIFICACAO, "SP", "RJ").isEmpty());
+    }
+
+    @Test
+    void resolverCfop_remessaAmostra_soTemLinhaInterestadual() {
+        assertEquals("6911", tabela.resolverCfop(Constants.NATUREZA_OPERACAO_REMESSA_AMOSTRA, "SP", "RJ").orElseThrow());
+        assertTrue(tabela.resolverCfop(Constants.NATUREZA_OPERACAO_REMESSA_AMOSTRA, "SP", "SP").isEmpty());
     }
 }

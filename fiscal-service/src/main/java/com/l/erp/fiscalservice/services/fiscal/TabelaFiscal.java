@@ -97,4 +97,23 @@ public interface TabelaFiscal {
      * absoluto (serviço financeiro, art. 233, curva por ano). Consumida pelo motor na fatia 3d.
      */
     List<RegimeTributoOverride> overridesRegime(String regime, int ano);
+
+    /**
+     * CST-ICMS (regime normal) ou CSOSN (Simples Nacional/excesso de sublimite) de
+     * {@code fiscal.cst_icms_regra} (Etapa 0 — spec/modulos/emissao-fiscal/emissao-fiscal.md §11).
+     * {@code regimeEmpresa} decide o balde (Constants.REGIME_SIMPLES_NACIONAL x demais) e
+     * {@code regime} deriva a situação: {@code aliquotaZero} → ISENTA, {@code reducaoPercentual > 0}
+     * → REDUZIDA, senão INTEGRAL. Vazio para situações fora de escopo (ST/pauta/monofásico legado) —
+     * o motor não inventa código, o campo sai {@code null} no DTO, mesmo padrão de {@link #cfop}.
+     */
+    Optional<String> resolverCstIcms(String regimeEmpresa, RegimeDiferenciado regime);
+
+    /**
+     * CFOP real de {@code fiscal.cfop_regra}, quando o chamador declara a natureza da operação em
+     * vez de um código pronto (hoje só {@code Constants.NATUREZA_OPERACAO_VENDA}). Âmbito deriva de
+     * {@code ufOrigem} x {@code ufDestino} (INTERNO/INTERESTADUAL); resolve sempre para SAÍDA — CFOP
+     * de entrada continua vindo pronto do chamador (crédito, fatia 4). Vazio quando a combinação não
+     * tem linha cadastrada.
+     */
+    Optional<String> resolverCfop(String naturezaOperacao, String ufOrigem, String ufDestino);
 }

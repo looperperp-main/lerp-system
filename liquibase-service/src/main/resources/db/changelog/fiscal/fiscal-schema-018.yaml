@@ -1,0 +1,170 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # Etapa 0 do contrato XML-ready — CST-ICMS/CSOSN e CFOP real, decidido na revisão de 22/09/2026
+  # (spec/modulos/emissao-fiscal/emissao-fiscal.md §11). Duas tabelas pequenas de REGRA (não
+  # catálogo — fiscal.cfop já é o catálogo dos 629 códigos, fiscal-014), cruzando o que o motor já
+  # resolve internamente (RegimeDiferenciado, regimeEmpresa) com o código legado que a NF-e exige.
+  #
+  # POR QUE SÓ 6 LINHAS DE CST, NÃO A TABELA INTEIRA
+  # O motor só distingue 3 situações de ICMS hoje (aliquotaZero/reducaoPercentual>0/nenhum dos
+  # dois) e 2 baldes de regime (normal/Simples) — cobrir CST 10/30/50/51/60/70 (substituição
+  # tributária, suspensão, diferimento) seria inventar mapeamento sem sinal nenhum vindo do request
+  # para escolher entre eles. Igual ao padrão já usado em regime_cclasstrib/regime_dif_ncm: cadastra
+  # só o que dá para fundamentar sem chutar, e ausência de linha não bloqueia (campo sai null).
+  #
+  # CFOP (fiscal.cfop_regra) já sai com mais naturezas — venda, devolução de compra, transferência,
+  # remessa em bonificação/amostra — porque a fonte (spec/tabela_cfop.pdf, tabela oficial CFOP) é
+  # não-ambígua para cada uma: 1 natureza x âmbito = 1 código, sem decisão de negócio no meio.
+  #
+  # RISCO ACEITO E REGISTRADO (mesmo padrão do placeholder de IS/cigarro, fiscal-schema-011): CSOSN
+  # 101 x 102 (permissão de crédito) não é distinguível pelo motor hoje — o cadastro não modela se o
+  # contribuinte do Simples aproveita crédito. Entra sempre 102 (sem crédito, o caso mais comum no
+  # varejo). Rever antes de emitir NF-e real para tenant que precise de 101.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: fiscal-053-cria-tabela-cst-icms-regra
+      author: vitor-fernandes
+      comment: fiscal.cst_icms_regra — CST-ICMS (regime normal) / CSOSN (Simples) por situação de ICMS
+      changes:
+        - createTable:
+            schemaName: fiscal
+            tableName: cst_icms_regra
+            remarks: CST-ICMS/CSOSN por regime tributário x situação (Etapa 0, spec/modulos/emissao-fiscal/emissao-fiscal.md §11)
+            columns:
+              - column:
+                  name: regime_tributario
+                  type: varchar(10)
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: situacao
+                  type: varchar(20)
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: codigo
+                  type: varchar(3)
+                  constraints: { nullable: false }
+              - column:
+                  name: descricao
+                  type: varchar(200)
+      rollback:
+        - dropTable:
+            schemaName: fiscal
+            tableName: cst_icms_regra
+
+  - changeSet:
+      id: fiscal-054-seed-cst-icms-regra
+      author: vitor-fernandes
+      comment: Seed CST-ICMS (regime normal) e CSOSN (Simples Nacional/excesso de sublimite)
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.cst_icms_regra (regime_tributario, situacao, codigo, descricao) VALUES
+              ('NORMAL', 'INTEGRAL', '00', 'Tributada integralmente'),
+              ('NORMAL', 'REDUZIDA', '20', 'Tributada com redução de base de cálculo'),
+              ('NORMAL', 'ISENTA', '40', 'Isenta'),
+              ('SIMPLES', 'INTEGRAL', '102', 'Tributada pelo Simples Nacional sem permissão de crédito'),
+              ('SIMPLES', 'REDUZIDA', '102', 'Tributada pelo Simples Nacional sem permissão de crédito'),
+              ('SIMPLES', 'ISENTA', '400', 'Não tributada pelo Simples Nacional');
+      rollback:
+        - delete:
+            schemaName: fiscal
+            tableName: cst_icms_regra
+
+  # ──────────────────────────────────────────
+  # fiscal.cfop_regra — resolve o CFOP real quando o chamador declara natureza da operação em vez
+  # de um código pronto. VENDA é a única com consumidor real hoje (operacoes-service, O2C): antes
+  # deste changeset o FiscalServiceClient mandava sempre '5102' (Constants.PEDIDO_FISCAL_CFOP_
+  # MERCADORIA_DEFAULT), errado em toda venda interestadual. DEVOLUCAO_COMPRA/TRANSFERENCIA/
+  # REMESSA_BONIFICACAO/REMESSA_AMOSTRA (fiscal-057/058) foram semeadas junto — sem consumidor
+  # ainda (P2P/Estoque não chamam resolverCfop), mas prontas pra quando chamarem. Âmbito EXTERIOR
+  # (falta sinal de país no request) fica de fora até um fluxo real exigir.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: fiscal-055-cria-tabela-cfop-regra
+      author: vitor-fernandes
+      comment: fiscal.cfop_regra — CFOP real por natureza da operação x âmbito (Etapa 0, spec §11)
+      changes:
+        - createTable:
+            schemaName: fiscal
+            tableName: cfop_regra
+            remarks: CFOP real por natureza da operação x âmbito x tipo de operação (Etapa 0, spec/modulos/emissao-fiscal/emissao-fiscal.md §11)
+            columns:
+              - column:
+                  name: natureza_operacao
+                  type: varchar(20)
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: ambito
+                  type: varchar(15)
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: tipo_operacao
+                  type: varchar(10)
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: cfop
+                  type: varchar(4)
+                  constraints: { nullable: false }
+              - column:
+                  name: descricao
+                  type: varchar(200)
+      rollback:
+        - dropTable:
+            schemaName: fiscal
+            tableName: cfop_regra
+
+  - changeSet:
+      id: fiscal-056-seed-cfop-regra
+      author: vitor-fernandes
+      comment: Seed CFOP de venda de mercadoria — interno (5102) e interestadual (6102)
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.cfop_regra (natureza_operacao, ambito, tipo_operacao, cfop, descricao) VALUES
+              ('VENDA', 'INTERNO', 'SAIDA', '5102', 'Venda de mercadoria adquirida ou recebida de terceiros'),
+              ('VENDA', 'INTERESTADUAL', 'SAIDA', '6102', 'Venda de mercadoria adquirida ou recebida de terceiros');
+      rollback:
+        - delete:
+            schemaName: fiscal
+            tableName: cfop_regra
+
+  # ──────────────────────────────────────────
+  # Complemento a partir da tabela oficial CFOP (spec/tabela_cfop.pdf, Convênio SINIEF s/nº 1970) —
+  # mesma fonte já usada no catálogo fiscal.cfop (fiscal-014). Cobre naturezas de SAÍDA de mercadoria
+  # adicionais que o O2C/P2P vão precisar: devolução ao fornecedor, transferência entre
+  # estabelecimentos do mesmo tenant (Fase 6, spec/estabelecimentos-filiais.md) e remessa sem venda
+  # (bonificação/doação/brinde, amostra grátis). Todas escolhidas por serem operações de MERCADORIA
+  # DE TERCEIROS (mesma simplificação do fiscal-056: não distingue produção própria), sem a
+  # granularidade de contribuinte/substituição tributária — mesmo corte de escopo do restante da
+  # Etapa 0. Sem consumidor Java ainda (nenhum fluxo de P2P/Estoque chama resolverCfop hoje).
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: fiscal-057-seed-cfop-regra-complemento
+      author: vitor-fernandes
+      comment: Seed CFOP de devolução de compra, transferência e remessa (bonificação/amostra)
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.cfop_regra (natureza_operacao, ambito, tipo_operacao, cfop, descricao) VALUES
+              ('DEVOLUCAO_COMPRA', 'INTERNO', 'SAIDA', '5202', 'Devolução de compra para comercialização'),
+              ('DEVOLUCAO_COMPRA', 'INTERESTADUAL', 'SAIDA', '6202', 'Devolução de compra para comercialização'),
+              ('TRANSFERENCIA', 'INTERNO', 'SAIDA', '5152', 'Transferência de mercadoria adquirida ou recebida de terceiros'),
+              ('TRANSFERENCIA', 'INTERESTADUAL', 'SAIDA', '6152', 'Transferência de mercadoria adquirida ou recebida de terceiros'),
+              ('REMESSA_BONIFICACAO', 'INTERNO', 'SAIDA', '5910', 'Remessa em bonificação, doação ou brinde'),
+              ('REMESSA_BONIFICACAO', 'INTERESTADUAL', 'SAIDA', '6910', 'Remessa em bonificação, doação ou brinde'),
+              ('REMESSA_AMOSTRA', 'INTERNO', 'SAIDA', '5911', 'Remessa de amostra grátis'),
+              ('REMESSA_AMOSTRA', 'INTERESTADUAL', 'SAIDA', '6911', 'Remessa de amostra grátis');
+      rollback:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              DELETE FROM fiscal.cfop_regra WHERE natureza_operacao IN
+              ('DEVOLUCAO_COMPRA', 'TRANSFERENCIA', 'REMESSA_BONIFICACAO', 'REMESSA_AMOSTRA');

@@ -56,12 +56,15 @@ public class OperacaoFiscalDTO {
     private BigDecimal percentualCbs;
     private BigDecimal percentualReducaoAplicado;
 
-    // ponytail: cst (CST do IBS/CBS, Anexo NT 2023.001) e cstIcms/csosn não têm fonte resolvida
-    // internamente — o motor não modela essa classificação hoje, só reducaoPercentual/aliquotaZero/
-    // monofasico. Inventar o mapeamento aqui seria lógica fiscal nova (e arriscada: CST errado
-    // rejeita a NF-e na SEFAZ), fora do escopo desta fatia ("propagar, não recalcular"). Ficam
-    // sempre null até existir uma tabela real de resolução — upgrade quando o emissao-fiscal-service
-    // tiver o dado.
+    // cstIcms/csosn: resolvidos via fiscal.cst_icms_regra (Etapa 0, §11) — só para PRODUTO, no
+    // caminho de SAÍDA que passa pela Etapa 3 (mesmo balde de escopo de cClassTrib/percentuais
+    // acima; MEI/alíquota-zero/monofásico/serviço/entrada não preenchem). Vazios quando a situação
+    // não tem linha cadastrada (ST/pauta/DIFAL/monofásico legado seguem fora de escopo — decisão
+    // registrada em spec/fiscal/motor-fiscal-proximos-passos.md linha 163).
+    //
+    // ponytail: cst (CST do IBS/CBS, Anexo NT 2023.001) continua sem fonte resolvida — é uma
+    // classificação nova e distinta do CST-ICMS legado, ainda sem tabela própria. Fica sempre null
+    // até existir — upgrade quando o emissao-fiscal-service tiver o dado.
     private String cst;
     private String cstIcms;
     private String csosn;

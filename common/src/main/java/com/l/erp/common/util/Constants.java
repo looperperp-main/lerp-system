@@ -535,6 +535,38 @@ public class Constants {
     // alíquota nominal + redução de base, nunca pauta fiscal (modBC 1) ou preço tabelado (modBC 2).
     public static final String FISCAL_ICMS_MODBC_VALOR_OPERACAO = "3";
 
+    // Etapa 0 — resolução de CST-ICMS/CSOSN e CFOP real (spec/modulos/emissao-fiscal/emissao-fiscal.md
+    // §11, revisão 22/09/2026). fiscal.cst_icms_regra agrupa o regime do emitente em dois baldes —
+    // CST (regime normal) e CSOSN (Simples Nacional, inclusive excesso de sublimite) — cruzados com a
+    // situação derivada de RegimeDiferenciado (aliquotaZero/reducaoPercentual). ST/pauta/DIFAL
+    // seguem fora de escopo (spec/fiscal/motor-fiscal-proximos-passos.md linha 163) — sem linha
+    // nessas situações o motor não inventa código, cstIcms/csosn saem null.
+    public static final String FISCAL_CST_GRUPO_NORMAL = "NORMAL";
+    public static final String FISCAL_CST_GRUPO_SIMPLES = "SIMPLES";
+    public static final String FISCAL_CST_SITUACAO_INTEGRAL = "INTEGRAL";
+    public static final String FISCAL_CST_SITUACAO_REDUZIDA = "REDUZIDA";
+    public static final String FISCAL_CST_SITUACAO_ISENTA = "ISENTA";
+
+    // fiscal.cfop_regra resolve o CFOP real quando o chamador declara a natureza da operação em vez
+    // de um código pronto. Âmbito deriva de ufOrigem x ufDestino; exterior fica de fora por falta de
+    // sinal de país no request (gap documentado na spec). Só VENDA tem consumidor real hoje
+    // (FiscalServiceClient) — as demais foram semeadas a partir da tabela oficial de CFOP
+    // (spec/tabela_cfop.pdf) pra já existirem quando um fluxo real de devolução/transferência/
+    // remessa precisar (P2P, Estoque); nenhum código Java as chama ainda.
+    public static final String NATUREZA_OPERACAO_VENDA = "VENDA";
+    public static final String NATUREZA_OPERACAO_DEVOLUCAO_COMPRA = "DEVOLUCAO_COMPRA";
+    public static final String NATUREZA_OPERACAO_TRANSFERENCIA = "TRANSFERENCIA";
+    public static final String NATUREZA_OPERACAO_REMESSA_BONIFICACAO = "REMESSA_BONIFICACAO";
+    public static final String NATUREZA_OPERACAO_REMESSA_AMOSTRA = "REMESSA_AMOSTRA";
+    public static final String FISCAL_CFOP_AMBITO_INTERNO = "INTERNO";
+    public static final String FISCAL_CFOP_AMBITO_INTERESTADUAL = "INTERESTADUAL";
+    // cfop ausente e sem naturezaOperacao para resolver — nada a calcular no escuro.
+    public static final String FISCAL_NATUREZA_OPERACAO_OBRIGATORIA = "FISCAL_NATUREZA_OPERACAO_OBRIGATORIA";
+    // Resolução de CFOP por natureza/UF exige as duas UFs, igual à transição legado (fatia 3c).
+    public static final String FISCAL_UF_OBRIGATORIA_RESOLUCAO_CFOP = "FISCAL_UF_OBRIGATORIA_RESOLUCAO_CFOP";
+    // naturezaOperacao/âmbito sem linha em fiscal.cfop_regra — 400 em vez de chutar um CFOP.
+    public static final String FISCAL_CFOP_REGRA_NAO_ENCONTRADA = "FISCAL_CFOP_REGRA_NAO_ENCONTRADA";
+
     // O2C — Pedido de venda (operacoes-service, schema vendas — spec/modulos/o2c-vendas/o2c-vendas.md §4/§7/§8, Fase 3)
     public static final String PEDIDO = "PEDIDO";
     public static final String PEDIDO_NOT_FOUND = "Pedido não encontrado!";
@@ -592,10 +624,10 @@ public class Constants {
     public static final String FISCAL_SERVICE_INDISPONIVEL = "Serviço fiscal indisponível, tente novamente";
     // Placeholders: produtoId, motivo devolvido pelo fiscal-service (ex.: FISCAL_CCLASSTRIB_OBRIGATORIO).
     public static final String PEDIDO_FISCAL_CALCULO_REJEITADO = "Cálculo fiscal rejeitado para o produto %s: %s";
-    // Defaults do request ao fiscal-service — CFOP (dentro do estado) e regime tributário do
-    // emitente ainda não são campos modelados no ERP (UF do cliente/tenant, regime do Tenant);
-    // ver ponytail em FiscalServiceClient.
-    public static final String PEDIDO_FISCAL_CFOP_MERCADORIA_DEFAULT = "5102";
+    // Default do request ao fiscal-service para serviço — NFS-e não tem CFOP no XML, o valor só é
+    // sinal interno de SAÍDA para o motor (mercadoria resolve o CFOP real via fiscal.cfop_regra,
+    // Etapa 0 — ver ponytail em FiscalServiceClient). Regime tributário do emitente ainda não é
+    // campo modelado no pedido (ver ponytail em FiscalServiceClient).
     public static final String PEDIDO_FISCAL_CFOP_SERVICO_DEFAULT = "5933";
 
     // O2C — Fase 5: eventos Kafka das transições de pedido (spec/modulos/o2c-vendas/o2c-vendas.md §8)

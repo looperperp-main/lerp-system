@@ -1,6 +1,7 @@
 package com.l.erp.fiscalservice.api.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -29,8 +30,13 @@ import java.time.LocalDate;
 @AllArgsConstructor     // @Builder precisa do all-args (some ao adicionar @NoArgsConstructor)
 public class MotorFiscalRequest {
 
-    @NotBlank
+    // Não é @NotBlank: quando ausente, o motor resolve via naturezaOperacao + ufOrigem/ufDestino
+    // (Etapa 0, fiscal.cfop_regra) — validado manualmente no MotorFiscalService (400 explícito, não
+    // genérico de bean validation) porque a obrigatoriedade é condicional, não fixa.
     private String cfop;
+    // Declarada pelo chamador quando não há CFOP pronto (Constants.NATUREZA_OPERACAO_VENDA é a
+    // única hoje) — mesmo padrão de "declarado, não deduzido" de cClassTrib/retenção.
+    private String naturezaOperacao;
     private String ncm;                    // null para serviços
     private String codigoServico;          // código LC 116 — null para produtos
     // Classificação tributária IBS/CBS do serviço (Anexo VIII). @JsonProperty porque o getter
@@ -90,4 +96,12 @@ public class MotorFiscalRequest {
     private Boolean bemSemCreditoNaEntrada;
     @PositiveOrZero
     private BigDecimal valorAquisicaoSemCredito;
+
+    // Validação de forma (não de negócio): cfop OU naturezaOperacao tem que vir preenchido, senão
+    // não há nada pra resolver o CFOP — 400 de bean validation aqui, antes de chegar no
+    // MotorFiscalService (mesma camada de @NotBlank, só que cross-field).
+    @AssertTrue(message = "cfop ou naturezaOperacao é obrigatório")
+    public boolean isCfopOuNaturezaOperacaoPresente() {
+        return (cfop != null && !cfop.isBlank()) || (naturezaOperacao != null && !naturezaOperacao.isBlank());
+    }
 }
