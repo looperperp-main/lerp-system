@@ -321,3 +321,20 @@ databaseChangeLog:
   - include:
       file: compras/compras-schema-003.yaml
       relativeToChangelogFile: true
+
+  # 13. Schema de Emissão Fiscal — Etapa 1: infra comum (emissao-fiscal-service)
+  - include:
+      file: emissao/emissao-schema-001.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: emissao/emissao-schema-002.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: emissao/emissao-schema-003.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: emissao/emissao-schema-004.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: emissao/emissao-schema-005.yaml
+      relativeToChangelogFile: true

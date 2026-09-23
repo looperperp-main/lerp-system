@@ -1,0 +1,109 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # emissao.certificado_digital — certificado A1 (.pfx) por estabelecimento, guardado com
+  # envelope encryption (AES-256-GCM, KEK fora do banco). kek_version nasce desde já
+  # (spec §3 item 1) para não exigir migração de schema quando a rotação virar necessidade real.
+  # Sem FK para cadastros.estabelecimento de propósito: o emissao-fiscal-service não pode
+  # acoplar ao schema de outro serviço (spec §2, "vendável separadamente") — estabelecimento_id
+  # é referência solta, validada em memória por quem chama.
+  # ──────────────────────────────────────────────────────────────────────────
+  - changeSet:
+      id: "emissao-002-create-certificado-digital"
+      author: vitor fernandes ferreira
+      changes:
+        - createTable:
+            schemaName: emissao
+            tableName: certificado_digital
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: estabelecimento_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                  remarks: "Referência solta a cadastros.estabelecimento.id — sem FK cross-schema (spec §2)"
+              - column:
+                  name: certificado_cifrado
+                  type: bytea
+                  constraints:
+                    nullable: false
+                  remarks: "AES-256-GCM: nonce(12) || ciphertext || tag, do .pfx original"
+              - column:
+                  name: senha_cifrada
+                  type: bytea
+                  constraints:
+                    nullable: false
+                  remarks: "Senha do keystore .pfx, mesmo envelope encryption"
+              - column:
+                  name: kek_version
+                  type: smallint
+                  defaultValueNumeric: 1
+                  constraints:
+                    nullable: false
+              - column:
+                  name: cnpj_subject
+                  type: varchar(14)
+                  constraints:
+                    nullable: false
+                  remarks: "CNPJ (14 dígitos) extraído do subject do X.509 — conferido contra Estabelecimento.cnpj antes de assinar"
+              - column:
+                  name: certificado_valido_ate
+                  type: timestamp with time zone
+                  constraints:
+                    nullable: false
+                  remarks: "X509Certificate.getNotAfter() — alvo do job diário de alerta de vencimento"
+              - column:
+                  name: alerta_enviado
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: ativo
+                  type: boolean
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp with time zone
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp with time zone
+              - column:
+                  name: created_by
+                  type: uuid
+              - column:
+                  name: last_updated_by
+                  type: uuid
+        - addUniqueConstraint:
+            schemaName: emissao
+            tableName: certificado_digital
+            columnNames: tenant_id, estabelecimento_id
+            constraintName: uq_certificado_tenant_estabelecimento
+        - createIndex:
+            schemaName: emissao
+            tableName: certificado_digital
+            indexName: idx_certificado_vencimento_alerta
+            columns:
+              - column:
+                  name: certificado_valido_ate
+              - column:
+                  name: alerta_enviado
+      rollback:
+        - dropTable:
+            schemaName: emissao
+            tableName: certificado_digital

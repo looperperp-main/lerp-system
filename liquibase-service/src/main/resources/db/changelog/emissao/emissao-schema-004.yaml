@@ -1,0 +1,127 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # emissao.documento_fiscal — dono do XML assinado, protocolo e status (spec §3 item 7/10).
+  # payload_recebido guarda o corpo de POST /emissao/documentos (JSONB) — é o que permite
+  # reemissão/correção sem o chamador reenviar tudo, e a idempotência devolver a resposta
+  # já processada. status segue a máquina de estados do §3 item 10.
+  # ──────────────────────────────────────────────────────────────────────────
+  - changeSet:
+      id: "emissao-004-create-documento-fiscal"
+      author: vitor fernandes ferreira
+      changes:
+        - createTable:
+            schemaName: emissao
+            tableName: documento_fiscal
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: estabelecimento_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: documento
+                  type: varchar(10)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: modelo
+                  type: varchar(2)
+                  remarks: "55=NF-e, 65=NFC-e, 57=CT-e..."
+              - column:
+                  name: serie
+                  type: varchar(3)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: numero
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: ambiente
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: tp_emis
+                  type: varchar(2)
+                  defaultValue: "1"
+                  constraints:
+                    nullable: false
+                  remarks: "1=normal; contingência muda a chave de acesso (spec §3 item 10)"
+              - column:
+                  name: chave_acesso
+                  type: varchar(44)
+              - column:
+                  name: xml_assinado
+                  type: text
+              - column:
+                  name: protocolo
+                  type: varchar(50)
+              - column:
+                  name: ultima_mensagem_sefaz
+                  type: text
+              - column:
+                  name: payload_recebido
+                  type: jsonb
+                  constraints:
+                    nullable: false
+              - column:
+                  name: idempotency_key
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp with time zone
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp with time zone
+              - column:
+                  name: created_by
+                  type: uuid
+              - column:
+                  name: last_updated_by
+                  type: uuid
+        - addUniqueConstraint:
+            schemaName: emissao
+            tableName: documento_fiscal
+            columnNames: tenant_id, estabelecimento_id, documento, serie, numero
+            constraintName: uq_documento_fiscal_numeracao
+        - createIndex:
+            schemaName: emissao
+            tableName: documento_fiscal
+            indexName: idx_documento_fiscal_status
+            columns:
+              - column:
+                  name: status
+        - createIndex:
+            schemaName: emissao
+            tableName: documento_fiscal
+            indexName: idx_documento_fiscal_chave_acesso
+            columns:
+              - column:
+                  name: chave_acesso
+      rollback:
+        - dropTable:
+            schemaName: emissao
+            tableName: documento_fiscal

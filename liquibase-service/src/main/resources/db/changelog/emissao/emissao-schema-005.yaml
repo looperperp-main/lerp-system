@@ -1,0 +1,112 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # emissao.idempotency_key — Idempotency-Key do POST /emissao/documentos (spec §3 item 10).
+  # fingerprint (SHA-256 de estabelecimentoId+modelo+documento destinatário+valorTotal+qtd itens)
+  # detecta reuso indevido da mesma chave para dois documentos diferentes: mesma chave e mesmo
+  # fingerprint devolve a resposta cacheada; fingerprint diferente é 409. Sem tenant_id no
+  # fingerprint — a linha já é escopada por tenant_id na UNIQUE, incluir de novo não distingue nada.
+  # ──────────────────────────────────────────────────────────────────────────
+  - changeSet:
+      id: "emissao-005-create-idempotency-key"
+      author: vitor fernandes ferreira
+      changes:
+        - createTable:
+            schemaName: emissao
+            tableName: idempotency_key
+            columns:
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: idempotency_key
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: documento_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: fingerprint
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp with time zone
+                  constraints:
+                    nullable: false
+        - addPrimaryKey:
+            schemaName: emissao
+            tableName: idempotency_key
+            columnNames: tenant_id, idempotency_key
+            constraintName: pk_idempotency_key
+      rollback:
+        - dropTable:
+            schemaName: emissao
+            tableName: idempotency_key
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # emissao.outbox_evento — transactional outbox (spec §3 item 10, piloto no reator). Escrita na
+  # mesma transação que muda o estado do documento; @Scheduled de poll curto publica no Kafka com
+  # FOR UPDATE SKIP LOCKED (permite mais de uma instância sem publicar a mesma linha duas vezes).
+  # ──────────────────────────────────────────────────────────────────────────
+  - changeSet:
+      id: "emissao-006-create-outbox-evento"
+      author: vitor fernandes ferreira
+      changes:
+        - createTable:
+            schemaName: emissao
+            tableName: outbox_evento
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: documento_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: tipo_evento
+                  type: varchar(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: payload
+                  type: jsonb
+                  constraints:
+                    nullable: false
+              - column:
+                  name: criado_em
+                  type: timestamp with time zone
+                  constraints:
+                    nullable: false
+              - column:
+                  name: publicado_em
+                  type: timestamp with time zone
+      rollback:
+        - dropTable:
+            schemaName: emissao
+            tableName: outbox_evento
+
+  - changeSet:
+      id: "emissao-007-index-outbox-pendente"
+      author: vitor fernandes ferreira
+      comment: Índice parcial — só linhas não publicadas, é exatamente o que o poll do OutboxPublisherJob varre
+      changes:
+        - sql:
+            dbms: postgresql
+            sql: >
+              CREATE INDEX idx_outbox_pendente ON emissao.outbox_evento (criado_em)
+              WHERE publicado_em IS NULL;
+      rollback:
+        - sql:
+            sql: DROP INDEX IF EXISTS emissao.idx_outbox_pendente;

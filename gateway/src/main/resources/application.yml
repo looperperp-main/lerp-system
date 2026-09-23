@@ -34,6 +34,10 @@ spring:
               uri: lb://fiscal-service
               predicates:
                 - Path=/fiscal/**
+            - id: emissao-fiscal-service
+              uri: lb://emissao-fiscal-service
+              predicates:
+                - Path=/emissao/**
 
 rate-limit:
   replenish-rate: 20

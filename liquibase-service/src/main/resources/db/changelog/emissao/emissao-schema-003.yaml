@@ -1,0 +1,60 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # emissao.numeracao_documento — contador por (tenant, estabelecimento, documento, série).
+  # Decisão (spec §3 item 3): lock via SELECT ... FOR UPDATE nesta linha, não
+  # DistributedLockService/Redis — Postgres já é dependência obrigatória, Redis não seria.
+  # ──────────────────────────────────────────────────────────────────────────
+  - changeSet:
+      id: "emissao-003-create-numeracao-documento"
+      author: vitor fernandes ferreira
+      changes:
+        - createTable:
+            schemaName: emissao
+            tableName: numeracao_documento
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: estabelecimento_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: documento
+                  type: varchar(10)
+                  constraints:
+                    nullable: false
+                  remarks: "NFE, NFCE, CTE, NFSE..."
+              - column:
+                  name: serie
+                  type: varchar(3)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: ultimo_numero
+                  type: bigint
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp with time zone
+        - addUniqueConstraint:
+            schemaName: emissao
+            tableName: numeracao_documento
+            columnNames: tenant_id, estabelecimento_id, documento, serie
+            constraintName: uq_numeracao_chave
+      rollback:
+        - dropTable:
+            schemaName: emissao
+            tableName: numeracao_documento

@@ -1,0 +1,11 @@
+databaseChangeLog:
+  - changeSet:
+      id: "emissao-001-create-schema"
+      author: vitor fernandes ferreira
+      comment: Schema do emissao-fiscal-service — Etapa 1, infra comum (spec/modulos/emissao-fiscal/emissao-fiscal.md §3/§5)
+      changes:
+        - sql:
+            sql: CREATE SCHEMA IF NOT EXISTS emissao
+      rollback:
+        - sql:
+            sql: DROP SCHEMA IF EXISTS emissao CASCADE

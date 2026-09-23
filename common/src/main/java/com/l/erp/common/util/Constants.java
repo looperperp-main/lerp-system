@@ -384,6 +384,13 @@ public class Constants {
     public static final String JOB_STATUS_OK = "OK";
     public static final String JOB_STATUS_ERROR = "ERRO";
 
+    // emissao-fiscal-service — Etapa 1 (spec/modulos/emissao-fiscal/emissao-fiscal.md §3)
+    public static final String JOB_KEY_CERTIFICADO_VENCIMENTO = "certificado-vencimento";
+    public static final String JOB_KEY_OUTBOX_PUBLICACAO = "outbox-publicacao";
+    public static final String AUDIT_ACTION_ALERTA_VENCIMENTO_CERTIFICADO = "ALERTA_VENCIMENTO_CERTIFICADO";
+    public static final String TARGET_TYPE_CERTIFICADO_DIGITAL = "CERTIFICADO_DIGITAL";
+    public static final String EMISSAO_DOCUMENTO_EVENTO_TOPIC = "emissao.documento.evento";
+
     // Regime tributário do emitente (motor fiscal — Fin.md §1.4)
     public static final String REGIME_MEI = "MEI";
     public static final String REGIME_SIMPLES_NACIONAL = "SIMPLES_NACIONAL";

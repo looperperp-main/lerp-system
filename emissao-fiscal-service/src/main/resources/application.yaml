@@ -1,0 +1,81 @@
+spring:
+  application:
+    name: emissao-fiscal-service
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/loop-erp
+    username: ${DB_USER}
+    password: ${DB_PASS}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX:10}
+      minimum-idle: ${DB_POOL_MIN:3}
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1200000
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: emissao
+  kafka:
+    bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      properties:
+        interceptor.classes: com.l.erp.common.infra.kafka.CorrelationIdProducerInterceptor
+
+server:
+  port: ${SERVER_PORT:8094}
+
+# KEK (Key Encryption Key) do envelope encryption do certificado A1 / CSRT — AES-256, precisa
+# decodificar (Base64) para exatamente 32 bytes. Validado no startup (EnvelopeEncryptionService).
+emissao:
+  kek: ${EMISSAO_KEK}
+  certificado:
+    alerta-vencimento-dias: 30
+    cron-alerta-vencimento: ${EMISSAO_CERT_ALERTA_CRON:0 0 6 * * *}
+  outbox:
+    cron-publicacao: ${EMISSAO_OUTBOX_CRON:0 * * * * *}
+
+internal:
+  gateway:
+    secret: ${INTERNAL_GATEWAY_SECRET}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URI:http://localhost:8761/eureka/}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,loggers
+  endpoint:
+    health:
+      show-details: always
+    loggers:
+      access: unrestricted
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    export:
+      prometheus:
+        enabled: true
+
+logging:
+  level:
+    root: ${LOG_LEVEL:INFO}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
