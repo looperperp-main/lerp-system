@@ -831,6 +831,45 @@ class MotorFiscalServiceTest {
     }
 
     @Test
+    void legado_icmsInterestadual_geralQuandoOrigemEDestinoSaoSulSudeste() {
+        // Issue #102: SP→RJ retornava 400. Origem e destino são Sul/Sudeste (exceto ES) —
+        // sem a redução de 7%, aplica a alíquota geral (Resolução do Senado 22/89).
+        OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()
+                .cfop("5101").ncm("84713012").ibgeDestino(SP)
+                .ufOrigem("SP").ufDestino("RJ")
+                .valorOperacao(new BigDecimal("10000")).dataCompetencia(LocalDate.of(2029, 3, 15))
+                .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null);
+        assertValor("1080.00", r.getValorIcms()); // 10000 * 12% * 90% remanescente
+        assertValor("12.00", r.getPercentualIcmsNominal());
+        assertValor("0", r.getPercentualReducaoBaseIcms());
+    }
+
+    @Test
+    void legado_icmsInterestadual_reduzidaDeSulSudesteParaDemaisRegioes() {
+        // SP→BA: origem Sul/Sudeste (exceto ES) para Nordeste — 7% (Resolução do Senado 22/89).
+        OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()
+                .cfop("5101").ncm("84713012").ibgeDestino(SP)
+                .ufOrigem("SP").ufDestino("BA")
+                .valorOperacao(new BigDecimal("10000")).dataCompetencia(LocalDate.of(2029, 3, 15))
+                .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null);
+        assertValor("630.00", r.getValorIcms()); // 10000 * 7% * 90% remanescente
+        assertValor("7.00", r.getPercentualIcmsNominal());
+    }
+
+    @Test
+    void legado_icmsInterestadual_produtoEstrangeiro_avisaEAplicaAliquotaPadrao() {
+        // Resolução 13/2012 (4% em bem importado) não é modelada — avisa e usa a alíquota
+        // interestadual padrão (reduzida/geral) em vez de travar com 400 ou chutar 4%.
+        OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()
+                .cfop("5101").ncm("84713012").ibgeDestino(SP)
+                .ufOrigem("SP").ufDestino("BA").origemProduto(Constants.FISCAL_ORIGEM_ESTRANGEIRO)
+                .valorOperacao(new BigDecimal("10000")).dataCompetencia(LocalDate.of(2029, 3, 15))
+                .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null);
+        assertValor("630.00", r.getValorIcms());
+        assertTrue(r.getMemoriaCalculo().contains(Constants.FISCAL_AVISO_ICMS_INTERESTADUAL_IMPORTADO));
+    }
+
+    @Test
     void anoForaDaCurvaDeTransicao_lancaFiscalException() {
         FiscalException ex = assertThrows(FiscalException.class, () -> motor.calcular(
                 MotorFiscalRequest.builder()

@@ -1,6 +1,6 @@
 # Motor Fiscal — próximos passos
 
-> Última atualização: 01 de setembro de 2026
+> Última atualização: 23 de setembro de 2026
 
 Handoff das fatias seguintes do motor fiscal. Escrito para ser lido do zero, sem
 contexto de conversa anterior.
@@ -264,6 +264,24 @@ necessária mas deixou de ser urgente. Pelo mesmo motivo o backlog de
   abaixo). 6 testes novos em `MotorFiscalServiceTest` (ICMS em 2029, ISS em 2029, transição
   zero não calcula nenhum, produto sem UF com transição ativa → 400, ICMS sem cobertura → 400,
   ano fora da curva 2026–2033 → 400).
+  - **Correção (23 de setembro de 2026, issue [#102](https://github.com/looperperp-main/lerp-system/issues/102))
+    — ICMS interestadual retornava 400.** A 3c só cobria `ufOrigem = ufDestino`: como a
+    `matriz_tributaria` (3b) nunca teve linha com UF de origem diferente da de destino — por
+    decisão de projeto, ver §3b acima e o comentário em `fiscal-schema-011.yaml` —, qualquer
+    venda entre UFs diferentes caía no `.orElseThrow()` de `FISCAL_ICMS_SEM_COBERTURA` (400),
+    mesmo sendo a operação mais comum de um ERP multi-UF. `calcularLegado` agora ramifica: UF
+    igual segue pela matriz (como antes); UF diferente cai no novo `regimeIcmsInterestadual`,
+    que **não consulta tabela** — implementa a função fixa da Resolução do Senado 22/89 (12%
+    geral; 7% de Sul/Sudeste exceto ES para Norte/Nordeste/Centro-Oeste/ES) já descrita acima
+    como decisão de design. 4% de bem importado (Resolução 13/2012) fica de fora — exige
+    conteúdo de importação e lista CAMEX que o motor não modela —, então quando
+    `origemProduto = 'ESTRANGEIRO'` o motor **avisa** (`FISCAL_AVISO_ICMS_INTERESTADUAL_IMPORTADO`
+    em `memoriaCalculo`) e aplica a alíquota interestadual padrão em vez de travar com 400 ou
+    chutar 4% sem verificar as exceções da resolução. Novas constantes em `common/Constants.java`:
+    `FISCAL_UF_SUL_SUDESTE_SEM_ES`, `FISCAL_ICMS_INTERESTADUAL_REDUZIDA`/`_GERAL`,
+    `FISCAL_ORIGEM_ESTRANGEIRO`, `FISCAL_AVISO_ICMS_INTERESTADUAL_IMPORTADO`. 3 testes novos em
+    `MotorFiscalServiceTest` (geral SP→RJ, reduzida SP→BA, aviso de produto estrangeiro) —
+    **verde**, confirmado pelo usuário.
 - **3d — ISS.** ✅ **feita e verde em 18 de agosto de 2026** (confirmado na mesma
   rodada de `mvn verify -pl fiscal-service` que fechou a 3b: 61/61 testes totais,
   30 em `TabelaFiscalJdbcTest`, incluindo os 4 de ISS; Liquibase aplicado e

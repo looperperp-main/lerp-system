@@ -486,6 +486,22 @@ public class Constants {
     public static final String FISCAL_ICMS_SEM_COBERTURA = "FISCAL_ICMS_SEM_COBERTURA";
     // Idem para ISS: nem o município nem a referência nacional tem linha para o item.
     public static final String FISCAL_ISS_SEM_COBERTURA = "FISCAL_ISS_SEM_COBERTURA";
+
+    // Interestadual (Resolução do Senado 22/89 + 13/2012) é regra FIXA sobre lista de UF, não dado
+    // que muda (comentário de fiscal-schema-011.yaml) — por isso não mora na matriz_tributaria.
+    // 7% quando origem é Sul/Sudeste (exceto ES) e destino é Norte/Nordeste/Centro-Oeste ou ES;
+    // 12% nos demais pares de UF diferentes.
+    public static final java.util.Set<String> FISCAL_UF_SUL_SUDESTE_SEM_ES =
+            java.util.Set.of("SP", "RJ", "MG", "PR", "SC", "RS");
+    public static final BigDecimal FISCAL_ICMS_INTERESTADUAL_REDUZIDA = new BigDecimal("7");
+    public static final BigDecimal FISCAL_ICMS_INTERESTADUAL_GERAL = new BigDecimal("12");
+    // Resolução 13/2012 (4% em bem importado) exige conteúdo de importação e lista CAMEX que o
+    // motor não modela — mesmo padrão de FISCAL_AVISO_ORIGEM_ZFM: avisa e aplica a alíquota
+    // interestadual padrão (reduzida/geral) em vez de travar com 400.
+    public static final String FISCAL_ORIGEM_ESTRANGEIRO = "ESTRANGEIRO";
+    public static final String FISCAL_AVISO_ICMS_INTERESTADUAL_IMPORTADO =
+            "AVISO: origem 'ESTRANGEIRO' em operação interestadual — alíquota de 4% (Resolução 13/2012) "
+                    + "não implementada; aplicada a alíquota interestadual padrão";
     // PIS/COFINS ainda vigentes (só 2026): por decisão de escopo (item 7.9), o motor nunca calcula
     // o tributo — não é dado faltando. O art. 348 da LC 214/2025 dispensa o recolhimento de
     // IBS/CBS no ano de teste para quem cumprir as obrigações acessórias (§1º) e exige PIS/COFINS

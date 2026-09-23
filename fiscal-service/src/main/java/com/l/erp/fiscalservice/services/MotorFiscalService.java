@@ -507,15 +507,33 @@ public class MotorFiscalService {
         if (!preenchido(req.getUfOrigem()) || !preenchido(req.getUfDestino())) {
             throw new FiscalException(Constants.FISCAL_UF_OBRIGATORIA_TRANSICAO);
         }
-        RegimeIcms regimeIcms = tabela
-                .aliquotaIcms(tenantId, req.getNcm(), req.getUfOrigem(), req.getUfDestino(), req.getDataCompetencia())
-                .orElseThrow(() -> new FiscalException(Constants.FISCAL_ICMS_SEM_COBERTURA));
+        RegimeIcms regimeIcms = req.getUfOrigem().equals(req.getUfDestino())
+                ? tabela.aliquotaIcms(tenantId, req.getNcm(), req.getUfOrigem(), req.getUfDestino(), req.getDataCompetencia())
+                        .orElseThrow(() -> new FiscalException(Constants.FISCAL_ICMS_SEM_COBERTURA))
+                : regimeIcmsInterestadual(req, memoria);
         BigDecimal aliqIcmsEfetiva = regimeIcms.aliqNominal().multiply(fatorReducao(regimeIcms.pReducaoBase()));
         BigDecimal valorIcms = pct(valorTributavel, aliqIcmsEfetiva)
                 .multiply(fatorLegado).setScale(ESCALA, RoundingMode.HALF_UP);
         memoria.add("ICMS legado (" + transicao.pctRemanescente() + "% remanescente): " + valorIcms);
         return new Legado(valorIcms, null, regimeIcms.aliqNominal(), regimeIcms.pReducaoBase(),
                 Constants.FISCAL_ICMS_MODBC_VALOR_OPERACAO);
+    }
+
+    /**
+     * ICMS interestadual (Resolução do Senado 22/89 + 13/2012, issue #102): NÃO consulta a
+     * matriz_tributaria (essa só tem alíquota interna, uf_origem = uf_destino) — é regra fixa
+     * sobre a lista de UF. 4% de bem importado (Resolução 13/2012) exige conteúdo de importação
+     * que o motor não modela; nesse caso só avisa e aplica a alíquota padrão, sem travar com 400.
+     */
+    private RegimeIcms regimeIcmsInterestadual(MotorFiscalRequest req, List<String> memoria) {
+        if (Constants.FISCAL_ORIGEM_ESTRANGEIRO.equals(req.getOrigemProduto())) {
+            memoria.add(Constants.FISCAL_AVISO_ICMS_INTERESTADUAL_IMPORTADO);
+        }
+        BigDecimal aliqNominal = Constants.FISCAL_UF_SUL_SUDESTE_SEM_ES.contains(req.getUfOrigem())
+                && !Constants.FISCAL_UF_SUL_SUDESTE_SEM_ES.contains(req.getUfDestino())
+                ? Constants.FISCAL_ICMS_INTERESTADUAL_REDUZIDA
+                : Constants.FISCAL_ICMS_INTERESTADUAL_GERAL;
+        return new RegimeIcms(aliqNominal, BigDecimal.ZERO, false);
     }
 
     /**
