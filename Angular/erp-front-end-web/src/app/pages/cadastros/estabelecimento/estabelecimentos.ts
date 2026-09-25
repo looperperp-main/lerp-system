@@ -90,6 +90,16 @@ export class Estabelecimentos implements OnInit {
     this.displayForm = true;
   }
 
+  abrirEmissaoFiscal(estabelecimento: Estabelecimento): void {
+    this.router.navigate([
+      '/web/cadastros/pessoas',
+      this.pessoaId,
+      'estabelecimentos',
+      estabelecimento.id,
+      'emissao-fiscal',
+    ]);
+  }
+
   onFormSaved(): void {
     this.displayForm = false;
     this.load();

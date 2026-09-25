@@ -1,0 +1,63 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Renomeia estabelecimento_id → emitente_id nas 4 tabelas que a carregavam — decisão do
+  # usuário (25/09/2026): "vendável separadamente" (spec §2) não é só sobre não chamar
+  # cadastro-service em runtime, é também sobre não expor um nome de coluna/campo de API que só
+  # faz sentido pra quem já tem o conceito de Estabelecimento do erp-vsd. "emitente" é o termo
+  # padrão do XML NF-e/CT-e/NFS-e para o emissor — neutro pra um chamador de fora do reator.
+  # renameColumn preserva o dado já gravado, só troca o nome.
+  # ──────────────────────────────────────────────────────────────────────────
+  - changeSet:
+      id: "emissao-023-rename-estabelecimento-id-para-emitente-id"
+      author: vitor fernandes ferreira
+      changes:
+        - renameColumn:
+            schemaName: emissao
+            tableName: certificado_digital
+            oldColumnName: estabelecimento_id
+            newColumnName: emitente_id
+            columnDataType: uuid
+        - renameColumn:
+            schemaName: emissao
+            tableName: credenciamento_sefaz
+            oldColumnName: estabelecimento_id
+            newColumnName: emitente_id
+            columnDataType: uuid
+        - renameColumn:
+            schemaName: emissao
+            tableName: documento_fiscal
+            oldColumnName: estabelecimento_id
+            newColumnName: emitente_id
+            columnDataType: uuid
+        - renameColumn:
+            schemaName: emissao
+            tableName: numeracao_documento
+            oldColumnName: estabelecimento_id
+            newColumnName: emitente_id
+            columnDataType: uuid
+      rollback:
+        - renameColumn:
+            schemaName: emissao
+            tableName: certificado_digital
+            oldColumnName: emitente_id
+            newColumnName: estabelecimento_id
+            columnDataType: uuid
+        - renameColumn:
+            schemaName: emissao
+            tableName: credenciamento_sefaz
+            oldColumnName: emitente_id
+            newColumnName: estabelecimento_id
+            columnDataType: uuid
+        - renameColumn:
+            schemaName: emissao
+            tableName: documento_fiscal
+            oldColumnName: emitente_id
+            newColumnName: estabelecimento_id
+            columnDataType: uuid
+        - renameColumn:
+            schemaName: emissao
+            tableName: numeracao_documento
+            oldColumnName: emitente_id
+            newColumnName: estabelecimento_id
+            columnDataType: uuid

@@ -1,0 +1,165 @@
+<div>
+
+  <div class="jb-page-head">
+    <div>
+      <app-breadcrumb></app-breadcrumb>
+      <h1>Emissão Fiscal</h1>
+      <p class="sub">Certificado digital e credenciamento na SEFAZ deste estabelecimento.</p>
+    </div>
+  </div>
+
+  <div class="jb-panel">
+    <div class="jb-panel-head">
+      <h3><i class="pi pi-shield"></i> Certificado Digital (A1)</h3>
+      <div class="jb-panel-actions">
+        <app-primary-button
+          class="jb-btn-paginator-style"
+          icon="pi pi-arrow-left"
+          padding="0.5rem 0.8rem"
+          tooltip="Voltar para Estabelecimentos"
+          tooltipPosition="bottom"
+          (onClick)="voltar()">
+        </app-primary-button>
+      </div>
+    </div>
+
+    <form [formGroup]="certificadoForm" (ngSubmit)="enviarCertificado()" class="flex flex-col gap-4 mt-2">
+      <div class="flex flex-col gap-2">
+        <label for="cnpjEstabelecimento" class="jb-label">CNPJ do estabelecimento <span class="text-red-500">*</span></label>
+        <input id="cnpjEstabelecimento" type="text" pInputText formControlName="cnpjEstabelecimento" class="w-full"
+               placeholder="00000000000000">
+      </div>
+
+      <div class="flex flex-col gap-2">
+        <label for="senhaCertificado" class="jb-label">Senha do certificado <span class="text-red-500">*</span></label>
+        <input id="senhaCertificado" type="password" pInputText formControlName="senha" class="w-full">
+      </div>
+
+      <div class="flex flex-col gap-2">
+        <label class="jb-label">Arquivo .pfx <span class="text-red-500">*</span></label>
+        <p-fileUpload
+          mode="basic"
+          chooseLabel="Escolher arquivo"
+          accept=".pfx,.p12"
+          [maxFileSize]="5000000"
+          [auto]="false"
+          (onSelect)="onArquivoSelecionado($event)">
+        </p-fileUpload>
+        <small *ngIf="arquivoCertificado" class="jb-label">Selecionado: {{ arquivoCertificado.name }}</small>
+      </div>
+
+      <div class="flex justify-end gap-2 mt-2 pt-4 border-t border-gray-200">
+        <p-button
+          label="Enviar certificado"
+          icon="pi pi-upload"
+          type="submit"
+          [loading]="uploadingCertificado"
+          [disabled]="certificadoForm.invalid">
+        </p-button>
+      </div>
+    </form>
+  </div>
+
+  <div class="jb-panel">
+    <div class="jb-panel-head">
+      <h3><i class="pi pi-verified"></i> Credenciamento SEFAZ</h3>
+      <div class="jb-panel-actions">
+        <app-primary-button
+          class="jb-btn-paginator-style"
+          label="Novo Credenciamento"
+          icon="pi pi-plus"
+          (onClick)="abrirNovoCredenciamento()">
+        </app-primary-button>
+      </div>
+    </div>
+
+    <div class="table-container">
+      <p-table
+        [value]="credenciamentos()"
+        [loading]="loadingCredenciamentos()"
+        styleClass="p-datatable-sm text-sm">
+        <ng-template pTemplate="header">
+          <tr>
+            <th>UF</th>
+            <th>Modelo</th>
+            <th>Status</th>
+            <th>Credenciado em</th>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="body" let-rowData>
+          <tr>
+            <td>{{ rowData.uf }}</td>
+            <td>{{ rowData.modelo }}</td>
+            <td>
+              <span class="jb-status" [class.active]="rowData.status === 'CREDENCIADO'" [class.inactive]="rowData.status !== 'CREDENCIADO'">
+                {{ rowData.status }}
+              </span>
+            </td>
+            <td>{{ rowData.dataCredenciamento ? (rowData.dataCredenciamento | date: 'dd/MM/yyyy') : '-' }}</td>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td colspan="4" style="text-align: center; padding: 24px; color: var(--muted);">
+              Nenhum credenciamento registrado. Sem uma linha CREDENCIADO, a emissão em produção fica bloqueada.
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </div>
+  </div>
+
+  <footer class="jb-list-footer">
+    <span>© 2026 SYAX TECNOLOGIA · BUILD 26.04.01</span>
+    <span>{{ credenciamentos().length }} {{ credenciamentos().length === 1 ? 'CREDENCIAMENTO REGISTRADO' : 'CREDENCIAMENTOS REGISTRADOS' }}</span>
+  </footer>
+
+</div>
+
+<p-dialog [(visible)]="displayCredenciamentoForm" [style]="{width: '400px'}" [modal]="true">
+  <ng-template pTemplate="header">
+    <div class="jb-dialog-head">
+      <span class="eyebrow">EMISSÃO FISCAL · CREDENCIAMENTO</span>
+      <h2>Registrar Credenciamento</h2>
+    </div>
+  </ng-template>
+
+  <form [formGroup]="credenciamentoForm" (ngSubmit)="salvarCredenciamento()" class="flex flex-col gap-4 mt-2">
+    <div class="flex flex-col gap-2">
+      <label for="uf" class="jb-label">UF <span class="text-red-500">*</span></label>
+      <input id="uf" type="text" pInputText formControlName="uf" maxlength="2" class="w-full" placeholder="RJ"
+             style="text-transform: uppercase;">
+    </div>
+
+    <div class="flex flex-col gap-2">
+      <label for="modelo" class="jb-label">Modelo <span class="text-red-500">*</span></label>
+      <p-select id="modelo" formControlName="modelo" [options]="opcoesModelo" optionLabel="label" optionValue="value"
+                appendTo="body" [style]="{'width':'100%'}">
+      </p-select>
+    </div>
+
+    <div class="flex flex-col gap-2">
+      <label for="status" class="jb-label">Status <span class="text-red-500">*</span></label>
+      <p-select id="status" formControlName="status" [options]="opcoesStatus" optionLabel="label" optionValue="value"
+                appendTo="body" [style]="{'width':'100%'}">
+      </p-select>
+    </div>
+
+    <div class="flex justify-end gap-2 mt-6 pt-4 border-t border-gray-200">
+      <p-button
+        label="Cancelar"
+        icon="pi pi-times"
+        styleClass="p-button-text p-button-secondary"
+        (onClick)="cancelarCredenciamento()">
+      </p-button>
+      <p-button
+        label="Salvar"
+        icon="pi pi-check"
+        type="submit"
+        [disabled]="credenciamentoForm.invalid">
+      </p-button>
+    </div>
+  </form>
+</p-dialog>

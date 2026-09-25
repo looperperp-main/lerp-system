@@ -259,6 +259,22 @@ export const routes: Routes = [
         },
       },
       {
+        path: 'cadastros/pessoas/:pessoaId/estabelecimentos/:estabelecimentoId/emissao-fiscal',
+        loadComponent: () =>
+          import('./pages/cadastros/estabelecimento/emissao-fiscal/emissao-fiscal').then(
+            (m) => m.EmissaoFiscalConfig,
+          ),
+        data: {
+          breadcrumb: [
+            { label: 'Home', link: '/web/home' },
+            { label: 'Parceiros de Negócio' },
+            { label: 'Pessoas (Geral)', link: '/web/cadastros/pessoas' },
+            { label: 'Filiais' },
+            { label: 'Emissão Fiscal' },
+          ],
+        },
+      },
+      {
         path: 'cadastros/vendedores',
         loadComponent: () =>
           import('./pages/cadastros/vendedores/vendedores').then((m) => m.Vendedores),
@@ -391,6 +407,18 @@ export const routes: Routes = [
             { label: 'Home', link: '/web/home' },
             { label: 'Segurança' },
             { label: 'Configurar Roles' },
+          ],
+        },
+      },
+      {
+        path: 'config/emissao-fiscal',
+        loadComponent: () =>
+          import('./pages/config/emissao-fiscal-redirect').then((m) => m.EmissaoFiscalRedirect),
+        data: {
+          breadcrumb: [
+            { label: 'Home', link: '/web/home' },
+            { label: 'Configurações' },
+            { label: 'Emissão Fiscal' },
           ],
         },
       },

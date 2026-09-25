@@ -24,8 +24,8 @@ public class DocumentoFiscal extends BaseTenantEntity {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "estabelecimento_id", nullable = false)
-    private UUID estabelecimentoId;
+    @Column(name = "emitente_id", nullable = false)
+    private UUID emitenteId;
 
     @Column(name = "documento", nullable = false)
     private String documento;
@@ -84,12 +84,12 @@ public class DocumentoFiscal extends BaseTenantEntity {
         return id;
     }
 
-    public UUID getEstabelecimentoId() {
-        return estabelecimentoId;
+    public UUID getEmitenteId() {
+        return emitenteId;
     }
 
-    public void setEstabelecimentoId(UUID estabelecimentoId) {
-        this.estabelecimentoId = estabelecimentoId;
+    public void setEmitenteId(UUID emitenteId) {
+        this.emitenteId = emitenteId;
     }
 
     public String getDocumento() {

@@ -58,7 +58,7 @@ public class CertificadoVencimentoJob {
                         Constants.TARGET_TYPE_CERTIFICADO_DIGITAL,
                         certificado.getId(),
                         "SUCCESS",
-                        "{\"estabelecimentoId\":\"" + certificado.getEstabelecimentoId() + "\",\"validoAte\":\""
+                        "{\"emitenteId\":\"" + certificado.getEmitenteId() + "\",\"validoAte\":\""
                                 + certificado.getCertificadoValidoAte() + "\"}",
                         null,
                         Instant.now()));

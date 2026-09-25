@@ -10,7 +10,7 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 
 /**
- * Numeração e série por (tenant, estabelecimento, documento, série) — spec §3 item 3. Lock via
+ * Numeração e série por (tenant, emitente, documento, série) — spec §3 item 3. Lock via
  * {@code SELECT ... FOR UPDATE} na linha do contador, não {@code DistributedLockService}/Redis.
  *
  * <p>{@code Propagation.MANDATORY}: obter um número só faz sentido dentro da transação que também
@@ -27,10 +27,10 @@ public class NumeracaoDocumentoService {
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
-    public long proximoNumero(Long tenantId, UUID estabelecimentoId, String documento, String serie) {
+    public long proximoNumero(Long tenantId, UUID emitenteId, String documento, String serie) {
         NumeracaoDocumento contador = repository
-                .buscarComLockParaAtualizar(tenantId, estabelecimentoId, documento, serie)
-                .orElseGet(() -> criar(tenantId, estabelecimentoId, documento, serie));
+                .buscarComLockParaAtualizar(tenantId, emitenteId, documento, serie)
+                .orElseGet(() -> criar(tenantId, emitenteId, documento, serie));
 
         long proximo = contador.getUltimoNumero() + 1;
         contador.setUltimoNumero(proximo);
@@ -39,10 +39,10 @@ public class NumeracaoDocumentoService {
         return proximo;
     }
 
-    private NumeracaoDocumento criar(Long tenantId, UUID estabelecimentoId, String documento, String serie) {
+    private NumeracaoDocumento criar(Long tenantId, UUID emitenteId, String documento, String serie) {
         NumeracaoDocumento novo = new NumeracaoDocumento();
         novo.setTenantId(tenantId);
-        novo.setEstabelecimentoId(estabelecimentoId);
+        novo.setEmitenteId(emitenteId);
         novo.setDocumento(documento);
         novo.setSerie(serie);
         novo.setUltimoNumero(0);

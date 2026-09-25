@@ -74,11 +74,11 @@ public class DocumentoFiscalService {
                     .orElseThrow(() -> new IllegalStateException("Idempotency-Key aponta para documento inexistente — inconsistência de dados."));
         }
 
-        long numero = numeracaoDocumentoService.proximoNumero(tenantId, request.estabelecimentoId(), request.documento(), request.serie());
+        long numero = numeracaoDocumentoService.proximoNumero(tenantId, request.emitenteId(), request.documento(), request.serie());
 
         DocumentoFiscal documento = new DocumentoFiscal();
         documento.setTenantId(tenantId);
-        documento.setEstabelecimentoId(request.estabelecimentoId());
+        documento.setEmitenteId(request.emitenteId());
         documento.setDocumento(request.documento());
         documento.setModelo(request.modelo());
         documento.setSerie(request.serie());
@@ -138,9 +138,9 @@ public class DocumentoFiscalService {
         outboxEventoRepository.save(evento);
     }
 
-    /** SHA-256 de estabelecimentoId+modelo+destinatário+valorTotal+qtdItens (spec §3 item 10) — nunca o payload cru, nunca o tenantId. */
+    /** SHA-256 de emitenteId+modelo+destinatário+valorTotal+qtdItens (spec §3 item 10) — nunca o payload cru, nunca o tenantId. */
     private String calcularFingerprint(DocumentoFiscalRequestDTO request) {
-        String base = request.estabelecimentoId() + "|" + request.modelo() + "|" + request.destinatarioDocumento()
+        String base = request.emitenteId() + "|" + request.modelo() + "|" + request.destinatarioDocumento()
                 + "|" + request.valorTotal().stripTrailingZeros().toPlainString() + "|" + request.quantidadeItens();
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");

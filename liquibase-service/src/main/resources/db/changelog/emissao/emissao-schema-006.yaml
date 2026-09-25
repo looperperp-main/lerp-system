@@ -1,0 +1,959 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # emissao.webservice_endpoint / emissao.uf_autorizador — spec §3 item 12: "Configuração de
+  # endpoint é dado, não código". autorizador é código livre (SVRS/PROPRIO_MG/PROPRIO_SP/SVC-AN),
+  # não enum — aderir uma UF nova ao SVRS é mudança de dado, não de código.
+  # ──────────────────────────────────────────────────────────────────────────
+  - changeSet:
+      id: "emissao-008-create-webservice-endpoint"
+      author: vitor fernandes ferreira
+      changes:
+        - createTable:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: documento
+                  type: varchar(10)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: autorizador
+                  type: varchar(30)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: servico
+                  type: varchar(30)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: versao
+                  type: varchar(10)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: url
+                  type: varchar(500)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: ambiente
+                  type: varchar(15)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: vigente_de
+                  type: date
+                  constraints:
+                    nullable: false
+              - column:
+                  name: vigente_ate
+                  type: date
+      rollback:
+        - dropTable:
+            schemaName: emissao
+            tableName: webservice_endpoint
+
+  - changeSet:
+      id: "emissao-009-create-uf-autorizador"
+      author: vitor fernandes ferreira
+      changes:
+        - createTable:
+            schemaName: emissao
+            tableName: uf_autorizador
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: uf
+                  type: varchar(2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: documento
+                  type: varchar(10)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: autorizador_normal
+                  type: varchar(30)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: autorizador_contingencia
+                  type: varchar(30)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: prazo_cancelamento_horas
+                  type: int
+                  constraints:
+                    nullable: false
+              - column:
+                  name: vigente_de
+                  type: date
+                  constraints:
+                    nullable: false
+              - column:
+                  name: vigente_ate
+                  type: date
+      rollback:
+        - dropTable:
+            schemaName: emissao
+            tableName: uf_autorizador
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Seed PRODUCAO (emissao-010 a emissao-014) + seed HOMOLOGACAO (emissao-017 a emissao-020,
+  # ao final deste arquivo) para os mesmos 4 autorizadores já usados pelas 5 UFs priorizadas —
+  # URLs reais fornecidas pelo usuário em 25/09/2026, não inventadas.
+  # ──────────────────────────────────────────────────────────────────────────
+  - changeSet:
+      id: "emissao-010-seed-uf-autorizador-nfe"
+      author: vitor fernandes ferreira
+      comment: 5 UFs priorizadas (emissao-fiscal.md §4.1) — todas caem em SVC-AN na contingência, todas 24h de prazo de cancelamento (§6)
+      changes:
+        - insert:
+            schemaName: emissao
+            tableName: uf_autorizador
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: uf, value: "RJ" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador_normal, value: "SVRS" }
+              - column: { name: autorizador_contingencia, value: "SVC-AN" }
+              - column: { name: prazo_cancelamento_horas, valueNumeric: 24 }
+              - column: { name: vigente_de, valueDate: "2026-09-24" }
+        - insert:
+            schemaName: emissao
+            tableName: uf_autorizador
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: uf, value: "DF" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador_normal, value: "SVRS" }
+              - column: { name: autorizador_contingencia, value: "SVC-AN" }
+              - column: { name: prazo_cancelamento_horas, valueNumeric: 24 }
+              - column: { name: vigente_de, valueDate: "2026-09-24" }
+        - insert:
+            schemaName: emissao
+            tableName: uf_autorizador
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: uf, value: "SC" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador_normal, value: "SVRS" }
+              - column: { name: autorizador_contingencia, value: "SVC-AN" }
+              - column: { name: prazo_cancelamento_horas, valueNumeric: 24 }
+              - column: { name: vigente_de, valueDate: "2026-09-24" }
+        - insert:
+            schemaName: emissao
+            tableName: uf_autorizador
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: uf, value: "MG" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador_normal, value: "PROPRIO_MG" }
+              - column: { name: autorizador_contingencia, value: "SVC-AN" }
+              - column: { name: prazo_cancelamento_horas, valueNumeric: 24 }
+              - column: { name: vigente_de, valueDate: "2026-09-24" }
+        - insert:
+            schemaName: emissao
+            tableName: uf_autorizador
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: uf, value: "SP" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador_normal, value: "PROPRIO_SP" }
+              - column: { name: autorizador_contingencia, value: "SVC-AN" }
+              - column: { name: prazo_cancelamento_horas, valueNumeric: 24 }
+              - column: { name: vigente_de, valueDate: "2026-09-24" }
+      rollback:
+        - delete:
+            schemaName: emissao
+            tableName: uf_autorizador
+            where: "documento = 'NFE'"
+
+  - changeSet:
+      id: "emissao-011-seed-webservice-endpoint-svrs-nfe"
+      author: vitor fernandes ferreira
+      comment: URLs oficiais SVRS (webservices-nfe-referencia.md) — layout 4.00, ambiente PRODUCAO
+      changes:
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "SVRS" }
+              - column: { name: servico, value: "NFE_AUTORIZACAO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://nfe.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx" }
+              - column: { name: ambiente, value: "PRODUCAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-24" }
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "SVRS" }
+              - column: { name: servico, value: "NFE_RET_AUTORIZACAO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://nfe.svrs.rs.gov.br/ws/NfeRetAutorizacao/NFeRetAutorizacao4.asmx" }
+              - column: { name: ambiente, value: "PRODUCAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-24" }
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "SVRS" }
+              - column: { name: servico, value: "NFE_CONSULTA_PROTOCOLO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://nfe.svrs.rs.gov.br/ws/NfeConsulta/NfeConsulta4.asmx" }
+              - column: { name: ambiente, value: "PRODUCAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-24" }
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "SVRS" }
+              - column: { name: servico, value: "NFE_STATUS_SERVICO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://nfe.svrs.rs.gov.br/ws/NfeStatusServico/NfeStatusServico4.asmx" }
+              - column: { name: ambiente, value: "PRODUCAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-24" }
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "SVRS" }
+              - column: { name: servico, value: "NFE_INUTILIZACAO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://nfe.svrs.rs.gov.br/ws/nfeinutilizacao/nfeinutilizacao4.asmx" }
+              - column: { name: ambiente, value: "PRODUCAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-24" }
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "SVRS" }
+              - column: { name: servico, value: "RECEPCAO_EVENTO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://nfe.svrs.rs.gov.br/ws/recepcaoevento/recepcaoevento4.asmx" }
+              - column: { name: ambiente, value: "PRODUCAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-24" }
+      rollback:
+        - delete:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            where: "autorizador = 'SVRS'"
+
+  - changeSet:
+      id: "emissao-012-seed-webservice-endpoint-mg-nfe"
+      author: vitor fernandes ferreira
+      comment: MG tem autorizador próprio, não usa SVRS (webservices-nfe-referencia.md)
+      changes:
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "PROPRIO_MG" }
+              - column: { name: servico, value: "NFE_AUTORIZACAO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://nfe.fazenda.mg.gov.br/nfe2/services/NFeAutorizacao4" }
+              - column: { name: ambiente, value: "PRODUCAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-24" }
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "PROPRIO_MG" }
+              - column: { name: servico, value: "NFE_RET_AUTORIZACAO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://nfe.fazenda.mg.gov.br/nfe2/services/NFeRetAutorizacao4" }
+              - column: { name: ambiente, value: "PRODUCAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-24" }
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "PROPRIO_MG" }
+              - column: { name: servico, value: "NFE_CONSULTA_PROTOCOLO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://nfe.fazenda.mg.gov.br/nfe2/services/NFeConsultaProtocolo4" }
+              - column: { name: ambiente, value: "PRODUCAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-24" }
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "PROPRIO_MG" }
+              - column: { name: servico, value: "NFE_STATUS_SERVICO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://nfe.fazenda.mg.gov.br/nfe2/services/NFeStatusServico4" }
+              - column: { name: ambiente, value: "PRODUCAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-24" }
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "PROPRIO_MG" }
+              - column: { name: servico, value: "NFE_INUTILIZACAO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://nfe.fazenda.mg.gov.br/nfe2/services/NFeInutilizacao4" }
+              - column: { name: ambiente, value: "PRODUCAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-24" }
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "PROPRIO_MG" }
+              - column: { name: servico, value: "RECEPCAO_EVENTO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://nfe.fazenda.mg.gov.br/nfe2/services/NFeRecepcaoEvento4" }
+              - column: { name: ambiente, value: "PRODUCAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-24" }
+      rollback:
+        - delete:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            where: "autorizador = 'PROPRIO_MG'"
+
+  - changeSet:
+      id: "emissao-013-seed-webservice-endpoint-sp-nfe"
+      author: vitor fernandes ferreira
+      comment: SP tem autorizador próprio, não usa SVRS (webservices-nfe-referencia.md)
+      changes:
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "PROPRIO_SP" }
+              - column: { name: servico, value: "NFE_AUTORIZACAO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://nfe.fazenda.sp.gov.br/ws/nfeautorizacao4.asmx" }
+              - column: { name: ambiente, value: "PRODUCAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-24" }
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "PROPRIO_SP" }
+              - column: { name: servico, value: "NFE_RET_AUTORIZACAO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://nfe.fazenda.sp.gov.br/ws/nferetautorizacao4.asmx" }
+              - column: { name: ambiente, value: "PRODUCAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-24" }
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "PROPRIO_SP" }
+              - column: { name: servico, value: "NFE_CONSULTA_PROTOCOLO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://nfe.fazenda.sp.gov.br/ws/nfeconsultaprotocolo4.asmx" }
+              - column: { name: ambiente, value: "PRODUCAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-24" }
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "PROPRIO_SP" }
+              - column: { name: servico, value: "NFE_STATUS_SERVICO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://nfe.fazenda.sp.gov.br/ws/nfestatusservico4.asmx" }
+              - column: { name: ambiente, value: "PRODUCAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-24" }
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "PROPRIO_SP" }
+              - column: { name: servico, value: "NFE_INUTILIZACAO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://nfe.fazenda.sp.gov.br/ws/nfeinutilizacao4.asmx" }
+              - column: { name: ambiente, value: "PRODUCAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-24" }
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "PROPRIO_SP" }
+              - column: { name: servico, value: "RECEPCAO_EVENTO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://nfe.fazenda.sp.gov.br/ws/nferecepcaoevento4.asmx" }
+              - column: { name: ambiente, value: "PRODUCAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-24" }
+      rollback:
+        - delete:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            where: "autorizador = 'PROPRIO_SP'"
+
+  - changeSet:
+      id: "emissao-014-seed-webservice-endpoint-svcan-nfe"
+      author: vitor fernandes ferreira
+      comment: SVC-AN — contingência das 5 UFs priorizadas (webservices-nfe-referencia.md)
+      changes:
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "SVC-AN" }
+              - column: { name: servico, value: "NFE_AUTORIZACAO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://www.sefazvirtual.fazenda.gov.br/NFeAutorizacao4/NFeAutorizacao4.asmx" }
+              - column: { name: ambiente, value: "PRODUCAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-24" }
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "SVC-AN" }
+              - column: { name: servico, value: "NFE_RET_AUTORIZACAO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://www.sefazvirtual.fazenda.gov.br/NFeRetAutorizacao4/NFeRetAutorizacao4.asmx" }
+              - column: { name: ambiente, value: "PRODUCAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-24" }
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "SVC-AN" }
+              - column: { name: servico, value: "NFE_CONSULTA_PROTOCOLO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://www.sefazvirtual.fazenda.gov.br/NFeConsultaProtocolo4/NFeConsultaProtocolo4.asmx" }
+              - column: { name: ambiente, value: "PRODUCAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-24" }
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "SVC-AN" }
+              - column: { name: servico, value: "NFE_STATUS_SERVICO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://www.sefazvirtual.fazenda.gov.br/NFeStatusServico4/NFeStatusServico4.asmx" }
+              - column: { name: ambiente, value: "PRODUCAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-24" }
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "SVC-AN" }
+              - column: { name: servico, value: "NFE_INUTILIZACAO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://www.sefazvirtual.fazenda.gov.br/NFeInutilizacao4/NFeInutilizacao4.asmx" }
+              - column: { name: ambiente, value: "PRODUCAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-24" }
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "SVC-AN" }
+              - column: { name: servico, value: "RECEPCAO_EVENTO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://www.sefazvirtual.fazenda.gov.br/NFeRecepcaoEvento4/NFeRecepcaoEvento4.asmx" }
+              - column: { name: ambiente, value: "PRODUCAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-24" }
+      rollback:
+        - delete:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            where: "autorizador = 'SVC-AN'"
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # HOMOLOGACAO — URLs reais fornecidas pelo usuário em 25/09/2026 (portal SEFAZ), mesmos 4
+  # autorizadores/6 serviços de PRODUCAO (emissao-011 a emissao-014). Único autorizador que
+  # falta em HOMOLOGACAO agora é o que nunca teve seed em PRODUCAO tampouco.
+  # ──────────────────────────────────────────────────────────────────────────
+  - changeSet:
+      id: "emissao-017-seed-webservice-endpoint-svrs-nfe-hom"
+      author: vitor fernandes ferreira
+      comment: SVRS homologação
+      changes:
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "SVRS" }
+              - column: { name: servico, value: "NFE_AUTORIZACAO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://nfe-homologacao.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx" }
+              - column: { name: ambiente, value: "HOMOLOGACAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-25" }
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "SVRS" }
+              - column: { name: servico, value: "NFE_RET_AUTORIZACAO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://nfe-homologacao.svrs.rs.gov.br/ws/NfeRetAutorizacao/NFeRetAutorizacao4.asmx" }
+              - column: { name: ambiente, value: "HOMOLOGACAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-25" }
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "SVRS" }
+              - column: { name: servico, value: "NFE_CONSULTA_PROTOCOLO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://nfe-homologacao.svrs.rs.gov.br/ws/NfeConsulta/NfeConsulta4.asmx" }
+              - column: { name: ambiente, value: "HOMOLOGACAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-25" }
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "SVRS" }
+              - column: { name: servico, value: "NFE_STATUS_SERVICO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://nfe-homologacao.svrs.rs.gov.br/ws/NfeStatusServico/NfeStatusServico4.asmx" }
+              - column: { name: ambiente, value: "HOMOLOGACAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-25" }
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "SVRS" }
+              - column: { name: servico, value: "NFE_INUTILIZACAO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://nfe-homologacao.svrs.rs.gov.br/ws/nfeinutilizacao/nfeinutilizacao4.asmx" }
+              - column: { name: ambiente, value: "HOMOLOGACAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-25" }
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "SVRS" }
+              - column: { name: servico, value: "RECEPCAO_EVENTO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://nfe-homologacao.svrs.rs.gov.br/ws/recepcaoevento/recepcaoevento4.asmx" }
+              - column: { name: ambiente, value: "HOMOLOGACAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-25" }
+      rollback:
+        - delete:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            where: "autorizador = 'SVRS' AND ambiente = 'HOMOLOGACAO'"
+
+  - changeSet:
+      id: "emissao-018-seed-webservice-endpoint-mg-nfe-hom"
+      author: vitor fernandes ferreira
+      comment: MG homologação
+      changes:
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "PROPRIO_MG" }
+              - column: { name: servico, value: "NFE_AUTORIZACAO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://hnfe.fazenda.mg.gov.br/nfe2/services/NFeAutorizacao4" }
+              - column: { name: ambiente, value: "HOMOLOGACAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-25" }
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "PROPRIO_MG" }
+              - column: { name: servico, value: "NFE_RET_AUTORIZACAO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://hnfe.fazenda.mg.gov.br/nfe2/services/NFeRetAutorizacao4" }
+              - column: { name: ambiente, value: "HOMOLOGACAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-25" }
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "PROPRIO_MG" }
+              - column: { name: servico, value: "NFE_CONSULTA_PROTOCOLO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://hnfe.fazenda.mg.gov.br/nfe2/services/NFeConsultaProtocolo4" }
+              - column: { name: ambiente, value: "HOMOLOGACAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-25" }
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "PROPRIO_MG" }
+              - column: { name: servico, value: "NFE_STATUS_SERVICO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://hnfe.fazenda.mg.gov.br/nfe2/services/NFeStatusServico4" }
+              - column: { name: ambiente, value: "HOMOLOGACAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-25" }
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "PROPRIO_MG" }
+              - column: { name: servico, value: "NFE_INUTILIZACAO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://hnfe.fazenda.mg.gov.br/nfe2/services/NFeInutilizacao4" }
+              - column: { name: ambiente, value: "HOMOLOGACAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-25" }
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "PROPRIO_MG" }
+              - column: { name: servico, value: "RECEPCAO_EVENTO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://hnfe.fazenda.mg.gov.br/nfe2/services/NFeRecepcaoEvento4" }
+              - column: { name: ambiente, value: "HOMOLOGACAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-25" }
+      rollback:
+        - delete:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            where: "autorizador = 'PROPRIO_MG' AND ambiente = 'HOMOLOGACAO'"
+
+  - changeSet:
+      id: "emissao-019-seed-webservice-endpoint-sp-nfe-hom"
+      author: vitor fernandes ferreira
+      comment: SP homologação
+      changes:
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "PROPRIO_SP" }
+              - column: { name: servico, value: "NFE_AUTORIZACAO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://homologacao.nfe.fazenda.sp.gov.br/ws/nfeautorizacao4.asmx" }
+              - column: { name: ambiente, value: "HOMOLOGACAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-25" }
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "PROPRIO_SP" }
+              - column: { name: servico, value: "NFE_RET_AUTORIZACAO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://homologacao.nfe.fazenda.sp.gov.br/ws/nferetautorizacao4.asmx" }
+              - column: { name: ambiente, value: "HOMOLOGACAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-25" }
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "PROPRIO_SP" }
+              - column: { name: servico, value: "NFE_CONSULTA_PROTOCOLO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://homologacao.nfe.fazenda.sp.gov.br/ws/nfeconsultaprotocolo4.asmx" }
+              - column: { name: ambiente, value: "HOMOLOGACAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-25" }
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "PROPRIO_SP" }
+              - column: { name: servico, value: "NFE_STATUS_SERVICO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://homologacao.nfe.fazenda.sp.gov.br/ws/nfestatusservico4.asmx" }
+              - column: { name: ambiente, value: "HOMOLOGACAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-25" }
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "PROPRIO_SP" }
+              - column: { name: servico, value: "NFE_INUTILIZACAO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://homologacao.nfe.fazenda.sp.gov.br/ws/nfeinutilizacao4.asmx" }
+              - column: { name: ambiente, value: "HOMOLOGACAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-25" }
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "PROPRIO_SP" }
+              - column: { name: servico, value: "RECEPCAO_EVENTO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://homologacao.nfe.fazenda.sp.gov.br/ws/nferecepcaoevento4.asmx" }
+              - column: { name: ambiente, value: "HOMOLOGACAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-25" }
+      rollback:
+        - delete:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            where: "autorizador = 'PROPRIO_SP' AND ambiente = 'HOMOLOGACAO'"
+
+  - changeSet:
+      id: "emissao-020-seed-webservice-endpoint-svcan-nfe-hom"
+      author: vitor fernandes ferreira
+      comment: SVC-AN homologação
+      changes:
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "SVC-AN" }
+              - column: { name: servico, value: "NFE_AUTORIZACAO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://hom.sefazvirtual.fazenda.gov.br/NFeAutorizacao4/NFeAutorizacao4.asmx" }
+              - column: { name: ambiente, value: "HOMOLOGACAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-25" }
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "SVC-AN" }
+              - column: { name: servico, value: "NFE_RET_AUTORIZACAO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://hom.sefazvirtual.fazenda.gov.br/NFeRetAutorizacao4/NFeRetAutorizacao4.asmx" }
+              - column: { name: ambiente, value: "HOMOLOGACAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-25" }
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "SVC-AN" }
+              - column: { name: servico, value: "NFE_CONSULTA_PROTOCOLO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://hom.sefazvirtual.fazenda.gov.br/NFeConsultaProtocolo4/NFeConsultaProtocolo4.asmx" }
+              - column: { name: ambiente, value: "HOMOLOGACAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-25" }
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "SVC-AN" }
+              - column: { name: servico, value: "NFE_STATUS_SERVICO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://hom.sefazvirtual.fazenda.gov.br/NFeStatusServico4/NFeStatusServico4.asmx" }
+              - column: { name: ambiente, value: "HOMOLOGACAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-25" }
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "SVC-AN" }
+              - column: { name: servico, value: "NFE_INUTILIZACAO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://hom.sefazvirtual.fazenda.gov.br/NFeInutilizacao4/NFeInutilizacao4.asmx" }
+              - column: { name: ambiente, value: "HOMOLOGACAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-25" }
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFE" }
+              - column: { name: autorizador, value: "SVC-AN" }
+              - column: { name: servico, value: "RECEPCAO_EVENTO" }
+              - column: { name: versao, value: "4.00" }
+              - column: { name: url, value: "https://hom.sefazvirtual.fazenda.gov.br/NFeRecepcaoEvento4/NFeRecepcaoEvento4.asmx" }
+              - column: { name: ambiente, value: "HOMOLOGACAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-25" }
+      rollback:
+        - delete:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            where: "autorizador = 'SVC-AN' AND ambiente = 'HOMOLOGACAO'"
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # NFS-e (Sistema Nacional NFS-e / ADN — Ambiente de Dados Nacional, §4.4 da spec) é REST/JSON,
+  # autorizador nacional único (não por UF). URL fornecida pelo usuário em 25/09/2026 é a de
+  # "Produção Restrita" da ADN — ambiente de testes, mapeado aqui em HOMOLOGACAO (não há URL de
+  # produção real ainda).
+  #
+  # emissao-022 (uf_autorizador): EndpointResolverService.resolverUrl SEMPRE busca uf_autorizador
+  # antes de webservice_endpoint (mesmo pra autorizador nacional único) — sem essa linha por UF,
+  # a resolução de URL da NFS-e falha com BusinessException pra qualquer UF. autorizador_normal e
+  # autorizador_contingencia apontam pro mesmo ADN (não há contingência distinta documentada
+  # ainda). prazo_cancelamento_horas = 24 é PROVISÓRIO — regras-cancelamento-nfe.md só cobre NF-e;
+  # a regra de cancelamento da ADN Nacional (por município, spec §4.4) ainda não foi levantada.
+  # Não bloqueia homologação (nenhum efeito fiscal real), mas precisa de dado real antes da
+  # etapa 5 ir a produção (§5 da spec principal).
+  # ──────────────────────────────────────────────────────────────────────────
+  - changeSet:
+      id: "emissao-021-seed-webservice-endpoint-nfse-adn"
+      author: vitor fernandes ferreira
+      comment: ADN Nacional (NFS-e) — ambiente de Produção Restrita da Receita, tratado como HOMOLOGACAO
+      changes:
+        - insert:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: documento, value: "NFSE" }
+              - column: { name: autorizador, value: "ADN" }
+              - column: { name: servico, value: "NFSE_RECEPCAO_DPS" }
+              - column: { name: versao, value: "1.00" }
+              - column: { name: url, value: "http://sefin.producaorestrita.nfse.gov.br/SefinNacional/nfse" }
+              - column: { name: ambiente, value: "HOMOLOGACAO" }
+              - column: { name: vigente_de, valueDate: "2026-09-25" }
+      rollback:
+        - delete:
+            schemaName: emissao
+            tableName: webservice_endpoint
+            where: "documento = 'NFSE'"
+
+  - changeSet:
+      id: "emissao-022-seed-uf-autorizador-nfse"
+      author: vitor fernandes ferreira
+      comment: ADN Nacional pras 5 UFs priorizadas — prazo_cancelamento_horas PROVISÓRIO, ver comentário acima
+      changes:
+        - insert:
+            schemaName: emissao
+            tableName: uf_autorizador
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: uf, value: "RJ" }
+              - column: { name: documento, value: "NFSE" }
+              - column: { name: autorizador_normal, value: "ADN" }
+              - column: { name: autorizador_contingencia, value: "ADN" }
+              - column: { name: prazo_cancelamento_horas, valueNumeric: 24 }
+              - column: { name: vigente_de, valueDate: "2026-09-25" }
+        - insert:
+            schemaName: emissao
+            tableName: uf_autorizador
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: uf, value: "DF" }
+              - column: { name: documento, value: "NFSE" }
+              - column: { name: autorizador_normal, value: "ADN" }
+              - column: { name: autorizador_contingencia, value: "ADN" }
+              - column: { name: prazo_cancelamento_horas, valueNumeric: 24 }
+              - column: { name: vigente_de, valueDate: "2026-09-25" }
+        - insert:
+            schemaName: emissao
+            tableName: uf_autorizador
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: uf, value: "SC" }
+              - column: { name: documento, value: "NFSE" }
+              - column: { name: autorizador_normal, value: "ADN" }
+              - column: { name: autorizador_contingencia, value: "ADN" }
+              - column: { name: prazo_cancelamento_horas, valueNumeric: 24 }
+              - column: { name: vigente_de, valueDate: "2026-09-25" }
+        - insert:
+            schemaName: emissao
+            tableName: uf_autorizador
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: uf, value: "MG" }
+              - column: { name: documento, value: "NFSE" }
+              - column: { name: autorizador_normal, value: "ADN" }
+              - column: { name: autorizador_contingencia, value: "ADN" }
+              - column: { name: prazo_cancelamento_horas, valueNumeric: 24 }
+              - column: { name: vigente_de, valueDate: "2026-09-25" }
+        - insert:
+            schemaName: emissao
+            tableName: uf_autorizador
+            columns:
+              - column: { name: id, valueComputed: "gen_random_uuid()" }
+              - column: { name: uf, value: "SP" }
+              - column: { name: documento, value: "NFSE" }
+              - column: { name: autorizador_normal, value: "ADN" }
+              - column: { name: autorizador_contingencia, value: "ADN" }
+              - column: { name: prazo_cancelamento_horas, valueNumeric: 24 }
+              - column: { name: vigente_de, valueDate: "2026-09-25" }
+      rollback:
+        - delete:
+            schemaName: emissao
+            tableName: uf_autorizador
+            where: "documento = 'NFSE'"

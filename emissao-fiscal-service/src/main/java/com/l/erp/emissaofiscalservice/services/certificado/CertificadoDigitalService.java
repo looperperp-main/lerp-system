@@ -25,14 +25,14 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Upload de certificado A1 (.pfx) por estabelecimento — spec/modulos/emissao-fiscal/emissao-fiscal.md
+ * Upload de certificado A1 (.pfx) por emitente — spec/modulos/emissao-fiscal/emissao-fiscal.md
  * §3 item 1. Duas validações síncronas antes de aceitar o certificado, na mesma linha do que a spec
  * pede antes de assinar/transmitir (aqui, antes mesmo de guardar):
  * <ul>
  *   <li>o arquivo abre como PKCS12 com a senha informada (senão a senha está errada);</li>
- *   <li>o CNPJ do subject do X.509 bate com o CNPJ do estabelecimento informado por quem chama —
- *   este serviço nunca busca o estabelecimento em cadastro-service (spec §2), quem chama já resolveu
- *   o CNPJ e manda no payload.</li>
+ *   <li>o CNPJ do subject do X.509 bate com o CNPJ do emitente informado por quem chama — este
+ *   serviço nunca busca o emitente em cadastro-service (spec §2), quem chama já resolveu o CNPJ e
+ *   manda no payload (identificador neutro, sem acoplar a "Estabelecimento" do erp-vsd — §2).</li>
  * </ul>
  */
 @Service
@@ -50,24 +50,24 @@ public class CertificadoDigitalService {
     }
 
     @Transactional
-    public CertificadoDigital upload(UUID estabelecimentoId, String cnpjEstabelecimento, MultipartFile arquivoPfx, String senha) {
+    public CertificadoDigital upload(UUID emitenteId, String cnpjEmitente, MultipartFile arquivoPfx, String senha) {
         Long tenantId = SecurityUtils.getCurrentTenantId()
                 .orElseThrow(() -> new BusinessException("Tenant não identificado.", HttpStatus.UNAUTHORIZED));
 
         X509Certificate certificado = abrirEValidarPfx(arquivoPfx, senha);
         String cnpjDoCertificado = extrairCnpjDoSubject(certificado);
-        String cnpjInformadoNormalizado = somenteDigitos(cnpjEstabelecimento);
+        String cnpjInformadoNormalizado = somenteDigitos(cnpjEmitente);
 
         if (!cnpjDoCertificado.equals(cnpjInformadoNormalizado)) {
             throw new BusinessException(
-                    "CNPJ do certificado (" + cnpjDoCertificado + ") não confere com o CNPJ do estabelecimento informado.",
+                    "CNPJ do certificado (" + cnpjDoCertificado + ") não confere com o CNPJ do emitente informado.",
                     HttpStatus.BAD_REQUEST);
         }
 
-        CertificadoDigital entidade = repository.findByTenantIdAndEstabelecimentoId(tenantId, estabelecimentoId)
+        CertificadoDigital entidade = repository.findByTenantIdAndEmitenteId(tenantId, emitenteId)
                 .orElseGet(CertificadoDigital::new);
         entidade.setTenantId(tenantId);
-        entidade.setEstabelecimentoId(estabelecimentoId);
+        entidade.setEmitenteId(emitenteId);
         entidade.setCnpjSubject(cnpjDoCertificado);
         entidade.setKekVersion(EnvelopeEncryptionService.KEK_VERSION_ATUAL);
         entidade.setCertificadoCifrado(envelopeEncryptionService.cifrar(lerBytes(arquivoPfx)));

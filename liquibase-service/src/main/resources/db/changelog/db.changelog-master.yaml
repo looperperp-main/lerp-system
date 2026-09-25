@@ -338,3 +338,12 @@ databaseChangeLog:
   - include:
       file: emissao/emissao-schema-005.yaml
       relativeToChangelogFile: true
+  - include:
+      file: emissao/emissao-schema-006.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: emissao/emissao-schema-007.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: emissao/emissao-schema-008.yaml
+      relativeToChangelogFile: true

@@ -1,0 +1,83 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # emissao.credenciamento_sefaz — spec §3 item 11: credenciamento do tenant como emissor na SEFAZ,
+  # por estabelecimento × UF × modelo. Processo externo/humano; esta tabela só registra o resultado
+  # e vira o gate consultado antes de emissão em PRODUCAO (CredenciamentoSefazService).
+  # ──────────────────────────────────────────────────────────────────────────
+  - changeSet:
+      id: "emissao-015-create-credenciamento-sefaz"
+      author: vitor fernandes ferreira
+      changes:
+        - createTable:
+            schemaName: emissao
+            tableName: credenciamento_sefaz
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: estabelecimento_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: uf
+                  type: varchar(2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: modelo
+                  type: varchar(10)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: varchar(15)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: data_credenciamento
+                  type: timestamp with time zone
+              - column:
+                  name: created_at
+                  type: timestamp with time zone
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp with time zone
+              - column:
+                  name: created_by
+                  type: uuid
+              - column:
+                  name: last_updated_by
+                  type: uuid
+      rollback:
+        - dropTable:
+            schemaName: emissao
+            tableName: credenciamento_sefaz
+
+  - changeSet:
+      id: "emissao-016-unique-credenciamento-sefaz"
+      author: vitor fernandes ferreira
+      comment: Natural key — um credenciamento por tenant × estabelecimento × UF × modelo (upsert em CredenciamentoSefazService.registrar)
+      changes:
+        - addUniqueConstraint:
+            schemaName: emissao
+            tableName: credenciamento_sefaz
+            columnNames: tenant_id, estabelecimento_id, uf, modelo
+            constraintName: uk_credenciamento_sefaz_natural
+      rollback:
+        - dropUniqueConstraint:
+            schemaName: emissao
+            tableName: credenciamento_sefaz
+            constraintName: uk_credenciamento_sefaz_natural

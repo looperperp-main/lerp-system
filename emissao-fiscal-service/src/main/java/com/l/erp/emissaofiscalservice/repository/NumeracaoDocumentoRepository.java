@@ -17,10 +17,10 @@ public interface NumeracaoDocumentoRepository extends JpaRepository<NumeracaoDoc
      * chamador. Quem chama incrementa {@code ultimoNumero} e salva dentro da mesma transação.
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select n from NumeracaoDocumento n where n.tenantId = :tenantId and n.estabelecimentoId = :estabelecimentoId "
+    @Query("select n from NumeracaoDocumento n where n.tenantId = :tenantId and n.emitenteId = :emitenteId "
             + "and n.documento = :documento and n.serie = :serie")
     Optional<NumeracaoDocumento> buscarComLockParaAtualizar(@Param("tenantId") Long tenantId,
-                                                             @Param("estabelecimentoId") UUID estabelecimentoId,
+                                                             @Param("emitenteId") UUID emitenteId,
                                                              @Param("documento") String documento,
                                                              @Param("serie") String serie);
 }

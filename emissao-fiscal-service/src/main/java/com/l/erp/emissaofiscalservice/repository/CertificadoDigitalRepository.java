@@ -10,7 +10,7 @@ import java.util.UUID;
 
 public interface CertificadoDigitalRepository extends JpaRepository<CertificadoDigital, UUID> {
 
-    Optional<CertificadoDigital> findByTenantIdAndEstabelecimentoId(Long tenantId, UUID estabelecimentoId);
+    Optional<CertificadoDigital> findByTenantIdAndEmitenteId(Long tenantId, UUID emitenteId);
 
     /** Ignora o {@code @Filter} de tenant de propósito — o job de alerta varre todos os tenants. */
     List<CertificadoDigital> findByAtivoTrueAndAlertaEnviadoFalseAndCertificadoValidoAteLessThanEqual(OffsetDateTime limite);

@@ -23,16 +23,18 @@ public class CertificadoDigitalController {
     }
 
     /**
-     * Upload/substituição do certificado A1 de um estabelecimento — spec §3 item 1.
-     * {@code cnpjEstabelecimento} vem de quem chama (ex. operacoes-service, admin UI), nunca
+     * Upload/substituição do certificado A1 de um emitente — spec §3 item 1. {@code emitenteId} é
+     * um identificador neutro fornecido por quem chama, nunca resolvido internamente (spec §2,
+     * "vendável separadamente" — o contrato não pode depender do conceito de Estabelecimento do
+     * erp-vsd). {@code cnpjEmitente} vem de quem chama (ex. operacoes-service, admin UI), nunca
      * buscado em cadastro-service (spec §2).
      */
-    @PostMapping(value = "/emissao/certificados/{estabelecimentoId}", consumes = "multipart/form-data")
-    public ResponseEntity<CertificadoDigitalResponseDTO> upload(@PathVariable UUID estabelecimentoId,
-                                                                  @RequestParam String cnpjEstabelecimento,
+    @PostMapping(value = "/emissao/certificados/{emitenteId}", consumes = "multipart/form-data")
+    public ResponseEntity<CertificadoDigitalResponseDTO> upload(@PathVariable UUID emitenteId,
+                                                                  @RequestParam String cnpjEmitente,
                                                                   @RequestParam String senha,
                                                                   @RequestPart("arquivo") MultipartFile arquivo) {
-        var certificado = service.upload(estabelecimentoId, cnpjEstabelecimento, arquivo, senha);
+        var certificado = service.upload(emitenteId, cnpjEmitente, arquivo, senha);
         return ResponseEntity.status(HttpStatus.CREATED).body(CertificadoDigitalResponseDTO.from(certificado));
     }
 }

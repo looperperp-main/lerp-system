@@ -11,7 +11,7 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 
 /**
- * Contador de numeração por (tenant, estabelecimento, documento, série) — spec §3 item 3.
+ * Contador de numeração por (tenant, emitente, documento, série) — spec §3 item 3.
  * Sem {@link com.l.erp.emissaofiscalservice.repository.filter.BaseTenantEntity}/{@code @Filter} de
  * propósito: o próximo número é obtido via lock explícito ({@code SELECT ... FOR UPDATE}) numa
  * query que já filtra por tenant_id manualmente (ver NumeracaoDocumentoRepository) — o filtro do
@@ -29,8 +29,8 @@ public class NumeracaoDocumento {
     @Column(name = "tenant_id", nullable = false)
     private Long tenantId;
 
-    @Column(name = "estabelecimento_id", nullable = false)
-    private UUID estabelecimentoId;
+    @Column(name = "emitente_id", nullable = false)
+    private UUID emitenteId;
 
     @Column(name = "documento", nullable = false)
     private String documento;
@@ -56,12 +56,12 @@ public class NumeracaoDocumento {
         this.tenantId = tenantId;
     }
 
-    public UUID getEstabelecimentoId() {
-        return estabelecimentoId;
+    public UUID getEmitenteId() {
+        return emitenteId;
     }
 
-    public void setEstabelecimentoId(UUID estabelecimentoId) {
-        this.estabelecimentoId = estabelecimentoId;
+    public void setEmitenteId(UUID emitenteId) {
+        this.emitenteId = emitenteId;
     }
 
     public String getDocumento() {

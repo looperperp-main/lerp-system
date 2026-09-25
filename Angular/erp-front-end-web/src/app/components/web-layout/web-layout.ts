@@ -228,6 +228,18 @@ export class WebLayout {
         },
       ],
     },
+    {
+      label: 'Configurações',
+      icon: 'pi pi-cog',
+      path: '/web/config',
+      items: [
+        {
+          label: 'Emissão Fiscal',
+          icon: 'pi pi-shield',
+          routerLink: '/web/config/emissao-fiscal',
+        },
+      ],
+    },
     { label: 'Relatórios', icon: 'pi pi-chart-bar' /*routerLink: '/web/relatorios'*/ },
   ];
 

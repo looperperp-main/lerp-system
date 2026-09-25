@@ -1,6 +1,6 @@
 # Referência — Webservices NF-e por autorizador (nacional)
 
-> Última atualização: 14 de setembro de 2026
+> Última atualização: 25 de setembro de 2026
 
 Dado bruto, colado pelo usuário em 14/09/2026 a partir do Portal Nacional da
 NF-e. Não é plano — é **fonte de dado** para o changeset Liquibase que vai
@@ -206,14 +206,69 @@ entra nesta fase (ver `emissao-fiscal.md` §6: fica para uma Fase 2, desenho
 já existente do usuário, fora deste doc). Registrado aqui porque a URL já
 está levantada.
 
+## URLs de homologação (colado pelo usuário em 25/09/2026)
+
+Só os 4 autorizadores hoje semeados em `emissao.webservice_endpoint`
+(`emissao-schema-006.yaml`, changesets `emissao-017` a `emissao-020`) — os
+mesmos das 5 UFs priorizadas. URLs de homologação dos demais autorizadores
+(AM, BA, GO, MS, MT, PE, PR, RS direto, SVAN, SVC-RS, AN) também foram
+recebidas nesta data mas não entraram no changeset: nenhuma UF priorizada
+usa esses autorizadores hoje — ver `webservices-nfe-referencia.md` §"Mapa
+UF → autorizador" acima. Ficam de fora até alguma dessas UFs entrar no
+escopo.
+
+### SVRS — homologação
+| Serviço | URL |
+|---|---|
+| NfeInutilizacao | `https://nfe-homologacao.svrs.rs.gov.br/ws/nfeinutilizacao/nfeinutilizacao4.asmx` |
+| NfeConsultaProtocolo | `https://nfe-homologacao.svrs.rs.gov.br/ws/NfeConsulta/NfeConsulta4.asmx` |
+| NfeStatusServico | `https://nfe-homologacao.svrs.rs.gov.br/ws/NfeStatusServico/NfeStatusServico4.asmx` |
+| RecepcaoEvento | `https://nfe-homologacao.svrs.rs.gov.br/ws/recepcaoevento/recepcaoevento4.asmx` |
+| NFeAutorizacao | `https://nfe-homologacao.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx` |
+| NFeRetAutorizacao | `https://nfe-homologacao.svrs.rs.gov.br/ws/NfeRetAutorizacao/NFeRetAutorizacao4.asmx` |
+
+### MG — homologação
+| Serviço | URL |
+|---|---|
+| NfeInutilizacao | `https://hnfe.fazenda.mg.gov.br/nfe2/services/NFeInutilizacao4` |
+| NfeConsultaProtocolo | `https://hnfe.fazenda.mg.gov.br/nfe2/services/NFeConsultaProtocolo4` |
+| NfeStatusServico | `https://hnfe.fazenda.mg.gov.br/nfe2/services/NFeStatusServico4` |
+| RecepcaoEvento | `https://hnfe.fazenda.mg.gov.br/nfe2/services/NFeRecepcaoEvento4` |
+| NFeAutorizacao | `https://hnfe.fazenda.mg.gov.br/nfe2/services/NFeAutorizacao4` |
+| NFeRetAutorizacao | `https://hnfe.fazenda.mg.gov.br/nfe2/services/NFeRetAutorizacao4` |
+
+### SP — homologação
+| Serviço | URL |
+|---|---|
+| NfeInutilizacao | `https://homologacao.nfe.fazenda.sp.gov.br/ws/nfeinutilizacao4.asmx` |
+| NfeConsultaProtocolo | `https://homologacao.nfe.fazenda.sp.gov.br/ws/nfeconsultaprotocolo4.asmx` |
+| NfeStatusServico | `https://homologacao.nfe.fazenda.sp.gov.br/ws/nfestatusservico4.asmx` |
+| RecepcaoEvento | `https://homologacao.nfe.fazenda.sp.gov.br/ws/nferecepcaoevento4.asmx` |
+| NFeAutorizacao | `https://homologacao.nfe.fazenda.sp.gov.br/ws/nfeautorizacao4.asmx` |
+| NFeRetAutorizacao | `https://homologacao.nfe.fazenda.sp.gov.br/ws/nferetautorizacao4.asmx` |
+
+### SVC-AN — homologação
+| Serviço | URL |
+|---|---|
+| NfeInutilizacao | `https://hom.sefazvirtual.fazenda.gov.br/NFeInutilizacao4/NFeInutilizacao4.asmx` |
+| NfeConsultaProtocolo | `https://hom.sefazvirtual.fazenda.gov.br/NFeConsultaProtocolo4/NFeConsultaProtocolo4.asmx` |
+| NfeStatusServico | `https://hom.sefazvirtual.fazenda.gov.br/NFeStatusServico4/NFeStatusServico4.asmx` |
+| RecepcaoEvento | `https://hom.sefazvirtual.fazenda.gov.br/NFeRecepcaoEvento4/NFeRecepcaoEvento4.asmx` |
+| NFeAutorizacao | `https://hom.sefazvirtual.fazenda.gov.br/NFeAutorizacao4/NFeAutorizacao4.asmx` |
+| NFeRetAutorizacao | `https://hom.sefazvirtual.fazenda.gov.br/NFeRetAutorizacao4/NFeRetAutorizacao4.asmx` |
+
 ## Pendências
 
-- **CT-e**: SVRS/SVSP já cobertos em `emissao-fiscal.md` §4.3 com URLs
-  próprias — não duplicado aqui.
+- ~~Ambiente de **homologação** tem URLs próprias~~ — ✅ **resolvido em
+  25/09/2026** para os 4 autorizadores das 5 UFs priorizadas (seção acima +
+  `emissao-schema-006.yaml` changesets `emissao-017` a `emissao-020`).
+- **CT-e**: SVRS/SVSP já cobertos em `emissao-fiscal.md` §4.3 com URLs de
+  produção. URLs de **homologação** de CT-e (MT, MS, MG, PR, RS, SP, SVRS,
+  SVSP, SVC-RS, SVC-SP, AN) também foram coladas pelo usuário em 25/09/2026,
+  mas CT-e é etapa 7 no roadmap (§5 da spec principal) — sem
+  `ServicoWebservice` nem `uf_autorizador` de CT-e no código hoje, carregar
+  esse dado agora ficaria órfão. Fica registrado aqui para não perder o
+  levantamento; carrega junto quando a etapa 7 começar.
 - **NFC-e, NFCom, NF3e**: webservices ainda não levantados. Mesma tarefa
   desta página quando as etapas correspondentes (§5 da spec principal)
   chegarem — não travam o planejamento atual.
-- Ambiente de **homologação** tem URLs próprias, distintas das de produção
-  listadas acima — levantar junto quando o changeset for escrito (a
-  distinção "ambiente" já está prevista no desenho da tabela, §3 item 12 da
-  spec principal).

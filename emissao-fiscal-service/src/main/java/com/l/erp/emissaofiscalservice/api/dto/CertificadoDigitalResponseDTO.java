@@ -7,7 +7,7 @@ import java.util.UUID;
 
 public record CertificadoDigitalResponseDTO(
         UUID id,
-        UUID estabelecimentoId,
+        UUID emitenteId,
         String cnpjSubject,
         OffsetDateTime certificadoValidoAte,
         boolean ativo
@@ -15,7 +15,7 @@ public record CertificadoDigitalResponseDTO(
     public static CertificadoDigitalResponseDTO from(CertificadoDigital entidade) {
         return new CertificadoDigitalResponseDTO(
                 entidade.getId(),
-                entidade.getEstabelecimentoId(),
+                entidade.getEmitenteId(),
                 entidade.getCnpjSubject(),
                 entidade.getCertificadoValidoAte(),
                 entidade.isAtivo());

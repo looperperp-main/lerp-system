@@ -9,7 +9,7 @@ import java.util.UUID;
 record DocumentoFiscalEventoPayload(
         UUID documentoId,
         Long tenantId,
-        UUID estabelecimentoId,
+        UUID emitenteId,
         String documento,
         String serie,
         long numero,
@@ -19,7 +19,7 @@ record DocumentoFiscalEventoPayload(
         return new DocumentoFiscalEventoPayload(
                 entidade.getId(),
                 entidade.getTenantId(),
-                entidade.getEstabelecimentoId(),
+                entidade.getEmitenteId(),
                 entidade.getDocumento(),
                 entidade.getSerie(),
                 entidade.getNumero(),
