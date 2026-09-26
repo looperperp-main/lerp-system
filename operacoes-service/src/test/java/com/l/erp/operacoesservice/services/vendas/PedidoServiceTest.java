@@ -10,6 +10,7 @@ import com.l.erp.operacoesservice.domain.vendas.enumerators.StatusPedido;
 import com.l.erp.operacoesservice.domain.vendas.enumerators.TipoItemPedido;
 import com.l.erp.operacoesservice.infra.client.CadastroServiceClient;
 import com.l.erp.operacoesservice.infra.client.FiscalServiceClient;
+import com.l.erp.operacoesservice.repository.vendas.PedidoItemFiscalSnapshotRepository;
 import com.l.erp.operacoesservice.repository.vendas.PedidoItemRepository;
 import com.l.erp.operacoesservice.repository.vendas.PedidoRepository;
 import com.l.erp.operacoesservice.repository.vendas.PedidoStatusHistoricoRepository;
@@ -48,6 +49,8 @@ class PedidoServiceTest {
     private PedidoItemRepository pedidoItemRepository;
     @Mock
     private PedidoStatusHistoricoRepository pedidoStatusHistoricoRepository;
+    @Mock
+    private PedidoItemFiscalSnapshotRepository pedidoItemFiscalSnapshotRepository;
     @Mock
     private PedidoNumeroService pedidoNumeroService;
     @Mock
@@ -508,8 +511,7 @@ class PedidoServiceTest {
                 .build();
         when(pedidoItemRepository.findAllByPedidoId(pedido.getId())).thenReturn(List.of(itemServico));
         when(fiscalServiceClient.calcularItem(any(), any(), any(), eq(TENANT_ID), any(), any()))
-                .thenReturn(new FiscalServiceClient.ResultadoFiscalItem(BigDecimal.ZERO, BigDecimal.ZERO,
-                        BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO));
+                .thenReturn(FiscalServiceClient.ResultadoFiscalItem.builder().build());
         List<PedidoService.ParcelaDefinicao> parcelas = List.of(
                 new PedidoService.ParcelaDefinicao(1, 0, new BigDecimal("100"), "BOLETO"));
         when(cadastroServiceClient.buscarParcelas(pedido.getCondicaoPagamentoId(), TENANT_ID, USER_ID))

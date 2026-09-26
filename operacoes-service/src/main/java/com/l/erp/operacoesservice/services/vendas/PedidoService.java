@@ -4,6 +4,7 @@ import com.l.erp.common.exception.custom.BusinessException;
 import com.l.erp.common.util.Constants;
 import com.l.erp.operacoesservice.domain.vendas.Pedido;
 import com.l.erp.operacoesservice.domain.vendas.PedidoItem;
+import com.l.erp.operacoesservice.domain.vendas.PedidoItemFiscalSnapshot;
 import com.l.erp.operacoesservice.domain.vendas.PedidoStatusHistorico;
 import com.l.erp.operacoesservice.domain.estoque.enumerators.OrigemMovimentoEstoque;
 import com.l.erp.operacoesservice.domain.estoque.enumerators.TipoMovimentoEstoque;
@@ -12,6 +13,7 @@ import com.l.erp.operacoesservice.domain.vendas.enumerators.StatusPedido;
 import com.l.erp.operacoesservice.domain.vendas.enumerators.TipoItemPedido;
 import com.l.erp.operacoesservice.infra.client.CadastroServiceClient;
 import com.l.erp.operacoesservice.infra.client.FiscalServiceClient;
+import com.l.erp.operacoesservice.repository.vendas.PedidoItemFiscalSnapshotRepository;
 import com.l.erp.operacoesservice.repository.vendas.PedidoItemRepository;
 import com.l.erp.operacoesservice.repository.vendas.PedidoRepository;
 import com.l.erp.operacoesservice.repository.vendas.PedidoStatusHistoricoRepository;
@@ -60,6 +62,7 @@ public class PedidoService {
     private final PedidoRepository pedidoRepository;
     private final PedidoItemRepository pedidoItemRepository;
     private final PedidoStatusHistoricoRepository pedidoStatusHistoricoRepository;
+    private final PedidoItemFiscalSnapshotRepository pedidoItemFiscalSnapshotRepository;
     private final PedidoNumeroService pedidoNumeroService;
     private final ApplicationEventPublisher eventPublisher;
     private final CadastroServiceClient cadastroServiceClient;
@@ -69,6 +72,7 @@ public class PedidoService {
     public PedidoService(PedidoRepository pedidoRepository,
                           PedidoItemRepository pedidoItemRepository,
                           PedidoStatusHistoricoRepository pedidoStatusHistoricoRepository,
+                          PedidoItemFiscalSnapshotRepository pedidoItemFiscalSnapshotRepository,
                           PedidoNumeroService pedidoNumeroService,
                           ApplicationEventPublisher eventPublisher,
                           CadastroServiceClient cadastroServiceClient,
@@ -77,6 +81,7 @@ public class PedidoService {
         this.pedidoRepository = pedidoRepository;
         this.pedidoItemRepository = pedidoItemRepository;
         this.pedidoStatusHistoricoRepository = pedidoStatusHistoricoRepository;
+        this.pedidoItemFiscalSnapshotRepository = pedidoItemFiscalSnapshotRepository;
         this.pedidoNumeroService = pedidoNumeroService;
         this.eventPublisher = eventPublisher;
         this.cadastroServiceClient = cadastroServiceClient;
@@ -341,12 +346,15 @@ public class PedidoService {
                     HttpStatus.BAD_REQUEST);
         }
 
-        // D4: agregado de POST /fiscal/calcular por item (fiscal-service) — valorTotalNf é a base da
-        // nota fiscal (spec/modulos/o2c-vendas/o2c-vendas.md §8).
-        ResultadoFiscalAgregado fiscal = calcularFiscal(pedido, tenantId, userId);
-
         StatusPedido statusAnterior = pedido.getStatus();
         Instant agora = Instant.now();
+
+        // D4: agregado de POST /fiscal/calcular por item (fiscal-service) — valorTotalNf é a base da
+        // nota fiscal (spec/modulos/o2c-vendas/o2c-vendas.md §8). Grava também o snapshot fiscal por
+        // item (spec/modulos/emissao-fiscal/emissao-fiscal.md §3 item 11), que alimenta a emissão da
+        // NF-e mais tarde sem precisar recalcular o que já foi faturado.
+        ResultadoFiscalAgregado fiscal = calcularFiscal(pedido, tenantId, userId, agora);
+
         LocalDate dataFaturamento = LocalDate.now();
         pedido.setStatus(StatusPedido.FATURADO);
         pedido.setDataFaturamento(agora);
@@ -374,9 +382,11 @@ public class PedidoService {
      * D4: chama POST /fiscal/calcular (fiscal-service) por item do pedido e soma o resultado —
      * dataCompetencia = hoje, já que o cálculo só acontece no momento do faturamento (§8). UF/IBGE de
      * destino vêm do endereço fiscal do cliente; UF de origem vem do endereço fiscal do estabelecimento
-     * "próprio" do tenant (spec/estabelecimentos-filiais.md §6.1).
+     * "próprio" do tenant (spec/estabelecimentos-filiais.md §6.1). Grava um
+     * {@link PedidoItemFiscalSnapshot} (versão 1, imutável) por item, espelhando o resultado completo
+     * do fiscal-service — spec/modulos/emissao-fiscal/emissao-fiscal.md §3 item 11.
      */
-    private ResultadoFiscalAgregado calcularFiscal(Pedido pedido, Long tenantId, UUID userId) {
+    private ResultadoFiscalAgregado calcularFiscal(Pedido pedido, Long tenantId, UUID userId, Instant agora) {
         LocalDate dataCompetencia = LocalDate.now();
         UUID pessoaId = cadastroServiceClient.buscarClientePessoaId(pedido.getClienteId(), tenantId, userId);
         CadastroServiceClient.EnderecoFiscalRef endereco = pessoaId != null
@@ -387,17 +397,72 @@ public class PedidoService {
         String ufOrigem = enderecoOrigem != null ? enderecoOrigem.uf() : null;
         BigDecimal ibs = BigDecimal.ZERO, cbs = BigDecimal.ZERO, is = BigDecimal.ZERO,
                 iss = BigDecimal.ZERO, retencoes = BigDecimal.ZERO;
+        List<PedidoItemFiscalSnapshot> snapshots = new ArrayList<>();
         for (PedidoItem item : pedidoItemRepository.findAllByPedidoId(pedido.getId())) {
             CadastroServiceClient.ProdutoRef produto = cadastroServiceClient.buscarProduto(item.getProdutoId(), tenantId, userId);
             FiscalServiceClient.ResultadoFiscalItem r =
                     fiscalServiceClient.calcularItem(item, produto, dataCompetencia, tenantId, endereco, ufOrigem);
+            snapshots.add(criarSnapshot(item, r, tenantId, userId, agora));
             ibs = ibs.add(r.valorIbs());
             cbs = cbs.add(r.valorCbs());
             is = is.add(r.valorIs());
             iss = iss.add(r.valorIss());
             retencoes = retencoes.add(r.valorRetencoes());
         }
+        pedidoItemFiscalSnapshotRepository.saveAll(snapshots);
         return new ResultadoFiscalAgregado(ibs, cbs, is, iss, retencoes);
+    }
+
+    /** Versão 1 sempre — correção pós-rejeição (versão 2+) é ação manual fora do escopo desta mudança. */
+    private PedidoItemFiscalSnapshot criarSnapshot(PedidoItem item, FiscalServiceClient.ResultadoFiscalItem r,
+                                                    Long tenantId, UUID userId, Instant agora) {
+        PedidoItemFiscalSnapshot snapshot = PedidoItemFiscalSnapshot.builder()
+                .pedidoItem(item)
+                .versao(1)
+                .baseCalculo(r.baseCalculo())
+                .valorIbsEstadual(r.valorIbsEstadual())
+                .valorIbsMunicipal(r.valorIbsMunicipal())
+                .valorIbs(r.valorIbs())
+                .valorCbs(r.valorCbs())
+                .valorSplitIbs(r.valorSplitIbs())
+                .valorSplitCbs(r.valorSplitCbs())
+                .valorIcms(r.valorIcms())
+                .valorIs(r.valorIs())
+                .valorIss(r.valorIss())
+                .valorIssRetido(r.valorIssRetido())
+                .valorIrrf(r.valorIrrf())
+                .valorCsrf(r.valorCsrf())
+                .valorInss(r.valorInss())
+                .valorCreditoIbs(r.valorCreditoIbs())
+                .valorCreditoCbs(r.valorCreditoCbs())
+                .regimeAplicado(r.regimeAplicado())
+                .cClassTrib(r.cClassTrib())
+                .percentualIbsUf(r.percentualIbsUf())
+                .percentualIbsMunicipal(r.percentualIbsMunicipal())
+                .percentualCbs(r.percentualCbs())
+                .percentualReducaoAplicado(r.percentualReducaoAplicado())
+                .cst(r.cst())
+                .cstIcms(r.cstIcms())
+                .csosn(r.csosn())
+                .percentualIcmsNominal(r.percentualIcmsNominal())
+                .percentualReducaoBaseIcms(r.percentualReducaoBaseIcms())
+                .modalidadeBaseCalculoIcms(r.modalidadeBaseCalculoIcms())
+                .percentualFcp(r.percentualFcp())
+                .valorFcp(r.valorFcp())
+                .percentualIcmsInterestadual(r.percentualIcmsInterestadual())
+                .baseCalculoUfDestino(r.baseCalculoUfDestino())
+                .baseCalculoFcpUfDestino(r.baseCalculoFcpUfDestino())
+                .percentualIcmsUfDestino(r.percentualIcmsUfDestino())
+                .percentualFcpUfDestino(r.percentualFcpUfDestino())
+                .percentualPartilhaDestino(r.percentualPartilhaDestino())
+                .valorIcmsUfDestino(r.valorIcmsUfDestino())
+                .valorFcpUfDestino(r.valorFcpUfDestino())
+                .valorIcmsUfRemetente(r.valorIcmsUfRemetente())
+                .createdAt(agora)
+                .createdBy(userId)
+                .build();
+        snapshot.setTenantId(tenantId);
+        return snapshot;
     }
 
     @Transactional

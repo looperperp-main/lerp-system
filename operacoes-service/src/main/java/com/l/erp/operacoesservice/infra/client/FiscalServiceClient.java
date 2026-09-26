@@ -5,6 +5,7 @@ import com.l.erp.common.exception.custom.BusinessException;
 import com.l.erp.common.util.Constants;
 import com.l.erp.operacoesservice.domain.vendas.PedidoItem;
 import com.l.erp.operacoesservice.domain.vendas.enumerators.TipoItemPedido;
+import lombok.Builder;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.client.loadbalancer.LoadBalanced;
 import org.springframework.http.HttpStatus;
@@ -96,24 +97,96 @@ public class FiscalServiceClient {
                                             String ufOrigem, String indFinal, String indIEDest) {
     }
 
+    /**
+     * Espelha {@code OperacaoFiscalDTO} (fiscal-service) campo a campo — deixou de truncar em 8
+     * valores (spec/modulos/emissao-fiscal/emissao-fiscal.md §3 item 11, opção b): é este resultado,
+     * sem recálculo, que alimenta {@code PedidoItemFiscalSnapshot} no faturamento.
+     * {@code @JsonIgnoreProperties(ignoreUnknown = true)} cobre só {@code memoriaCalculo} (lista de
+     * auditoria, não consumida pelo snapshot).
+     */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    private record OperacaoFiscalResultado(BigDecimal valorIbs, BigDecimal valorCbs, BigDecimal valorIs,
+    private record OperacaoFiscalResultado(BigDecimal baseCalculo, BigDecimal valorIs, BigDecimal valorIbsEstadual,
+                                            BigDecimal valorIbsMunicipal, BigDecimal valorIbs, BigDecimal valorCbs,
+                                            BigDecimal valorSplitIbs, BigDecimal valorSplitCbs, BigDecimal valorIcms,
                                             BigDecimal valorIss, BigDecimal valorIssRetido, BigDecimal valorIrrf,
-                                            BigDecimal valorCsrf, BigDecimal valorInss) {
+                                            BigDecimal valorCsrf, BigDecimal valorInss, BigDecimal valorCreditoIbs,
+                                            BigDecimal valorCreditoCbs, String regimeAplicado, String cClassTrib,
+                                            BigDecimal percentualIbsUf, BigDecimal percentualIbsMunicipal,
+                                            BigDecimal percentualCbs, BigDecimal percentualReducaoAplicado,
+                                            String cst, String cstIcms, String csosn,
+                                            BigDecimal percentualIcmsNominal, BigDecimal percentualReducaoBaseIcms,
+                                            String modalidadeBaseCalculoIcms, BigDecimal percentualFcp,
+                                            BigDecimal valorFcp, BigDecimal percentualIcmsInterestadual,
+                                            BigDecimal baseCalculoUfDestino, BigDecimal baseCalculoFcpUfDestino,
+                                            BigDecimal percentualIcmsUfDestino, BigDecimal percentualFcpUfDestino,
+                                            BigDecimal percentualPartilhaDestino, BigDecimal valorIcmsUfDestino,
+                                            BigDecimal valorFcpUfDestino, BigDecimal valorIcmsUfRemetente) {
     }
 
-    public record ResultadoFiscalItem(BigDecimal valorIbs, BigDecimal valorCbs, BigDecimal valorIs,
-                                       BigDecimal valorIss, BigDecimal valorRetencoes) {
+    @Builder
+    public record ResultadoFiscalItem(BigDecimal baseCalculo, BigDecimal valorIs, BigDecimal valorIbsEstadual,
+                                       BigDecimal valorIbsMunicipal, BigDecimal valorIbs, BigDecimal valorCbs,
+                                       BigDecimal valorSplitIbs, BigDecimal valorSplitCbs, BigDecimal valorIcms,
+                                       BigDecimal valorIss, BigDecimal valorIssRetido, BigDecimal valorIrrf,
+                                       BigDecimal valorCsrf, BigDecimal valorInss, BigDecimal valorCreditoIbs,
+                                       BigDecimal valorCreditoCbs, String regimeAplicado, String cClassTrib,
+                                       BigDecimal percentualIbsUf, BigDecimal percentualIbsMunicipal,
+                                       BigDecimal percentualCbs, BigDecimal percentualReducaoAplicado,
+                                       String cst, String cstIcms, String csosn,
+                                       BigDecimal percentualIcmsNominal, BigDecimal percentualReducaoBaseIcms,
+                                       String modalidadeBaseCalculoIcms, BigDecimal percentualFcp,
+                                       BigDecimal valorFcp, BigDecimal percentualIcmsInterestadual,
+                                       BigDecimal baseCalculoUfDestino, BigDecimal baseCalculoFcpUfDestino,
+                                       BigDecimal percentualIcmsUfDestino, BigDecimal percentualFcpUfDestino,
+                                       BigDecimal percentualPartilhaDestino, BigDecimal valorIcmsUfDestino,
+                                       BigDecimal valorFcpUfDestino, BigDecimal valorIcmsUfRemetente) {
         private static BigDecimal ou0(BigDecimal v) {
             return v != null ? v : BigDecimal.ZERO;
         }
 
+        public BigDecimal valorIbs() {
+            return ou0(valorIbs);
+        }
+
+        public BigDecimal valorCbs() {
+            return ou0(valorCbs);
+        }
+
+        public BigDecimal valorIs() {
+            return ou0(valorIs);
+        }
+
+        public BigDecimal valorIss() {
+            return ou0(valorIss);
+        }
+
+        public BigDecimal valorRetencoes() {
+            return ou0(valorIssRetido).add(ou0(valorIrrf)).add(ou0(valorCsrf)).add(ou0(valorInss));
+        }
+
         static ResultadoFiscalItem from(OperacaoFiscalResultado r) {
             if (r == null) {
-                return new ResultadoFiscalItem(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+                return ResultadoFiscalItem.builder().build();
             }
-            BigDecimal retencoes = ou0(r.valorIssRetido()).add(ou0(r.valorIrrf())).add(ou0(r.valorCsrf())).add(ou0(r.valorInss()));
-            return new ResultadoFiscalItem(ou0(r.valorIbs()), ou0(r.valorCbs()), ou0(r.valorIs()), ou0(r.valorIss()), retencoes);
+            return ResultadoFiscalItem.builder()
+                    .baseCalculo(r.baseCalculo()).valorIs(r.valorIs()).valorIbsEstadual(r.valorIbsEstadual())
+                    .valorIbsMunicipal(r.valorIbsMunicipal()).valorIbs(r.valorIbs()).valorCbs(r.valorCbs())
+                    .valorSplitIbs(r.valorSplitIbs()).valorSplitCbs(r.valorSplitCbs()).valorIcms(r.valorIcms())
+                    .valorIss(r.valorIss()).valorIssRetido(r.valorIssRetido()).valorIrrf(r.valorIrrf())
+                    .valorCsrf(r.valorCsrf()).valorInss(r.valorInss()).valorCreditoIbs(r.valorCreditoIbs())
+                    .valorCreditoCbs(r.valorCreditoCbs()).regimeAplicado(r.regimeAplicado())
+                    .cClassTrib(r.cClassTrib()).percentualIbsUf(r.percentualIbsUf())
+                    .percentualIbsMunicipal(r.percentualIbsMunicipal()).percentualCbs(r.percentualCbs())
+                    .percentualReducaoAplicado(r.percentualReducaoAplicado()).cst(r.cst()).cstIcms(r.cstIcms())
+                    .csosn(r.csosn()).percentualIcmsNominal(r.percentualIcmsNominal())
+                    .percentualReducaoBaseIcms(r.percentualReducaoBaseIcms())
+                    .modalidadeBaseCalculoIcms(r.modalidadeBaseCalculoIcms()).percentualFcp(r.percentualFcp())
+                    .valorFcp(r.valorFcp()).percentualIcmsInterestadual(r.percentualIcmsInterestadual())
+                    .baseCalculoUfDestino(r.baseCalculoUfDestino()).baseCalculoFcpUfDestino(r.baseCalculoFcpUfDestino())
+                    .percentualIcmsUfDestino(r.percentualIcmsUfDestino()).percentualFcpUfDestino(r.percentualFcpUfDestino())
+                    .percentualPartilhaDestino(r.percentualPartilhaDestino()).valorIcmsUfDestino(r.valorIcmsUfDestino())
+                    .valorFcpUfDestino(r.valorFcpUfDestino()).valorIcmsUfRemetente(r.valorIcmsUfRemetente())
+                    .build();
         }
     }
 }

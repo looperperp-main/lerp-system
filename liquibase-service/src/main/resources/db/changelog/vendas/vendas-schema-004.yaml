@@ -1,0 +1,192 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # pedido_item_fiscal_snapshot — snapshot imutável do resultado fiscal por item de pedido, gravado
+  # no faturamento (espelha OperacaoFiscalDTO do fiscal-service, sem recálculo). Decisão registrada
+  # em spec/modulos/emissao-fiscal/emissao-fiscal.md §3 item 11 (opção b): carrega CST/CFOP/
+  # percentuais/ICMS/DIFAL/FCP até o momento de gerar o XML na Etapa 2+ da emissão fiscal.
+  #
+  # Append-only: nunca UPDATE numa linha existente. `versao` (default 1) + `motivo_correcao`
+  # suportam a correção pós-rejeição da SEFAZ (nova linha com versao+1), ação manual da tela
+  # fiscal do emissao-fiscal-service — ainda não implementada, este changeset só grava a coluna.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: vendas-007-create-pedido-item-fiscal-snapshot
+      author: vitor-fernandes
+      changes:
+        - createTable:
+            schemaName: vendas
+            tableName: pedido_item_fiscal_snapshot
+            remarks: 'Snapshot imutável do resultado fiscal por item, gravado no faturamento (espelha OperacaoFiscalDTO)'
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: pedido_item_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_pedido_item_fiscal_snapshot_pedido_item_id
+                    referencedTableSchemaName: vendas
+                    references: vendas.pedido_item(id)
+              - column:
+                  name: versao
+                  type: integer
+                  defaultValueNumeric: 1
+                  constraints:
+                    nullable: false
+              - column:
+                  name: motivo_correcao
+                  type: varchar(500)
+                  remarks: 'Obrigatório a partir da versão 2 (validado em código) — correção manual pós-rejeição SEFAZ'
+              - column:
+                  name: base_calculo
+                  type: decimal(15,2)
+              - column:
+                  name: valor_ibs_estadual
+                  type: decimal(15,2)
+              - column:
+                  name: valor_ibs_municipal
+                  type: decimal(15,2)
+              - column:
+                  name: valor_ibs
+                  type: decimal(15,2)
+              - column:
+                  name: valor_cbs
+                  type: decimal(15,2)
+              - column:
+                  name: valor_split_ibs
+                  type: decimal(15,2)
+              - column:
+                  name: valor_split_cbs
+                  type: decimal(15,2)
+              - column:
+                  name: valor_icms
+                  type: decimal(15,2)
+                  remarks: 'Legado da transição — ICMS em produto, null quando pctRemanescente = 0'
+              - column:
+                  name: valor_is
+                  type: decimal(15,2)
+              - column:
+                  name: valor_iss
+                  type: decimal(15,2)
+              - column:
+                  name: valor_iss_retido
+                  type: decimal(15,2)
+              - column:
+                  name: valor_irrf
+                  type: decimal(15,2)
+              - column:
+                  name: valor_csrf
+                  type: decimal(15,2)
+              - column:
+                  name: valor_inss
+                  type: decimal(15,2)
+              - column:
+                  name: valor_credito_ibs
+                  type: decimal(15,2)
+              - column:
+                  name: valor_credito_cbs
+                  type: decimal(15,2)
+              - column:
+                  name: regime_aplicado
+                  type: varchar(30)
+              - column:
+                  name: c_class_trib
+                  type: varchar(10)
+              - column:
+                  name: percentual_ibs_uf
+                  type: decimal(7,4)
+              - column:
+                  name: percentual_ibs_municipal
+                  type: decimal(7,4)
+              - column:
+                  name: percentual_cbs
+                  type: decimal(7,4)
+              - column:
+                  name: percentual_reducao_aplicado
+                  type: decimal(7,4)
+              - column:
+                  name: cst
+                  type: varchar(3)
+                  remarks: 'CST do IBS/CBS (Anexo NT 2023.001) — sempre null hoje, sem tabela própria no fiscal-service'
+              - column:
+                  name: cst_icms
+                  type: varchar(3)
+              - column:
+                  name: csosn
+                  type: varchar(3)
+              - column:
+                  name: percentual_icms_nominal
+                  type: decimal(7,4)
+              - column:
+                  name: percentual_reducao_base_icms
+                  type: decimal(7,4)
+              - column:
+                  name: modalidade_base_calculo_icms
+                  type: varchar(2)
+                  remarks: 'modBC da NF-e — sempre "3" (Valor da Operação) no cálculo atual'
+              - column:
+                  name: percentual_fcp
+                  type: decimal(7,4)
+              - column:
+                  name: valor_fcp
+                  type: decimal(15,2)
+              - column:
+                  name: percentual_icms_interestadual
+                  type: decimal(7,4)
+              - column:
+                  name: base_calculo_uf_destino
+                  type: decimal(15,2)
+              - column:
+                  name: base_calculo_fcp_uf_destino
+                  type: decimal(15,2)
+              - column:
+                  name: percentual_icms_uf_destino
+                  type: decimal(7,4)
+              - column:
+                  name: percentual_fcp_uf_destino
+                  type: decimal(7,4)
+              - column:
+                  name: percentual_partilha_destino
+                  type: decimal(7,4)
+              - column:
+                  name: valor_icms_uf_destino
+                  type: decimal(15,2)
+              - column:
+                  name: valor_fcp_uf_destino
+                  type: decimal(15,2)
+              - column:
+                  name: valor_icms_uf_remetente
+                  type: decimal(15,2)
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_by
+                  type: uuid
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            schemaName: vendas
+            tableName: pedido_item_fiscal_snapshot
+            columnNames: pedido_item_id, versao
+            constraintName: uq_pedido_item_fiscal_snapshot_item_versao
+        - createIndex:
+            schemaName: vendas
+            tableName: pedido_item_fiscal_snapshot
+            indexName: idx_pedido_item_fiscal_snapshot_pedido_item_id
+            columns:
+              - column:
+                  name: pedido_item_id
