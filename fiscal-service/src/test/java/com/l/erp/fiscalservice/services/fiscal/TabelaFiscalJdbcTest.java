@@ -110,6 +110,7 @@ class TabelaFiscalJdbcTest {
                 uf_destino char(2) NOT NULL,
                 aliq_nominal numeric(5,2) NOT NULL,
                 p_reducao_base numeric(5,2) NOT NULL,
+                p_fcp numeric(5,2) DEFAULT 0 NOT NULL,
                 vigente_de date NOT NULL,
                 vigente_ate date)
             """,

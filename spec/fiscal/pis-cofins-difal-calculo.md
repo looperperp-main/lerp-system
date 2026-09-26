@@ -1,10 +1,16 @@
 # Cálculo real de PIS/COFINS (Lucro Presumido) e DIFAL/FCP no `fiscal-service`
 
-> Última atualização: 23 de setembro de 2026
+> Última atualização: 26 de setembro de 2026
 
-Status: **spec, nada implementado.** Backlog: issue
-[#101](https://github.com/looperperp-main/lerp-system/issues/101) (só a parte de
-PIS/COFINS — a Fase B, DIFAL/FCP, precisa de issue própria).
+Status: **Fase A (PIS/COFINS) ainda spec, nada implementado** — issue
+[#101](https://github.com/looperperp-main/lerp-system/issues/101). **Fase B
+(DIFAL/FCP) implementada em código em 26/09/2026** — issue
+[#103](https://github.com/looperperp-main/lerp-system/issues/103):
+`AliquotaInterestadual`, DIFAL/FCP dentro de `MotorFiscalService.calcularLegado`,
+`fiscal.difal_uf` (changesets `fiscal-schema-019`/`020`, 27 UFs em método
+`UNICA` — ver ponytail no changelog sobre `DUPLA`), testes em
+`MotorFiscalServiceTest`. **✅ Testado pelo usuário em 26/09/2026** — `mvn`
+verde e migração Liquibase (`fiscal-schema-019`/`020`) aplicada com sucesso.
 
 ## 1. Por que existe
 

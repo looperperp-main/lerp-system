@@ -80,6 +80,14 @@ public interface TabelaFiscal {
                                        LocalDate competencia);
 
     /**
+     * Método de base do DIFAL (issue #103, Convênio ICMS 236/2021) da UF de DESTINO, vigente na
+     * {@code competencia} (item 7.8) — {@code Constants.FISCAL_DIFAL_METODO_BASE_UNICA} ou
+     * {@code _DUPLA}. É atributo da UF, não do NCM. Vazio quando a UF não tem linha vigente: o
+     * motor devolve 400 ({@code FISCAL_DIFAL_SEM_COBERTURA}) em vez de assumir base única calado.
+     */
+    Optional<String> metodoBaseDifal(String ufDestino, LocalDate competencia);
+
+    /**
      * Alíquota e piso de dispensa de um tributo retido na fonte (fatia 3e — IRRF, CSRF, INSS;
      * {@code Constants.TRIBUTO_*}). Busca em 2 níveis, igual ao ISS: override do tenant vence a
      * linha nacional ({@code tenant_id IS NULL}). Vazio quando nem o tenant nem a base nacional

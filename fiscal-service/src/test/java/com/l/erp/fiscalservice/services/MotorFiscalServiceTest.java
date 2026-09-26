@@ -820,15 +820,20 @@ class MotorFiscalServiceTest {
 
     @Test
     void legado_icmsSemCobertura_lancaFiscalException() {
-        // RJ→RJ não está na matriz do fake (só SP→SP): 400 em vez de assumir ICMS zero.
+        // PR→PR não está na matriz do fake (só SP/MG/BA/RJ, issue #103): 400 em vez de assumir
+        // ICMS zero.
         FiscalException ex = assertThrows(FiscalException.class, () -> motor.calcular(
                 MotorFiscalRequest.builder()
                         .cfop("5101").ncm("84713012").ibgeDestino(SP)
-                        .ufOrigem("RJ").ufDestino("RJ")
+                        .ufOrigem("PR").ufDestino("PR")
                         .valorOperacao(new BigDecimal("10000")).dataCompetencia(LocalDate.of(2029, 3, 15))
                         .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null));
         assertEquals(Constants.FISCAL_ICMS_SEM_COBERTURA, ex.getCodigo());
     }
+
+    // Issue #103: venda interestadual de produto passou a exigir indFinal/indIEDest — os testes
+    // abaixo declaram indIEDest=1 (contribuinte) para exercitar só o ICMS interestadual (achado
+    // 2.2/#102), sem entrar no ramo de DIFAL (testado à parte mais abaixo).
 
     @Test
     void legado_icmsInterestadual_geralQuandoOrigemEDestinoSaoSulSudeste() {
@@ -836,12 +841,14 @@ class MotorFiscalServiceTest {
         // sem a redução de 7%, aplica a alíquota geral (Resolução do Senado 22/89).
         OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()
                 .cfop("5101").ncm("84713012").ibgeDestino(SP)
-                .ufOrigem("SP").ufDestino("RJ")
+                .ufOrigem("SP").ufDestino("RJ").indFinal("0").indIEDest("1")
                 .valorOperacao(new BigDecimal("10000")).dataCompetencia(LocalDate.of(2029, 3, 15))
                 .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null);
         assertValor("1080.00", r.getValorIcms()); // 10000 * 12% * 90% remanescente
         assertValor("12.00", r.getPercentualIcmsNominal());
         assertValor("0", r.getPercentualReducaoBaseIcms());
+        assertValor("12.00", r.getPercentualIcmsInterestadual()); // issue #103: pICMSInter sempre sai
+        assertNull(r.getValorIcmsUfDestino()); // contribuinte: sem DIFAL
     }
 
     @Test
@@ -849,7 +856,7 @@ class MotorFiscalServiceTest {
         // SP→BA: origem Sul/Sudeste (exceto ES) para Nordeste — 7% (Resolução do Senado 22/89).
         OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()
                 .cfop("5101").ncm("84713012").ibgeDestino(SP)
-                .ufOrigem("SP").ufDestino("BA")
+                .ufOrigem("SP").ufDestino("BA").indFinal("0").indIEDest("1")
                 .valorOperacao(new BigDecimal("10000")).dataCompetencia(LocalDate.of(2029, 3, 15))
                 .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null);
         assertValor("630.00", r.getValorIcms()); // 10000 * 7% * 90% remanescente
@@ -857,16 +864,133 @@ class MotorFiscalServiceTest {
     }
 
     @Test
-    void legado_icmsInterestadual_produtoEstrangeiro_avisaEAplicaAliquotaPadrao() {
-        // Resolução 13/2012 (4% em bem importado) não é modelada — avisa e usa a alíquota
-        // interestadual padrão (reduzida/geral) em vez de travar com 400 ou chutar 4%.
+    void legado_icmsInterestadual_baParaSp_geral12Porcento() {
+        // BA→SP: origem FORA de Sul/Sudeste — sempre alíquota geral, mesmo com destino nela.
+        OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()
+                .cfop("5101").ncm("84713012").ibgeDestino(SP)
+                .ufOrigem("BA").ufDestino("SP").indFinal("0").indIEDest("1")
+                .valorOperacao(new BigDecimal("10000")).dataCompetencia(LocalDate.of(2029, 3, 15))
+                .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null);
+        assertValor("1080.00", r.getValorIcms());
+        assertValor("12.00", r.getPercentualIcmsInterestadual());
+    }
+
+    @Test
+    void legado_icmsInterestadual_esParaSp_geral12Porcento() {
+        // ES→SP: ES fica de fora do conjunto Sul/Sudeste (só SP/RJ/MG/PR/SC/RS) — geral, mesmo
+        // origem estando na região Sudeste.
+        OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()
+                .cfop("5101").ncm("84713012").ibgeDestino(SP)
+                .ufOrigem("ES").ufDestino("SP").indFinal("0").indIEDest("1")
+                .valorOperacao(new BigDecimal("10000")).dataCompetencia(LocalDate.of(2029, 3, 15))
+                .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null);
+        assertValor("1080.00", r.getValorIcms());
+        assertValor("12.00", r.getPercentualIcmsInterestadual());
+    }
+
+    @Test
+    void legado_icmsInterestadual_produtoEstrangeiro_calcula4Porcento() {
+        // Issue #103: Resolução 13/2012 (4% em bem importado) agora é real — antes só avisava e
+        // caía na alíquota padrão (ver AliquotaInterestadual, ponytail sobre conteúdo de importação).
         OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()
                 .cfop("5101").ncm("84713012").ibgeDestino(SP)
                 .ufOrigem("SP").ufDestino("BA").origemProduto(Constants.FISCAL_ORIGEM_ESTRANGEIRO)
+                .indFinal("0").indIEDest("1")
                 .valorOperacao(new BigDecimal("10000")).dataCompetencia(LocalDate.of(2029, 3, 15))
                 .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null);
-        assertValor("630.00", r.getValorIcms());
-        assertTrue(r.getMemoriaCalculo().contains(Constants.FISCAL_AVISO_ICMS_INTERESTADUAL_IMPORTADO));
+        assertValor("360.00", r.getValorIcms()); // 10000 * 4% * 90% remanescente
+        assertValor("4.00", r.getPercentualIcmsInterestadual());
+    }
+
+    @Test
+    void legado_interestadualSemIndicadoresDestinatario_lancaFiscalException() {
+        // Issue #103, achado 2.2: sem indFinal/indIEDest não dá pra saber se cabe DIFAL.
+        FiscalException ex = assertThrows(FiscalException.class, () -> motor.calcular(
+                MotorFiscalRequest.builder()
+                        .cfop("5101").ncm("84713012").ibgeDestino(SP)
+                        .ufOrigem("SP").ufDestino("MG")
+                        .valorOperacao(new BigDecimal("10000")).dataCompetencia(LocalDate.of(2029, 3, 15))
+                        .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null));
+        assertEquals(Constants.FISCAL_DESTINATARIO_INDICADORES_OBRIGATORIOS, ex.getCodigo());
+    }
+
+    @Test
+    void legado_interestadualContribuinte_semDifal() {
+        // indIEDest=1 (contribuinte): DIFAL não se aplica, mesmo com indFinal=1 — o recolhimento é
+        // do destinatário, fora do motor (§5.1 do plano de Fase B).
+        OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()
+                .cfop("5101").ncm("84713012").ibgeDestino(SP)
+                .ufOrigem("SP").ufDestino("MG").indFinal("1").indIEDest("1")
+                .valorOperacao(new BigDecimal("1000")).dataCompetencia(LocalDate.of(2029, 3, 15))
+                .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null);
+        assertNull(r.getBaseCalculoUfDestino());
+        assertNull(r.getValorIcmsUfDestino());
+        assertNull(r.getValorFcpUfDestino());
+        assertValor("12.00", r.getPercentualIcmsInterestadual());
+    }
+
+    @Test
+    void legado_interestadualConsumidorFinalNaoContribuinte_baseUnica_calculaDifal() {
+        // SP→MG, consumidor final não contribuinte (indFinal=1, indIEDest=9). MG é UNICA no fake.
+        // pInter=12% (ambos Sul/Sudeste); interno MG=18%, sem FCP.
+        OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()
+                .cfop("5101").ncm("84713012").ibgeDestino(SP)
+                .ufOrigem("SP").ufDestino("MG").indFinal("1").indIEDest("9")
+                .valorOperacao(new BigDecimal("1000")).dataCompetencia(LocalDate.of(2029, 3, 15))
+                .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null);
+        assertValor("108.00", r.getValorIcms());              // ICMS origem: 1000*12%*90%
+        assertValor("1000.00", r.getBaseCalculoUfDestino());  // base única = valor tributável
+        assertValor("18.00", r.getPercentualIcmsUfDestino());
+        assertValor("54.00", r.getValorIcmsUfDestino());      // (1000*(18-12)%)*90% = 60*0,9
+        assertValor("0.00", r.getValorFcpUfDestino());
+        assertValor("100", r.getPercentualPartilhaDestino());
+        assertValor("0.00", r.getValorIcmsUfRemetente());
+    }
+
+    @Test
+    void legado_interestadualConsumidorFinalNaoContribuinte_baseDupla_calculaDifal() {
+        // SP→BA, consumidor final não contribuinte. BA é DUPLA no fake. pInter=7% (SP Sul/Sudeste
+        // → BA fora); interno BA=20%, sem FCP. Números escolhidos pra dividir exato (issue #103,
+        // Conv. ICMS 236/2021 — conferir com o contador antes de produção real).
+        OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()
+                .cfop("5101").ncm("84713012").ibgeDestino(SP)
+                .ufOrigem("SP").ufDestino("BA").indFinal("1").indIEDest("9")
+                .valorOperacao(new BigDecimal("1000")).dataCompetencia(LocalDate.of(2029, 3, 15))
+                .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null);
+        assertValor("63.00", r.getValorIcms());                // ICMS origem: 1000*7%*90%
+        assertValor("1162.50", r.getBaseCalculoUfDestino());   // (1000-70)/(1-20%) = 930/0,8
+        assertValor("146.25", r.getValorIcmsUfDestino());      // (232,5-70)*90% = 162,5*0,9
+        assertValor("0.00", r.getValorFcpUfDestino());
+    }
+
+    @Test
+    void legado_interestadualConsumidorFinalNaoContribuinte_destinoRj_separaFcp() {
+        // SP→RJ, consumidor final não contribuinte. RJ interno pós-desmembramento (issue #103):
+        // 20% ICMS + 2% FCP (era 22% cheio antes do fiscal-schema-019). RJ é UNICA no fake.
+        OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()
+                .cfop("5101").ncm("84713012").ibgeDestino(SP)
+                .ufOrigem("SP").ufDestino("RJ").indFinal("1").indIEDest("9")
+                .valorOperacao(new BigDecimal("1000")).dataCompetencia(LocalDate.of(2029, 3, 15))
+                .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null);
+        assertValor("108.00", r.getValorIcms());               // ICMS origem: 1000*12%*90%
+        assertValor("1000.00", r.getBaseCalculoUfDestino());
+        assertValor("72.00", r.getValorIcmsUfDestino());       // (1000*(20-12)%)*90% = 80*0,9
+        assertValor("18.00", r.getValorFcpUfDestino());        // (1000*2%)*90% = 20*0,9
+        assertValor("2.00", r.getPercentualFcpUfDestino());
+    }
+
+    @Test
+    void legado_icmsInterno_comFcp_calculaValorFcp() {
+        // Operação interna RJ→RJ (achado 2.3): FCP embutido antes (22%) sai à parte agora — ICMS
+        // 20% + FCP 2% somam o mesmo total, só itemizado.
+        OperacaoFiscalDTO r = motor.calcular(MotorFiscalRequest.builder()
+                .cfop("5101").ncm("84713012").ibgeDestino(SP)
+                .ufOrigem("RJ").ufDestino("RJ")
+                .valorOperacao(new BigDecimal("1000")).dataCompetencia(LocalDate.of(2029, 3, 15))
+                .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null);
+        assertValor("180.00", r.getValorIcms()); // 1000*20%*90%
+        assertValor("18.00", r.getValorFcp());   // 1000*2%*90%
+        assertValor("2.00", r.getPercentualFcp());
     }
 
     @Test

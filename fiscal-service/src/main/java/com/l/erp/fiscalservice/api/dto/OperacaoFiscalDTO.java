@@ -76,4 +76,21 @@ public class OperacaoFiscalDTO {
     /** modBC da NF-e — sempre "3" (Valor da Operação): o motor não modela pauta/margem/preço
      * tabelado (fiscal-schema-011), então essa é a única modalidade que este cálculo produz. */
     private String modalidadeBaseCalculoIcms;
+
+    // DIFAL/FCP (issue #103, Fase B de spec/fiscal/pis-cofins-difal-calculo.md §6). percentualFcp/
+    // valorFcp são o FCP da OPERAÇÃO INTERNA (grupo ICMS00) — só existem em produto com legado
+    // ativo, null em serviço/entrada. percentualIcmsInterestadual sai em toda saída de produto
+    // interestadual (pICMSInter, grupo sempre presente na NF-e); os demais campos de DIFAL só
+    // quando o destinatário é consumidor final não contribuinte (indFinal=1, indIEDest=9).
+    private BigDecimal percentualFcp;
+    private BigDecimal valorFcp;
+    private BigDecimal percentualIcmsInterestadual;
+    private BigDecimal baseCalculoUfDestino;
+    private BigDecimal baseCalculoFcpUfDestino;
+    private BigDecimal percentualIcmsUfDestino;
+    private BigDecimal percentualFcpUfDestino;
+    private BigDecimal percentualPartilhaDestino;
+    private BigDecimal valorIcmsUfDestino;
+    private BigDecimal valorFcpUfDestino;
+    private BigDecimal valorIcmsUfRemetente;
 }

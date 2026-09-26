@@ -128,7 +128,7 @@ public class TabelaFiscalJdbc implements TabelaFiscal {
     // vence o fallback. tipo_item fixo em 'P' porque ICMS é só sobre mercadoria — 'S' (NBS) fica
     // pra quando este método servir outro imposto além de ICMS.
     private static final String SQL_MATRIZ_ICMS = """
-            SELECT aliq_nominal, p_reducao_base, ncm_nbs
+            SELECT aliq_nominal, p_reducao_base, ncm_nbs, p_fcp
               FROM fiscal.matriz_tributaria
              WHERE tipo_item = 'P'
                AND uf_origem = :ufOrigem
@@ -139,6 +139,18 @@ public class TabelaFiscalJdbc implements TabelaFiscal {
              ORDER BY CASE WHEN tenant_id = :tenantId::bigint THEN 0 ELSE 1 END,
                       CASE WHEN ncm_nbs = :ncmNbs THEN 0 ELSE 1 END,
                       vigente_de DESC
+             LIMIT 1
+            """;
+
+    // Issue #103 (Fase B) — atributo da UF DE DESTINO, não do NCM: 27 linhas, sem override de
+    // tenant (mesmo recorte de carga inicial da matriz de ICMS, fiscal-031). UF sem linha vigente
+    // ⇒ Optional vazio ⇒ o motor devolve 400 (FISCAL_DIFAL_SEM_COBERTURA), nunca assume base única.
+    private static final String SQL_DIFAL_UF = """
+            SELECT metodo_base
+              FROM fiscal.difal_uf
+             WHERE uf = :uf
+               AND vigente_de <= :data AND (vigente_ate IS NULL OR vigente_ate > :data)
+             ORDER BY vigente_de DESC
              LIMIT 1
             """;
 
@@ -297,7 +309,17 @@ public class TabelaFiscalJdbc implements TabelaFiscal {
                 .query((rs, n) -> new RegimeIcms(
                         rs.getBigDecimal("aliq_nominal"),
                         rs.getBigDecimal("p_reducao_base"),
-                        Constants.FISCAL_NCM_NBS_FALLBACK.equals(rs.getString("ncm_nbs"))))
+                        Constants.FISCAL_NCM_NBS_FALLBACK.equals(rs.getString("ncm_nbs")),
+                        rs.getBigDecimal("p_fcp")))
+                .optional();
+    }
+
+    @Override
+    public Optional<String> metodoBaseDifal(String ufDestino, LocalDate competencia) {
+        return jdbc.sql(SQL_DIFAL_UF)
+                .param("uf", ufDestino)
+                .param("data", competencia)
+                .query(String.class)
                 .optional();
     }
 

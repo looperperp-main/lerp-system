@@ -1,0 +1,82 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # DIFAL — método de base por UF de destino (issue #103, Fase B de
+  # spec/fiscal/pis-cofins-difal-calculo.md §5.4/§5.5).
+  #
+  # Atributo da UF DE DESTINO, não do NCM — 27 linhas, sem override de tenant (mesmo recorte de
+  # carga inicial da matriz de ICMS interno, fiscal-031). UF sem linha vigente ⇒ o motor devolve
+  # 400 (FISCAL_DIFAL_SEM_COBERTURA), nunca assume um método calado.
+  #
+  # Carga inicial: TODAS as 27 UFs em 'UNICA' — é o método simplificado descrito na maioria dos
+  # manuais de preenchimento de NF-e (ICMS total devido ao destino menos o ICMS interestadual já
+  # recolhido na origem) e o que a generalidade dos RICMS estaduais publica. O método 'DUPLA'
+  # ("cálculo por dentro", Conv. ICMS 236/2021 cláusula segunda) é tecnicamente o texto do
+  # convênio, mas sua adoção varia de UF para UF e é objeto de disputa/litígio em várias delas —
+  # não há fonte única e verificável para cravar por estado sem um levantamento próprio.
+  #
+  # ponytail: método por UF começa uniforme (UNICA) até um cliente real vender pra um estado que
+  # pratique base dupla e reclamar do valor — mesmo critério de risco aceito já usado pro FCP por
+  # NCM (fiscal-031: "override quando cliente real reclamar"). Confirmar com o contador/RICMS de
+  # cada UF antes de habilitar emissão real de DIFAL para ela.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: fiscal-052-cria-difal-uf
+      author: vitor-fernandes
+      comment: Tabela de método de base do DIFAL (base única/dupla) por UF de destino
+      changes:
+        - createTable:
+            schemaName: fiscal
+            tableName: difal_uf
+            remarks: Método de cálculo de base do DIFAL (Conv. ICMS 236/2021) por UF de destino
+            columns:
+              - column: { name: id, type: bigint, autoIncrement: true, constraints: { primaryKey: true } }
+              - column: { name: uf, type: char(2), constraints: { nullable: false } }
+              - column: { name: metodo_base, type: varchar(5), constraints: { nullable: false } }
+              - column:
+                  name: vigente_de
+                  type: date
+                  constraints: { nullable: false }
+              - column: { name: vigente_ate, type: date }
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              ALTER TABLE fiscal.difal_uf ADD CONSTRAINT chk_difal_uf_metodo_base
+              CHECK (metodo_base IN ('UNICA', 'DUPLA'));
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              ALTER TABLE fiscal.difal_uf ADD CONSTRAINT uk_difal_uf
+              UNIQUE (uf, vigente_de);
+
+  - changeSet:
+      id: fiscal-053-seed-difal-uf-27-ufs
+      author: vitor-fernandes
+      comment: Semeia as 27 UFs com método de base única (ponytail — ver comentário do changelog)
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.difal_uf (uf, metodo_base, vigente_de) VALUES
+                ('AC', 'UNICA', DATE '2026-01-01'), ('AL', 'UNICA', DATE '2026-01-01'),
+                ('AP', 'UNICA', DATE '2026-01-01'), ('AM', 'UNICA', DATE '2026-01-01'),
+                ('BA', 'UNICA', DATE '2026-01-01'), ('CE', 'UNICA', DATE '2026-01-01'),
+                ('DF', 'UNICA', DATE '2026-01-01'), ('ES', 'UNICA', DATE '2026-01-01'),
+                ('GO', 'UNICA', DATE '2026-01-01'), ('MA', 'UNICA', DATE '2026-01-01'),
+                ('MT', 'UNICA', DATE '2026-01-01'), ('MS', 'UNICA', DATE '2026-01-01'),
+                ('MG', 'UNICA', DATE '2026-01-01'), ('PA', 'UNICA', DATE '2026-01-01'),
+                ('PB', 'UNICA', DATE '2026-01-01'), ('PR', 'UNICA', DATE '2026-01-01'),
+                ('PE', 'UNICA', DATE '2026-01-01'), ('PI', 'UNICA', DATE '2026-01-01'),
+                ('RJ', 'UNICA', DATE '2026-01-01'), ('RN', 'UNICA', DATE '2026-01-01'),
+                ('RS', 'UNICA', DATE '2026-01-01'), ('RO', 'UNICA', DATE '2026-01-01'),
+                ('RR', 'UNICA', DATE '2026-01-01'), ('SC', 'UNICA', DATE '2026-01-01'),
+                ('SP', 'UNICA', DATE '2026-01-01'), ('SE', 'UNICA', DATE '2026-01-01'),
+                ('TO', 'UNICA', DATE '2026-01-01');
+      rollback:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: DELETE FROM fiscal.difal_uf;

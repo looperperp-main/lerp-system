@@ -10,6 +10,8 @@ import java.math.BigDecimal;
  * @param ncmGenerico true quando a linha casou pelo NCM/NBS de fallback
  *     ({@code Constants.FISCAL_NCM_NBS_FALLBACK}), não por um código específico — mesmo
  *     princípio de {@link AliquotaIss#referenciaNacional}.
+ * @param pFcp percentual de FCP embutido na linha (issue #103) — desmembrado do {@code aliqNominal}
+ *     nas UFs que o incluíam na alíquota interna cheia (RJ, SE); {@code ZERO} nas demais.
  */
-public record RegimeIcms(BigDecimal aliqNominal, BigDecimal pReducaoBase, boolean ncmGenerico) {
+public record RegimeIcms(BigDecimal aliqNominal, BigDecimal pReducaoBase, boolean ncmGenerico, BigDecimal pFcp) {
 }

@@ -1,0 +1,92 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # FCP (Fundo de Combate à Pobreza) — issue #103, Fase B de
+  # spec/fiscal/pis-cofins-difal-calculo.md §5.5.
+  #
+  # p_fcp é campo PRÓPRIO da linha (mesma granularidade UF/NCM da alíquota, já que o FCP também
+  # varia por NCM em vários estados) — nunca junto do p_reducao_base, que é redução de BASE, não
+  # um tributo separado. RJ e SE embutiam o FCP na alíquota interna cheia (22% e 20%); a partir
+  # desta migração ficam desmembrados (20+2 e 18+2) para o motor devolver valorFcp à parte sem
+  # derrubar o total recolhido em silêncio (ver MotorFiscalService.calcularLegado).
+  #
+  # Historização: fecha a linha antiga com vigente_ate e insere a nova com vigente_de — mesma
+  # técnica de fiscal-031 (Alagoas), já prevista na constraint uk_matriz_tributaria.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: fiscal-050-adiciona-p-fcp-matriz-tributaria
+      author: vitor-fernandes
+      comment: Coluna de FCP (issue #103) na matriz de ICMS interno
+      changes:
+        - addColumn:
+            schemaName: fiscal
+            tableName: matriz_tributaria
+            columns:
+              - column:
+                  name: p_fcp
+                  type: numeric(5,2)
+                  defaultValueNumeric: 0
+                  constraints: { nullable: false }
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              ALTER TABLE fiscal.matriz_tributaria ADD CONSTRAINT chk_matriz_tributaria_p_fcp
+              CHECK (p_fcp >= 0 AND p_fcp <= 100);
+      rollback:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              ALTER TABLE fiscal.matriz_tributaria DROP CONSTRAINT chk_matriz_tributaria_p_fcp;
+        - dropColumn:
+            schemaName: fiscal
+            tableName: matriz_tributaria
+            columnName: p_fcp
+
+  - changeSet:
+      id: fiscal-051-desmembra-fcp-rj-se
+      author: vitor-fernandes
+      comment: Desmembra o FCP embutido na alíquota cheia de RJ (22=20+2) e SE (20=18+2)
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              UPDATE fiscal.matriz_tributaria
+                 SET vigente_ate = DATE '2026-09-26'
+               WHERE tenant_id IS NULL AND ncm_nbs = '00000000' AND tipo_item = 'P'
+                 AND uf_origem = 'RJ' AND uf_destino = 'RJ' AND vigente_ate IS NULL;
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              UPDATE fiscal.matriz_tributaria
+                 SET vigente_ate = DATE '2026-09-26'
+               WHERE tenant_id IS NULL AND ncm_nbs = '00000000' AND tipo_item = 'P'
+                 AND uf_origem = 'SE' AND uf_destino = 'SE' AND vigente_ate IS NULL;
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO fiscal.matriz_tributaria
+                (tenant_id, ncm_nbs, tipo_item, uf_origem, uf_destino, aliq_nominal, p_reducao_base, p_fcp, descricao, vigente_de) VALUES
+                (NULL, '00000000', 'P', 'RJ', 'RJ', 20.00, 0, 2.00, 'ICMS interno geral — Rio de Janeiro (FECP desmembrado, issue #103)', DATE '2026-09-26'),
+                (NULL, '00000000', 'P', 'SE', 'SE', 18.00, 0, 2.00, 'ICMS interno geral — Sergipe (FUNPOBREZA desmembrado, issue #103)', DATE '2026-09-26');
+      rollback:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              DELETE FROM fiscal.matriz_tributaria
+               WHERE tenant_id IS NULL AND ncm_nbs = '00000000' AND tipo_item = 'P'
+                 AND uf_origem IN ('RJ', 'SE') AND uf_destino IN ('RJ', 'SE')
+                 AND vigente_de = DATE '2026-09-26';
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              UPDATE fiscal.matriz_tributaria SET vigente_ate = NULL
+               WHERE tenant_id IS NULL AND ncm_nbs = '00000000' AND tipo_item = 'P'
+                 AND uf_origem IN ('RJ', 'SE') AND uf_destino IN ('RJ', 'SE')
+                 AND vigente_ate = DATE '2026-09-26';

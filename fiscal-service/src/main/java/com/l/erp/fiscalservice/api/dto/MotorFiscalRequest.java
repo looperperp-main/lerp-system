@@ -72,6 +72,11 @@ public class MotorFiscalRequest {
     // (pctRemanescente > 0); em produto, alimentam TabelaFiscal.aliquotaIcms.
     private String ufOrigem;
     private String ufDestino;
+    // DIFAL/FCP (issue #103, EC 87/2015) — nomes da NF-e, declarados pelo chamador. Obrigatórios
+    // em saída de produto interestadual (validado no MotorFiscalService, mesmo padrão condicional
+    // de cfop/naturezaOperacao acima): sem eles não dá pra distinguir "sem DIFAL" de "esqueceram".
+    private String indFinal;   // "0" normal | "1" consumidor final
+    private String indIEDest; // "1" contribuinte | "2" contribuinte isento | "9" não contribuinte
     // Retenção na fonte (fatia 3e, declarada pelo chamador — mesmo padrão de cClassTrib): o motor
     // calcula os VALORES retidos, nunca decide sozinho se uma operação sofre retenção.
     private Boolean issRetidoNaFonte;

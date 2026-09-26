@@ -6,6 +6,7 @@ import com.l.erp.fiscalservice.api.dto.OperacaoFiscalDTO;
 import com.l.erp.fiscalservice.exception.FiscalException;
 import com.l.erp.fiscalservice.infra.config.SplitPaymentProperties;
 import com.l.erp.fiscalservice.services.fiscal.AliquotaIbs;
+import com.l.erp.fiscalservice.services.fiscal.AliquotaInterestadual;
 import com.l.erp.fiscalservice.services.fiscal.AliquotaIss;
 import com.l.erp.fiscalservice.services.fiscal.AliquotaRetencao;
 import com.l.erp.fiscalservice.services.fiscal.CfopInfo;
@@ -306,6 +307,17 @@ public class MotorFiscalService {
                 .modalidadeBaseCalculoIcms(legado.modalidadeBaseCalculoIcms())
                 .cstIcms(cstIcms)
                 .csosn(csosn)
+                .percentualFcp(legado.percentualFcp())
+                .valorFcp(legado.valorFcp())
+                .percentualIcmsInterestadual(legado.percentualIcmsInterestadual())
+                .baseCalculoUfDestino(legado.baseCalculoUfDestino())
+                .baseCalculoFcpUfDestino(legado.baseCalculoFcpUfDestino())
+                .percentualIcmsUfDestino(legado.percentualIcmsUfDestino())
+                .percentualFcpUfDestino(legado.percentualFcpUfDestino())
+                .percentualPartilhaDestino(legado.percentualPartilhaDestino())
+                .valorIcmsUfDestino(legado.valorIcmsUfDestino())
+                .valorFcpUfDestino(legado.valorFcpUfDestino())
+                .valorIcmsUfRemetente(legado.valorIcmsUfRemetente())
                 .build();
     }
 
@@ -379,6 +391,13 @@ public class MotorFiscalService {
     /** valor × alíquota% ÷ 100, arredondado a 2 casas (HALF_UP). */
     private BigDecimal pct(BigDecimal valor, BigDecimal aliquotaPercentual) {
         return valor.multiply(aliquotaPercentual).divide(CEM, ESCALA, RoundingMode.HALF_UP);
+    }
+
+    /** Mesmo que {@link #pct}, com escala configurável — usado na base dupla do DIFAL (issue #103,
+     * Conv. ICMS 236/2021), onde a divisão intermediária precisa de escala ≥ 10 e o arredondamento
+     * final só entra depois (mesmo cuidado de {@code fatoresEfetivos}). */
+    private BigDecimal pctEscala(BigDecimal valor, BigDecimal aliquotaPercentual, int escala) {
+        return valor.multiply(aliquotaPercentual).divide(CEM, escala, RoundingMode.HALF_UP);
     }
 
     private static boolean preenchido(String valor) {
@@ -501,39 +520,84 @@ public class MotorFiscalService {
             BigDecimal valorIss = pct(valorTributavel, aliqIss.aliquotaPct())
                     .multiply(fatorLegado).setScale(ESCALA, RoundingMode.HALF_UP);
             memoria.add("ISS legado (" + transicao.pctRemanescente() + "% remanescente): " + valorIss);
-            return new Legado(null, valorIss, null, null, null);
+            return Legado.deIss(valorIss);
         }
 
         if (!preenchido(req.getUfOrigem()) || !preenchido(req.getUfDestino())) {
             throw new FiscalException(Constants.FISCAL_UF_OBRIGATORIA_TRANSICAO);
         }
-        RegimeIcms regimeIcms = req.getUfOrigem().equals(req.getUfDestino())
-                ? tabela.aliquotaIcms(tenantId, req.getNcm(), req.getUfOrigem(), req.getUfDestino(), req.getDataCompetencia())
-                        .orElseThrow(() -> new FiscalException(Constants.FISCAL_ICMS_SEM_COBERTURA))
-                : regimeIcmsInterestadual(req, memoria);
-        BigDecimal aliqIcmsEfetiva = regimeIcms.aliqNominal().multiply(fatorReducao(regimeIcms.pReducaoBase()));
-        BigDecimal valorIcms = pct(valorTributavel, aliqIcmsEfetiva)
-                .multiply(fatorLegado).setScale(ESCALA, RoundingMode.HALF_UP);
-        memoria.add("ICMS legado (" + transicao.pctRemanescente() + "% remanescente): " + valorIcms);
-        return new Legado(valorIcms, null, regimeIcms.aliqNominal(), regimeIcms.pReducaoBase(),
-                Constants.FISCAL_ICMS_MODBC_VALOR_OPERACAO);
-    }
+        boolean interestadual = !req.getUfOrigem().equals(req.getUfDestino());
 
-    /**
-     * ICMS interestadual (Resolução do Senado 22/89 + 13/2012, issue #102): NÃO consulta a
-     * matriz_tributaria (essa só tem alíquota interna, uf_origem = uf_destino) — é regra fixa
-     * sobre a lista de UF. 4% de bem importado (Resolução 13/2012) exige conteúdo de importação
-     * que o motor não modela; nesse caso só avisa e aplica a alíquota padrão, sem travar com 400.
-     */
-    private RegimeIcms regimeIcmsInterestadual(MotorFiscalRequest req, List<String> memoria) {
-        if (Constants.FISCAL_ORIGEM_ESTRANGEIRO.equals(req.getOrigemProduto())) {
-            memoria.add(Constants.FISCAL_AVISO_ICMS_INTERESTADUAL_IMPORTADO);
+        // Issue #103, achado 2.2: sem os dois indicadores não dá pra saber se cabe DIFAL — 400 em
+        // vez de assumir "sem DIFAL" calado. Só exigido em produto interestadual (mesmo recorte
+        // do EC 87/2015 — operação interna e serviço não têm DIFAL de mercadoria).
+        if (interestadual && (!preenchido(req.getIndFinal()) || !preenchido(req.getIndIEDest()))) {
+            throw new FiscalException(Constants.FISCAL_DESTINATARIO_INDICADORES_OBRIGATORIOS);
         }
-        BigDecimal aliqNominal = Constants.FISCAL_UF_SUL_SUDESTE_SEM_ES.contains(req.getUfOrigem())
-                && !Constants.FISCAL_UF_SUL_SUDESTE_SEM_ES.contains(req.getUfDestino())
-                ? Constants.FISCAL_ICMS_INTERESTADUAL_REDUZIDA
-                : Constants.FISCAL_ICMS_INTERESTADUAL_GERAL;
-        return new RegimeIcms(aliqNominal, BigDecimal.ZERO, false);
+
+        RegimeIcms regimeIcms = interestadual
+                ? new RegimeIcms(AliquotaInterestadual.de(req.getUfOrigem(), req.getUfDestino(), req.getOrigemProduto()),
+                        BigDecimal.ZERO, false, BigDecimal.ZERO)
+                : tabela.aliquotaIcms(tenantId, req.getNcm(), req.getUfOrigem(), req.getUfDestino(), req.getDataCompetencia())
+                        .orElseThrow(() -> new FiscalException(Constants.FISCAL_ICMS_SEM_COBERTURA));
+        BigDecimal aliqIcmsEfetiva = regimeIcms.aliqNominal().multiply(fatorReducao(regimeIcms.pReducaoBase()));
+        BigDecimal icmsNominal = pct(valorTributavel, aliqIcmsEfetiva);
+        BigDecimal valorIcms = icmsNominal.multiply(fatorLegado).setScale(ESCALA, RoundingMode.HALF_UP);
+        memoria.add("ICMS legado (" + transicao.pctRemanescente() + "% remanescente): " + valorIcms);
+
+        if (!interestadual) {
+            // FCP da operação interna (achado 2.3, grupo ICMS00): pFcp é campo próprio da linha,
+            // nunca junto do p_reducao_base — nas UFs que desmembram a alíquota cheia (RJ, SE) sai
+            // à parte, senão o desmembramento faria o ICMS interno cair em silêncio.
+            BigDecimal valorFcp = pct(valorTributavel, regimeIcms.pFcp())
+                    .multiply(fatorLegado).setScale(ESCALA, RoundingMode.HALF_UP);
+            if (regimeIcms.pFcp().signum() > 0) {
+                memoria.add("FCP: " + valorFcp + " (alíquota " + regimeIcms.pFcp() + "%)");
+            }
+            return Legado.deIcmsInterno(valorIcms, regimeIcms.aliqNominal(), regimeIcms.pReducaoBase(),
+                    regimeIcms.pFcp(), valorFcp);
+        }
+
+        // pICMSInter sai em TODA saída interestadual de produto (grupo sempre presente na NF-e);
+        // DIFAL só quando o destinatário é consumidor final NÃO contribuinte (EC 87/2015, §5.1).
+        BigDecimal pInter = regimeIcms.aliqNominal();
+        boolean aplicaDifal = Constants.FISCAL_IND_FINAL_CONSUMIDOR_FINAL.equals(req.getIndFinal())
+                && Constants.FISCAL_IND_IE_DEST_NAO_CONTRIBUINTE.equals(req.getIndIEDest());
+        if (!aplicaDifal) {
+            memoria.add("Sem DIFAL (indFinal=" + req.getIndFinal() + ", indIEDest=" + req.getIndIEDest()
+                    + "): destinatário contribuinte ou não consumidor final");
+            return Legado.deIcmsInterestadual(valorIcms, regimeIcms.aliqNominal(), pInter);
+        }
+
+        RegimeIcms internoDestino = tabela
+                .aliquotaIcms(tenantId, req.getNcm(), req.getUfDestino(), req.getUfDestino(), req.getDataCompetencia())
+                .orElseThrow(() -> new FiscalException(Constants.FISCAL_ICMS_SEM_COBERTURA));
+        String metodoBase = tabela.metodoBaseDifal(req.getUfDestino(), req.getDataCompetencia())
+                .orElseThrow(() -> new FiscalException(Constants.FISCAL_DIFAL_SEM_COBERTURA));
+        BigDecimal pInternaDest = internoDestino.aliqNominal();
+        BigDecimal pFcpDest = internoDestino.pFcp();
+
+        BigDecimal vBcUfDest;
+        BigDecimal vIcmsUfDestNominal;
+        if (Constants.FISCAL_DIFAL_METODO_BASE_DUPLA.equals(metodoBase)) {
+            // Conv. ICMS 236/2021: escala interna ≥ 10, arredondamento só no valor final.
+            BigDecimal divisor = BigDecimal.ONE.subtract(pInternaDest.divide(CEM, 10, RoundingMode.HALF_UP));
+            vBcUfDest = valorTributavel.subtract(icmsNominal).divide(divisor, 10, RoundingMode.HALF_UP);
+            vIcmsUfDestNominal = pctEscala(vBcUfDest, pInternaDest, 10).subtract(icmsNominal);
+        } else {
+            vBcUfDest = valorTributavel;
+            vIcmsUfDestNominal = pct(vBcUfDest, pInternaDest.subtract(pInter));
+        }
+        BigDecimal vFcpUfDestNominal = pctEscala(vBcUfDest, pFcpDest, 10);
+
+        BigDecimal baseUfDestino = vBcUfDest.setScale(ESCALA, RoundingMode.HALF_UP);
+        BigDecimal valorIcmsUfDestino = vIcmsUfDestNominal.multiply(fatorLegado).setScale(ESCALA, RoundingMode.HALF_UP);
+        BigDecimal valorFcpUfDestino = vFcpUfDestNominal.multiply(fatorLegado).setScale(ESCALA, RoundingMode.HALF_UP);
+        memoria.add("DIFAL (" + metodoBase + "): base destino " + baseUfDestino + ", ICMS destino "
+                + valorIcmsUfDestino + ", FCP destino " + valorFcpUfDestino);
+
+        return Legado.deDifal(valorIcms, regimeIcms.aliqNominal(), pInter, baseUfDestino, pInternaDest,
+                pFcpDest, valorIcmsUfDestino, valorFcpUfDestino);
     }
 
     /**
@@ -680,10 +744,48 @@ public class MotorFiscalService {
      * ICMS (produto) xor ISS (serviço) da transição — os dois {@code null} quando pctRemanescente = 0.
      * {@code percentualIcmsNominal}/{@code percentualReducaoBaseIcms}/{@code modalidadeBaseCalculoIcms}
      * só saem preenchidos no ramo ICMS (produto) — mesmo padrão de {@code icms}.
+     *
+     * <p>Campos de DIFAL/FCP (issue #103): {@code percentualFcp}/{@code valorFcp} são o FCP da
+     * OPERAÇÃO INTERNA (grupo ICMS00), só no ramo sem interestadualidade. {@code percentualIcmsInterestadual}
+     * sai em toda saída interestadual de produto; os demais (base/ICMS/FCP de destino, partilha,
+     * ICMS do remetente) só quando o DIFAL se aplica (consumidor final não contribuinte).
      */
     private record Legado(BigDecimal icms, BigDecimal iss, BigDecimal percentualIcmsNominal,
-                           BigDecimal percentualReducaoBaseIcms, String modalidadeBaseCalculoIcms) {
-        private static final Legado NENHUM = new Legado(null, null, null, null, null);
+                           BigDecimal percentualReducaoBaseIcms, String modalidadeBaseCalculoIcms,
+                           BigDecimal percentualFcp, BigDecimal valorFcp,
+                           BigDecimal percentualIcmsInterestadual,
+                           BigDecimal baseCalculoUfDestino, BigDecimal baseCalculoFcpUfDestino,
+                           BigDecimal percentualIcmsUfDestino, BigDecimal percentualFcpUfDestino,
+                           BigDecimal percentualPartilhaDestino, BigDecimal valorIcmsUfDestino,
+                           BigDecimal valorFcpUfDestino, BigDecimal valorIcmsUfRemetente) {
+
+        private static final Legado NENHUM = new Legado(null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null);
+
+        static Legado deIss(BigDecimal valorIss) {
+            return new Legado(null, valorIss, null, null, null, null, null, null,
+                    null, null, null, null, null, null, null, null);
+        }
+
+        static Legado deIcmsInterno(BigDecimal icms, BigDecimal aliqNominal, BigDecimal pReducaoBase,
+                                     BigDecimal percentualFcp, BigDecimal valorFcp) {
+            return new Legado(icms, null, aliqNominal, pReducaoBase, Constants.FISCAL_ICMS_MODBC_VALOR_OPERACAO,
+                    percentualFcp, valorFcp, null, null, null, null, null, null, null, null, null);
+        }
+
+        static Legado deIcmsInterestadual(BigDecimal icms, BigDecimal aliqNominal, BigDecimal pInter) {
+            return new Legado(icms, null, aliqNominal, BigDecimal.ZERO, Constants.FISCAL_ICMS_MODBC_VALOR_OPERACAO,
+                    null, null, pInter, null, null, null, null, null, null, null, null);
+        }
+
+        static Legado deDifal(BigDecimal icms, BigDecimal aliqNominal, BigDecimal pInter, BigDecimal baseUfDestino,
+                               BigDecimal pInternaDest, BigDecimal pFcpDest, BigDecimal valorIcmsUfDestino,
+                               BigDecimal valorFcpUfDestino) {
+            return new Legado(icms, null, aliqNominal, BigDecimal.ZERO, Constants.FISCAL_ICMS_MODBC_VALOR_OPERACAO,
+                    null, null, pInter, baseUfDestino, baseUfDestino, pInternaDest, pFcpDest,
+                    Constants.FISCAL_DIFAL_PARTILHA_DESTINO_INTEGRAL, valorIcmsUfDestino, valorFcpUfDestino,
+                    BigDecimal.ZERO.setScale(ESCALA));
+        }
     }
 
     /** Valores retidos na fonte — cada campo {@code null} quando não declarado ou dispensado pelo piso. */

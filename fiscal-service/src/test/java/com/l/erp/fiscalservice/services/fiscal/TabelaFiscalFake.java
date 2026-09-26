@@ -38,6 +38,7 @@ public class TabelaFiscalFake implements TabelaFiscal {
     private final Map<String, List<RegimeTributoOverride>> overridesMap = new HashMap<>();
     private final Map<String, String> cstIcmsMap = new HashMap<>();
     private final Map<String, String> cfopRegraMap = new HashMap<>();
+    private final Map<String, String> difalUfMap = new HashMap<>();
 
     public TabelaFiscalFake() {
         cfopMap.put("5101", new CfopInfo("5101", TipoOperacaoFiscal.SAIDA, true, true, true));
@@ -109,7 +110,23 @@ public class TabelaFiscalFake implements TabelaFiscal {
         // recorte da carga real (27 linhas, uma por UF, sem override de tenant ainda). Precedência
         // dos 4 níveis é testada no TabelaFiscalJdbcTest; aqui é só o suficiente pro oráculo.
         matrizMap.put(chaveMatriz(null, Constants.FISCAL_NCM_NBS_FALLBACK, "SP", "SP"),
-                new RegimeIcms(new BigDecimal("18.00"), BigDecimal.ZERO, true));
+                new RegimeIcms(new BigDecimal("18.00"), BigDecimal.ZERO, true, BigDecimal.ZERO));
+        // Issue #103 (Fase B) — alíquota interna do DESTINO, usada pelo DIFAL. MG/BA sem FCP;
+        // RJ já desmembrado (20 ICMS + 2 FCP) só pra exercitar a separação (números de teste, não
+        // a carga real do Liquibase, que "conferir com o contador" antes de produção).
+        matrizMap.put(chaveMatriz(null, Constants.FISCAL_NCM_NBS_FALLBACK, "MG", "MG"),
+                new RegimeIcms(new BigDecimal("18.00"), BigDecimal.ZERO, true, BigDecimal.ZERO));
+        matrizMap.put(chaveMatriz(null, Constants.FISCAL_NCM_NBS_FALLBACK, "BA", "BA"),
+                new RegimeIcms(new BigDecimal("20.00"), BigDecimal.ZERO, true, BigDecimal.ZERO));
+        matrizMap.put(chaveMatriz(null, Constants.FISCAL_NCM_NBS_FALLBACK, "RJ", "RJ"),
+                new RegimeIcms(new BigDecimal("20.00"), BigDecimal.ZERO, true, new BigDecimal("2.00")));
+
+        // Issue #103 (Fase B) — método de base do DIFAL por UF de destino (fiscal.difal_uf).
+        // Mistura os dois métodos do Convênio 236/2021 só pra exercitar a aritmética dos dois
+        // ramos; não reflete a classificação real de cada UF (fica pro Liquibase real).
+        difalUfMap.put("MG", Constants.FISCAL_DIFAL_METODO_BASE_UNICA);
+        difalUfMap.put("RJ", Constants.FISCAL_DIFAL_METODO_BASE_UNICA);
+        difalUfMap.put("BA", Constants.FISCAL_DIFAL_METODO_BASE_DUPLA);
 
         // 2029 = degrau intermediário da transição (pctRemanescente 90%, fiscal-025) — só pra
         // exercitar o legado (fatia 3c) fora do regime permanente de 2033. Mesmos valores de
@@ -239,6 +256,12 @@ public class TabelaFiscalFake implements TabelaFiscal {
         }
         return Optional.ofNullable(
                 matrizMap.get(chaveMatriz(null, Constants.FISCAL_NCM_NBS_FALLBACK, ufOrigem, ufDestino)));
+    }
+
+    /** Sem versão por data no fake (item 7.8) — só a linha corrente; real é o TabelaFiscalJdbcTest. */
+    @Override
+    public Optional<String> metodoBaseDifal(String ufDestino, LocalDate competencia) {
+        return Optional.ofNullable(difalUfMap.get(ufDestino));
     }
 
     /** Tenant > nacional; real é o SQL/JdbcTest. */

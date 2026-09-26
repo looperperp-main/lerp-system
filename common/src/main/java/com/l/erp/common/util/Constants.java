@@ -502,13 +502,30 @@ public class Constants {
             java.util.Set.of("SP", "RJ", "MG", "PR", "SC", "RS");
     public static final BigDecimal FISCAL_ICMS_INTERESTADUAL_REDUZIDA = new BigDecimal("7");
     public static final BigDecimal FISCAL_ICMS_INTERESTADUAL_GERAL = new BigDecimal("12");
-    // Resolução 13/2012 (4% em bem importado) exige conteúdo de importação e lista CAMEX que o
-    // motor não modela — mesmo padrão de FISCAL_AVISO_ORIGEM_ZFM: avisa e aplica a alíquota
-    // interestadual padrão (reduzida/geral) em vez de travar com 400.
+    // Resolução do Senado 13/2012: 4% em bem importado (issue #103) — antes só avisava e caía na
+    // alíquota padrão; AliquotaInterestadual.de() agora calcula de verdade (ponytail: ignora a
+    // nuance de conteúdo de importação ≤ 40%, origens 3/5/8 da NF-e, que o cadastro não modela).
     public static final String FISCAL_ORIGEM_ESTRANGEIRO = "ESTRANGEIRO";
-    public static final String FISCAL_AVISO_ICMS_INTERESTADUAL_IMPORTADO =
-            "AVISO: origem 'ESTRANGEIRO' em operação interestadual — alíquota de 4% (Resolução 13/2012) "
-                    + "não implementada; aplicada a alíquota interestadual padrão";
+    public static final BigDecimal FISCAL_ICMS_INTERESTADUAL_IMPORTADO = new BigDecimal("4");
+
+    // Fase B (issue #103) — DIFAL/FCP de venda interestadual a consumidor final NÃO CONTRIBUINTE
+    // do ICMS (EC 87/2015 + LC 190/2022 + Convênio ICMS 236/2021). Valores da NF-e (indFinal:
+    // "0"|"1"; indIEDest: "1" contribuinte | "2" contribuinte isento | "9" não contribuinte).
+    public static final String FISCAL_IND_FINAL_CONSUMIDOR_FINAL = "1";
+    public static final String FISCAL_IND_IE_DEST_NAO_CONTRIBUINTE = "9";
+    // Indicadores obrigatórios em TODA saída de produto interestadual — sem eles não dá pra
+    // distinguir "sem DIFAL" de "esqueceram" (combinação que já dava 400 antes do #103, achado 2.2).
+    public static final String FISCAL_DESTINATARIO_INDICADORES_OBRIGATORIOS =
+            "FISCAL_DESTINATARIO_INDICADORES_OBRIGATORIOS";
+    // UF de destino sem linha vigente em fiscal.difal_uf — nunca assume base única calado.
+    public static final String FISCAL_DIFAL_SEM_COBERTURA = "FISCAL_DIFAL_SEM_COBERTURA";
+    // fiscal.difal_uf.metodo_base — os dois métodos de cálculo do Convênio ICMS 236/2021 (§5.4 de
+    // spec/fiscal/pis-cofins-difal-calculo.md).
+    public static final String FISCAL_DIFAL_METODO_BASE_UNICA = "UNICA";
+    public static final String FISCAL_DIFAL_METODO_BASE_DUPLA = "DUPLA";
+    // Partilha 100% para a UF de destino desde 2019 (ADCT art. 99) — constante, não tabela;
+    // valorIcmsUfRemetente sai sempre 0.
+    public static final BigDecimal FISCAL_DIFAL_PARTILHA_DESTINO_INTEGRAL = new BigDecimal("100");
     // PIS/COFINS ainda vigentes (só 2026): por decisão de escopo (item 7.9), o motor nunca calcula
     // o tributo — não é dado faltando. O art. 348 da LC 214/2025 dispensa o recolhimento de
     // IBS/CBS no ano de teste para quem cumprir as obrigações acessórias (§1º) e exige PIS/COFINS
