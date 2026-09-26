@@ -511,7 +511,9 @@ public class Constants {
     // Fase B (issue #103) — DIFAL/FCP de venda interestadual a consumidor final NÃO CONTRIBUINTE
     // do ICMS (EC 87/2015 + LC 190/2022 + Convênio ICMS 236/2021). Valores da NF-e (indFinal:
     // "0"|"1"; indIEDest: "1" contribuinte | "2" contribuinte isento | "9" não contribuinte).
+    public static final String FISCAL_IND_FINAL_NORMAL = "0";
     public static final String FISCAL_IND_FINAL_CONSUMIDOR_FINAL = "1";
+    public static final String FISCAL_IND_IE_DEST_CONTRIBUINTE = "1";
     public static final String FISCAL_IND_IE_DEST_NAO_CONTRIBUINTE = "9";
     // Indicadores obrigatórios em TODA saída de produto interestadual — sem eles não dá pra
     // distinguir "sem DIFAL" de "esqueceram" (combinação que já dava 400 antes do #103, achado 2.2).

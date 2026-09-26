@@ -31,6 +31,12 @@ import java.time.LocalDate;
  * d313921, falta o fio até aqui). ufOrigem (Fase 6, spec/estabelecimentos-filiais.md §6.1) já vem
  * do endereço fiscal do estabelecimento "próprio" do tenant. cClassTrib (Produto) e UF/IBGE de
  * destino (Endereco do cliente) já vêm de dado real desde P1/P2.
+ *
+ * <p>indFinal/indIEDest (issue #103, DIFAL/FCP): o pedido/Cliente ainda não modela se o
+ * destinatário é consumidor final não contribuinte — manda o par fixo "0"/"1" (não é consumidor
+ * final / contribuinte), que preserva o comportamento de antes do #103 (só ICMS interestadual,
+ * sem DIFAL) sem travar com o 400 novo de indicador obrigatório. Upgrade: subir dado real do
+ * cliente quando o cadastro de Cliente ganhar esse campo.
  */
 @Component
 public class FiscalServiceClient {
@@ -63,7 +69,9 @@ public class FiscalServiceClient {
                 Constants.REGIME_LUCRO_PRESUMIDO,
                 servico ? "NFSe" : "NFe",
                 uf,
-                ufOrigem);
+                ufOrigem,
+                Constants.FISCAL_IND_FINAL_NORMAL,
+                Constants.FISCAL_IND_IE_DEST_CONTRIBUINTE);
         try {
             OperacaoFiscalResultado resultado = restClient.post()
                     .uri("/fiscal/calcular")
@@ -85,7 +93,7 @@ public class FiscalServiceClient {
                                             String cClassTrib, String ibgeDestino, String ibgeLocalPrestacao,
                                             BigDecimal valorOperacao, LocalDate dataCompetencia,
                                             String regimeEmpresa, String tipoDocumento, String ufDestino,
-                                            String ufOrigem) {
+                                            String ufOrigem, String indFinal, String indIEDest) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
