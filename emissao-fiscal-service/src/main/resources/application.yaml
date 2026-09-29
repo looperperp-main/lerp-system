@@ -42,6 +42,8 @@ emissao:
     cron: ${EMISSAO_ASSINATURA_CRON:*/10 * * * * *}
   transmissao:
     cron: ${EMISSAO_TRANSMISSAO_CRON:*/10 * * * * *}
+  reconciliacao:
+    cron: ${EMISSAO_RECONCILIACAO_CRON:0 */5 * * * *}
   alerta:
     email-destino: ${EMISSAO_ALERTA_EMAIL:vitorff1234@gmail.com}
 

@@ -471,6 +471,13 @@ public class Constants {
     public static final java.util.Set<String> NFE_CSTAT_AUTORIZADA = java.util.Set.of("100", "150");
     public static final java.util.Set<String> NFE_CSTAT_DENEGADA = java.util.Set.of("110", "301", "302", "303");
 
+    public static final String EMISSAO_METRICA_DOCUMENTOS = "emissao_documentos";
+
+    // Reconciliação: TRANSMITIDO sem desfecho além da janela vai pra ERRO e avisa (spec §3 item 10).
+    public static final long EMISSAO_RECONCILIACAO_JANELA_MINUTOS = 30;
+    public static final String EMISSAO_ERRO_TRANSMITIDO_SEM_DESFECHO =
+            "A SEFAZ não devolveu o resultado do documento no prazo. Confira a situação pela chave de acesso no portal da SEFAZ.";
+
     // NF-e 4.00 — valores fixos do leiaute nesta etapa (spec/modulos/emissao-fiscal/emissao-fiscal.md §5)
     public static final String NFE_VERSAO_LEIAUTE = "4.00";
     public static final String NFE_MODELO_55 = "55";
