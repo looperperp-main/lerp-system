@@ -150,7 +150,16 @@ alinhado com a exigência do §7 de não introduzir lock-in.
    overhead na emissão.
 2. **Assinatura XML** (XMLDSig, padrão SEFAZ/ENCAT) — biblioteca Java
    existente (ex. wrappers de assinatura sobre `javax.xml.crypto`) em vez de
-   implementar canonicalização/assinatura do zero. **Duas validações
+   implementar canonicalização/assinatura do zero. **Algoritmo (29 de
+   setembro de 2026): RSA-SHA1 com digest SHA-1 e canonicalização C14N — é o
+   que a NF-e/NFC-e (layout 4.00) usa, e o `XmlSignatureService` fixa
+   `RSA_SHA1` de propósito. Não trocar por SHA-256 sem confirmar no MOC
+   vigente: a SEFAZ rejeitaria a nota. Fonte consultada era genérica, não o
+   MOC — confirmar na homologação. Ao entrar NFS-e, reconferir o algoritmo
+   (padrão nacional pode diferir).** O JDK recusa SHA-1 na *validação* com
+   `secureValidation` ligada; por isso `XmlSignatureServiceTest` desliga essa
+   propriedade só no contexto de validação do teste (em produção só se
+   assina, quem valida é a SEFAZ). **Duas validações
    síncronas decididas nesta revisão (22/09/2026), antes de assinar/
    transmitir, para não gastar número nem depender da SEFAZ pra descobrir
    erro local:**
