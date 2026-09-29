@@ -38,6 +38,8 @@ emissao:
     cron-alerta-vencimento: ${EMISSAO_CERT_ALERTA_CRON:0 0 6 * * *}
   outbox:
     cron-publicacao: ${EMISSAO_OUTBOX_CRON:0 * * * * *}
+  assinatura:
+    cron: ${EMISSAO_ASSINATURA_CRON:*/10 * * * * *}
 
 internal:
   gateway:

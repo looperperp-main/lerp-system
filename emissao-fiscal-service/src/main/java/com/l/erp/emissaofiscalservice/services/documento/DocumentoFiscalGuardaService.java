@@ -30,6 +30,8 @@ import java.util.Set;
 public class DocumentoFiscalGuardaService {
 
     private static final Set<String> CST_ICMS_COM_ST = Set.of("10", "30", "70");
+    /** CSTs que o {@code NfeXmlBuilder} sabe montar: ICMS00, ICMS20 e ICMS40 (40/41/50). */
+    private static final Set<String> CST_ICMS_SUPORTADOS = Set.of("00", "20", "40", "41", "50");
 
     private final CertificadoDigitalRepository certificadoDigitalRepository;
 
@@ -117,6 +119,50 @@ public class DocumentoFiscalGuardaService {
         }
         if (positivo(fiscal.valorIcmsUfDestino())) {
             bloquear(numeroItem, Constants.EMISSAO_TRIBUTO_DIFAL);
+        }
+        validarCamposEmitiveis(numeroItem, fiscal);
+    }
+
+    /**
+     * O que o {@code NfeXmlBuilder} precisa para montar o item sem inventar valor: CST de ICMS suportado
+     * com seus campos, base/alíquota de PIS/COFINS (quando há incidência) e o grupo IBS/CBS completo.
+     * Redução de alíquota de IBS/CBS (gRed) ainda não é emitida — bloqueia em vez de omitir.
+     */
+    private void validarCamposEmitiveis(int numeroItem, SnapshotFiscalItemDTO fiscal) {
+        String cstIcms = fiscal.cstIcms();
+        if (!CST_ICMS_SUPORTADOS.contains(cstIcms)) {
+            throw new BusinessException(
+                    Constants.EMISSAO_ERRO_CST_ICMS_NAO_SUPORTADO.formatted(numeroItem, cstIcms),
+                    HttpStatus.UNPROCESSABLE_ENTITY);
+        }
+        boolean tributado = "00".equals(cstIcms) || "20".equals(cstIcms);
+        if (tributado && (fiscal.baseCalculoIcms() == null || fiscal.percentualIcms() == null
+                || fiscal.valorIcms() == null
+                || ("20".equals(cstIcms) && fiscal.percentualReducaoBaseIcms() == null))) {
+            throw new BusinessException(
+                    Constants.EMISSAO_ERRO_ICMS_CAMPO_AUSENTE.formatted(numeroItem, cstIcms), HttpStatus.BAD_REQUEST);
+        }
+        exigirBaseEAliquota(numeroItem, fiscal.cstPis(), fiscal.baseCalculoPis(), fiscal.percentualPis());
+        exigirBaseEAliquota(numeroItem, fiscal.cstCofins(), fiscal.baseCalculoCofins(), fiscal.percentualCofins());
+        if (fiscal.baseCalculoIbsCbs() == null || fiscal.percentualIbsUf() == null
+                || fiscal.percentualIbsMunicipal() == null || fiscal.percentualCbs() == null
+                || fiscal.valorIbsEstadual() == null || fiscal.valorIbsMunicipal() == null
+                || fiscal.valorCbs() == null) {
+            throw new BusinessException(Constants.EMISSAO_ERRO_IBS_CBS_AUSENTE.formatted(numeroItem), HttpStatus.BAD_REQUEST);
+        }
+        if (positivo(fiscal.percentualReducaoAplicado())) {
+            throw new BusinessException(
+                    Constants.EMISSAO_ERRO_REDUCAO_IBS_CBS_NAO_SUPORTADA.formatted(numeroItem),
+                    HttpStatus.UNPROCESSABLE_ENTITY);
+        }
+    }
+
+    /** CST 04 a 09 (sem incidência) dispensa base e alíquota; qualquer outro exige. */
+    private void exigirBaseEAliquota(int numeroItem, String cst, BigDecimal base, BigDecimal aliquota) {
+        boolean semIncidencia = cst.compareTo("04") >= 0 && cst.compareTo("09") <= 0;
+        if (!semIncidencia && (base == null || aliquota == null)) {
+            throw new BusinessException(
+                    Constants.EMISSAO_ERRO_PIS_COFINS_BASE_AUSENTE.formatted(numeroItem, cst), HttpStatus.BAD_REQUEST);
         }
     }
 

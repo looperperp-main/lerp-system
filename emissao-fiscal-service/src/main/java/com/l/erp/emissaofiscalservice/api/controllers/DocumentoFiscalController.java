@@ -6,6 +6,7 @@ import com.l.erp.emissaofiscalservice.api.dto.DocumentoFiscalResponseDTO;
 import com.l.erp.emissaofiscalservice.services.documento.DocumentoFiscalService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,7 +33,7 @@ public class DocumentoFiscalController {
      * {@code Idempotency-Key} é obrigatório e validado manualmente (não via {@code required=true} do
      * Spring) para devolver 400 em PT-BR consistente com o GlobalExceptionHandler.
      */
-    @PostMapping("/emissao/documentos")
+    @PostMapping(value = "/emissao/documentos", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<DocumentoFiscalResponseDTO> criar(@RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
                                                               @Valid @RequestBody DocumentoFiscalRequestDTO request) {
         if (idempotencyKey == null || idempotencyKey.isBlank()) {
@@ -42,7 +43,7 @@ public class DocumentoFiscalController {
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(DocumentoFiscalResponseDTO.from(documento));
     }
 
-    @GetMapping("/emissao/documentos/{id}")
+    @GetMapping(value = "/emissao/documentos/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public DocumentoFiscalResponseDTO buscar(@PathVariable UUID id) {
         return DocumentoFiscalResponseDTO.from(service.buscar(id));
     }

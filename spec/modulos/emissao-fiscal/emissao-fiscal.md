@@ -791,7 +791,17 @@ certificado do usuário final no `KeyInfo`. **Decisões desta etapa:**
   Para CRT 3, o grupo `IBSCBS` é obrigatório em homologação desde 01/07/2026.
 - **Emitente sem IE (contribuinte exclusivo de IBS/CBS, NT 2026.007) fica fora**
   desta etapa — 422 na guarda; exigiria SVRS obrigatória e ICMS proibido.
-- **Só NF-e (modelo 55).** Qualquer outro `documento` recebe 422.
+- **Só NF-e (modelo 55) por ora.** Qualquer outro `documento` recebe 422.
+  **Revisão (30 de setembro de 2026):** NFC-e e CT-e **estão no escopo**; a NFC-e
+  entra atrás da flag **global** `emissao.nfce.habilitado` (default `false`,
+  nunca por tenant até existir a parte de customizações). A Etapa 6 do §5 continua
+  valendo — a flag só deixa de ser ligada antes de QR Code/CSC estarem prontos.
+- **Modelo XML: Jackson XML escrito à mão**, não JAXB nem StAX (decisão de 30/09/2026).
+  Motivo: JAXB gera código só no `target` (não revisável em PR nem visível no diff
+  quando uma NT muda o schema); StAX+XPath viraria "frankenstein" na leitura dos
+  retornos (manifestação, distribuição). Um mecanismo para escrever e ler. O XSD
+  (`javax.xml.validation`) continua sendo a rede de segurança contra ordem/facet
+  errados. Custo assumido: cada NT que alterar campo exige editar os records.
 - **Guarda ativa (§3 item 9):** PIS/COFINS ausente → 400; ICMS-ST (CST 10/30/70
   ou valor), IPI, FCP, DIFAL informados → 422; venda interestadual a consumidor
   final não contribuinte → 422. O motor fiscal não calcula IPI, então a guarda
@@ -807,8 +817,19 @@ certificado do usuário final no `KeyInfo`. **Decisões desta etapa:**
   DANFE Simplificado Tipo 2 (NT 2026.002/2026.003 — Etapa 3), PAA (NT 2026.001).
 - **Status Fatia 1:** contrato tipado (`emitente`, `destinatario`, `itens[]` com
   snapshot fiscal por item), `POST` responde 202, `GET /emissao/documentos/{id}`,
-  guardas e `DocumentoFiscalGuardaServiceTest` escritos — **não testados** (build
-  não rodado). Assinatura, XML e SOAP: Fatias 2-4.
+  guardas e `DocumentoFiscalGuardaServiceTest` — ✅ verdes (30/09/2026).
+- **Status Fatia 2 (30/09/2026): ✅ verde (36 testes).** `ChaveAcesso` (DV módulo 11
+  com CNPJ alfanumérico, vetor da NT Conjunta 2025.001), `NfeXml` (modelo Jackson),
+  `NfeXmlBuilder`; o XML **assinado** valida contra o XSD do PL 010f para ICMS
+  00/20/40, PIS/COFINS e IBS/CBS (`IBSCBS` + `IBSCBSTot`). A guarda também recusa
+  o que o builder não monta (CST de ICMS fora de 00/20/40/41/50, base/alíquota
+  ausentes, IBS/CBS ausente, redução de alíquota de IBS/CBS). **Ainda não
+  confirmados contra a SEFAZ:** os textos de homologação do `xNome` do
+  destinatário e do `xProd` do 1º item (`Constants.NFE_TEXTO_HOMOLOGACAO_*`),
+  `tpImp=1`, `tPag=90`/`vPag=0.00` e `modFrete=9` fixos. Limitações: `dhEmi` sem
+  fuso por UF (usa o offset informado), pagamento sempre "sem pagamento",
+  sem `infRespTec` (só SC exige), sem `gRed`/diferimento no IBS/CBS.
+  Assinatura persistida, SOAP e estados: Fatias 3-5.
 
 Mudanças em relação à primeira versão deste doc, motivadas pela revisão:
 - **Etapa 0 nova** — sem os campos por item, a Etapa 2 trava no primeiro XML.

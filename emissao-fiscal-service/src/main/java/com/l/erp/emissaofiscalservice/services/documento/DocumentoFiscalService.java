@@ -131,6 +131,16 @@ public class DocumentoFiscalService {
         DocumentoFiscal documento = documentoFiscalRepository.findByIdAndTenantId(documentoId, tenantId)
                 .orElseThrow(() -> new BusinessException("Documento fiscal não encontrado.", HttpStatus.NOT_FOUND));
 
+        return aplicarTransicao(documento, novoStatus);
+    }
+
+    /**
+     * Transição chamada pelos jobs assíncronos, que já têm o documento carregado e rodam sem
+     * requisição (sem tenant de header). Mesma máquina de estados e mesmo evento de outbox do
+     * {@link #transicionar}; escreve na transação do chamador, que precisa ser a mesma que gravou o
+     * que motivou a transição (spec §3 item 10, atomicidade estado + outbox).
+     */
+    public DocumentoFiscal aplicarTransicao(DocumentoFiscal documento, StatusDocumentoFiscal novoStatus) {
         if (!documento.getStatus().podeTransicionarPara(novoStatus)) {
             throw new BusinessException(
                     "Transição de " + documento.getStatus() + " para " + novoStatus + " não é permitida.",

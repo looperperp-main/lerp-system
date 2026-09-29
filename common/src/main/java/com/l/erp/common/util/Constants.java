@@ -426,6 +426,31 @@ public class Constants {
     public static final String EMISSAO_ERRO_CERTIFICADO_CNPJ_DIVERGENTE =
             "O CNPJ do certificado digital (%s) não confere com o CNPJ do emitente informado.";
     public static final String EMISSAO_ERRO_DOCUMENTO_NAO_ENCONTRADO = "Documento fiscal não encontrado.";
+    public static final String EMISSAO_ERRO_CST_ICMS_NAO_SUPORTADO =
+            "Item %d: CST de ICMS '%s' ainda não é suportado na emissão. Suportados: 00, 20, 40, 41 e 50.";
+    public static final String EMISSAO_ERRO_ICMS_CAMPO_AUSENTE =
+            "Item %d: o CST de ICMS %s exige base de cálculo, alíquota e valor do ICMS no snapshot fiscal"
+                    + " (e percentual de redução da base no CST 20).";
+    public static final String EMISSAO_ERRO_PIS_COFINS_BASE_AUSENTE =
+            "Item %d: PIS/COFINS com CST %s exige base de cálculo e alíquota no snapshot fiscal.";
+    public static final String EMISSAO_ERRO_IBS_CBS_AUSENTE =
+            "Item %d: IBS/CBS é obrigatório para emitente em Regime Normal e faltam campos no snapshot fiscal "
+                    + "(base de cálculo, alíquotas e valores de IBS UF/município e CBS).";
+    public static final String EMISSAO_ERRO_REDUCAO_IBS_CBS_NAO_SUPORTADA =
+            "Item %d: redução de alíquota de IBS/CBS ainda não é suportada na emissão.";
+
+    // NF-e 4.00 — valores fixos do leiaute nesta etapa (spec/modulos/emissao-fiscal/emissao-fiscal.md §5)
+    public static final String NFE_VERSAO_LEIAUTE = "4.00";
+    public static final String NFE_MODELO_55 = "55";
+    public static final String NFE_VER_PROC = "erp-vsd-emissao-1.0";
+    public static final String NFE_SEM_GTIN = "SEM GTIN";
+    public static final String NFE_MOD_BC_VALOR_OPERACAO = "3";
+    public static final String NFE_PAGAMENTO_SEM_PAGAMENTO = "90";
+    public static final String NFE_FRETE_SEM_OCORRENCIA = "9";
+    // Ambiente de homologação: textos exigidos pela SEFAZ no xNome do destinatário (máx. 60) e no xProd do
+    // 1º item (máx. 120). NÃO confirmados no Anexo I — se a SEFAZ rejeitar em homologação, o xMotivo indica a regra.
+    public static final String NFE_TEXTO_HOMOLOGACAO_DESTINATARIO = "NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL";
+    public static final String NFE_TEXTO_HOMOLOGACAO_PRODUTO = "NOTA FISCAL EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL";
 
     // Regime tributário do emitente (motor fiscal — Fin.md §1.4)
     public static final String REGIME_MEI = "MEI";

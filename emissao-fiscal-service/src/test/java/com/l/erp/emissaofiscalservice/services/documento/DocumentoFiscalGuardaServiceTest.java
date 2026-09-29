@@ -149,6 +149,44 @@ class DocumentoFiscalGuardaServiceTest {
         assertStatus(HttpStatus.BAD_REQUEST, valido());
     }
 
+    @Test
+    void rejeitaCstIcmsQueOBuilderNaoMonta() {
+        assertStatus(HttpStatus.UNPROCESSABLE_ENTITY,
+                comFiscal(fiscalCom("60", CEM, new BigDecimal("18"), null, CEM, null, CEM)));
+    }
+
+    @Test
+    void aceitaIcmsIsentoSemBaseNemAliquota() {
+        assertDoesNotThrow(() -> guarda.validar(TENANT_ID,
+                comFiscal(fiscalCom("40", null, null, null, CEM, null, CEM))));
+    }
+
+    @Test
+    void rejeitaIcms00SemBaseDeCalculo() {
+        assertStatus(HttpStatus.BAD_REQUEST, comFiscal(fiscalCom("00", null, new BigDecimal("18"), null, CEM, null, CEM)));
+    }
+
+    @Test
+    void rejeitaIcms20SemPercentualDeReducaoDaBase() {
+        assertStatus(HttpStatus.BAD_REQUEST, comFiscal(fiscalCom("20", CEM, new BigDecimal("18"), null, CEM, null, CEM)));
+    }
+
+    @Test
+    void rejeitaPisComIncidenciaSemBaseDeCalculo() {
+        assertStatus(HttpStatus.BAD_REQUEST, comFiscal(fiscalCom("00", CEM, new BigDecimal("18"), null, CEM, null, null)));
+    }
+
+    @Test
+    void rejeitaItemSemIbsCbs() {
+        assertStatus(HttpStatus.BAD_REQUEST, comFiscal(fiscalCom("00", CEM, new BigDecimal("18"), null, null, null, CEM)));
+    }
+
+    @Test
+    void rejeitaReducaoDeAliquotaDeIbsCbs() {
+        assertStatus(HttpStatus.UNPROCESSABLE_ENTITY,
+                comFiscal(fiscalCom("00", CEM, new BigDecimal("18"), null, CEM, new BigDecimal("60"), CEM)));
+    }
+
     // ---- helpers ----
 
     private void assertStatus(HttpStatus esperado, DocumentoFiscalRequestDTO request) {
@@ -190,12 +228,29 @@ class DocumentoFiscalGuardaServiceTest {
     /** {@code cstPisCofins} nulo = item sem PIS/COFINS. */
     private static SnapshotFiscalItemDTO fiscal(String cstIcms, BigDecimal ipi, BigDecimal fcp, BigDecimal difal,
                                                 String cstPisCofins) {
-        BigDecimal valorPisCofins = cstPisCofins == null ? null : BigDecimal.ONE;
+        boolean comPisCofins = cstPisCofins != null;
         return new SnapshotFiscalItemDTO("5102", cstIcms, "000", "000001",
-                null, null, null, null, null, null, null, null, null, null, null, null, null,
-                cstPisCofins, null, null, valorPisCofins,
-                cstPisCofins, null, null, valorPisCofins,
+                CEM, new BigDecimal("18.00"), new BigDecimal("18.00"), null, null,
+                CEM, new BigDecimal("0.10"), new BigDecimal("0.05"), new BigDecimal("0.90"), null,
+                new BigDecimal("0.10"), new BigDecimal("0.05"), new BigDecimal("0.90"),
+                cstPisCofins, comPisCofins ? CEM : null, comPisCofins ? new BigDecimal("1.65") : null,
+                comPisCofins ? new BigDecimal("1.65") : null,
+                cstPisCofins, comPisCofins ? CEM : null, comPisCofins ? new BigDecimal("7.60") : null,
+                comPisCofins ? new BigDecimal("7.60") : null,
                 null, ipi, null, fcp, difal, null);
+    }
+
+    /** Variante do item válido com campos trocados — para os casos de campo faltando/não suportado. */
+    private static SnapshotFiscalItemDTO fiscalCom(String cstIcms, BigDecimal baseIcms, BigDecimal percentualIcms,
+                                                   BigDecimal reducaoBaseIcms, BigDecimal baseIbs,
+                                                   BigDecimal reducaoIbsCbs, BigDecimal basePis) {
+        return new SnapshotFiscalItemDTO("5102", cstIcms, "000", "000001",
+                baseIcms, percentualIcms, new BigDecimal("18.00"), reducaoBaseIcms, null,
+                baseIbs, new BigDecimal("0.10"), new BigDecimal("0.05"), new BigDecimal("0.90"), reducaoIbsCbs,
+                new BigDecimal("0.10"), new BigDecimal("0.05"), new BigDecimal("0.90"),
+                "01", basePis, new BigDecimal("1.65"), new BigDecimal("1.65"),
+                "01", CEM, new BigDecimal("7.60"), new BigDecimal("7.60"),
+                null, null, null, null, null, null);
     }
 
     private static DocumentoFiscalRequestDTO valido() {
