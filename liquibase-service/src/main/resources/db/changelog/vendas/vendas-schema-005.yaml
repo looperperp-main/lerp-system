@@ -1,0 +1,20 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # cfop no snapshot fiscal — CFOP efetivamente usado no cálculo (declarado ou resolvido por
+  # naturezaOperacao + UF no fiscal-service), agora devolvido em OperacaoFiscalDTO. Changeset novo
+  # porque vendas-007-create-pedido-item-fiscal-snapshot já foi aplicado e não pode ser alterado.
+  # Coluna nullable: snapshots gravados antes desta mudança não têm o dado.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: vendas-008-add-cfop-pedido-item-fiscal-snapshot
+      author: vitor-fernandes
+      changes:
+        - addColumn:
+            schemaName: vendas
+            tableName: pedido_item_fiscal_snapshot
+            columns:
+              - column:
+                  name: cfop
+                  type: varchar(4)
+                  remarks: 'CFOP usado no cálculo fiscal do item (declarado ou resolvido via fiscal.cfop_regra)'

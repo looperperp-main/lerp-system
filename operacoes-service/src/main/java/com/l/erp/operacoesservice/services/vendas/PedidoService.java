@@ -441,6 +441,7 @@ public class PedidoService {
                 .percentualIbsMunicipal(r.percentualIbsMunicipal())
                 .percentualCbs(r.percentualCbs())
                 .percentualReducaoAplicado(r.percentualReducaoAplicado())
+                .cfop(r.cfop())
                 .cst(r.cst())
                 .cstIcms(r.cstIcms())
                 .csosn(r.csosn())

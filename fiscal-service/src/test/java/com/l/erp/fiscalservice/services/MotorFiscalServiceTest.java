@@ -267,6 +267,7 @@ class MotorFiscalServiceTest {
         assertValor("0", r.getValorIbs());
         assertValor("0", r.getValorCbs());
         assertValor("10000", r.getBaseCalculo());
+        assertEquals("5101", r.getCfop()); // caminho zerado() também devolve o CFOP declarado
     }
 
     @Test
@@ -527,6 +528,7 @@ class MotorFiscalServiceTest {
         assertValor("1850.00", r.getValorCreditoIbs());
         assertValor("850.00", r.getValorCreditoCbs());
         assertEquals("PADRAO", r.getRegimeAplicado());
+        assertEquals("1102", r.getCfop()); // CFOP de entrada declarado sai no resultado
         // entrada não é tributo devido: campos de saída não se aplicam
         assertNull(r.getValorIbs());
         assertNull(r.getValorCbs());
@@ -671,6 +673,7 @@ class MotorFiscalServiceTest {
                 .valorOperacao(new BigDecimal("10000")).dataCompetencia(COMP)
                 .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null);
         assertTrue(r.getMemoriaCalculo().stream().anyMatch(l -> l.contains("CFOP resolvido: 5102")));
+        assertEquals("5102", r.getCfop());
     }
 
     @Test
@@ -681,6 +684,7 @@ class MotorFiscalServiceTest {
                 .valorOperacao(new BigDecimal("10000")).dataCompetencia(COMP)
                 .regimeEmpresa(Constants.REGIME_LUCRO_REAL).build(), null);
         assertTrue(r.getMemoriaCalculo().stream().anyMatch(l -> l.contains("CFOP resolvido: 6102")));
+        assertEquals("6102", r.getCfop());
     }
 
     @Test

@@ -55,6 +55,13 @@ public class MotorFiscalService {
      *                 o split payment por tenant — não influencia o cálculo dos tributos.
      */
     public OperacaoFiscalDTO calcular(MotorFiscalRequest req, String tenantId) {
+        OperacaoFiscalDTO resultado = calcularInterno(req, tenantId);
+        // Todo return de calcularInterno vem depois do PASSO 0, que já deixou o CFOP resolvido/
+        // declarado em req — um único ponto de preenchimento em vez de .cfop(...) por caminho.
+        return resultado.toBuilder().cfop(req.getCfop()).build();
+    }
+
+    private OperacaoFiscalDTO calcularInterno(MotorFiscalRequest req, String tenantId) {
         List<String> memoria = new ArrayList<>();
         boolean splitLigado = splitProps.habilitadoPara(tenantId);
 

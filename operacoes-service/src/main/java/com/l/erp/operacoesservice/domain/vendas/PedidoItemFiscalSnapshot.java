@@ -33,10 +33,8 @@ import java.util.UUID;
  * manual da tela fiscal do emissao-fiscal-service (ainda não implementada; fora do escopo desta
  * mudança, que só grava a versão 1 no faturamento).
  *
- * <p>ponytail: {@code cfop} resolvido não está aqui porque o fiscal-service não o devolve em
- * {@code OperacaoFiscalDTO} hoje (só existe na mutação interna de {@code MotorFiscalRequest}) —
- * upgrade quando isso virar campo de resposta. {@code memoriaCalculo} (lista de strings) também
- * fica de fora: é memória de auditoria do cálculo, não dado que o XML da NF-e consome.
+ * <p>ponytail: {@code memoriaCalculo} (lista de strings) fica de fora: é memória de auditoria do
+ * cálculo, não dado que o XML da NF-e consome.
  */
 @Getter
 @Setter
@@ -129,6 +127,9 @@ public class PedidoItemFiscalSnapshot extends BaseTenantEntity {
 
     @Column(name = "percentual_reducao_aplicado", precision = 7, scale = 4)
     private BigDecimal percentualReducaoAplicado;
+
+    @Column(name = "cfop", length = 4)
+    private String cfop;
 
     @Column(name = "cst", length = 3)
     private String cst;

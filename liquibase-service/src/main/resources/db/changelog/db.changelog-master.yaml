@@ -293,6 +293,9 @@ databaseChangeLog:
   - include:
       file: vendas/vendas-schema-004.yaml
       relativeToChangelogFile: true
+  - include:
+      file: vendas/vendas-schema-005.yaml
+      relativeToChangelogFile: true
 
   # 8. Schema de Estoque — saldo e movimento (operacoes-service)
   - include:

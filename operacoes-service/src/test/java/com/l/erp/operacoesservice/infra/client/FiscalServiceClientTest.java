@@ -34,6 +34,7 @@ class FiscalServiceClientTest {
                   "valorCbs": 5.00,
                   "valorIcms": 12.34,
                   "regimeAplicado": "PADRAO",
+                  "cfop": "6102",
                   "cstIcms": "00",
                   "percentualFcp": 2.0000,
                   "valorFcp": 3.45,
@@ -58,6 +59,7 @@ class FiscalServiceClientTest {
 
         assertThat(resultado.valorIcms()).isEqualByComparingTo("12.34");
         assertThat(resultado.regimeAplicado()).isEqualTo("PADRAO");
+        assertThat(resultado.cfop()).isEqualTo("6102");
         assertThat(resultado.cstIcms()).isEqualTo("00");
         assertThat(resultado.percentualFcp()).isEqualByComparingTo("2.0000");
         assertThat(resultado.valorFcp()).isEqualByComparingTo("3.45");

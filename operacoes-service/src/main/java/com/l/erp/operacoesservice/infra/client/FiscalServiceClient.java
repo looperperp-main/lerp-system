@@ -105,7 +105,7 @@ public class FiscalServiceClient {
      * auditoria, não consumida pelo snapshot).
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    private record OperacaoFiscalResultado(BigDecimal baseCalculo, BigDecimal valorIs, BigDecimal valorIbsEstadual,
+    private record OperacaoFiscalResultado(String cfop, BigDecimal baseCalculo, BigDecimal valorIs, BigDecimal valorIbsEstadual,
                                             BigDecimal valorIbsMunicipal, BigDecimal valorIbs, BigDecimal valorCbs,
                                             BigDecimal valorSplitIbs, BigDecimal valorSplitCbs, BigDecimal valorIcms,
                                             BigDecimal valorIss, BigDecimal valorIssRetido, BigDecimal valorIrrf,
@@ -124,7 +124,7 @@ public class FiscalServiceClient {
     }
 
     @Builder
-    public record ResultadoFiscalItem(BigDecimal baseCalculo, BigDecimal valorIs, BigDecimal valorIbsEstadual,
+    public record ResultadoFiscalItem(String cfop, BigDecimal baseCalculo,BigDecimal valorIs, BigDecimal valorIbsEstadual,
                                        BigDecimal valorIbsMunicipal, BigDecimal valorIbs, BigDecimal valorCbs,
                                        BigDecimal valorSplitIbs, BigDecimal valorSplitCbs, BigDecimal valorIcms,
                                        BigDecimal valorIss, BigDecimal valorIssRetido, BigDecimal valorIrrf,
@@ -169,7 +169,7 @@ public class FiscalServiceClient {
                 return ResultadoFiscalItem.builder().build();
             }
             return ResultadoFiscalItem.builder()
-                    .baseCalculo(r.baseCalculo()).valorIs(r.valorIs()).valorIbsEstadual(r.valorIbsEstadual())
+                    .cfop(r.cfop()).baseCalculo(r.baseCalculo()).valorIs(r.valorIs()).valorIbsEstadual(r.valorIbsEstadual())
                     .valorIbsMunicipal(r.valorIbsMunicipal()).valorIbs(r.valorIbs()).valorCbs(r.valorCbs())
                     .valorSplitIbs(r.valorSplitIbs()).valorSplitCbs(r.valorSplitCbs()).valorIcms(r.valorIcms())
                     .valorIss(r.valorIss()).valorIssRetido(r.valorIssRetido()).valorIrrf(r.valorIrrf())

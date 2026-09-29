@@ -1,6 +1,6 @@
 # Emissão Fiscal — NF-e, CT-e, NFS-e, NFCom, NF3e (plano)
 
-> Última atualização: 22 de setembro de 2026
+> Última atualização: 29 de setembro de 2026
 
 Escrito para ser lido do zero. Nada aqui foi implementado — é planejamento.
 
@@ -416,7 +416,12 @@ alinhado com a exigência do §7 de não introduzir lock-in.
       faturado, mesmo que o `fiscal-service` mude tabela de vigência depois;
       (2) o `emissao-fiscal-service` precisa ser vendável como produto
       separado (§2) — não pode depender de `fiscal-service`/`cadastro-service`
-      pra montar o XML. Plano (nada implementado ainda):
+      pra montar o XML. **Status (29 de setembro de 2026): implementado e
+      testado (mvn + Liquibase `vendas-007`/`vendas-008`) — tabela,
+      `FiscalServiceClient` sem truncar e `cfop` resolvido no snapshot.
+      Ainda não implementados: `versao`/`motivo_correcao` como fluxo de
+      correção (colunas prontas, ação manual não) e o `POST
+      /emissao/documentos` lendo o snapshot (Etapa 2).** Plano:
       - **Nova tabela `vendas.pedido_item_fiscal_snapshot`** (1:1 com
         `pedido_item`, novo changelog `vendas-schema-004.yaml`), escrita uma
         única vez dentro da mesma transação de `PedidoService.faturar()` que
@@ -1267,8 +1272,9 @@ como registro do que foi pedido/entregue.
   original dizia que isso ficava em aberto — já está decidido (§3, item 11,
   opção b): o `@JsonIgnoreProperties(ignoreUnknown = true)` do
   `OperacaoFiscalResultado` local **vai parar de descartar** CST/CFOP
-  resolvidos, é parte do plano do snapshot fiscal (ainda não implementado,
-  só decidido).
+  resolvidos, é parte do plano do snapshot fiscal (**implementado e testado
+  em 29 de setembro de 2026**, incluindo o `cfop` resolvido — coluna
+  `cfop` no changeset `vendas-008`, nullable para snapshots anteriores).
 - **Testes**: `TabelaFiscalJdbcTest` (SQL real, H2) e
   `MotorFiscalServiceTest` (oráculo com `TabelaFiscalFake`) ganharam casos
   novos para os dois métodos de resolução, incluindo os 3 erros de validação

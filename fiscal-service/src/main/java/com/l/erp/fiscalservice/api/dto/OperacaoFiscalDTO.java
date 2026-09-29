@@ -15,9 +15,13 @@ import java.util.List;
  * {@code null} e não saem no JSON — o documento fiscal não carrega esses campos.
  */
 @Getter
-@Builder
+@Builder(toBuilder = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class OperacaoFiscalDTO {
+
+    // CFOP efetivamente usado no cálculo: o declarado pelo chamador ou o resolvido por
+    // naturezaOperacao + UF (fiscal.cfop_regra). Presente em todos os caminhos de retorno.
+    private String cfop;
 
     private BigDecimal baseCalculo;
     private BigDecimal valorIs;
