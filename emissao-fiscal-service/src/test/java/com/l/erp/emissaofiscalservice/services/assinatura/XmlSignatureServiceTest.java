@@ -50,6 +50,8 @@ class XmlSignatureServiceTest {
         Element elementoAssinado = XmlSignatureService.buscarElementoPorId(assinado, "doc123");
         DOMValidateContext contextoValidacao = new DOMValidateContext(certificado.getPublicKey(), signatureNodes.item(0));
         contextoValidacao.setIdAttributeNS(elementoAssinado, null, "Id");
+        // NF-e 4.00 exige RSA-SHA1; o JDK recusa SHA-1 com secureValidation ligada (só afeta a validação do teste)
+        contextoValidacao.setProperty("org.jcp.xml.dsig.secureValidation", Boolean.FALSE);
 
         XMLSignature signature = XMLSignatureFactory.getInstance("DOM").unmarshalXMLSignature(contextoValidacao);
         assertTrue(signature.validate(contextoValidacao), "assinatura deveria validar contra a chave pública do certificado");
