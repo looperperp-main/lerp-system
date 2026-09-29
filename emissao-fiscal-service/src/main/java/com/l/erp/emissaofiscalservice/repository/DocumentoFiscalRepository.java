@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.jpa.repository.QueryHints;
 import org.springframework.data.repository.query.Param;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -23,8 +24,10 @@ public interface DocumentoFiscalRepository extends JpaRepository<DocumentoFiscal
      * Ids dos documentos num estado, do mais antigo pro mais novo — usado pelos jobs assíncronos, que
      * rodam sem requisição (sem tenant no contexto, então o filtro não liga) e varrem todos os tenants.
      */
-    @Query("select d.id from DocumentoFiscal d where d.status = :status order by d.createdAt asc")
-    List<UUID> buscarIdsPorStatus(@Param("status") StatusDocumentoFiscal status, Pageable pageable);
+    @Query("select d.id from DocumentoFiscal d where d.status = :status "
+            + "and (d.proximaTentativaEm is null or d.proximaTentativaEm <= :agora) order by d.createdAt asc")
+    List<UUID> buscarIdsProntosPorStatus(@Param("status") StatusDocumentoFiscal status,
+                                         @Param("agora") OffsetDateTime agora, Pageable pageable);
 
     /**
      * Trava o documento para processar ({@code FOR UPDATE SKIP LOCKED}, hint {@code -2} do Hibernate):

@@ -14,6 +14,9 @@ class StatusDocumentoFiscalTest {
     @CsvSource({
             "RASCUNHO, ASSINADO, true",
             "RASCUNHO, INUTILIZADO, true",
+            "RASCUNHO, ERRO, true",
+            "ASSINADO, ERRO, false",
+            "ERRO, RASCUNHO, false",
             "RASCUNHO, AUTORIZADO, false",
             "ASSINADO, TRANSMITIDO, true",
             "ASSINADO, RASCUNHO, false",

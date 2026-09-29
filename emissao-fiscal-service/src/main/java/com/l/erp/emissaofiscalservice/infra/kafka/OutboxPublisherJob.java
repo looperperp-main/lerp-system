@@ -44,7 +44,10 @@ public class OutboxPublisherJob {
 
         for (OutboxEvento evento : pendentes) {
             try {
-                kafkaTemplate.send(Constants.EMISSAO_DOCUMENTO_EVENTO_TOPIC, evento.getDocumentoId().toString(), evento.getPayload());
+                String topico = Constants.EMISSAO_EVENTO_ALERTA_OPERACIONAL.equals(evento.getTipoEvento())
+                        ? Constants.EMISSAO_ALERTA_OPERACIONAL_TOPIC
+                        : Constants.EMISSAO_DOCUMENTO_EVENTO_TOPIC;
+                kafkaTemplate.send(topico, evento.getDocumentoId().toString(), evento.getPayload());
                 evento.setPublicadoEm(OffsetDateTime.now());
                 repository.save(evento);
             } catch (Exception e) {

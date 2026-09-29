@@ -5,13 +5,15 @@ import com.l.erp.emissaofiscalservice.domain.StatusDocumentoFiscal;
 
 import java.util.UUID;
 
+/** {@code mensagem} traz o motivo da falha quando o documento está em {@code ERRO}; nulo nos demais casos. */
 public record DocumentoFiscalResponseDTO(
         UUID id,
         String documento,
         String serie,
         long numero,
         StatusDocumentoFiscal status,
-        String chaveAcesso
+        String chaveAcesso,
+        String mensagem
 ) {
     public static DocumentoFiscalResponseDTO from(DocumentoFiscal entidade) {
         return new DocumentoFiscalResponseDTO(
@@ -20,6 +22,7 @@ public record DocumentoFiscalResponseDTO(
                 entidade.getSerie(),
                 entidade.getNumero(),
                 entidade.getStatus(),
-                entidade.getChaveAcesso());
+                entidade.getChaveAcesso(),
+                entidade.getUltimoErro());
     }
 }

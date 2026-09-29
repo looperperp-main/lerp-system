@@ -305,6 +305,53 @@ alinhado com a exigência do §7 de não introduzir lock-in.
         documento já assinado em modo normal, a assinatura anterior fica
         inválida — precisa **reassinar** com o `tpEmis` de contingência, não
         só retransmitir o mesmo XML.
+    - **Fluxograma dos estados (atualizado em 30/09/2026):**
+
+      ```mermaid
+      stateDiagram-v2
+          [*] --> RASCUNHO: POST 202 (número reservado)
+          RASCUNHO --> ASSINADO: job assina, grava chave + XML
+          RASCUNHO --> RASCUNHO: falha de SISTEMA (backoff 10s/20s/40s/80s, até 5)
+          RASCUNHO --> ERRO: falha de NEGÓCIO (1ª) ou 5ª falha de sistema + e-mail
+          RASCUNHO --> INUTILIZADO: número pulado
+          ASSINADO --> TRANSMITIDO
+          TRANSMITIDO --> AUTORIZADO
+          TRANSMITIDO --> REJEITADO
+          TRANSMITIDO --> DENEGADO
+          TRANSMITIDO --> CONTINGENCIA
+          TRANSMITIDO --> ERRO: reconciliação (presa além da janela)
+          REJEITADO --> RASCUNHO: corrige e reemite (mesmo número)
+          CONTINGENCIA --> ASSINADO: reassina (tpEmis muda a chave)
+          AUTORIZADO --> CANCELADO
+          classDef terminal stroke-width:3px
+          class DENEGADO,CANCELADO,INUTILIZADO,ERRO terminal
+      ```
+
+      `ERRO` tem **duas origens com riscos opostos**: vindo de `RASCUNHO` nunca
+      transmitiu nada (`chave_acesso` nula) — é seguro reprocessar à mão no futuro;
+      vindo de `TRANSMITIDO` pode estar autorizado na SEFAZ e **nunca** volta pra
+      `RASCUNHO`. O reprocessamento manual (`ERRO → RASCUNHO`, só com `chave_acesso`
+      nula, zerando o contador) **ainda não existe** — entra junto com a
+      inutilização (Etapa 3); por ora `ERRO` é terminal.
+    - **Falha do passo de assinatura — limite e aviso (decisão de 30/09/2026).**
+      O job não tenta para sempre. **Erro de negócio** (ex. certificado ausente ou
+      vencido — repetir não cria certificado) vai para `ERRO` na **1ª tentativa**.
+      **Erro de sistema** é retentado com backoff (10s, 20s, 40s, 80s) e vai para
+      `ERRO` na **5ª**; o detalhe técnico fica só no log (ERROR com stack) e o
+      chamador vê mensagem genérica. O contador (`tentativas_assinatura`) é gravado
+      em transação própria — a falha desfaz a da assinatura e levaria o contador junto.
+      Ao entrar em `ERRO`, o serviço grava um evento no outbox (tópico
+      `emissao.alerta.operacional`, destinatário em `emissao.alerta.email-destino`);
+      **o `emissao-fiscal-service` não envia e-mail** (sem SMTP, vendável por fora) —
+      o `auth-service` consome e entrega, com prioridade máxima. Aviso vai por
+      e-mail, **não** por Grafana/Loki, que é só para erro de sistema. O número da nota
+      fica reservado enquanto o documento estiver em `ERRO` (mesmo caso do `INUTILIZADO`).
+    - **Tenant no serviço vendável (registro de 30/09/2026).** O `tenant_id` é a
+      chave de isolamento interna e **só a borda de autenticação o define** — nenhum
+      campo do payload o carrega. Hoje a borda é o gateway (JWT → `X-Tenant-Id`); para
+      chamador externo será API key resolvida na borda (issue #100), **não construída**
+      — depende de um gateway externo que ainda não existe. Jobs assíncronos não têm
+      requisição: usam o `tenant_id` gravado no documento no `POST`.
     - **XML assinado é persistido antes de transmitir** — se o processo cair
       entre assinar e transmitir, ainda dá para consultar pela chave de
       acesso.

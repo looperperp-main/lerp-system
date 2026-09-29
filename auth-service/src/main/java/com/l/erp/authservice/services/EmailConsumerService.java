@@ -11,6 +11,7 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
+import org.springframework.web.util.HtmlUtils;
 
 import java.util.Map;
 
@@ -54,6 +55,88 @@ public class EmailConsumerService {
             }
         } catch (Exception e) {
             logger.error("Falha ao processar ou enviar o e-mail. Payload: {}", payload, e);
+        }
+    }
+
+    /**
+     * Alertas operacionais do emissao-fiscal-service (documento fiscal em ERRO). O serviço de emissão
+     * não tem SMTP e é vendável separadamente: publica o evento com o destinatário dentro e este
+     * consumidor só entrega o e-mail.
+     */
+    @KafkaListener(topics = Constants.EMISSAO_ALERTA_OPERACIONAL_TOPIC, groupId = "auth-service-group")
+    public void consumeEmissaoAlertaOperacional(String payload) {
+        logger.debug("Recebido {}: {}", Constants.EMISSAO_ALERTA_OPERACIONAL_TOPIC, payload);
+        try {
+            Map<String, Object> data = objectMapper.readValue(payload, new TypeReference<>() {});
+            if (Constants.EMISSAO_ALERTA_TIPO_DOCUMENTO_EM_ERRO.equals(data.get("type"))) {
+                sendEmissaoDocumentoEmErroEmail(data);
+            } else {
+                logger.warn("Tipo de alerta operacional desconhecido: {}", data.get("type"));
+            }
+        } catch (Exception e) {
+            logger.error("Falha ao processar {}. Payload: {}", Constants.EMISSAO_ALERTA_OPERACIONAL_TOPIC, payload, e);
+        }
+    }
+
+    /**
+     * Prioridade máxima de propósito: um documento fiscal em ERRO é uma nota que o cliente pediu e não
+     * saiu — precisa de alguém agora. Cabeçalhos X-Priority/Importance fazem o cliente de e-mail destacar.
+     */
+    private void sendEmissaoDocumentoEmErroEmail(Map<String, Object> d) {
+        String to = String.valueOf(d.get("to"));
+        try {
+            String documento = HtmlUtils.htmlEscape(String.valueOf(d.get("documento")));
+            String serie = HtmlUtils.htmlEscape(String.valueOf(d.get("serie")));
+            String numero = HtmlUtils.htmlEscape(String.valueOf(d.get("numero")));
+            String motivo = HtmlUtils.htmlEscape(String.valueOf(d.get("motivo")));
+            String tentativas = HtmlUtils.htmlEscape(String.valueOf(d.get("tentativas")));
+            String documentoId = HtmlUtils.htmlEscape(String.valueOf(d.get("documentoId")));
+            String tenantId = HtmlUtils.htmlEscape(String.valueOf(d.get("tenantId")));
+            String emitenteId = HtmlUtils.htmlEscape(String.valueOf(d.get("emitenteId")));
+
+            MimeMessage msg = mailSender.createMimeMessage();
+            MimeMessageHelper h = new MimeMessageHelper(msg, true, Constants.UTF8);
+            h.setFrom(fromEmail, "Syax — Emissão Fiscal");
+            h.setTo(to);
+            h.setSubject("🚨🚨 [PRIORIDADE MÁXIMA] " + documento + " nº " + numero + " NÃO FOI EMITIDA — AÇÃO IMEDIATA");
+            msg.setHeader("X-Priority", "1 (Highest)");
+            msg.setHeader("X-MSMail-Priority", "High");
+            msg.setHeader("Importance", "High");
+            h.setText(String.format("""
+                    <html><body style='margin:0;padding:0;font-family:Arial,sans-serif;color:#222;line-height:1.5'>
+                    <div style='max-width:640px;margin:0 auto;border:4px solid #b00020;border-radius:8px;overflow:hidden'>
+                      <div style='background:#b00020;color:#fff;padding:20px 24px;text-align:center'>
+                        <div style='font-size:34px'>🚨🚨🚨</div>
+                        <h1 style='margin:6px 0 0;font-size:26px;letter-spacing:1px'>PRIORIDADE MÁXIMA</h1>
+                        <div style='font-size:16px;margin-top:4px'>Documento fiscal NÃO emitido — ação imediata</div>
+                      </div>
+                      <div style='padding:24px'>
+                        <p style='font-size:17px;margin-top:0'>
+                          A <strong style='color:#b00020'>%s nº %s</strong> (série %s) entrou em estado
+                          <strong style='color:#b00020'>ERRO</strong> e <strong>não vai ser emitida sozinha</strong>.
+                          Um cliente está esperando essa nota.
+                        </p>
+                        <div style='background:#fff3f3;border-left:6px solid #b00020;padding:14px 18px;margin:18px 0'>
+                          <strong>Motivo</strong><br/>%s
+                        </div>
+                        <table style='border-collapse:collapse;width:100%%;font-size:14px'>
+                          <tr><td style='padding:6px 0;color:#555'><strong>Tentativas:</strong></td><td>%s</td></tr>
+                          <tr><td style='padding:6px 0;color:#555'><strong>Documento (id):</strong></td><td><code>%s</code></td></tr>
+                          <tr><td style='padding:6px 0;color:#555'><strong>Tenant:</strong></td><td>%s</td></tr>
+                          <tr><td style='padding:6px 0;color:#555'><strong>Emitente (id):</strong></td><td><code>%s</code></td></tr>
+                        </table>
+                        <p style='background:#222;color:#fff;padding:12px 16px;border-radius:6px;margin-top:22px'>
+                          <strong>O que fazer:</strong> corrija a causa (ex.: certificado digital) e reprocesse o documento.
+                          O número da nota continua reservado — se não for reprocessar, ele precisa ser inutilizado.
+                        </p>
+                        <p style='font-size:12px;color:#888'>Alerta automático do emissao-fiscal-service. Não responda este e-mail.</p>
+                      </div>
+                    </div></body></html>
+                    """, documento, numero, serie, motivo, tentativas, documentoId, tenantId, emitenteId), true);
+            mailSender.send(msg);
+            logger.info("Alerta EMISSAO_DOCUMENTO_EM_ERRO enviado para {} — documento {}", to, documentoId);
+        } catch (Exception e) {
+            logger.error("Erro ao enviar alerta EMISSAO_DOCUMENTO_EM_ERRO para {}", to, e);
         }
     }
 

@@ -68,6 +68,15 @@ public class DocumentoFiscal extends BaseTenantEntity {
     @Column(name = "idempotency_key", nullable = false)
     private String idempotencyKey;
 
+    @Column(name = "tentativas_assinatura", nullable = false)
+    private short tentativasAssinatura;
+
+    @Column(name = "proxima_tentativa_em")
+    private OffsetDateTime proximaTentativaEm;
+
+    @Column(name = "ultimo_erro")
+    private String ultimoErro;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
@@ -194,6 +203,30 @@ public class DocumentoFiscal extends BaseTenantEntity {
 
     public void setIdempotencyKey(String idempotencyKey) {
         this.idempotencyKey = idempotencyKey;
+    }
+
+    public short getTentativasAssinatura() {
+        return tentativasAssinatura;
+    }
+
+    public void setTentativasAssinatura(short tentativasAssinatura) {
+        this.tentativasAssinatura = tentativasAssinatura;
+    }
+
+    public OffsetDateTime getProximaTentativaEm() {
+        return proximaTentativaEm;
+    }
+
+    public void setProximaTentativaEm(OffsetDateTime proximaTentativaEm) {
+        this.proximaTentativaEm = proximaTentativaEm;
+    }
+
+    public String getUltimoErro() {
+        return ultimoErro;
+    }
+
+    public void setUltimoErro(String ultimoErro) {
+        this.ultimoErro = ultimoErro;
     }
 
     public OffsetDateTime getCreatedAt() {

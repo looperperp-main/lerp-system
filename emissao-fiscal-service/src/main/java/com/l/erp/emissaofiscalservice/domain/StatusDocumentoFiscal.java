@@ -12,6 +12,8 @@ import java.util.Set;
  * RASCUNHO → ASSINADO → TRANSMITIDO → AUTORIZADO | REJEITADO | DENEGADO | CONTINGENCIA
  * AUTORIZADO   → CANCELADO
  * RASCUNHO     → INUTILIZADO
+ * RASCUNHO     → ERRO       (assinatura falhou: 1ª tentativa se for erro de negócio, ou esgotou as tentativas;
+ *                            nunca transmitiu nada, {@code chave_acesso} nula — o único ERRO reprocessável à mão)
  * REJEITADO    → RASCUNHO   (reaproveita número e Idempotency-Key)
  * TRANSMITIDO  → ERRO       (job de reconciliação, presa além da janela)
  * </pre>
@@ -33,7 +35,7 @@ public enum StatusDocumentoFiscal {
     private static final Map<StatusDocumentoFiscal, Set<StatusDocumentoFiscal>> TRANSICOES_PERMITIDAS = new EnumMap<>(StatusDocumentoFiscal.class);
 
     static {
-        TRANSICOES_PERMITIDAS.put(RASCUNHO, EnumSet.of(ASSINADO, INUTILIZADO));
+        TRANSICOES_PERMITIDAS.put(RASCUNHO, EnumSet.of(ASSINADO, INUTILIZADO, ERRO));
         TRANSICOES_PERMITIDAS.put(ASSINADO, EnumSet.of(TRANSMITIDO));
         TRANSICOES_PERMITIDAS.put(TRANSMITIDO, EnumSet.of(AUTORIZADO, REJEITADO, DENEGADO, CONTINGENCIA, ERRO));
         TRANSICOES_PERMITIDAS.put(CONTINGENCIA, EnumSet.of(ASSINADO));

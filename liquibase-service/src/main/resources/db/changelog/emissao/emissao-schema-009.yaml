@@ -1,0 +1,45 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Controle de falha do passo assíncrono RASCUNHO → ASSINADO (spec §3 item 10): o job não pode
+  # tentar para sempre. Falha de negócio (ex. certificado ausente/vencido) vai para ERRO na 1ª
+  # tentativa; falha de sistema é retentada com backoff até o limite e então vai para ERRO.
+  #   tentativas_assinatura → quantas vezes a assinatura já falhou (contador, persistido em
+  #                            transação própria, senão o rollback da falha desfaria a contagem)
+  #   proxima_tentativa_em  → o job só pega o RASCUNHO quando esta data já passou (backoff)
+  #   ultimo_erro           → motivo da última falha, em texto seguro pra devolver ao chamador
+  #                            (o detalhe técnico fica só no log)
+  # ──────────────────────────────────────────────────────────────────────────
+  - changeSet:
+      id: "emissao-024-documento-fiscal-controle-falha-assinatura"
+      author: vitor fernandes ferreira
+      changes:
+        - addColumn:
+            schemaName: emissao
+            tableName: documento_fiscal
+            columns:
+              - column:
+                  name: tentativas_assinatura
+                  type: smallint
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: proxima_tentativa_em
+                  type: timestamp with time zone
+              - column:
+                  name: ultimo_erro
+                  type: text
+      rollback:
+        - dropColumn:
+            schemaName: emissao
+            tableName: documento_fiscal
+            columnName: tentativas_assinatura
+        - dropColumn:
+            schemaName: emissao
+            tableName: documento_fiscal
+            columnName: proxima_tentativa_em
+        - dropColumn:
+            schemaName: emissao
+            tableName: documento_fiscal
+            columnName: ultimo_erro

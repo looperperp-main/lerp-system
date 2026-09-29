@@ -40,6 +40,8 @@ emissao:
     cron-publicacao: ${EMISSAO_OUTBOX_CRON:0 * * * * *}
   assinatura:
     cron: ${EMISSAO_ASSINATURA_CRON:*/10 * * * * *}
+  alerta:
+    email-destino: ${EMISSAO_ALERTA_EMAIL:vitorff1234@gmail.com}
 
 internal:
   gateway:

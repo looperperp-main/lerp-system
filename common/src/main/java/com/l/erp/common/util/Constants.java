@@ -439,6 +439,21 @@ public class Constants {
     public static final String EMISSAO_ERRO_REDUCAO_IBS_CBS_NAO_SUPORTADA =
             "Item %d: redução de alíquota de IBS/CBS ainda não é suportada na emissão.";
 
+    // Falha do passo assíncrono de assinatura (spec/modulos/emissao-fiscal/emissao-fiscal.md §3 item 10):
+    // falha de sistema é retentada com backoff exponencial (10s, 20s, 40s, 80s) até o limite; falha de
+    // negócio (ex. certificado ausente/vencido) vai pra ERRO na 1ª tentativa — repetir não resolve.
+    public static final int EMISSAO_ASSINATURA_MAX_TENTATIVAS = 5;
+    public static final long EMISSAO_ASSINATURA_BACKOFF_BASE_SEGUNDOS = 10;
+    public static final String EMISSAO_ERRO_ASSINATURA_INTERNO =
+            "Falha interna ao assinar o documento. A equipe técnica foi avisada.";
+    public static final String EMISSAO_ERRO_RETORNO_SEFAZ_INVALIDO =
+            "Retorno da SEFAZ em formato inesperado.";
+    // Alerta operacional: o emissao-fiscal-service não envia e-mail (não tem SMTP e é vendável por fora);
+    // publica este evento e quem tem SMTP (auth-service) entrega ao responsável técnico do SYAX.
+    public static final String EMISSAO_ALERTA_OPERACIONAL_TOPIC = "emissao.alerta.operacional";
+    public static final String EMISSAO_EVENTO_ALERTA_OPERACIONAL = "ALERTA_OPERACIONAL";
+    public static final String EMISSAO_ALERTA_TIPO_DOCUMENTO_EM_ERRO = "DOCUMENTO_EM_ERRO";
+
     // NF-e 4.00 — valores fixos do leiaute nesta etapa (spec/modulos/emissao-fiscal/emissao-fiscal.md §5)
     public static final String NFE_VERSAO_LEIAUTE = "4.00";
     public static final String NFE_MODELO_55 = "55";
