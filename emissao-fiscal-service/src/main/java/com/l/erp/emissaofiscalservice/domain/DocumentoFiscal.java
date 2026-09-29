@@ -58,6 +58,12 @@ public class DocumentoFiscal extends BaseTenantEntity {
     @Column(name = "protocolo")
     private String protocolo;
 
+    @Column(name = "recibo")
+    private String recibo;
+
+    @Column(name = "tentativas_transmissao", nullable = false)
+    private short tentativasTransmissao;
+
     @Column(name = "ultima_mensagem_sefaz")
     private String ultimaMensagemSefaz;
 
@@ -172,6 +178,14 @@ public class DocumentoFiscal extends BaseTenantEntity {
     public void setXmlAssinado(String xmlAssinado) {
         this.xmlAssinado = xmlAssinado;
     }
+
+    public String getRecibo() { return recibo; }
+
+    public void setRecibo(String recibo) { this.recibo = recibo; }
+
+    public short getTentativasTransmissao() { return tentativasTransmissao; }
+
+    public void setTentativasTransmissao(short tentativasTransmissao) { this.tentativasTransmissao = tentativasTransmissao; }
 
     public String getProtocolo() {
         return protocolo;

@@ -1,0 +1,33 @@
+databaseChangeLog:
+  # ──────────────────────────────────────────────────────────────────────────
+  # Controle da transmissão à SEFAZ (spec §3 item 10, Etapa 2 Fatia 4).
+  #   recibo                 → nRec devolvido pelo enviNFe (cStat 103); o lote é consultado depois
+  #   tentativas_transmissao → falhas de comunicação/retorno inválido (contador; ao esgotar → ERRO)
+  # protocolo, ultima_mensagem_sefaz, proxima_tentativa_em e ultimo_erro já existem.
+  # ──────────────────────────────────────────────────────────────────────────
+  - changeSet:
+      id: "emissao-025-documento-fiscal-controle-transmissao"
+      author: vitor fernandes ferreira
+      changes:
+        - addColumn:
+            schemaName: emissao
+            tableName: documento_fiscal
+            columns:
+              - column:
+                  name: recibo
+                  type: varchar(15)
+              - column:
+                  name: tentativas_transmissao
+                  type: smallint
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+      rollback:
+        - dropColumn:
+            schemaName: emissao
+            tableName: documento_fiscal
+            columnName: recibo
+        - dropColumn:
+            schemaName: emissao
+            tableName: documento_fiscal
+            columnName: tentativas_transmissao

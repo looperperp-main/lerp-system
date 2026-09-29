@@ -362,3 +362,6 @@ databaseChangeLog:
   - include:
       file: emissao/emissao-schema-009.yaml
       relativeToChangelogFile: true
+  - include:
+      file: emissao/emissao-schema-010.yaml
+      relativeToChangelogFile: true

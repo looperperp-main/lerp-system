@@ -454,6 +454,23 @@ public class Constants {
     public static final String EMISSAO_EVENTO_ALERTA_OPERACIONAL = "ALERTA_OPERACIONAL";
     public static final String EMISSAO_ALERTA_TIPO_DOCUMENTO_EM_ERRO = "DOCUMENTO_EM_ERRO";
 
+    // Transmissão à SEFAZ (spec/modulos/emissao-fiscal/emissao-fiscal.md §3 item 10, Etapa 2 Fatia 4).
+    // Timeout/erro de rede nunca reenvia às cegas: consulta por chave antes (cStat 217 = SEFAZ não recebeu).
+    public static final int EMISSAO_TRANSMISSAO_MAX_TENTATIVAS = 5;
+    public static final long EMISSAO_TRANSMISSAO_BACKOFF_BASE_SEGUNDOS = 10;
+    public static final long EMISSAO_TRANSMISSAO_ESPERA_LOTE_SEGUNDOS = 5;
+    public static final String EMISSAO_ERRO_TRANSMISSAO_INTERNO =
+            "Falha interna ao transmitir o documento. A equipe técnica foi avisada.";
+    public static final String EMISSAO_ERRO_TRANSMISSAO_SEM_RESPOSTA =
+            "A SEFAZ não respondeu ao documento após várias tentativas. A equipe técnica foi avisada.";
+    public static final String NFE_CSTAT_LOTE_RECEBIDO = "103";
+    public static final String NFE_CSTAT_LOTE_EM_PROCESSAMENTO = "105";
+    public static final String NFE_CSTAT_LOTE_PROCESSADO = "104";
+    public static final String NFE_CSTAT_DUPLICIDADE = "204";
+    public static final String NFE_CSTAT_NAO_CONSTA_NA_BASE = "217";
+    public static final java.util.Set<String> NFE_CSTAT_AUTORIZADA = java.util.Set.of("100", "150");
+    public static final java.util.Set<String> NFE_CSTAT_DENEGADA = java.util.Set.of("110", "301", "302", "303");
+
     // NF-e 4.00 — valores fixos do leiaute nesta etapa (spec/modulos/emissao-fiscal/emissao-fiscal.md §5)
     public static final String NFE_VERSAO_LEIAUTE = "4.00";
     public static final String NFE_MODELO_55 = "55";
