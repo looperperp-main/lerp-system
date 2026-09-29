@@ -391,6 +391,42 @@ public class Constants {
     public static final String TARGET_TYPE_CERTIFICADO_DIGITAL = "CERTIFICADO_DIGITAL";
     public static final String EMISSAO_DOCUMENTO_EVENTO_TOPIC = "emissao.documento.evento";
 
+    // emissao-fiscal-service — Etapa 2, guardas do POST /emissao/documentos
+    // (spec/modulos/emissao-fiscal/emissao-fiscal.md §3 itens 9 e 11; NT 2025.002 v1.51, cronograma CRT 3)
+    public static final String EMISSAO_CRT_REGIME_NORMAL = "3";
+    public static final String EMISSAO_IND_IE_DEST_NAO_CONTRIBUINTE = "9";
+    public static final int EMISSAO_IND_FINAL_CONSUMIDOR_FINAL = 1;
+    public static final String EMISSAO_TRIBUTO_ICMS_ST = "ICMS-ST";
+    public static final String EMISSAO_TRIBUTO_IPI = "IPI";
+    public static final String EMISSAO_TRIBUTO_FCP = "FCP";
+    public static final String EMISSAO_TRIBUTO_DIFAL = "DIFAL";
+    public static final String EMISSAO_ERRO_DOCUMENTO_NAO_SUPORTADO =
+            "Tipo de documento '%s' inválido ou ainda não suportado. Por ora só a NF-e (NFE) é emitida.";
+    public static final String EMISSAO_ERRO_AMBIENTE_INVALIDO =
+            "Ambiente '%s' inválido. Use HOMOLOGACAO ou PRODUCAO.";
+    public static final String EMISSAO_ERRO_CRT_NAO_SUPORTADO =
+            "Emitente com CRT %s ainda não é suportado: as regras de IBS/CBS para Simples Nacional e MEI "
+                    + "dependem de nota técnica futura. Por ora só o Regime Normal (CRT 3) é emitido.";
+    public static final String EMISSAO_ERRO_EMITENTE_SEM_IE =
+            "Emitente sem Inscrição Estadual (contribuinte exclusivo de IBS/CBS) ainda não é suportado na emissão.";
+    public static final String EMISSAO_ERRO_TOTAL_DIVERGENTE =
+            "O valorTotal informado (%s) não confere com a soma dos itens (%s).";
+    public static final String EMISSAO_ERRO_PIS_COFINS_AUSENTE =
+            "Item %d: PIS/COFINS é obrigatório em NF-e de produto (Regime Normal) e não foi informado. "
+                    + "Este serviço não calcula PIS/COFINS; envie CST e valores no snapshot fiscal do item.";
+    public static final String EMISSAO_ERRO_TRIBUTO_NAO_SUPORTADO =
+            "Item %d: %s ainda não é suportado na emissão. A nota não pode ser emitida sem o valor devido.";
+    public static final String EMISSAO_ERRO_DIFAL_OPERACAO_INTERESTADUAL =
+            "Operação interestadual para consumidor final não contribuinte exige DIFAL/FCP, "
+                    + "que ainda não é suportado na emissão. A nota não pode ser emitida sem o valor devido.";
+    public static final String EMISSAO_ERRO_CERTIFICADO_AUSENTE =
+            "Nenhum certificado digital ativo cadastrado para o emitente informado.";
+    public static final String EMISSAO_ERRO_CERTIFICADO_VENCIDO =
+            "O certificado digital do emitente está vencido. Envie um certificado válido.";
+    public static final String EMISSAO_ERRO_CERTIFICADO_CNPJ_DIVERGENTE =
+            "O CNPJ do certificado digital (%s) não confere com o CNPJ do emitente informado.";
+    public static final String EMISSAO_ERRO_DOCUMENTO_NAO_ENCONTRADO = "Documento fiscal não encontrado.";
+
     // Regime tributário do emitente (motor fiscal — Fin.md §1.4)
     public static final String REGIME_MEI = "MEI";
     public static final String REGIME_SIMPLES_NACIONAL = "SIMPLES_NACIONAL";

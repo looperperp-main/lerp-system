@@ -1,6 +1,7 @@
 package com.l.erp.emissaofiscalservice.services.documento;
 
 import com.l.erp.common.exception.custom.BusinessException;
+import com.l.erp.common.util.Constants;
 import com.l.erp.emissaofiscalservice.api.dto.DocumentoFiscalRequestDTO;
 import com.l.erp.emissaofiscalservice.domain.DocumentoFiscal;
 import com.l.erp.emissaofiscalservice.domain.IdempotencyKey;
@@ -42,18 +43,30 @@ public class DocumentoFiscalService {
     private final IdempotencyKeyRepository idempotencyKeyRepository;
     private final OutboxEventoRepository outboxEventoRepository;
     private final NumeracaoDocumentoService numeracaoDocumentoService;
+    private final DocumentoFiscalGuardaService guardaService;
     private final ObjectMapper objectMapper;
 
     public DocumentoFiscalService(DocumentoFiscalRepository documentoFiscalRepository,
                                    IdempotencyKeyRepository idempotencyKeyRepository,
                                    OutboxEventoRepository outboxEventoRepository,
                                    NumeracaoDocumentoService numeracaoDocumentoService,
+                                   DocumentoFiscalGuardaService guardaService,
                                    ObjectMapper objectMapper) {
         this.documentoFiscalRepository = documentoFiscalRepository;
         this.idempotencyKeyRepository = idempotencyKeyRepository;
         this.outboxEventoRepository = outboxEventoRepository;
         this.numeracaoDocumentoService = numeracaoDocumentoService;
+        this.guardaService = guardaService;
         this.objectMapper = objectMapper;
+    }
+
+    @Transactional(readOnly = true)
+    public DocumentoFiscal buscar(UUID documentoId) {
+        Long tenantId = SecurityUtils.getCurrentTenantId()
+                .orElseThrow(() -> new BusinessException("Tenant não identificado.", HttpStatus.UNAUTHORIZED));
+        return documentoFiscalRepository.findByIdAndTenantId(documentoId, tenantId)
+                .orElseThrow(() -> new BusinessException(
+                        Constants.EMISSAO_ERRO_DOCUMENTO_NAO_ENCONTRADO, HttpStatus.NOT_FOUND));
     }
 
     @Transactional
@@ -73,6 +86,10 @@ public class DocumentoFiscalService {
             return documentoFiscalRepository.findByIdAndTenantId(existente.get().getDocumentoId(), tenantId)
                     .orElseThrow(() -> new IllegalStateException("Idempotency-Key aponta para documento inexistente — inconsistência de dados."));
         }
+
+        // Depois do replay de idempotência de propósito: reenvio de uma nota já aceita não pode falhar
+        // porque o certificado venceu nesse meio-tempo. Antes da numeração: rejeição não gasta número.
+        guardaService.validar(tenantId, request);
 
         long numero = numeracaoDocumentoService.proximoNumero(tenantId, request.emitenteId(), request.documento(), request.serie());
 
@@ -140,8 +157,8 @@ public class DocumentoFiscalService {
 
     /** SHA-256 de emitenteId+modelo+destinatário+valorTotal+qtdItens (spec §3 item 10) — nunca o payload cru, nunca o tenantId. */
     private String calcularFingerprint(DocumentoFiscalRequestDTO request) {
-        String base = request.emitenteId() + "|" + request.modelo() + "|" + request.destinatarioDocumento()
-                + "|" + request.valorTotal().stripTrailingZeros().toPlainString() + "|" + request.quantidadeItens();
+        String base = request.emitenteId() + "|" + request.modelo() + "|" + request.destinatario().documento()
+                + "|" + request.valorTotal().stripTrailingZeros().toPlainString() + "|" + request.itens().size();
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             return HexFormat.of().formatHex(digest.digest(base.getBytes(StandardCharsets.UTF_8)));

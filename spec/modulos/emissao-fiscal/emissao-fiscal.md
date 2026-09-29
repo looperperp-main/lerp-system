@@ -1,6 +1,6 @@
 # Emissão Fiscal — NF-e, CT-e, NFS-e, NFCom, NF3e (plano)
 
-> Última atualização: 29 de setembro de 2026
+> Última atualização: 29 de setembro de 2026 (Etapa 2, Fatia 1 — ver nota no §5)
 
 Escrito para ser lido do zero. Nada aqui foi implementado — é planejamento.
 
@@ -776,6 +776,39 @@ não dá pra rodar em todo commit no Jenkins. Duas camadas:
   `PRODUCAO`.
 - ponytail: fixture só é regravado quando uma NT (nota técnica) mudar o
   schema — não é simulador de SEFAZ, é uma resposta canned.
+
+**Etapa 2 — escopo e fontes (29 de setembro de 2026).** Fonte de verdade do
+layout: **PL 010f v1.04** (NT 2025.002 v1.50 + NT 2026.007 v1.00, publicado
+31/08/2026; XSDs em `emissao-fiscal-service/src/main/resources/xsd/nfe/`, mais
+os schemas de mensagem — `enviNFe`, `retEnviNFe`, `consReciNFe`, consultas —
+baixados de `dfe-portal.svrs.rs.gov.br/Schemas/PRNFH/`). NT vigente do RTC:
+**2025.002 v1.51** (a v1.51 só altera regras de validação/cronograma, não
+schema). MOC 7.0 (nov/2020) confirma assinatura RSA-SHA1/SHA-1 + C14N, com só o
+certificado do usuário final no `KeyInfo`. **Decisões desta etapa:**
+- **Só emitente CRT 3 (Regime Normal).** A NT 2025.002 v1.51 diz que as
+  regras de IBS/CBS para CRT 1/2/4 saem em NT futura (tributação só a partir de
+  2027, art. 348 da LC 214/25). O `POST` rejeita outros CRT com 422 em PT-BR.
+  Para CRT 3, o grupo `IBSCBS` é obrigatório em homologação desde 01/07/2026.
+- **Emitente sem IE (contribuinte exclusivo de IBS/CBS, NT 2026.007) fica fora**
+  desta etapa — 422 na guarda; exigiria SVRS obrigatória e ICMS proibido.
+- **Só NF-e (modelo 55).** Qualquer outro `documento` recebe 422.
+- **Guarda ativa (§3 item 9):** PIS/COFINS ausente → 400; ICMS-ST (CST 10/30/70
+  ou valor), IPI, FCP, DIFAL informados → 422; venda interestadual a consumidor
+  final não contribuinte → 422. O motor fiscal não calcula IPI, então a guarda
+  só recusa quando o valor vem no payload — limite conhecido (issue #101).
+- **Certificado × emitente no `POST`:** certificado ativo, dentro da validade e
+  com CNPJ igual ao do emitente do payload; senão 422/400 antes de gastar
+  número. Vem **depois** do replay de idempotência (reenvio de nota já aceita
+  não falha por certificado vencido).
+- **Resposta síncrona (`indSinc=1`):** o MOC 7.0 (p. 71) só a permite com **um
+  único** NF-e no lote e se a SEFAZ implementar — **não confirmado para a
+  SVRS**; a Fatia 4 trata os dois caminhos (síncrono e recibo + `NFeRetAutorizacao`).
+- **Fora desta etapa:** NT 2026.006 (vínculo NF-e × split payment, flag desligada),
+  DANFE Simplificado Tipo 2 (NT 2026.002/2026.003 — Etapa 3), PAA (NT 2026.001).
+- **Status Fatia 1:** contrato tipado (`emitente`, `destinatario`, `itens[]` com
+  snapshot fiscal por item), `POST` responde 202, `GET /emissao/documentos/{id}`,
+  guardas e `DocumentoFiscalGuardaServiceTest` escritos — **não testados** (build
+  não rodado). Assinatura, XML e SOAP: Fatias 2-4.
 
 Mudanças em relação à primeira versão deste doc, motivadas pela revisão:
 - **Etapa 0 nova** — sem os campos por item, a Etapa 2 trava no primeiro XML.
