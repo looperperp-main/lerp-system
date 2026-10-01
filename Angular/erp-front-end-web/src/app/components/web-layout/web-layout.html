@@ -106,12 +106,13 @@
         <span>Sair</span>
       </button>
 
-      <!-- ponytail: card promocional decorativo, sem changelog real ainda -->
-      <div class="jb-sidebar-promo">
-        <h5>Novo relatório consolidado</h5>
-        <p>Visão completa do estoque em um clique.</p>
-        <a routerLink="/web/relatorios">Ver changelog <i class="pi pi-arrow-right" style="font-size: 10px;"></i></a>
-      </div>
+      @if (ultimaNovidade) {
+        <div class="jb-sidebar-promo">
+          <h5>{{ ultimaNovidade.titulo }}</h5>
+          <p>{{ ultimaNovidade.descricao }}</p>
+          <a routerLink="/web/novidades">Ver novidades <i class="pi pi-arrow-right" style="font-size: 10px;"></i></a>
+        </div>
+      }
     </div>
     </div>
   </aside>

@@ -42,6 +42,13 @@ export const routes: Routes = [
         data: { breadcrumb: [{ label: 'Overview' }] },
       },
       {
+        path: 'novidades',
+        loadComponent: () => import('./pages/novidades/novidades').then((m) => m.Novidades),
+        data: {
+          breadcrumb: [{ label: 'Home', link: '/web/home' }, { label: 'Novidades' }],
+        },
+      },
+      {
         path: 'assinar',
         loadComponent: () => import('./pages/assinar/assinar').then((m) => m.Assinar),
         data: {

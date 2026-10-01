@@ -6,6 +6,7 @@ import { ToastrService } from 'ngx-toastr';
 import { Toast } from 'primeng/toast';
 import { NgOptimizedImage } from '@angular/common';
 import { ThemeService } from '../../util/theme.service';
+import { CHANGELOG } from '../../pages/novidades/changelog';
 
 @Component({
   selector: 'app-web-layout',
@@ -15,6 +16,7 @@ import { ThemeService } from '../../util/theme.service';
   styleUrl: './web-layout.scss',
 })
 export class WebLayout {
+  ultimaNovidade = CHANGELOG[0];
   isCollapsed = true;
   isDropdownOpen = false;
   isMobile = false;
