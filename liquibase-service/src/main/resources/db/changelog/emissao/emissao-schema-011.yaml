@@ -1,0 +1,115 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # NFS-e (spec §4.4, Etapa 5, fatia 3.2): núcleo neutro ao provedor.
+  #   documento_fiscal.provedor → provedor que emitiu a NFS-e (ADN...); cancelar e consultar vão
+  #                               sempre por ele. NULL = NF-e/NFC-e/CT-e (não usam provedor).
+  #   chave_acesso/protocolo    → 44/50 → 60: a chave da NFS-e nacional pode passar de 44 caracteres
+  #                               (a confirmar na fatia 3.4); alargar não afeta a NF-e.
+  # ──────────────────────────────────────────────────────────────────────────
+  - changeSet:
+      id: "emissao-026-documento-fiscal-provedor-e-chaves"
+      author: vitor fernandes ferreira
+      changes:
+        - addColumn:
+            schemaName: emissao
+            tableName: documento_fiscal
+            columns:
+              - column:
+                  name: provedor
+                  type: varchar(20)
+                  remarks: "Provedor de NFS-e que emitiu o documento (ADN...). NULL para documentos que não usam provedor."
+        - modifyDataType:
+            schemaName: emissao
+            tableName: documento_fiscal
+            columnName: chave_acesso
+            newDataType: varchar(60)
+        - modifyDataType:
+            schemaName: emissao
+            tableName: documento_fiscal
+            columnName: protocolo
+            newDataType: varchar(60)
+      rollback:
+        - modifyDataType:
+            schemaName: emissao
+            tableName: documento_fiscal
+            columnName: protocolo
+            newDataType: varchar(50)
+        - modifyDataType:
+            schemaName: emissao
+            tableName: documento_fiscal
+            columnName: chave_acesso
+            newDataType: varchar(44)
+        - dropColumn:
+            schemaName: emissao
+            tableName: documento_fiscal
+            columnName: provedor
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # emissao.configuracao_nfse — como emitir NFS-e para um emitente: município do prestador e
+  # provedor (padrão ADN). Escolha por emitente/município, nunca feature flag global.
+  # inscricao_municipal é nullable: se o cadastro no Emissor Nacional exige em Arcos ainda não foi
+  # confirmado (spec §4.4, pendência 3).
+  # ──────────────────────────────────────────────────────────────────────────
+  - changeSet:
+      id: "emissao-027-create-configuracao-nfse"
+      author: vitor fernandes ferreira
+      changes:
+        - createTable:
+            schemaName: emissao
+            tableName: configuracao_nfse
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: emitente_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: municipio_ibge
+                  type: varchar(7)
+                  constraints:
+                    nullable: false
+                  remarks: "Código IBGE (7 dígitos) do município do prestador"
+              - column:
+                  name: provedor
+                  type: varchar(20)
+                  defaultValue: ADN
+                  constraints:
+                    nullable: false
+              - column:
+                  name: inscricao_municipal
+                  type: varchar(20)
+              - column:
+                  name: created_at
+                  type: timestamp with time zone
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp with time zone
+              - column:
+                  name: created_by
+                  type: uuid
+              - column:
+                  name: last_updated_by
+                  type: uuid
+        - addUniqueConstraint:
+            schemaName: emissao
+            tableName: configuracao_nfse
+            columnNames: tenant_id, emitente_id
+            constraintName: uq_configuracao_nfse_emitente
+      rollback:
+        - dropTable:
+            schemaName: emissao
+            tableName: configuracao_nfse

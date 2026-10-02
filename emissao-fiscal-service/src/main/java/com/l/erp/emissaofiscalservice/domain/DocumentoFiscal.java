@@ -49,6 +49,11 @@ public class DocumentoFiscal extends BaseTenantEntity {
     @Column(name = "tp_emis", nullable = false)
     private String tpEmis = "1";
 
+    /** Provedor de NFS-e que emitiu o documento; {@code null} nos documentos que não usam provedor. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "provedor")
+    private CodigoProvedorNfse provedor;
+
     @Column(name = "chave_acesso")
     private String chaveAcesso;
 
@@ -161,6 +166,14 @@ public class DocumentoFiscal extends BaseTenantEntity {
 
     public void setTpEmis(String tpEmis) {
         this.tpEmis = tpEmis;
+    }
+
+    public CodigoProvedorNfse getProvedor() {
+        return provedor;
+    }
+
+    public void setProvedor(CodigoProvedorNfse provedor) {
+        this.provedor = provedor;
     }
 
     public String getChaveAcesso() {
