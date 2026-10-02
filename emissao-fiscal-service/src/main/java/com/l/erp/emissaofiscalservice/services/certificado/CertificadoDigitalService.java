@@ -1,10 +1,13 @@
 package com.l.erp.emissaofiscalservice.services.certificado;
 
 import com.l.erp.common.exception.custom.BusinessException;
+import com.l.erp.common.util.Constants;
 import com.l.erp.emissaofiscalservice.domain.CertificadoDigital;
 import com.l.erp.emissaofiscalservice.repository.CertificadoDigitalRepository;
 import com.l.erp.emissaofiscalservice.services.crypto.EnvelopeEncryptionService;
 import com.l.erp.emissaofiscalservice.util.SecurityUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,6 +42,7 @@ import java.util.regex.Pattern;
 @Service
 public class CertificadoDigitalService {
 
+    private static final Logger log = LoggerFactory.getLogger(CertificadoDigitalService.class);
     private static final Pattern CNPJ_NO_SUBJECT = Pattern.compile("(\\d{14})");
 
     private final CertificadoDigitalRepository repository;
@@ -71,8 +75,8 @@ public class CertificadoDigitalService {
         entidade.setEmitenteId(emitenteId);
         entidade.setCnpjSubject(cnpjDoCertificado);
         entidade.setKekVersion(EnvelopeEncryptionService.KEK_VERSION_ATUAL);
-        entidade.setCertificadoCifrado(envelopeEncryptionService.cifrar(lerBytes(arquivoPfx)));
-        entidade.setSenhaCifrada(envelopeEncryptionService.cifrar(senha.getBytes()));
+        entidade.setCertificadoCifrado(envelopeEncryptionService.cifrar(lerBytes(arquivoPfx), tenantId, emitenteId));
+        entidade.setSenhaCifrada(envelopeEncryptionService.cifrar(senha.getBytes(), tenantId, emitenteId));
         entidade.setCertificadoValidoAte(certificado.getNotAfter().toInstant().atOffset(ZoneOffset.UTC));
         entidade.setAlertaEnviado(false);
         entidade.setAtivo(true);
@@ -92,16 +96,39 @@ public class CertificadoDigitalService {
         return repository.findByTenantIdAndEmitenteId(tenantId, emitenteId);
     }
 
+    /**
+     * Guardrail de posse: antes de decifrar o .pfx pra assinar/transmitir, confere que o certificado
+     * pertence ao tenant e ao emitente do documento. A busca já filtra por tenant (e há o
+     * {@code @Filter}), então isto só dispara se algo furar essas camadas — defesa em profundidade, o
+     * documento nunca pode ser assinado com a chave de outro tenant. Erro genérico de propósito: não
+     * revela de quem é o certificado.
+     */
+    public void exigirPosse(CertificadoDigital certificado, Long tenantIdDoDocumento, UUID emitenteIdDoDocumento) {
+        boolean doMesmoTenant = tenantIdDoDocumento != null && tenantIdDoDocumento.equals(certificado.getTenantId());
+        boolean doMesmoEmitente = emitenteIdDoDocumento != null && emitenteIdDoDocumento.equals(certificado.getEmitenteId());
+        if (!doMesmoTenant || !doMesmoEmitente) {
+            log.error("Certificado {} não pertence ao tenant/emitente do documento (tenant={}, emitente={}). Emissão bloqueada.",
+                    certificado.getId(), tenantIdDoDocumento, emitenteIdDoDocumento);
+            throw new BusinessException(Constants.EMISSAO_ERRO_CERTIFICADO_DE_OUTRO_TENANT, HttpStatus.UNPROCESSABLE_ENTITY);
+        }
+    }
+
     /** Decifra o .pfx e devolve o {@link KeyStore} pronto pra assinatura (usado pela Etapa 2+). */
     public KeyStore abrirKeyStore(CertificadoDigital certificadoDigital, char[] senha) {
         try {
             KeyStore keyStore = KeyStore.getInstance("PKCS12");
-            byte[] pfxDecifrado = envelopeEncryptionService.decifrar(certificadoDigital.getCertificadoCifrado());
+            byte[] pfxDecifrado = decifrar(certificadoDigital, certificadoDigital.getCertificadoCifrado());
             keyStore.load(new ByteArrayInputStream(pfxDecifrado), senha);
             return keyStore;
         } catch (GeneralSecurityException | IOException e) {
             throw new IllegalStateException("Falha ao abrir o certificado digital decifrado.", e);
         }
+    }
+
+    /** Decifra um campo do certificado usando a versão gravada nele (v1 legado sem AAD, v2 com AAD tenant:emitente). */
+    public byte[] decifrar(CertificadoDigital certificado, byte[] blob) {
+        return envelopeEncryptionService.decifrar(blob, certificado.getKekVersion(),
+                certificado.getTenantId(), certificado.getEmitenteId());
     }
 
     private X509Certificate abrirEValidarPfx(MultipartFile arquivoPfx, String senha) {

@@ -7,9 +7,11 @@ import org.springframework.stereotype.Service;
 import javax.crypto.Cipher;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.UUID;
 
 /**
  * Envelope encryption (AES-256-GCM) para material sensível guardado em banco: certificado A1
@@ -33,7 +35,9 @@ public class EnvelopeEncryptionService {
     private static final int GCM_TAG_LENGTH_BITS = 128;
     private static final int KEK_LENGTH_BYTES = 32; // AES-256
 
-    public static final short KEK_VERSION_ATUAL = 1;
+    /** v1 = sem AAD (legado); v2 = AAD tenant:emitente. */
+    public static final short KEK_VERSION_COM_AAD = 2;
+    public static final short KEK_VERSION_ATUAL = KEK_VERSION_COM_AAD;
 
     @Value("${emissao.kek}")
     private String kekBase64;
@@ -49,13 +53,38 @@ public class EnvelopeEncryptionService {
         }
     }
 
+    /** v1 (legado, sem AAD). Dado novo de certificado usa {@link #cifrar(byte[], Long, UUID)}. */
     public byte[] cifrar(byte[] dadosClaros) {
+        return cifrarComAad(dadosClaros, null);
+    }
+
+    /**
+     * v2: tenant e emitente entram como AAD do GCM, então o blob só decifra pra quem o cifrou —
+     * copiar a linha de um tenant pra outro no banco falha na tag, mesmo com a KEK única.
+     */
+    public byte[] cifrar(byte[] dadosClaros, Long tenantId, UUID emitenteId) {
+        return cifrarComAad(dadosClaros, aad(tenantId, emitenteId));
+    }
+
+    /** Decifra respeitando a versão gravada: v1 sem AAD (legado), v2 exige o mesmo tenant/emitente. */
+    public byte[] decifrar(byte[] blob, short kekVersion, Long tenantId, UUID emitenteId) {
+        return decifrarComAad(blob, kekVersion >= KEK_VERSION_COM_AAD ? aad(tenantId, emitenteId) : null);
+    }
+
+    private static byte[] aad(Long tenantId, UUID emitenteId) {
+        return (tenantId + ":" + emitenteId).getBytes(StandardCharsets.UTF_8);
+    }
+
+    private byte[] cifrarComAad(byte[] dadosClaros, byte[] aad) {
         try {
             byte[] nonce = new byte[GCM_NONCE_LENGTH_BYTES];
             secureRandom.nextBytes(nonce);
 
             Cipher cipher = Cipher.getInstance(TRANSFORMATION);
             cipher.init(Cipher.ENCRYPT_MODE, chaveAtual(), new GCMParameterSpec(GCM_TAG_LENGTH_BITS, nonce));
+            if (aad != null) {
+                cipher.updateAAD(aad);
+            }
             byte[] cifrado = cipher.doFinal(dadosClaros);
 
             byte[] blob = new byte[nonce.length + cifrado.length];
@@ -67,7 +96,12 @@ public class EnvelopeEncryptionService {
         }
     }
 
+    /** v1 (legado, sem AAD). */
     public byte[] decifrar(byte[] blob) {
+        return decifrarComAad(blob, null);
+    }
+
+    private byte[] decifrarComAad(byte[] blob, byte[] aad) {
         try {
             byte[] nonce = new byte[GCM_NONCE_LENGTH_BYTES];
             System.arraycopy(blob, 0, nonce, 0, GCM_NONCE_LENGTH_BYTES);
@@ -77,6 +111,9 @@ public class EnvelopeEncryptionService {
 
             Cipher cipher = Cipher.getInstance(TRANSFORMATION);
             cipher.init(Cipher.DECRYPT_MODE, chaveAtual(), new GCMParameterSpec(GCM_TAG_LENGTH_BITS, nonce));
+            if (aad != null) {
+                cipher.updateAAD(aad);
+            }
             return cipher.doFinal(cifrado);
         } catch (GeneralSecurityException e) {
             throw new IllegalStateException("Falha ao decifrar material sensível (envelope encryption) — KEK errada ou dado corrompido.", e);

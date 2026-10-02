@@ -113,7 +113,9 @@ public class AssinaturaDocumentoService {
             throw new BusinessException(Constants.EMISSAO_ERRO_CERTIFICADO_VENCIDO, HttpStatus.UNPROCESSABLE_ENTITY);
         }
 
-        char[] senha = new String(envelopeEncryptionService.decifrar(certificado.getSenhaCifrada()),
+        certificadoDigitalService.exigirPosse(certificado, documento.getTenantId(), documento.getEmitenteId());
+
+        char[] senha = new String(certificadoDigitalService.decifrar(certificado, certificado.getSenhaCifrada()),
                 StandardCharsets.UTF_8).toCharArray();
         try {
             KeyStore keyStore = certificadoDigitalService.abrirKeyStore(certificado, senha);

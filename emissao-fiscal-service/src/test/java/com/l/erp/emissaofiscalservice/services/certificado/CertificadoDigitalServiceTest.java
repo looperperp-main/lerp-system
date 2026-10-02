@@ -83,6 +83,45 @@ class CertificadoDigitalServiceTest {
     }
 
     @Test
+    void exigirPosseAceitaCertificadoDoMesmoTenantEEmitente() {
+        CertificadoDigital cert = certificadoDe(5L, EMITENTE_ID);
+
+        service().exigirPosse(cert, 5L, EMITENTE_ID);
+    }
+
+    @Test
+    void exigirPosseBloqueiaCertificadoDeOutroTenant() {
+        CertificadoDigital cert = certificadoDe(99L, EMITENTE_ID);
+
+        BusinessException e = assertThrows(BusinessException.class,
+                () -> service().exigirPosse(cert, 5L, EMITENTE_ID));
+
+        assertEquals(Constants.EMISSAO_ERRO_CERTIFICADO_DE_OUTRO_TENANT, e.getMessage());
+    }
+
+    @Test
+    void exigirPosseBloqueiaCertificadoDeOutroEmitenteDoMesmoTenant() {
+        CertificadoDigital cert = certificadoDe(5L, UUID.randomUUID());
+
+        assertThrows(BusinessException.class, () -> service().exigirPosse(cert, 5L, EMITENTE_ID));
+    }
+
+    @Test
+    void exigirPosseBloqueiaQuandoODocumentoNaoTemTenantOuEmitente() {
+        CertificadoDigital cert = certificadoDe(5L, EMITENTE_ID);
+
+        assertThrows(BusinessException.class, () -> service().exigirPosse(cert, null, EMITENTE_ID));
+        assertThrows(BusinessException.class, () -> service().exigirPosse(cert, 5L, null));
+    }
+
+    private static CertificadoDigital certificadoDe(Long tenantId, UUID emitenteId) {
+        CertificadoDigital cert = new CertificadoDigital();
+        cert.setTenantId(tenantId);
+        cert.setEmitenteId(emitenteId);
+        return cert;
+    }
+
+    @Test
     void uploadComArquivoInvalidoNaoCifraNemGrava() {
         comTenant("1");
         var naoEPfx = new MockMultipartFile("arquivo", "x.pfx", "application/octet-stream", "lixo".getBytes());

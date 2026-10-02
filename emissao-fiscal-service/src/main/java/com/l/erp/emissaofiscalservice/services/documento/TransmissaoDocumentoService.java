@@ -205,7 +205,8 @@ public class TransmissaoDocumentoService {
         if (certificado.getCertificadoValidoAte().isBefore(OffsetDateTime.now())) {
             throw new BusinessException(Constants.EMISSAO_ERRO_CERTIFICADO_VENCIDO, HttpStatus.UNPROCESSABLE_ENTITY);
         }
-        char[] senha = new String(envelopeEncryptionService.decifrar(certificado.getSenhaCifrada()), StandardCharsets.UTF_8).toCharArray();
+        certificadoDigitalService.exigirPosse(certificado, documento.getTenantId(), documento.getEmitenteId());
+        char[] senha = new String(certificadoDigitalService.decifrar(certificado, certificado.getSenhaCifrada()), StandardCharsets.UTF_8).toCharArray();
         try {
             return new Sessao(request.emitente().endereco().uf(), certificadoDigitalService.abrirKeyStore(certificado, senha), senha);
         } catch (RuntimeException falha) {

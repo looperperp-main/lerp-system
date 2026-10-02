@@ -98,7 +98,7 @@ class AssinaturaDocumentoServiceTest {
                 envelope, documentoService, new NfeXmlBuilder(), new XmlSignatureService(), json);
 
         lenient().when(certificadoService.abrirKeyStore(any(), any())).thenReturn(keyStore);
-        lenient().when(envelope.decifrar(any())).thenReturn("teste123".getBytes(StandardCharsets.UTF_8));
+        lenient().when(certificadoService.decifrar(any(), any())).thenReturn("teste123".getBytes(StandardCharsets.UTF_8));
     }
 
     @Test

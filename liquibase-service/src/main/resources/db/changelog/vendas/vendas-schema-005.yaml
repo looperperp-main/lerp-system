@@ -18,3 +18,29 @@ databaseChangeLog:
                   name: cfop
                   type: varchar(4)
                   remarks: 'CFOP usado no cálculo fiscal do item (declarado ou resolvido via fiscal.cfop_regra)'
+
+  # ──────────────────────────────────────────
+  # Liga o faturamento à emissão fiscal: o pedido guarda o id do documento criado no
+  # emissao-fiscal-service e o último status conhecido. A rejeição da SEFAZ não desfaz o
+  # faturamento — vira status_emissao no pedido.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: vendas-009-add-emissao-fiscal-pedido
+      author: vitor-fernandes
+      changes:
+        - addColumn:
+            schemaName: vendas
+            tableName: pedido
+            columns:
+              - column:
+                  name: documento_fiscal_id
+                  type: uuid
+                  remarks: 'Id do documento no emissao-fiscal-service (POST /emissao/documentos)'
+              - column:
+                  name: status_emissao
+                  type: varchar(20)
+                  remarks: 'ENVIADO (aceito pela emissão) ou FALHA_ENVIO (não chegou à emissão); null = nunca tentado'
+              - column:
+                  name: mensagem_emissao
+                  type: varchar(500)
+                  remarks: 'Motivo da última falha de envio à emissão'

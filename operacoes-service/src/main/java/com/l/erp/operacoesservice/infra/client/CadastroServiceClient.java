@@ -187,6 +187,60 @@ public class CadastroServiceClient {
     private record ProdutoFornecedorRef(UUID produtoId, BigDecimal precoCusto) {
     }
 
+    // Emissão fiscal (faturamento → POST /emissao/documentos): emitente, destinatário e dados do produto pra nota,
+    // já no formato do contrato da emissão. 4xx do cadastro (ex.: pessoa sem endereço) sobe como BusinessException.
+    public EmitenteEmissaoRef buscarEmitenteEmissao(Long tenantId, UUID userId) {
+        return buscarParteEmissao("/api/v1/interno/emissao/emitente", EmitenteEmissaoRef.class, tenantId, userId);
+    }
+
+    public DestinatarioEmissaoRef buscarDestinatarioEmissao(UUID pessoaId, Long tenantId, UUID userId) {
+        return buscarParteEmissao("/api/v1/interno/emissao/destinatario/" + pessoaId, DestinatarioEmissaoRef.class,
+                tenantId, userId);
+    }
+
+    public ProdutoNotaRef buscarProdutoParaNota(UUID produtoId, Long tenantId, UUID userId) {
+        try {
+            return restClient.get()
+                    .uri("/api/v1/produtos/{id}", produtoId)
+                    .headers(headers -> headersInternos(headers, tenantId, userId))
+                    .retrieve()
+                    .body(ProdutoNotaRef.class);
+        } catch (HttpClientErrorException.NotFound e) {
+            throw new BusinessException(String.format(Constants.PEDIDO_PRODUTO_NAO_ENCONTRADO, produtoId), HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    private <T> T buscarParteEmissao(String uri, Class<T> tipo, Long tenantId, UUID userId) {
+        try {
+            return restClient.get()
+                    .uri(uri)
+                    .headers(headers -> headersInternos(headers, tenantId, userId))
+                    .retrieve()
+                    .body(tipo);
+        } catch (HttpClientErrorException e) {
+            throw new BusinessException(Constants.EMISSAO_DADOS_PARTE_INDISPONIVEIS, HttpStatus.UNPROCESSABLE_ENTITY);
+        }
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record EnderecoEmissaoRef(String logradouro, String numero, String complemento, String bairro,
+                                     String codigoMunicipio, String municipio, String uf, String cep) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record EmitenteEmissaoRef(UUID emitenteId, String cnpj, String razaoSocial, String nomeFantasia,
+                                     String inscricaoEstadual, String crt, EnderecoEmissaoRef endereco) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record DestinatarioEmissaoRef(String documento, String nome, String indicadorIe, String inscricaoEstadual,
+                                         EnderecoEmissaoRef endereco) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record ProdutoNotaRef(String sku, String nome, String unidade, String ncm, String origem) {
+    }
+
     private void headersInternos(HttpHeaders headers, Long tenantId, UUID userId) {
         headers.add(Constants.HEADER_INTERNAL_SECRET, internalSecret);
         headers.add(Constants.HEADER_TENANT_ID, String.valueOf(tenantId));

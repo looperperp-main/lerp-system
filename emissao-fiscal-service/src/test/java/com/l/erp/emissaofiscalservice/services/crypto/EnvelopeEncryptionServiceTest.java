@@ -7,6 +7,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -53,6 +54,42 @@ class EnvelopeEncryptionServiceTest {
                 Base64.getEncoder().encodeToString("chave-curta-demais".getBytes(StandardCharsets.UTF_8)));
 
         assertThatThrownBy(servicoComKekInvalida::validarKek).isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void v2DecifraParaOMesmoTenantEEmitente() {
+        UUID emitente = UUID.randomUUID();
+        byte[] original = "pfx".getBytes(StandardCharsets.UTF_8);
+
+        byte[] cifrado = service.cifrar(original, 5L, emitente);
+
+        assertThat(service.decifrar(cifrado, EnvelopeEncryptionService.KEK_VERSION_COM_AAD, 5L, emitente))
+                .isEqualTo(original);
+    }
+
+    @Test
+    void v2NaoDecifraParaOutroTenantMesmoComAMesmaKek() {
+        UUID emitente = UUID.randomUUID();
+        byte[] cifrado = service.cifrar("pfx".getBytes(StandardCharsets.UTF_8), 5L, emitente);
+
+        assertThatThrownBy(() -> service.decifrar(cifrado, EnvelopeEncryptionService.KEK_VERSION_COM_AAD, 99L, emitente))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void v2NaoDecifraParaOutroEmitenteDoMesmoTenant() {
+        byte[] cifrado = service.cifrar("pfx".getBytes(StandardCharsets.UTF_8), 5L, UUID.randomUUID());
+
+        assertThatThrownBy(() -> service.decifrar(cifrado, EnvelopeEncryptionService.KEK_VERSION_COM_AAD, 5L, UUID.randomUUID()))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void v1LegadoSemAadContinuaDecifrandoPelaVersaoGravada() {
+        byte[] original = "pfx-antigo".getBytes(StandardCharsets.UTF_8);
+        byte[] cifradoV1 = service.cifrar(original);
+
+        assertThat(service.decifrar(cifradoV1, (short) 1, 5L, UUID.randomUUID())).isEqualTo(original);
     }
 
     @Test

@@ -289,7 +289,7 @@ class TransmissaoDocumentoServiceTest {
         when(certificado.isAtivo()).thenReturn(true);
         when(certificado.getCertificadoValidoAte()).thenReturn(OffsetDateTime.now().plusDays(90));
         when(certificadoRepository.findByTenantIdAndEmitenteId(any(), any())).thenReturn(Optional.of(certificado));
-        when(criptografia.decifrar(any())).thenReturn("senha".getBytes());
+        when(certificadoService.decifrar(any(), any())).thenReturn("senha".getBytes());
         when(endpoints.resolverUrl(eq("SP"), any(), any(), any(), anyBoolean())).thenReturn("https://svrs.exemplo/ws");
     }
 

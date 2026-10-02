@@ -179,6 +179,19 @@ public class Constants {
     public static final String ESTABELECIMENTO_PROPRIO_JA_DEFINIDO = "Este tenant ja possui um estabelecimento proprio definido!";
     public static final String ESTABELECIMENTO_MATRIZ_NAO_PODE_SER_INATIVADA = "A matriz nao pode ser inativada, pois nao e possivel criar outra em seu lugar!";
     public static final String ESTABELECIMENTO_PROPRIO_NAO_ENCONTRADO = "Estabelecimento proprio do tenant nao encontrado!";
+    public static final String EMISSAO_ENVIO_FALHA_GENERICA = "Falha ao enviar o documento para a emissão fiscal.";
+    public static final String EMISSAO_NATUREZA_OPERACAO_VENDA ="VENDA DE MERCADORIA";
+    public static final String EMISSAO_DOCUMENTO_NFE = "NFE";
+    public static final String EMISSAO_MODELO_NFE = "55";
+    public static final int EMISSAO_TIPO_OPERACAO_SAIDA = 1;
+    public static final int EMISSAO_IND_PRESENCA_OUTROS = 9;
+    public static final String EMISSAO_ORIGEM_PADRAO = "0";
+    // PIS/COFINS provisórios (regime normal, não cumulativo): a venda ainda não resolve PIS/COFINS no motor fiscal.
+    public static final String EMISSAO_CST_PIS_COFINS_PROVISORIO = "01";
+    public static final java.math.BigDecimal EMISSAO_ALIQUOTA_PIS_PROVISORIA = new java.math.BigDecimal("0.65");
+    public static final java.math.BigDecimal EMISSAO_ALIQUOTA_COFINS_PROVISORIA = new java.math.BigDecimal("3.00");
+    public static final String EMISSAO_DADOS_PARTE_INDISPONIVEIS ="Não foi possível obter os dados do emitente ou do destinatário para emitir o documento fiscal.";
+    public static final String EMISSAO_PESSOA_SEM_ENDERECO ="A pessoa não tem endereço cadastrado, necessário para emitir o documento fiscal.";
 
     public static final String VENDEDOR = "VENDEDOR";
     public static final String VENDEDOR_CREATION = VENDEDOR + "_" + INSERT;
@@ -425,6 +438,9 @@ public class Constants {
             "O certificado digital do emitente está vencido. Envie um certificado válido.";
     public static final String EMISSAO_ERRO_CERTIFICADO_CNPJ_DIVERGENTE =
             "O CNPJ do certificado digital (%s) não confere com o CNPJ do emitente informado.";
+    // Trava de posse (assinatura/transmissão): nunca revela de quem é o certificado nem o outro tenant.
+    public static final String EMISSAO_ERRO_CERTIFICADO_DE_OUTRO_TENANT =
+            "O certificado digital localizado não pertence ao emitente deste documento. A emissão foi bloqueada.";
     public static final String EMISSAO_ERRO_DOCUMENTO_NAO_ENCONTRADO = "Documento fiscal não encontrado.";
     public static final String EMISSAO_ERRO_CST_ICMS_NAO_SUPORTADO =
             "Item %d: CST de ICMS '%s' ainda não é suportado na emissão. Suportados: 00, 20, 40, 41 e 50.";

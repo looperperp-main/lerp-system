@@ -64,6 +64,14 @@ cadastro-service:
 fiscal-service:
   url: lb://fiscal-service
 
+# URL lógica (Eureka) do emissao-fiscal-service + parâmetros da nota que o faturamento dispara.
+# Ambiente fica em HOMOLOGACAO até a emissão real ser liberada (precisa de IE e credenciamento).
+emissao-fiscal-service:
+  url: lb://emissao-fiscal-service
+emissao:
+  ambiente: ${EMISSAO_AMBIENTE:HOMOLOGACAO}
+  serie: ${EMISSAO_SERIE:1}
+
 internal:
   gateway:
     secret: ${INTERNAL_GATEWAY_SECRET}

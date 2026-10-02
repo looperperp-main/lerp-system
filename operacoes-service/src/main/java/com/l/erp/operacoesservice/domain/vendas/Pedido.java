@@ -1,6 +1,7 @@
 package com.l.erp.operacoesservice.domain.vendas;
 
 import com.l.erp.operacoesservice.domain.vendas.enumerators.ModalidadeFrete;
+import com.l.erp.operacoesservice.domain.vendas.enumerators.StatusEmissaoPedido;
 import com.l.erp.operacoesservice.domain.vendas.enumerators.StatusPedido;
 import com.l.erp.operacoesservice.repository.filter.BaseTenantEntity;
 import jakarta.persistence.Column;
@@ -127,6 +128,17 @@ public class Pedido extends BaseTenantEntity {
 
     @Column(name = "valor_retencoes", precision = 15, scale = 2)
     private BigDecimal valorRetencoes;
+
+    /** Documento criado no emissao-fiscal-service ao faturar; a rejeição da SEFAZ não desfaz o faturamento. */
+    @Column(name = "documento_fiscal_id")
+    private UUID documentoFiscalId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status_emissao", length = 20)
+    private StatusEmissaoPedido statusEmissao;
+
+    @Column(name = "mensagem_emissao", length = 500)
+    private String mensagemEmissao;
 
     @Size(max = 1000)
     @Column(name = "observacao", length = 1000)
