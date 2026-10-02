@@ -1,6 +1,6 @@
 # Emissão Fiscal — NF-e, CT-e, NFS-e, NFCom, NF3e (plano)
 
-> Última atualização: 29 de setembro de 2026 (Etapa 2, Fatia 1 — ver nota no §5)
+> Última atualização: 2 de outubro de 2026 (Etapa 2, Fatia 6 — primeira homologação real, ver nota no §5)
 
 Escrito para ser lido do zero. Nada aqui foi implementado — é planejamento.
 
@@ -858,8 +858,20 @@ certificado do usuário final no `KeyInfo`. **Decisões desta etapa:**
   número. Vem **depois** do replay de idempotência (reenvio de nota já aceita
   não falha por certificado vencido).
 - **Resposta síncrona (`indSinc=1`):** o MOC 7.0 (p. 71) só a permite com **um
-  único** NF-e no lote e se a SEFAZ implementar — **não confirmado para a
-  SVRS**; a Fatia 4 trata os dois caminhos (síncrono e recibo + `NFeRetAutorizacao`).
+  único** NF-e no lote. ✅ **Confirmado em homologação (2 de outubro de 2026):**
+  `indSinc=0` com 1 NF-e volta `452 - Solicitada resposta assincrona para Lote
+  com somente 1 (uma) NF-e`; com `indSinc=1` a SEFAZ responde `104 - Lote
+  processado` já no envio, com o desfecho da nota no `protNFe` (o `cStat` do lote
+  não é o da nota). `NfeMensagens` envia `indSinc=1`; a Fatia 4 mantém também o
+  caminho do recibo + `NFeRetAutorizacao` (lote com 2+ NF-e).
+- **Homologação real, primeira rodada (2 de outubro de 2026):** transmissão
+  ponta a ponta provada — A1 decifra e assina, XML passa no schema e na
+  assinatura, URL/SOAP corretos, retorno `protNFe` lido. A nota foi **REJEITADA**
+  com `209 - IE do emitente invalida` (IE de teste inventada no payload).
+  **Ainda sem prova:** o caminho AUTORIZADO (protocolo, XML autorizado) e o
+  que a SEFAZ avalia depois da IE (impostos, IBS/CBS, destinatário). Exige IE
+  real de contribuinte de ICMS; o emitente de teste (ME de serviço) provavelmente
+  não tem.
 - **Fora desta etapa:** NT 2026.006 (vínculo NF-e × split payment, flag desligada),
   DANFE Simplificado Tipo 2 (NT 2026.002/2026.003 — Etapa 3), PAA (NT 2026.001).
 - **Status Fatia 1:** contrato tipado (`emitente`, `destinatario`, `itens[]` com
