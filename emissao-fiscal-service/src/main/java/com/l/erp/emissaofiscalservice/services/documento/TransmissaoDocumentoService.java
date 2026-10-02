@@ -147,6 +147,8 @@ public class TransmissaoDocumentoService {
         if (Constants.NFE_CSTAT_LOTE_RECEBIDO.equals(retorno.cStat()) && retorno.infRec() != null) {
             documento.setRecibo(retorno.infRec().nRec());
             agendar(documento, Constants.EMISSAO_TRANSMISSAO_ESPERA_LOTE_SEGUNDOS);
+        } else if (Constants.NFE_CSTAT_LOTE_PROCESSADO.equals(retorno.cStat()) && retorno.protNFe() != null) {
+            interpretarProtocolo(documento, retorno.protNFe()); // SEFAZ processou na hora: o desfecho está no protNFe, não no lote
         } else if (Constants.NFE_CSTAT_DUPLICIDADE.equals(retorno.cStat())) {
             agendar(documento, Constants.EMISSAO_TRANSMISSAO_ESPERA_LOTE_SEGUNDOS); // próxima rodada consulta pela chave
         } else {

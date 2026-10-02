@@ -12,8 +12,8 @@ public final class NfeMensagens {
     private static final String NS_NFE = "http://www.portalfiscal.inf.br/nfe";
     private static final String NS_WSDL = "http://www.portalfiscal.inf.br/nfe/wsdl/";
 
-    /** ponytail: {@code indSinc=0} (assíncrono) — sincronia com 1 NF-e não confirmada na SVRS. */
-    private static final String IND_SINC_ASSINCRONO = "0";
+    /** {@code indSinc=1}: a SEFAZ rejeita lote de 1 NF-e em modo assíncrono (cStat 452, confirmado em homologação). */
+    private static final String IND_SINC_SINCRONO = "1";
 
     public record Mensagem(String soapAction, String corpo) {}
 
@@ -22,7 +22,7 @@ public final class NfeMensagens {
 
     public static Mensagem enviNFe(long idLote, String nfeAssinada) {
         String conteudo = "<enviNFe xmlns=\"" + NS_NFE + "\" versao=\"" + Constants.NFE_VERSAO_LEIAUTE + "\">"
-                + "<idLote>" + idLote + "</idLote><indSinc>" + IND_SINC_ASSINCRONO + "</indSinc>"
+                + "<idLote>" + idLote + "</idLote><indSinc>" + IND_SINC_SINCRONO + "</indSinc>"
                 + nfeAssinada + "</enviNFe>";
         return montar("NFeAutorizacao4", "nfeAutorizacaoLote", conteudo);
     }

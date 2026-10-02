@@ -146,6 +146,22 @@ class TransmissaoDocumentoServiceTest {
     }
 
     @Test
+    void envioJaProcessadoNaHoraLeODesfechoDoProtocoloEmVezDeRejeitarOLote() {
+        DocumentoFiscal documento = transmitido(null);
+        prepararSessao(documento);
+        when(webService.enviar(any(), contains("nfeConsultaNF"), any(), any(), any()))
+                .thenReturn(soap("<retConsSitNFe><cStat>217</cStat><xMotivo>NF-e nao consta na base</xMotivo></retConsSitNFe>"));
+        when(webService.enviar(any(), contains("nfeAutorizacaoLote"), any(), any(), any()))
+                .thenReturn(soap("<retEnviNFe><cStat>104</cStat><xMotivo>Lote processado</xMotivo>"
+                        + protocolo("209", "Rejeicao: IE do emitente invalida", null) + "</retEnviNFe>"));
+
+        service.processar(ID);
+
+        assertEquals("209 - Rejeicao: IE do emitente invalida", documento.getUltimaMensagemSefaz());
+        verify(documentoService).aplicarTransicao(documento, StatusDocumentoFiscal.REJEITADO);
+    }
+
+    @Test
     void notaDenegadaVaiParaDenegado() {
         DocumentoFiscal documento = transmitido("351000000012345");
         prepararSessao(documento);
