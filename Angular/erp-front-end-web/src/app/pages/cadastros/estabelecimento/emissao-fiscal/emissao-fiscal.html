@@ -23,6 +23,18 @@
       </div>
     </div>
 
+    <div class="cert-atual">
+      @if (certificadoAtual(); as cert) {
+        <span class="jb-status" [class.active]="certificadoVigente(cert)" [class.inactive]="!certificadoVigente(cert)">
+          {{ certificadoVigente(cert) ? 'Vigente' : 'Vencido' }}
+        </span>
+        <span>CNPJ <strong class="jb-strong">{{ cert.cnpjSubject }}</strong></span>
+        <span>Válido até <strong class="jb-strong">{{ cert.certificadoValidoAte | date: 'dd/MM/yyyy' }}</strong></span>
+      } @else if (!loadingCertificado()) {
+        <span class="jb-status inactive">Nenhum certificado enviado</span>
+      }
+    </div>
+
     <form [formGroup]="certificadoForm" (ngSubmit)="enviarCertificado()" class="flex flex-col gap-4 mt-2">
       <div class="flex flex-col gap-2">
         <label for="cnpjEstabelecimento" class="jb-label">CNPJ do estabelecimento <span class="text-red-500">*</span></label>

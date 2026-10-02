@@ -20,6 +20,7 @@ import java.security.cert.X509Certificate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Enumeration;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -82,6 +83,13 @@ public class CertificadoDigitalService {
         }
 
         return repository.save(entidade);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<CertificadoDigital> buscar(UUID emitenteId) {
+        Long tenantId = SecurityUtils.getCurrentTenantId()
+                .orElseThrow(() -> new BusinessException("Tenant não identificado.", HttpStatus.UNAUTHORIZED));
+        return repository.findByTenantIdAndEmitenteId(tenantId, emitenteId);
     }
 
     /** Decifra o .pfx e devolve o {@link KeyStore} pronto pra assinatura (usado pela Etapa 2+). */

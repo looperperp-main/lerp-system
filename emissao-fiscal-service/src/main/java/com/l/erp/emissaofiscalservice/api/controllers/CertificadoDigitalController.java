@@ -4,6 +4,7 @@ import com.l.erp.emissaofiscalservice.api.dto.CertificadoDigitalResponseDTO;
 import com.l.erp.emissaofiscalservice.services.certificado.CertificadoDigitalService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -20,6 +21,14 @@ public class CertificadoDigitalController {
 
     public CertificadoDigitalController(CertificadoDigitalService service) {
         this.service = service;
+    }
+
+    /** Metadados do certificado atual (nunca o .pfx nem a senha); 204 se o emitente ainda não enviou. */
+    @GetMapping("/emissao/certificados/{emitenteId}")
+    public ResponseEntity<CertificadoDigitalResponseDTO> buscar(@PathVariable UUID emitenteId) {
+        return service.buscar(emitenteId)
+                .map(c -> ResponseEntity.ok(CertificadoDigitalResponseDTO.from(c)))
+                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     /**

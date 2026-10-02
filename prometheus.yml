@@ -25,6 +25,12 @@ scrape_configs:
       #- targets: ['fiscal-service:8093']  # Ajuste a porta conforme seu serviço
       - targets: ['host.docker.internal:8093']  # Ajuste a porta conforme seu serviço
 
+  - job_name: 'emissao-fiscal-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      #- targets: ['emissao-fiscal-service:8094']
+      - targets: ['host.docker.internal:8094']
+
   - job_name: 'gateway'
     metrics_path: '/actuator/prometheus'
     static_configs:

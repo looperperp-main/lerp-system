@@ -14,6 +14,7 @@ import { Breadcrumb } from '../../../../components/breadcrumb/breadcrumb';
 import { PrimaryButtonComponent } from '../../../../components/primary-button/primary-button';
 import { EmissaoFiscalService } from './emissao-fiscal.service';
 import {
+  CertificadoDigital,
   CredenciamentoSefaz,
   ModeloDocumentoFiscal,
   StatusCredenciamento,
@@ -50,6 +51,8 @@ export class EmissaoFiscalConfig implements OnInit {
 
   loadingCredenciamentos = signal<boolean>(true);
   credenciamentos = signal<CredenciamentoSefaz[]>([]);
+  loadingCertificado = signal<boolean>(true);
+  certificadoAtual = signal<CertificadoDigital | null>(null);
   uploadingCertificado = false;
   arquivoCertificado: File | null = null;
 
@@ -79,7 +82,25 @@ export class EmissaoFiscalConfig implements OnInit {
       modelo: ['NFE', [Validators.required]],
       status: ['PENDENTE', [Validators.required]],
     });
+    this.carregarCertificado();
     this.carregarCredenciamentos();
+  }
+
+  carregarCertificado(): void {
+    this.service.buscarCertificado(this.estabelecimentoId).subscribe({
+      next: (cert) => {
+        this.certificadoAtual.set(cert);
+        this.loadingCertificado.set(false);
+      },
+      error: (err: HttpErrorResponse) => {
+        this.handleError(err, 'Erro ao carregar o certificado digital.');
+        this.loadingCertificado.set(false);
+      },
+    });
+  }
+
+  certificadoVigente(cert: CertificadoDigital): boolean {
+    return new Date(cert.certificadoValidoAte).getTime() > Date.now();
   }
 
   carregarCredenciamentos(): void {
@@ -125,8 +146,9 @@ export class EmissaoFiscalConfig implements OnInit {
         this.arquivoCertificado,
       )
       .subscribe({
-        next: () => {
+        next: (cert) => {
           this.uploadingCertificado = false;
+          this.certificadoAtual.set(cert);
           this.arquivoCertificado = null;
           this.certificadoForm.patchValue({ senha: '' });
           this.messageService.add({

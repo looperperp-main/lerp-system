@@ -27,6 +27,13 @@ export class EmissaoFiscalService {
     );
   }
 
+  // 204 (sem certificado) chega como corpo nulo
+  buscarCertificado(emitenteId: string): Observable<CertificadoDigital | null> {
+    return this.http.get<CertificadoDigital | null>(
+      `${environment.apiUrl}/emissao/certificados/${emitenteId}`,
+    );
+  }
+
   listarCredenciamentos(emitenteId: string): Observable<CredenciamentoSefaz[]> {
     return this.http.get<CredenciamentoSefaz[]>(
       `${environment.apiUrl}/emissao/credenciamentos/${emitenteId}`,
