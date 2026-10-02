@@ -1,6 +1,6 @@
 # Emissão Fiscal — NF-e, CT-e, NFS-e, NFCom, NF3e (plano)
 
-> Última atualização: 2 de outubro de 2026 (Etapa 2, Fatia 6 — primeira homologação real, ver nota no §5)
+> Última atualização: 2 de outubro de 2026 (NFS-e antes da etapa 3, provedor atrás de porta com ADN primeiro — §4.4/§5; Etapa 2, Fatia 6 — primeira homologação real, ver nota no §5)
 
 Escrito para ser lido do zero. Nada aqui foi implementado — é planejamento.
 
@@ -761,6 +761,61 @@ vez de uma por prefeitura.
 - Depende de: item LC 116 + `cClassTrib` (✅ já resolvidos no motor fiscal),
   ISS por município (`fiscal.aliq_iss_municipio`, já existe desde a fatia 3d).
 
+**Revisão de 2 de outubro de 2026 — provedor de NFS-e atrás de uma porta, ADN
+primeiro.** Três fatos novos mudaram o desenho acima:
+
+1. **Arcos/MG não emite pelo Emissor Nacional.** O painel da Receita mostra o
+   município como "Ativo operacional" (conveniado, Pequeno Porte II), mas com
+   **Emissor Nacional = Não**. A prefeitura informou que emite por provedor
+   próprio: **WebISS, padrão ABRASF 2.02, SOAP, RPS em lote**, com o layout em
+   atualização para enviar/compartilhar os documentos com o ADN. Ou seja,
+   "ativo operacional" no painel **não** significa que o município aceita
+   emissão pela API do ADN — a cobertura acima vale para o compartilhamento de
+   dados e para capitais/grandes cidades, não para todo município listado.
+2. **Resolução CGSN nº 191, de 4 de agosto de 2026** (altera o art. 59 da
+   Resolução CGSN 140/2018; efeitos do art. 1º **a partir de 1º de novembro de
+   2026**): a ME/EPP optante pelo Simples Nacional passa a **usar
+   obrigatoriamente a NFS-e de padrão nacional, pelo Emissor Nacional** (web ou
+   API), para serviço sujeito a nota de serviço — inclusive optante pendente e
+   impedido (§1º-A); vedada em operação sujeita só a ICMS (§1º-B). Texto lido
+   como colado pelo usuário; **confirmar a vigência e se o MEI cai na mesma
+   regra** antes de depender disso.
+3. **Regime e inscrição municipal da empresa de teste ainda não confirmados**
+   (pendente com o contador).
+
+**Decisão:** o ADN é o primeiro e, por ora, único adaptador. O WebISS fica como
+segundo adaptador possível (branch própria, só se aparecer cliente fora do
+Simples num município com provedor próprio) — não se constrói agora.
+
+**Acoplamento mínimo:**
+
+- **Porta `ProvedorNfse`** (emitir, consultar, cancelar, representação
+  gráfica). Só o adaptador conhece o formato do provedor (DPS + REST no ADN;
+  RPS + SOAP no WebISS). Guarda, snapshot de serviço, faturamento e máquina de
+  estados falam só com a porta.
+- **O provedor é gravado em cada documento** (`documento_fiscal.provedor`).
+  Cancelar/consultar nota antiga vai sempre pelo provedor que a emitiu, mesmo
+  depois de uma troca.
+- **A escolha do provedor é configuração por emitente/município, não feature
+  flag global** (uma flag global obrigaria todos os emitentes a trocar
+  juntos). Padrão: `ADN`.
+- **Guarda própria da NFS-e**, separada da da NF-e (que exige CRT 3, IE, ICMS e
+  PIS/COFINS e não serve para serviço): aceita ME/EPP/Simples, não exige IE,
+  exige item LC 116, município de incidência e — **a confirmar** — inscrição
+  municipal.
+- **Reaproveita da Etapa 1:** certificado e envelope encryption, assinatura
+  XML (algoritmo a reconferir, §3 item 2), numeração, idempotency key, outbox e
+  a máquina de estados. `INUTILIZADO` não se aplica à NFS-e.
+- **Não reaproveita:** `NfeXml*`, `NfeMensagens`, `NfeRetornoParser`,
+  `ChaveAcesso`, o resolver de endpoint por UF e o DTO de entrada (formato de
+  NF-e).
+
+**Pendências antes de codar o adaptador ADN (nada disso foi verificado):**
+homologação do ADN aberta só com o certificado A1; formato exato do envio da
+DPS e da assinatura; se o cadastro do prestador no Emissor Nacional exige
+inscrição municipal em Arcos; se há cancelamento por evento e como a
+representação gráfica (DANFS-e) é obtida.
+
 ### 4.5 NFCom e NF3e (modelos 62 e 66) — fora do plano por ora
 
 Ambos têm layout próprio (1.00) e autorizador único nacional (SVRS), o que os
@@ -786,9 +841,9 @@ NF-e sem generalizar para os outros documentos:**
 | 0 | `fiscal-service` passa a devolver, por item, os campos que faltam para montar o XML — CST, `cClassTrib` (eco), base e alíquota separadas (`pIBSUF`/`pIBSMun`/`pCBS`), percentual de redução aplicado; no legado, CST/CSOSN + `vBC` reduzida + `pICMS` nominal. **✅ 100% pronto e verde** (§3, item 11; §10/§11) — cadastro-service e os percentuais do `fiscal-service` no commit `d313921` (15/09/2026); CST/CSOSN e CFOP real no commit `20209a6` (22/09/2026, 123 testes). Quem carrega esses campos até o XML (§3 item 11, último bullet) **já está decidido** — opção (b), snapshot persistido no faturamento. **Fora desta etapa, por decisão já registrada** (`motor-fiscal-proximos-passos.md`): PIS/COFINS/IPI/ICMS-ST/FCP/DIFAL continuam sem cálculo — **decisão de 22/09/2026 (§3, item 9): isso vira guarda ativa** (bloqueia emissão do caso em vez de emitir sem o valor devido), não só nota de rodapé; cálculo real de PIS/COFINS fica na issue [#101](https://github.com/looperperp-main/lerp-system/issues/101) | — |
 | 1 | Infra comum (§3): envelope encryption do certificado, assinatura XML, cliente SOAP genérico, numeração/série (lock via `SELECT FOR UPDATE`, não Redis), persistência do documento, máquina de estados assíncrona com idempotency key (§3, item 10), UI de credenciamento/certificado — **sem emitir nada ainda** | 0 |
 | 2 | NF-e em homologação, **via SVRS** (RJ, DF ou SC — a primeira UF concreta) | 1 |
-| 3 | **NF-e em produção via SVRS: autorização + cancelamento + inutilização + DANFE no mesmo pacote.** Nada vai a produção sem os três — produção sem DANFE não é utilizável, e sem cancelamento é risco fiscal do tenant | 2 |
+| 3 | **NF-e em produção via SVRS: autorização + cancelamento + inutilização + DANFE no mesmo pacote.** Nada vai a produção sem os três — produção sem DANFE não é utilizável, e sem cancelamento é risco fiscal do tenant. **Adiada (2 de outubro de 2026):** sem nota autorizada não há o que cancelar nem faixa a inutilizar, e a empresa de teste (Arcos/MG, sem IE; MG tem autorizador próprio) não autoriza pela SVRS. Retoma quando houver emitente contribuinte de ICMS em UF da SVRS; o pacote continua inteiro, sem separar o DANFE | 2 |
 | 4 | **MG, depois SP** (autorizador próprio, uma integração específica cada) + demais UFs da SVRS como configuração (§4.1) + CC-e | 3 |
-| 5 | NFS-e padrão nacional (ADN) — REST/JSON, mais simples que os documentos SOAP e alinhada à prioridade de mercado (serviço primeiro). **Produção exige a mesma regra da etapa 3: autorização + cancelamento + representação gráfica (DANFS-e) juntos** | 1 + item LC 116/ISS já prontos |
+| 5 | **NFS-e — executada ANTES da etapa 3 (decisão de 2 de outubro de 2026, §4.4):** porta `ProvedorNfse` com o **ADN** (REST/JSON) como primeiro adaptador; WebISS/ABRASF 2.02 fica como adaptador futuro em branch própria. Guarda própria de serviço. **Produção exige a mesma regra da etapa 3: autorização + cancelamento + representação gráfica (DANFS-e) juntos** | 1 + item LC 116/ISS já prontos |
 | 6 | **NFC-e** (§4.2): série própria, CSC/QR Code **dentro do XML** (grupo `infNFeSupl`, não é só representação gráfica — guarda do CSC já decidida, `emissao.estabelecimento_csc`, §4.2), DANFCE com gerador próprio (cupom, não A4), contingência offline desde o início | 3 |
 | 7 | CT-e — autorizador/contingência já mapeados (§4.3). **Produção exige a mesma regra da etapa 3: autorização + cancelamento + representação gráfica (DACTE) juntos** | 1 |
 | 8 | Contingência SVC completa (NF-e/CT-e) + EPEC | 2-7 |
