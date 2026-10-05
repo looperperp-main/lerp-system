@@ -3,7 +3,11 @@ package com.l.erp.emissaofiscalservice.services.documento;
 import com.l.erp.common.exception.custom.BusinessException;
 import com.l.erp.common.util.Constants;
 import com.l.erp.emissaofiscalservice.api.dto.DocumentoFiscalRequestDTO;
+import com.l.erp.emissaofiscalservice.api.dto.NfseRequestDTO;
+import com.l.erp.emissaofiscalservice.domain.CodigoProvedorNfse;
 import com.l.erp.emissaofiscalservice.domain.DocumentoFiscal;
+import com.l.erp.emissaofiscalservice.domain.TipoDocumentoFiscal;
+import com.l.erp.emissaofiscalservice.services.nfse.ProvedorNfseResolver;
 import com.l.erp.emissaofiscalservice.domain.IdempotencyKey;
 import com.l.erp.emissaofiscalservice.domain.OutboxEvento;
 import com.l.erp.emissaofiscalservice.domain.StatusDocumentoFiscal;
@@ -23,6 +27,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.OffsetDateTime;
 import java.util.HexFormat;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 /**
  * Orquestra a criação de um documento fiscal — spec §3 itens 3/7/9/10. Reúne, numa única
@@ -44,6 +49,8 @@ public class DocumentoFiscalService {
     private final OutboxEventoRepository outboxEventoRepository;
     private final NumeracaoDocumentoService numeracaoDocumentoService;
     private final DocumentoFiscalGuardaService guardaService;
+    private final GuardaNfseService guardaNfseService;
+    private final ProvedorNfseResolver provedorNfseResolver;
     private final ObjectMapper objectMapper;
 
     public DocumentoFiscalService(DocumentoFiscalRepository documentoFiscalRepository,
@@ -51,12 +58,16 @@ public class DocumentoFiscalService {
                                    OutboxEventoRepository outboxEventoRepository,
                                    NumeracaoDocumentoService numeracaoDocumentoService,
                                    DocumentoFiscalGuardaService guardaService,
+                                   GuardaNfseService guardaNfseService,
+                                   ProvedorNfseResolver provedorNfseResolver,
                                    ObjectMapper objectMapper) {
         this.documentoFiscalRepository = documentoFiscalRepository;
         this.idempotencyKeyRepository = idempotencyKeyRepository;
         this.outboxEventoRepository = outboxEventoRepository;
         this.numeracaoDocumentoService = numeracaoDocumentoService;
         this.guardaService = guardaService;
+        this.guardaNfseService = guardaNfseService;
+        this.provedorNfseResolver = provedorNfseResolver;
         this.objectMapper = objectMapper;
     }
 
@@ -73,9 +84,28 @@ public class DocumentoFiscalService {
     public DocumentoFiscal criar(DocumentoFiscalRequestDTO request, String idempotencyKey) {
         Long tenantId = SecurityUtils.getCurrentTenantId()
                 .orElseThrow(() -> new BusinessException("Tenant não identificado.", HttpStatus.UNAUTHORIZED));
+        return registrar(tenantId, idempotencyKey, calcularFingerprint(request), request, request.emitenteId(),
+                request.documento(), request.modelo(), request.serie(), request.ambiente(), null,
+                () -> guardaService.validar(tenantId, request));
+    }
 
-        String fingerprint = calcularFingerprint(request);
+    /**
+     * NFS-e: mesma criação atômica da NF-e (idempotência, numeração, outbox), com a guarda própria e o
+     * provedor gravado no documento — cancelar e consultar depois vão sempre pelo provedor que emitiu.
+     */
+    @Transactional
+    public DocumentoFiscal criarNfse(NfseRequestDTO pedido, String idempotencyKey) {
+        Long tenantId = SecurityUtils.getCurrentTenantId()
+                .orElseThrow(() -> new BusinessException("Tenant não identificado.", HttpStatus.UNAUTHORIZED));
+        return registrar(tenantId, idempotencyKey, calcularFingerprint(pedido), pedido, pedido.emitenteId(),
+                TipoDocumentoFiscal.NFSE.name(), null, pedido.serie(), pedido.ambiente(),
+                () -> provedorNfseResolver.configuracaoDe(tenantId, pedido.emitenteId()).getProvedor(),
+                () -> guardaNfseService.validar(tenantId, pedido));
+    }
 
+    private DocumentoFiscal registrar(Long tenantId, String idempotencyKey, String fingerprint, Object payload,
+                                      UUID emitenteId, String tipo, String modelo, String serie, String ambiente,
+                                      Supplier<CodigoProvedorNfse> provedor, Runnable guarda) {
         var existente = idempotencyKeyRepository.findByTenantIdAndIdempotencyKey(tenantId, idempotencyKey);
         if (existente.isPresent()) {
             if (!existente.get().getFingerprint().equals(fingerprint)) {
@@ -89,20 +119,21 @@ public class DocumentoFiscalService {
 
         // Depois do replay de idempotência de propósito: reenvio de uma nota já aceita não pode falhar
         // porque o certificado venceu nesse meio-tempo. Antes da numeração: rejeição não gasta número.
-        guardaService.validar(tenantId, request);
+        guarda.run();
 
-        long numero = numeracaoDocumentoService.proximoNumero(tenantId, request.emitenteId(), request.documento(), request.serie());
+        long numero = numeracaoDocumentoService.proximoNumero(tenantId, emitenteId, tipo, serie);
 
         DocumentoFiscal documento = new DocumentoFiscal();
         documento.setTenantId(tenantId);
-        documento.setEmitenteId(request.emitenteId());
-        documento.setDocumento(request.documento());
-        documento.setModelo(request.modelo());
-        documento.setSerie(request.serie());
+        documento.setEmitenteId(emitenteId);
+        documento.setDocumento(tipo);
+        documento.setModelo(modelo);
+        documento.setSerie(serie);
         documento.setNumero(numero);
         documento.setStatus(StatusDocumentoFiscal.RASCUNHO);
-        documento.setAmbiente(request.ambiente());
-        documento.setPayloadRecebido(objectMapper.writeValueAsString(request));
+        documento.setAmbiente(ambiente);
+        documento.setProvedor(provedor == null ? null : provedor.get());
+        documento.setPayloadRecebido(objectMapper.writeValueAsString(payload));
         documento.setIdempotencyKey(idempotencyKey);
         OffsetDateTime agora = OffsetDateTime.now();
         documento.setCreatedAt(agora);
@@ -167,8 +198,19 @@ public class DocumentoFiscalService {
 
     /** SHA-256 de emitenteId+modelo+destinatário+valorTotal+qtdItens (spec §3 item 10) — nunca o payload cru, nunca o tenantId. */
     private String calcularFingerprint(DocumentoFiscalRequestDTO request) {
-        String base = request.emitenteId() + "|" + request.modelo() + "|" + request.destinatario().documento()
-                + "|" + request.valorTotal().stripTrailingZeros().toPlainString() + "|" + request.itens().size();
+        return sha256(request.emitenteId() + "|" + request.modelo() + "|" + request.destinatario().documento()
+                + "|" + request.valorTotal().stripTrailingZeros().toPlainString() + "|" + request.itens().size());
+    }
+
+    /** NFS-e: emitente + série + competência + item LC 116 + tomador + valor — o que distingue uma nota de outra. */
+    private String calcularFingerprint(NfseRequestDTO pedido) {
+        String tomador = pedido.tomador() == null ? "" : pedido.tomador().documento();
+        return sha256(pedido.emitenteId() + "|NFSE|" + pedido.serie() + "|" + pedido.competencia() + "|"
+                + pedido.servico().codigoTributacaoNacional() + "|" + tomador + "|"
+                + pedido.valores().valorServico().stripTrailingZeros().toPlainString());
+    }
+
+    private static String sha256(String base) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             return HexFormat.of().formatHex(digest.digest(base.getBytes(StandardCharsets.UTF_8)));

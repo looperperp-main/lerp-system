@@ -57,6 +57,10 @@ public record ProdutoDTO(
         @Size(max = 10)
         String classTrib,
 
+        // NFS-e nacional: cTribNac (6 dígitos); obrigatório quando tipo=SERVICO (validado em ProdutoService).
+        @Size(max = 6)
+        String codigoTributacaoNacional,
+
         @Size(max = 14)
         String ean,
 

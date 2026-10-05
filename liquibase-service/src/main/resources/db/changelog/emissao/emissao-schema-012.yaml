@@ -1,0 +1,26 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # NFS-e (spec §4.4, Etapa 5, fatia 3.6): cancelamento assíncrono.
+  #   motivo_cancelamento → preenchido quando o cancelamento é solicitado; o job cancela no provedor
+  #                         enquanto o documento está AUTORIZADO e este campo não é nulo. Volta a NULL
+  #                         se o provedor recusar ou as tentativas esgotarem (o motivo da falha vai em
+  #                         ultimo_erro).
+  # ──────────────────────────────────────────────────────────────────────────
+  - changeSet:
+      id: "emissao-028-documento-fiscal-motivo-cancelamento"
+      author: vitor fernandes ferreira
+      changes:
+        - addColumn:
+            schemaName: emissao
+            tableName: documento_fiscal
+            columns:
+              - column:
+                  name: motivo_cancelamento
+                  type: varchar(255)
+                  remarks: "Motivo do cancelamento solicitado (NFS-e). NULL = sem cancelamento pendente."
+      rollback:
+        - dropColumn:
+            schemaName: emissao
+            tableName: documento_fiscal
+            columnName: motivo_cancelamento

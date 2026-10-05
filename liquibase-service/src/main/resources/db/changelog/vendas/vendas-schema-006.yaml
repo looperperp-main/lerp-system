@@ -1,0 +1,40 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # NFS-e (spec/modulos/emissao-fiscal/emissao-fiscal.md §4.4, fatia 3.7): o pedido só tinha um
+  # documento_fiscal_id (da NF-e). Pedido misto (mercadoria + serviço) emite NF-e e NFS-e, então a
+  # NFS-e guarda o id, o último status e a mensagem em colunas próprias, sem sobrescrever a NF-e.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: vendas-010-add-emissao-nfse-pedido
+      author: vitor-fernandes
+      changes:
+        - addColumn:
+            schemaName: vendas
+            tableName: pedido
+            columns:
+              - column:
+                  name: documento_fiscal_nfse_id
+                  type: uuid
+                  remarks: 'Id da NFS-e no emissao-fiscal-service (POST /emissao/documentos/nfse)'
+              - column:
+                  name: status_emissao_nfse
+                  type: varchar(20)
+                  remarks: 'ENVIADO (aceito pela emissão) ou FALHA_ENVIO; null = nunca tentado ou pedido sem serviço'
+              - column:
+                  name: mensagem_emissao_nfse
+                  type: varchar(500)
+                  remarks: 'Motivo da última falha de envio da NFS-e à emissão'
+      rollback:
+        - dropColumn:
+            schemaName: vendas
+            tableName: pedido
+            columnName: mensagem_emissao_nfse
+        - dropColumn:
+            schemaName: vendas
+            tableName: pedido
+            columnName: status_emissao_nfse
+        - dropColumn:
+            schemaName: vendas
+            tableName: pedido
+            columnName: documento_fiscal_nfse_id

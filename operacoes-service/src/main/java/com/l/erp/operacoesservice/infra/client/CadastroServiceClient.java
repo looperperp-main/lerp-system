@@ -238,7 +238,8 @@ public class CadastroServiceClient {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record ProdutoNotaRef(String sku, String nome, String unidade, String ncm, String origem) {
+    public record ProdutoNotaRef(String sku, String nome, String unidade, String ncm, String origem,
+                                 String codigoTributacaoNacional) {
     }
 
     private void headersInternos(HttpHeaders headers, Long tenantId, UUID userId) {

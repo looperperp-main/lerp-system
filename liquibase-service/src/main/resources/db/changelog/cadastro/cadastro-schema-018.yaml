@@ -1,0 +1,26 @@
+databaseChangeLog:
+
+  # ──────────────────────────────────────────
+  # NFS-e (spec/modulos/emissao-fiscal/emissao-fiscal.md §4.4, fatia 3.7) — código de tributação
+  # nacional do serviço (cTribNac, 6 dígitos = item + subitem + desdobro da LC 116). O ADN exige os
+  # 6 dígitos e o desdobro não se deriva do item da LC 116 (codigo_servico, 4 dígitos), então vem
+  # de quem cadastra. Obrigatório para SERVICO na aplicação (ProdutoService); nulo p/ MERCADORIA e
+  # para serviços já cadastrados, que precisam ser completados antes de emitir NFS-e.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: cad-056-add-codigo-tributacao-nacional-produto
+      author: vitor-fernandes
+      changes:
+        - addColumn:
+            schemaName: cadastros
+            tableName: produto
+            columns:
+              - column:
+                  name: codigo_tributacao_nacional
+                  type: varchar(6)
+                  remarks: "cTribNac da NFS-e nacional (6 dígitos). Só serviço."
+      rollback:
+        - dropColumn:
+            schemaName: cadastros
+            tableName: produto
+            columnName: codigo_tributacao_nacional

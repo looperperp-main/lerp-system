@@ -27,6 +27,10 @@ public record AjusteEstoqueRequestDTO(
         BigDecimal valorUnitario,
         // RN-EST-12 [D10, §12]: só tem efeito pra REVENDA/USO_CONSUMO/MATERIA_PRIMA — permite o ajuste
         // deixar o saldo negativo e abre pendência de regularização (nunca silenciosa).
-        boolean permitirSaldoNegativo
+        Boolean permitirSaldoNegativo
 ) {
+    // ausente no corpo = false: com boolean primitivo o Jackson 3 recusa (400) o JSON sem o campo
+    public AjusteEstoqueRequestDTO {
+        permitirSaldoNegativo = Boolean.TRUE.equals(permitirSaldoNegativo);
+    }
 }

@@ -1,6 +1,6 @@
 # Emissão Fiscal — NF-e, CT-e, NFS-e, NFCom, NF3e (plano)
 
-> Última atualização: 2 de outubro de 2026 (NFS-e antes da etapa 3, provedor atrás de porta com ADN primeiro — §4.4/§5; Etapa 2, Fatia 6 — primeira homologação real, ver nota no §5)
+> Última atualização: 5 de outubro de 2026 (NFS-e/ADN: pendências respondidas e fatias 3.1–3.6 no §4.4; antes: 2 de outubro de 2026 — NFS-e antes da etapa 3, provedor atrás de porta com ADN primeiro — §4.4/§5; Etapa 2, Fatia 6 — primeira homologação real, ver nota no §5)
 
 Escrito para ser lido do zero. Nada aqui foi implementado — é planejamento.
 
@@ -810,11 +810,51 @@ Simples num município com provedor próprio) — não se constrói agora.
   `ChaveAcesso`, o resolver de endpoint por UF e o DTO de entrada (formato de
   NF-e).
 
-**Pendências antes de codar o adaptador ADN (nada disso foi verificado):**
-homologação do ADN aberta só com o certificado A1; formato exato do envio da
-DPS e da assinatura; se o cadastro do prestador no Emissor Nacional exige
-inscrição municipal em Arcos; se há cancelamento por evento e como a
-representação gráfica (DANFS-e) é obtida.
+**Pendências do ADN — respondidas em 5 de outubro de 2026** (manual de
+contribuintes v1.2, Swagger da produção restrita aberto com o A1, XSD 1.00 e
+Anexo IV oficiais, que estão em `spec/`):
+
+- **Envio:** `POST /nfse` síncrono, JSON `{"dpsXmlGZipB64": ...}` — XML da DPS
+  assinado, UTF-8, **GZip (não ZIP)**, Base64. Resposta 201 traz `chaveAcesso`
+  (50 dígitos) e o XML da NFS-e; 400 traz a rejeição. Autenticação por mTLS com
+  o A1 do emitente, sem token.
+- **Assinatura:** RSA-SHA1, digest SHA-1, C14N inclusiva, enveloped — a mesma
+  da NF-e; `Reference` no `Id` de `infDPS` / `infPedReg`.
+- **Cancelamento:** por **evento** `e101101` (`POST /nfse/{chave}/eventos`,
+  `pedidoRegistroEventoXmlGZipB64`); motivo de 15 a 255 caracteres. O id do
+  pedido é `"PRE" + chave(50) + 101101 + nPedRegEvento(3)` = 62 caracteres (o
+  manual dizia 59; vale o XSD).
+- **Consultar antes de reenviar:** `GET /nfse/{chave}`, `GET /dps/{id}` (devolve
+  a chave, só para atores da nota) e `HEAD /dps/{id}` (id da DPS = 45 posições).
+  404 = o ADN nunca recebeu, reenviar é seguro.
+- **Homologação** do ADN = "produção restrita"
+  (`sefin.producaorestrita.nfse.gov.br/API/SefinNacional`); exige o A1.
+- **Inscrição municipal:** o ADN não tem regra de rejeição para ela (aba "RN
+  NFS-e - ADN" do Anexo IV); só o município pode exigir. Fica opcional.
+
+**Ainda em aberto (confirmar na homologação real):** tipo de inscrição no id da
+DPS (usado `2` = CNPJ); `indTotTrib` para ME/EPP (usado `0`); formato de `GET
+/dps/{id}` e do corpo do 400; **DANFS-e** (serviço do ADN fora do ar em
+2 de outubro de 2026 — a produção segue bloqueada, §5); se Arcos/MG (WebISS)
+emite na produção restrita; MEI e a vigência da Res. CGSN 191/2026 (ME/EPP do
+Simples passa ao Emissor Nacional obrigatório a partir de 1º/11/2026); validar
+`cTribNac` contra a tabela nacional (hoje só o formato).
+
+**Status das fatias (5 de outubro de 2026, backend verde — 184 testes):**
+
+| Fatia | O quê | Estado |
+|---|---|---|
+| 3.1 | spec | ✅ |
+| 3.2 | núcleo: `provedor`, chave de 60, `configuracao_nfse` | ✅ |
+| 3.3 | porta `ProvedorNfse` + resolver | ✅ |
+| 3.4 / 3.4b | adaptador ADN (DPS, assinatura, REST, parser) + fluxo `RASCUNHO → TRANSMITIDO → AUTORIZADO` (pula `ASSINADO`; consulta antes de reenviar) | ✅ |
+| 3.5 / 3.5b | guarda da NFS-e, `POST /emissao/documentos/nfse`, `PUT/GET /emissao/configuracoes-nfse/{emitenteId}` | ✅ |
+| 3.6 | cancelamento assíncrono (`POST .../{id}/cancelamento`) + `GET .../{id}/danfse` (503 até o ADN ter DANFS-e); **`PRODUCAO` recusada (422) até a DANFS-e existir** | ✅ (nada rodado contra o ADN real) |
+| 3.7 | faturamento de pedido só-serviço no `operacoes-service` | ⏳ |
+
+Limite conhecido do cancelamento: depois de timeout ele repete sem consultar o
+evento antes; o ADN rejeita evento duplicado, então não cancela duas vezes, mas
+a nota pode ficar `AUTORIZADO` com `ultimo_erro` mesmo já cancelada lá.
 
 ### 4.5 NFCom e NF3e (modelos 62 e 66) — fora do plano por ora
 

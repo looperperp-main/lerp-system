@@ -54,6 +54,7 @@ export interface Produto {
   tipo: TipoProduto;
   codigoServico?: string;
   classTrib?: string;
+  codigoTributacaoNacional?: string;
   unidade: string;
   unidadeSecundaria?: string;
   fatorConversao?: number;

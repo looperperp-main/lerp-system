@@ -126,6 +126,9 @@ databaseChangeLog:
   - include:
       file: cadastro/cadastro-schema-017.yaml
       relativeToChangelogFile: true
+  - include:
+      file: cadastro/cadastro-schema-018.yaml
+      relativeToChangelogFile: true
 
   # 3. Schema de Billing
   - include:
@@ -296,6 +299,9 @@ databaseChangeLog:
   - include:
       file: vendas/vendas-schema-005.yaml
       relativeToChangelogFile: true
+  - include:
+      file: vendas/vendas-schema-006.yaml
+      relativeToChangelogFile: true
 
   # 8. Schema de Estoque — saldo e movimento (operacoes-service)
   - include:
@@ -367,4 +373,7 @@ databaseChangeLog:
       relativeToChangelogFile: true
   - include:
       file: emissao/emissao-schema-011.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: emissao/emissao-schema-012.yaml
       relativeToChangelogFile: true

@@ -72,7 +72,8 @@ public class HttpWebServiceClient implements WebServiceClient {
         }
     }
 
-    private SSLContext montarSslContext(KeyStore keyStoreCliente, char[] senha, TrustManager[] trustManagers)
+    /** Público e estático: o cliente REST da NFS-e usa o mesmo TLS mútuo com o A1 do emitente. */
+    public static SSLContext montarSslContext(KeyStore keyStoreCliente, char[] senha, TrustManager[] trustManagers)
             throws GeneralSecurityException {
         KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
         keyManagerFactory.init(keyStoreCliente, senha);

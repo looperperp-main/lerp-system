@@ -99,6 +99,11 @@ public class Produto extends BaseTenantEntity {
     @Column(name = "class_trib", length = 10)
     private String classTrib;
 
+    // NFS-e nacional (fatia 3.7): cTribNac de 6 dígitos (item + subitem + desdobro da LC 116), só serviço.
+    @Size(max = 6)
+    @Column(name = "codigo_tributacao_nacional", length = 6)
+    private String codigoTributacaoNacional;
+
     @Size(max = 14)
     @Column(name = "ean", length = 14)
     private String ean;

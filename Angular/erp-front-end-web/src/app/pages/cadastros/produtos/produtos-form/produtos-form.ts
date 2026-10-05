@@ -85,6 +85,10 @@ export class ProdutosForm implements OnInit, OnChanges {
       tipo: [this.ProdutoData?.tipo || 'MERCADORIA', Validators.required],
       codigoServico: [this.ProdutoData?.codigoServico || ''],
       classTrib: [this.ProdutoData?.classTrib || '', Validators.maxLength(10)],
+      codigoTributacaoNacional: [
+        this.ProdutoData?.codigoTributacaoNacional || '',
+        Validators.pattern(/^(\d{6})?$/),
+      ],
       categoriaId: [this.ProdutoData?.categoriaId || null],
       unidade: [this.ProdutoData?.unidade || '', [Validators.required, Validators.maxLength(10)]],
       unidadeSecundaria: [this.ProdutoData?.unidadeSecundaria || ''],
@@ -136,6 +140,7 @@ export class ProdutosForm implements OnInit, OnChanges {
         tipo: this.ProdutoData.tipo || 'MERCADORIA',
         codigoServico: this.ProdutoData.codigoServico,
         classTrib: this.ProdutoData.classTrib,
+        codigoTributacaoNacional: this.ProdutoData.codigoTributacaoNacional,
         categoriaId: this.ProdutoData.categoriaId,
         unidade: this.ProdutoData.unidade,
         unidadeSecundaria: this.ProdutoData.unidadeSecundaria,

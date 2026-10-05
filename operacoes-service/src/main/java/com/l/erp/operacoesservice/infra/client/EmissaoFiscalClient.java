@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -50,8 +51,51 @@ public class EmissaoFiscalClient {
         return resposta.id();
     }
 
+    /**
+     * {@code POST /emissao/documentos/nfse}: mesmo contrato assíncrono (202 + id). O município do prestador
+     * não vai no corpo — o emissao-fiscal-service o lê da configuração de NFS-e do emitente.
+     *
+     * @return id do documento criado na emissão.
+     */
+    public UUID criarNfse(NfseRequest request, String idempotencyKey, Long tenantId, UUID userId) {
+        DocumentoResposta resposta = restClient.post()
+                .uri("/emissao/documentos/nfse")
+                .headers(headers -> {
+                    headers.add(Constants.HEADER_INTERNAL_SECRET, internalSecret);
+                    headers.add(Constants.HEADER_TENANT_ID, String.valueOf(tenantId));
+                    headers.add(Constants.HEADER_USER_ID, userId.toString());
+                    headers.add(HEADER_IDEMPOTENCY_KEY, idempotencyKey);
+                })
+                .body(request)
+                .retrieve()
+                .body(DocumentoResposta.class);
+        return resposta.id();
+    }
+
     @JsonIgnoreProperties(ignoreUnknown = true)
     private record DocumentoResposta(UUID id) {
+    }
+
+    /** Espelha {@code NfseRequestDTO} do emissao-fiscal-service (contrato copiado, nunca compartilhado). */
+    public record NfseRequest(UUID emitenteId, String ambiente, String serie, LocalDate competencia,
+                              NfsePrestador prestador, NfseTomador tomador, NfseServico servico,
+                              NfseValores valores) {
+    }
+
+    public record NfsePrestador(String cnpj, String inscricaoMunicipal, String razaoSocial, Endereco endereco,
+                                String email, String opcaoSimplesNacional, String regimeApuracaoSimples,
+                                String regimeEspecialTributacao) {
+    }
+
+    public record NfseTomador(String documento, String nome, String email, Endereco endereco) {
+    }
+
+    public record NfseServico(String codigoTributacaoNacional, String codigoTributacaoMunicipal, String descricao,
+                              String municipioPrestacao) {
+    }
+
+    public record NfseValores(BigDecimal valorServico, String tributacaoIssqn, BigDecimal aliquotaIssqn,
+                              String tipoRetencaoIssqn) {
     }
 
     public record Endereco(String logradouro, String numero, String complemento, String bairro,

@@ -58,7 +58,7 @@ class ProdutoServiceTest {
     private ProdutoDTO dto(UUID categoriaId, List<ProdutoEstoqueConfigDTO> estoqueConfigs) {
         return new ProdutoDTO(null, TENANT_ID, categoriaId, "SKU1", null, "Produto 1", null,
                 TipoProduto.MERCADORIA, FinalidadeProduto.REVENDA, "UN",
-                null, null, null, null, null, null, null, null, null, null, null, null, null, true,
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null, true,
                 null, null, null, null, null, null, estoqueConfigs);
     }
 
@@ -202,6 +202,49 @@ class ProdutoServiceTest {
     }
 
     @Test
+    void create_servicoSemCodigoTributacaoNacional_lancaBadRequest() {
+        Produto mapped = servicoCompleto();
+        mapped.setCodigoTributacaoNacional(null);
+        when(mapper.toEntity(any(ProdutoDTO.class))).thenReturn(mapped);
+
+        assertThatThrownBy(() -> produtoService.create(TENANT_ID, USER_ID, dto(null, null)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("cTribNac")
+                .extracting(e -> ((BusinessException) e).getStatus())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void create_servicoComCodigoTributacaoNacionalSemSeisDigitos_lancaBadRequest() {
+        Produto mapped = servicoCompleto();
+        mapped.setCodigoTributacaoNacional("0101");
+        when(mapper.toEntity(any(ProdutoDTO.class))).thenReturn(mapped);
+
+        assertThatThrownBy(() -> produtoService.create(TENANT_ID, USER_ID, dto(null, null)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("6 dígitos");
+    }
+
+    @Test
+    void create_servicoCompletoComCodigoTributacaoNacional_salva() {
+        when(mapper.toEntity(any(ProdutoDTO.class))).thenReturn(servicoCompleto());
+        when(produtoRepository.save(any(Produto.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Produto saved = produtoService.create(TENANT_ID, USER_ID, dto(null, null));
+
+        assertThat(saved.getCodigoTributacaoNacional()).isEqualTo("010101");
+    }
+
+    private static Produto servicoCompleto() {
+        Produto produto = new Produto();
+        produto.setTipo(TipoProduto.SERVICO);
+        produto.setCodigoServico("01.01");
+        produto.setClassTrib("000001");
+        produto.setCodigoTributacaoNacional("010101");
+        return produto;
+    }
+
+    @Test
     void create_mercadoriaComCodigoServico_lancaBadRequest() {
         Produto mapped = new Produto();
         mapped.setTipo(TipoProduto.MERCADORIA);
@@ -261,7 +304,7 @@ class ProdutoServiceTest {
                 null, null, null, null);
         ProdutoDTO dtoComPreco = new ProdutoDTO(null, TENANT_ID, null, "SKU1", null, "Produto 1", null,
                 TipoProduto.MERCADORIA, FinalidadeProduto.REVENDA, "UN",
-                null, null, null, null, null, null, null, null, null, null, null, null, null, true,
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null, true,
                 null, null, null, null, List.of(precoSemAuditoria), null, null);
 
         when(produtoRepository.findByIdAndTenantId(id, TENANT_ID)).thenReturn(Optional.of(existing));

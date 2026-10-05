@@ -66,7 +66,7 @@ class ProdutoControllerTest {
                 null,                  // finalidade
                 "UN", null,            // unidade, unidadeSecundaria
                 null, null, null,      // fatorConversao, ncm, codigoServico
-                null, null, null, null,// classTrib, ean, cest, origem
+                null, null, null, null, null,// classTrib, codigoTributacaoNacional, ean, cest, origem
                 null, null, null, null, null, // pesoBruto, pesoLiquido, altura, largura, comprimento
                 true,                  // ativo
                 null, null, null, null,// createdAt, updatedAt, createdBy, lastUpdatedBy

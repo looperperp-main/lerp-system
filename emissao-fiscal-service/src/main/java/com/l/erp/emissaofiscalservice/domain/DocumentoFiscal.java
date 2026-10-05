@@ -168,6 +168,17 @@ public class DocumentoFiscal extends BaseTenantEntity {
         this.tpEmis = tpEmis;
     }
 
+    @Column(name = "motivo_cancelamento")
+    private String motivoCancelamento;
+
+    public String getMotivoCancelamento() {
+        return motivoCancelamento;
+    }
+
+    public void setMotivoCancelamento(String motivoCancelamento) {
+        this.motivoCancelamento = motivoCancelamento;
+    }
+
     public CodigoProvedorNfse getProvedor() {
         return provedor;
     }

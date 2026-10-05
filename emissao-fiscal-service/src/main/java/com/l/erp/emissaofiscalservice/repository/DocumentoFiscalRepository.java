@@ -27,10 +27,23 @@ public interface DocumentoFiscalRepository extends JpaRepository<DocumentoFiscal
      * Ids dos documentos num estado, do mais antigo pro mais novo — usado pelos jobs assíncronos, que
      * rodam sem requisição (sem tenant no contexto, então o filtro não liga) e varrem todos os tenants.
      */
-    @Query("select d.id from DocumentoFiscal d where d.status = :status "
+    // 'NFSE' fora: os jobs da NF-e (assinatura XMLDSig + SOAP SEFAZ) quebrariam numa NFS-e; ela tem job próprio
+    @Query("select d.id from DocumentoFiscal d where d.status = :status and d.documento <> 'NFSE' "
             + "and (d.proximaTentativaEm is null or d.proximaTentativaEm <= :agora) order by d.createdAt asc")
     List<UUID> buscarIdsProntosPorStatus(@Param("status") StatusDocumentoFiscal status,
                                          @Param("agora") OffsetDateTime agora, Pageable pageable);
+
+    /** Mesma busca, só para NFS-e (job {@code EmissaoNfseJob}). */
+    @Query("select d.id from DocumentoFiscal d where d.status = :status and d.documento = 'NFSE' "
+            + "and (d.proximaTentativaEm is null or d.proximaTentativaEm <= :agora) order by d.createdAt asc")
+    List<UUID> buscarIdsProntosNfse(@Param("status") StatusDocumentoFiscal status,
+                                    @Param("agora") OffsetDateTime agora, Pageable pageable);
+
+    /** NFS-e autorizadas com cancelamento solicitado e ainda não efetivado (job {@code EmissaoNfseJob}). */
+    @Query("select d.id from DocumentoFiscal d where d.status = com.l.erp.emissaofiscalservice.domain.StatusDocumentoFiscal.AUTORIZADO "
+            + "and d.documento = 'NFSE' and d.motivoCancelamento is not null "
+            + "and (d.proximaTentativaEm is null or d.proximaTentativaEm <= :agora) order by d.updatedAt asc")
+    List<UUID> buscarIdsComCancelamentoPendente(@Param("agora") OffsetDateTime agora, Pageable pageable);
 
     /** Ids num estado desde antes de {@code limite} ({@code updatedAt} só muda em transição) — reconciliação. */
     @Query("select d.id from DocumentoFiscal d where d.status = :status and d.updatedAt < :limite order by d.updatedAt asc")

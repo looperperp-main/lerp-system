@@ -140,6 +140,17 @@ public class Pedido extends BaseTenantEntity {
     @Column(name = "mensagem_emissao", length = 500)
     private String mensagemEmissao;
 
+    /** NFS-e dos itens de serviço: colunas próprias para o pedido misto não sobrescrever a NF-e. */
+    @Column(name = "documento_fiscal_nfse_id")
+    private UUID documentoFiscalNfseId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status_emissao_nfse", length = 20)
+    private StatusEmissaoPedido statusEmissaoNfse;
+
+    @Column(name = "mensagem_emissao_nfse", length = 500)
+    private String mensagemEmissaoNfse;
+
     @Size(max = 1000)
     @Column(name = "observacao", length = 1000)
     private String observacao;

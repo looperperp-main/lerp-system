@@ -181,6 +181,20 @@ public class Constants {
     public static final String ESTABELECIMENTO_PROPRIO_NAO_ENCONTRADO = "Estabelecimento proprio do tenant nao encontrado!";
     public static final String EMISSAO_ENVIO_FALHA_GENERICA = "Falha ao enviar o documento para a emissão fiscal.";
     public static final String EMISSAO_NATUREZA_OPERACAO_VENDA ="VENDA DE MERCADORIA";
+    public static final String EMISSAO_NFSE_OPCAO_SIMPLES_NAO_OPTANTE = "1";
+    public static final String EMISSAO_NFSE_OPCAO_SIMPLES_ME_EPP = "3";
+    public static final String EMISSAO_NFSE_REGIME_APURACAO_SIMPLES_FEDERAIS_E_MUNICIPAL_PELO_SN = "1";
+    public static final String EMISSAO_NFSE_REGIME_ESPECIAL_NENHUM = "0";
+    public static final String EMISSAO_NFSE_ISSQN_TRIBUTAVEL = "1";
+    public static final String EMISSAO_NFSE_ISS_NAO_RETIDO = "1";
+    public static final String EMISSAO_NFSE_ISS_RETIDO_TOMADOR = "2";
+    public static final int EMISSAO_NFSE_DESCRICAO_MAX = 2000;
+    public static final String EMISSAO_NFSE_ERRO_CRT_NAO_SUPORTADO =
+            "Emissão de NFS-e ainda não suporta o regime tributário do emitente (CRT %s).";
+    public static final String EMISSAO_NFSE_ERRO_SERVICOS_DISTINTOS =
+            "Pedido com serviços de códigos de tributação diferentes ainda não é suportado (uma NFS-e por pedido).";
+    public static final String EMISSAO_NFSE_ERRO_SEM_CODIGO_TRIBUTACAO =
+            "Serviço %s sem código de tributação nacional (cTribNac) no cadastro do produto.";
     public static final String EMISSAO_DOCUMENTO_NFE = "NFE";
     public static final String EMISSAO_MODELO_NFE = "55";
     public static final int EMISSAO_TIPO_OPERACAO_SAIDA = 1;
@@ -253,6 +267,8 @@ public class Constants {
     // exigida pelo fiscal-service (MotorFiscalService) sempre que codigoServico vem preenchido.
     public static final String PRODUTO_CLASS_TRIB_OBRIGATORIO_SERVICO =
             "Classificação tributária (cClassTrib) é obrigatória para produto do tipo SERVICO";
+    public static final String PRODUTO_CODIGO_TRIBUTACAO_NACIONAL_INVALIDO =
+            "Código de tributação nacional (cTribNac) é obrigatório para produto do tipo SERVICO e deve ter 6 dígitos";
     public static final String PRODUTO_PRECO_VIGENCIA_INVALIDA =
             "Início de vigência do preço não pode ser posterior ao fim de vigência";
     public static final String PRODUTO_PRECO_VIGENCIA_SOBREPOSTA =
@@ -407,6 +423,7 @@ public class Constants {
     // emissao-fiscal-service — Etapa 2, guardas do POST /emissao/documentos
     // (spec/modulos/emissao-fiscal/emissao-fiscal.md §3 itens 9 e 11; NT 2025.002 v1.51, cronograma CRT 3)
     public static final String EMISSAO_CRT_REGIME_NORMAL = "3";
+    public static final String EMISSAO_CRT_SIMPLES_NACIONAL = "1";
     public static final String EMISSAO_IND_IE_DEST_NAO_CONTRIBUINTE = "9";
     public static final int EMISSAO_IND_FINAL_CONSUMIDOR_FINAL = 1;
     public static final String EMISSAO_TRIBUTO_ICMS_ST = "ICMS-ST";
@@ -415,6 +432,46 @@ public class Constants {
     public static final String EMISSAO_TRIBUTO_DIFAL = "DIFAL";
     public static final String EMISSAO_ERRO_DOCUMENTO_NAO_SUPORTADO =
             "Tipo de documento '%s' inválido ou ainda não suportado. Por ora só a NF-e (NFE) é emitida.";
+    public static final String EMISSAO_ERRO_NFSE_SEM_CONFIGURACAO =
+            "Emitente sem configuração de NFS-e (município e provedor). Cadastre a configuração antes de emitir.";
+    public static final String EMISSAO_ERRO_NFSE_PROVEDOR_INDISPONIVEL =
+            "Provedor de NFS-e '%s' não está disponível neste serviço.";
+    /** Tipo de inscrição federal no id da DPS (1 = CPF, 2 = CNPJ). A CONFIRMAR em homologação: não consta nas planilhas. */
+    public static final String NFSE_TIPO_INSCRICAO_CNPJ = "2";
+    public static final String NFSE_EMITENTE_DPS_PRESTADOR = "1";
+    /** indTotTrib = 0: o emitente opta por não informar valor aproximado de tributos. A CONFIRMAR para ME/EPP. */
+    public static final String NFSE_IND_TOT_TRIB_NAO_INFORMA = "0";
+    public static final int NFSE_MENSAGEM_MAX = 500;
+    public static final String NFSE_VERSAO_LEIAUTE = "1.00";
+    public static final String NFSE_VERSAO_APLICATIVO = "ERP-VSD-1.0";
+    public static final String NFSE_CODIGO_EVENTO_CANCELAMENTO = "101101";
+    public static final String NFSE_DESCRICAO_EVENTO_CANCELAMENTO = "Cancelamento de NFS-e";
+    /** cMotivo 9 = "Outros" (1 = erro na emissão, 2 = serviço não prestado); o texto livre vai em xMotivo. */
+    public static final String NFSE_MOTIVO_CANCELAMENTO_OUTROS = "9";
+    public static final int NFSE_MOTIVO_CANCELAMENTO_MIN = 15;
+    public static final int NFSE_MOTIVO_CANCELAMENTO_MAX = 255;
+    public static final String EMISSAO_ERRO_NFSE_MOTIVO_CANCELAMENTO =
+            "O motivo do cancelamento deve ter entre 15 e 255 caracteres.";
+    public static final String EMISSAO_ERRO_NFSE_SEM_CHAVE =
+            "A NFS-e ainda não foi autorizada (sem chave de acesso); não há o que cancelar.";
+    public static final String EMISSAO_ERRO_NFSE_CERTIFICADO_RECUSADO =
+            "O Emissor Nacional recusou o certificado digital (HTTP %d). Confira a validade, a cadeia ICP-Brasil e o cadastro do prestador.";
+    public static final String EMISSAO_ERRO_NFSE_DANFSE_INDISPONIVEL =
+            "A representação gráfica (DANFS-e) ainda não está disponível neste serviço.";
+    public static final String EMISSAO_ERRO_NFSE_CANCELAMENTO_NAO_PERMITIDO =
+            "Só uma NFS-e autorizada pode ser cancelada.";
+    public static final String EMISSAO_ERRO_NFSE_CANCELAMENTO_RECUSADO =
+            "O provedor recusou o cancelamento: %s";
+    public static final String EMISSAO_ERRO_NFSE_PRODUCAO_SEM_DANFSE =
+            "Emissão de NFS-e em produção ainda não liberada: a DANFS-e não está disponível.";
+    public static final String EMISSAO_ERRO_NFSE_MEI_NAO_SUPORTADO =
+            "Emissão de NFS-e para MEI ainda não é suportada.";
+    public static final String EMISSAO_ERRO_NFSE_SIMPLES_SEM_REGIME_APURACAO =
+            "Prestador ME/EPP do Simples Nacional deve informar o regime de apuração dos tributos.";
+    public static final String EMISSAO_ERRO_NFSE_ALIQUOTA_OBRIGATORIA =
+            "Prestador fora do Simples Nacional deve informar a alíquota do ISSQN quando o serviço é tributável.";
+    public static final String EMISSAO_ERRO_NFSE_COMPETENCIA_FUTURA =
+            "A competência da NFS-e não pode ser uma data futura.";
     public static final String EMISSAO_ERRO_AMBIENTE_INVALIDO =
             "Ambiente '%s' inválido. Use HOMOLOGACAO ou PRODUCAO.";
     public static final String EMISSAO_ERRO_CRT_NAO_SUPORTADO =
