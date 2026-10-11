@@ -1,0 +1,87 @@
+databaseChangeLog:
+  # ──────────────────────────────────────────
+  # TABELA: migracao.export_batch
+  # Um pedido de exportação (multi-entidade). spec/onboarding-pagamento/exportacao-dados-syax.md §5.
+  # Desvios da spec: tenant_id é BIGINT (o tenant do SYAX é Long, não UUID); colunas extras
+  # `format`, `table_counts`, `failure_reason` e `started_at` (a UI e o timeout de 30 min precisam delas).
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: migracao-004-create-export-batch
+      author: vitor-fernandes
+      changes:
+        - sql:
+            sql: |
+              CREATE TABLE migracao.export_batch (
+                  id              UUID PRIMARY KEY,
+                  tenant_id       BIGINT       NOT NULL,
+                  requested_by    UUID         NOT NULL,
+                  scope           JSONB        NOT NULL,
+                  scope_hash      CHAR(64)     NOT NULL,
+                  schema_version  VARCHAR(10)  NOT NULL DEFAULT '1.0',
+                  format          VARCHAR(5)   NOT NULL DEFAULT 'XLSX',
+                  status          VARCHAR(20)  NOT NULL DEFAULT 'REQUESTED',
+                  file_paths      JSONB,
+                  table_counts    JSONB,
+                  download_token  VARCHAR(64) UNIQUE,
+                  attempt_count   SMALLINT     NOT NULL DEFAULT 0,
+                  reason          VARCHAR(50),
+                  failure_reason  VARCHAR(300),
+                  created_at      TIMESTAMPTZ  NOT NULL DEFAULT now(),
+                  started_at      TIMESTAMPTZ,
+                  ready_at        TIMESTAMPTZ,
+                  expires_at      TIMESTAMPTZ,
+                  downloaded_at   TIMESTAMPTZ,
+                  CONSTRAINT ck_export_batch_status CHECK (status IN
+                      ('REQUESTED','PROCESSING','READY','DOWNLOADED','EXPIRED','FAILED')),
+                  CONSTRAINT ck_export_batch_format CHECK (format IN ('XLSX','CSV'))
+              );
+              CREATE INDEX idx_export_batch_tenant ON migracao.export_batch (tenant_id, status);
+              CREATE INDEX idx_export_batch_dedupe ON migracao.export_batch (tenant_id, scope_hash, status);
+      rollback:
+        - sql:
+            sql: DROP TABLE IF EXISTS migracao.export_batch;
+
+  # ──────────────────────────────────────────
+  # TABELA: migracao.export_audit_log — log de eventos (REQUESTED, GENERATED, DOWNLOADED,
+  # DOWNLOAD_DENIED, EXPIRED). Sem FK para export_batch: DOWNLOAD_DENIED com token inexistente
+  # ainda precisa deixar rastro (sinal de enumeração de token).
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: migracao-005-create-export-audit-log
+      author: vitor-fernandes
+      changes:
+        - sql:
+            sql: |
+              CREATE TABLE migracao.export_audit_log (
+                  id               BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                  export_batch_id  UUID,
+                  tenant_id        BIGINT      NOT NULL,
+                  action           VARCHAR(30) NOT NULL,
+                  actor_id         UUID,
+                  created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+              );
+              CREATE INDEX idx_export_audit_batch ON migracao.export_audit_log (export_batch_id, created_at);
+      rollback:
+        - sql:
+            sql: DROP TABLE IF EXISTS migracao.export_audit_log;
+
+  # ──────────────────────────────────────────
+  # Permissões RBAC do domínio MIGRACAO (mesmo padrão DOMINIO_ACAO do auth-schema-019).
+  # Ficam neste changelog, e não em auth/, para não disputar numeração com outras branches.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: migracao-006-permission-migracao-seed
+      author: vitor-fernandes
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: >
+              INSERT INTO auth.permission (id, code, domain, description, created_by) VALUES
+              (gen_random_uuid(), 'MIGRACAO_EXPORTAR', 'MIGRACAO', 'Solicitar e baixar exportações de dados do tenant', 'system-seed'),
+              (gen_random_uuid(), 'MIGRACAO_IMPORTAR', 'MIGRACAO', 'Importar dados para o tenant (migração de onboarding)', 'system-seed')
+              ON CONFLICT (code) DO NOTHING;
+      rollback:
+        - sql:
+            dbms: postgresql
+            sql: DELETE FROM auth.permission WHERE code IN ('MIGRACAO_EXPORTAR', 'MIGRACAO_IMPORTAR');

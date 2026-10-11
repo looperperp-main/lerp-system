@@ -17,7 +17,8 @@
     <properties>
         <java.version>25</java.version>
         <jacoco.version>0.8.14</jacoco.version>
-        <coverage.minimum>0.40</coverage.minimum>
+        <!-- Piso do migracao-service: 60% (decisão do usuário) — não pode puxar a média geral pra baixo. -->
+        <coverage.minimum>0.60</coverage.minimum>
         <spring-cloud.version>2025.1.1</spring-cloud.version>
     </properties>
 
@@ -66,6 +67,22 @@
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
+        </dependency>
+
+        <!-- Logs → Loki (o logback-spring.xml usa Loki4jAppender). Este módulo tem parent=spring-boot-starter-parent
+             direto, então não herda a dependência do pom raiz — mesmo caso do cadastro-service. -->
+        <dependency>
+            <groupId>com.github.loki4j</groupId>
+            <artifactId>loki-logback-appender</artifactId>
+            <version>1.6.0</version>
+        </dependency>
+
+        <!-- XLSX do export (SXSSFWorkbook = streaming, memória constante em tabela grande).
+             Versão fora do BOM do Spring Boot; confirmar no primeiro build. -->
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>5.4.1</version>
         </dependency>
 
         <dependency>

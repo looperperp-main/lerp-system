@@ -5,7 +5,14 @@
 **Última atualização:** 11 de outubro de 2026
 **Documento relacionado:** `migracao-dados-syax.md`; telas e UX do portal em `exportacao-importacao-front.md`
 **Serviço:** `migracao-service` (mesmo serviço do doc de import — novo, fora do MVP inicial). Registra no Eureka e fica atrás do gateway — reusa validação de JWT e resolução de tenant (`SecurityUtils`) dos demais serviços, não reimplementa auth do zero.
-**Infra alvo:** VPS própria (Hostgator ou similar) — sem dependência de bucket/object storage; deploy provavelmente segue o mesmo pipeline Docker/Jenkins dos demais serviços (ver CLAUDE.md), não systemd standalone — a decisão de disco local (vs. S3) continua valendo, só muda para volume montado no container
+**Infra alvo:** OCI (produção do SYAX), não VPS/Hostgator — sem dependência de bucket/object storage; o serviço roda em container (pipeline Docker/Jenkins dos demais), não systemd standalone. A decisão de disco local (vs. S3) continua valendo: no OCI vira volume Docker nomeado `syax_exports` montado em `/var/syax/exports`; localmente cai no temp dir. O único delta é o valor de `SYAX_EXPORT_DIR`. As referências a VPS/systemd/cron da seção 12 estão defasadas por isso.
+
+**Desvios da implementação (11 de outubro de 2026), vencem sobre o texto abaixo:**
+- `tenant_id` é `BIGINT` (o tenant do SYAX é `Long`), não UUID; `requested_by`/`actor_id` seguem UUID. `export_audit_log` não tem FK para `export_batch` (um `DOWNLOAD_DENIED` com token inexistente também precisa deixar rastro).
+- Colunas extras em `export_batch`: `format` (XLSX/CSV), `table_counts`, `failure_reason`, `started_at`. `file_paths` guarda caminho **relativo** ao `syax.export.base-dir`.
+- O escopo não é uma lista fixa de `entity_type`: o catálogo é **descoberto do `information_schema`** dos schemas `cadastros`, `compras`, `emissao`, `estoque` e `vendas` (tabela com `tenant_id`, ou filha com FK única para uma que tenha), menos a lista de exclusão em `Constants` (`certificado_digital`, `idempotency_key`, `outbox_evento`, `configuracao_nfse`, `credenciamento_sefaz`). Tabela nova entra sozinha; tabela ausente no banco não quebra o export. Um arquivo por tabela, nomeado `schema.tabela`.
+- O `fields` do metadata vem das colunas reais da tabela, e não de `canonical_schema_field` (que só cobre `CUSTOMER`/`PRODUCT` do import). Reimportar dado exportado só funciona para essas duas entidades (§8.1 ampliada: a assimetria export × import é maior que `GL_ENTRY`).
+- Permissões `MIGRACAO_EXPORTAR` / `MIGRACAO_IMPORTAR` (seed em `migracao-schema-002.yaml`). Rotas: `POST/GET /migracao/exports`, `GET /migracao/exports/catalogo`, `/{id}`, `/{id}/status`.
 
 ---
 

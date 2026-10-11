@@ -2,6 +2,8 @@ package com.l.erp.common.util;
 
 import java.math.BigDecimal;
 import java.time.Duration;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 public class Constants {
@@ -749,4 +751,56 @@ public class Constants {
     public static final String MIGRACAO_ENTIDADE_CLIENTE = "CUSTOMER";
     public static final String MIGRACAO_ENTIDADE_PRODUTO = "PRODUCT";
     public static final String MIGRACAO_SCHEMA_VERSION_ATUAL = "1.0";
+
+    // Permissões (seed em migracao-schema-002.yaml)
+    public static final String MIGRACAO_AUTH_EXPORTAR = "MIGRACAO_EXPORTAR";
+    public static final String MIGRACAO_AUTH_IMPORTAR = "MIGRACAO_IMPORTAR";
+
+    // Export — estados do batch (spec exportacao-dados-syax.md §6)
+    public static final String EXPORT_STATUS_REQUESTED = "REQUESTED";
+    public static final String EXPORT_STATUS_PROCESSING = "PROCESSING";
+    public static final String EXPORT_STATUS_READY = "READY";
+    public static final String EXPORT_STATUS_DOWNLOADED = "DOWNLOADED";
+    public static final String EXPORT_STATUS_EXPIRED = "EXPIRED";
+    public static final String EXPORT_STATUS_FAILED = "FAILED";
+
+    public static final String EXPORT_FORMATO_XLSX = "XLSX";
+    public static final String EXPORT_FORMATO_CSV = "CSV";
+
+    // Export — ações do export_audit_log
+    public static final String EXPORT_AUDIT_REQUESTED = "REQUESTED";
+    public static final String EXPORT_AUDIT_GENERATED = "GENERATED";
+    public static final String EXPORT_AUDIT_DOWNLOADED = "DOWNLOADED";
+    public static final String EXPORT_AUDIT_DOWNLOAD_DENIED = "DOWNLOAD_DENIED";
+    public static final String EXPORT_AUDIT_EXPIRED = "EXPIRED";
+
+    public static final String EXPORT_MOTIVO_CANCELAMENTO = "CANCELLATION";
+    public static final Set<String> EXPORT_MOTIVOS = Set.of("ROUTINE_BACKUP", "CANCELLATION", "AUDIT", "OTHER");
+
+    // Export — catálogo DESCOBERTO do information_schema dentro destes schemas (tabela nova com
+    // tenant_id entra sozinha, sem mexer em código) menos a lista de exclusão abaixo.
+    public static final List<String> EXPORT_SCHEMAS = List.of("cadastros", "compras", "emissao", "estoque", "vendas");
+    // schema.tabela que NUNCA exportam: certificado_digital guarda a chave privada do e-CNPJ A1;
+    // configuracao_nfse/credenciamento_sefaz podem guardar credencial; o resto é técnico.
+    public static final Set<String> EXPORT_TABELAS_EXCLUIDAS = Set.of(
+            "emissao.certificado_digital", "emissao.idempotency_key", "emissao.outbox_evento",
+            "emissao.configuracao_nfse", "emissao.credenciamento_sefaz");
+    // Primeira que existir na tabela vira o filtro de período; nenhuma = tabela sempre completa.
+    public static final List<String> EXPORT_COLUNAS_DATA = List.of("created_at", "ocorrido_em", "criada_em", "data_fechamento");
+    public static final String EXPORT_COLUNA_TENANT = "tenant_id";
+    public static final int EXPORT_FETCH_SIZE = 1000;
+    // Teto do formato XLSX por aba (1.048.576 menos o cabeçalho).
+    public static final int EXPORT_XLSX_MAX_LINHAS = 1_048_575;
+    public static final int EXPORT_MAX_TENTATIVAS = 3;
+
+    public static final String EXPORT_GRUPO_EMISSAO_ROTULO = "Emissão Fiscal";
+
+    public static final String EXPORT_ESCOPO_VAZIO = "Selecione ao menos uma tabela para exportar";
+    public static final String EXPORT_TABELA_INDISPONIVEL = "Tabela não disponível para exportação: %s";
+    public static final String EXPORT_PERIODO_INVALIDO = "A data final não pode ser anterior à data inicial";
+    public static final String EXPORT_FORMATO_INVALIDO = "Formato inválido. Use XLSX ou CSV";
+    public static final String EXPORT_MOTIVO_INVALIDO = "Motivo inválido";
+    public static final String EXPORT_NAO_ENCONTRADO = "Exportação não encontrada";
+    public static final String EXPORT_FALHA_GERACAO = "Não foi possível gerar a exportação";
+    public static final String EXPORT_XLSX_LIMITE_EXCEDIDO = "A tabela %s excede o limite do XLSX; solicite a exportação em CSV";
 }
