@@ -34,6 +34,11 @@ spring:
               uri: lb://fiscal-service
               predicates:
                 - Path=/fiscal/**
+            # Sem StripPrefix (igual ao fiscal): os controllers do migracao-service mapeiam /migracao/...
+            - id: migracao-service
+              uri: lb://migracao-service
+              predicates:
+                - Path=/migracao/**
 
 rate-limit:
   replenish-rate: 20

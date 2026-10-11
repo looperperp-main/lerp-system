@@ -1,0 +1,82 @@
+databaseChangeLog:
+  # ──────────────────────────────────────────
+  # SCHEMA: migracao
+  # Export/import de dados do SYAX (migracao-service). Não vem do init/000-initial-schemas.yaml
+  # porque nasceu depois (editar um changeset já aplicado mudaria o checksum) — mesmo padrão
+  # de estoque-001-create-schema. spec/onboarding-pagamento/migracao-dados-syax.md §4.3
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: migracao-001-create-schema
+      author: vitor-fernandes
+      changes:
+        - sql:
+            sql: CREATE SCHEMA IF NOT EXISTS migracao;
+      rollback:
+        - sql:
+            sql: DROP SCHEMA IF EXISTS migracao CASCADE;
+
+  # ──────────────────────────────────────────
+  # TABELA: migracao.canonical_schema_field
+  # Fonte única dos campos de cada entity_type (parser, validador, tela de mapeamento da
+  # Trilha 2 e metadata do export). Global: não tem tenant_id.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: migracao-002-create-canonical-schema-field
+      author: vitor-fernandes
+      changes:
+        - sql:
+            sql: |
+              CREATE TABLE migracao.canonical_schema_field (
+                  id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                  entity_type     VARCHAR(50)  NOT NULL,
+                  schema_version  VARCHAR(10)  NOT NULL,
+                  field_name      VARCHAR(100) NOT NULL,
+                  field_order     SMALLINT     NOT NULL,
+                  data_type       VARCHAR(20)  NOT NULL,
+                  required        BOOLEAN      NOT NULL DEFAULT false,
+                  validation_rule VARCHAR(50),
+                  help_text       TEXT,
+                  is_active       BOOLEAN      NOT NULL DEFAULT true,
+                  CONSTRAINT uq_canonical_field UNIQUE (entity_type, schema_version, field_name)
+              );
+              CREATE INDEX idx_canonical_field_lookup
+                  ON migracao.canonical_schema_field (entity_type, schema_version, is_active);
+      rollback:
+        - sql:
+            sql: DROP TABLE IF EXISTS migracao.canonical_schema_field;
+
+  # ──────────────────────────────────────────
+  # SEED: só as entidades com destino no MVP (CUSTOMER → cadastros.pessoa/cliente,
+  # PRODUCT → cadastros.produto). CHART_OF_ACCOUNTS/OPENING_BALANCE/GL_ENTRY ficam de fora:
+  # não existe tabela de destino (financeiro-service não existe).
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: migracao-003-seed-canonical-schema-field
+      author: vitor-fernandes
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO migracao.canonical_schema_field
+                  (entity_type, schema_version, field_name, field_order, data_type, required, validation_rule, help_text) VALUES
+              ('CUSTOMER', '1.0', 'tipo',             1, 'STRING',  true,  'ENUM_PF_PJ', 'Tipo de pessoa: PF ou PJ'),
+              ('CUSTOMER', '1.0', 'nome_razao',       2, 'STRING',  true,  NULL,         'Nome (PF) ou razão social (PJ)'),
+              ('CUSTOMER', '1.0', 'apelido_fantasia', 3, 'STRING',  false, NULL,         'Apelido ou nome fantasia'),
+              ('CUSTOMER', '1.0', 'documento',        4, 'CNPJ',    true,  'CPF_CNPJ_DV','CPF ou CNPJ (chave natural do cliente)'),
+              ('CUSTOMER', '1.0', 'rg',               5, 'STRING',  false, NULL,         'RG (somente PF)'),
+              ('CUSTOMER', '1.0', 'data_nascimento',  6, 'DATE',    false, NULL,         'Data de nascimento (somente PF)'),
+              ('CUSTOMER', '1.0', 'ind_ie_dest',      7, 'STRING',  false, NULL,         'Indicador de IE do destinatário'),
+              ('CUSTOMER', '1.0', 'ativo',            8, 'BOOLEAN', false, NULL,         'Cadastro ativo'),
+              ('PRODUCT',  '1.0', 'sku',              1, 'STRING',  true,  NULL,         'SKU (chave natural do produto)'),
+              ('PRODUCT',  '1.0', 'codigo_externo',   2, 'STRING',  false, NULL,         'Código do produto no sistema de origem'),
+              ('PRODUCT',  '1.0', 'nome',             3, 'STRING',  true,  NULL,         'Nome do produto'),
+              ('PRODUCT',  '1.0', 'descricao',        4, 'STRING',  false, NULL,         'Descrição'),
+              ('PRODUCT',  '1.0', 'tipo',             5, 'STRING',  true,  NULL,         'Tipo do produto'),
+              ('PRODUCT',  '1.0', 'unidade',          6, 'STRING',  true,  NULL,         'Unidade de medida'),
+              ('PRODUCT',  '1.0', 'ncm',              7, 'STRING',  false, 'NCM_8',      'NCM (8 dígitos)'),
+              ('PRODUCT',  '1.0', 'ean',              8, 'STRING',  false, NULL,         'Código de barras (EAN/GTIN)'),
+              ('PRODUCT',  '1.0', 'cest',             9, 'STRING',  false, NULL,         'CEST'),
+              ('PRODUCT',  '1.0', 'origem',          10, 'STRING',  false, NULL,         'Origem da mercadoria'),
+              ('PRODUCT',  '1.0', 'ativo',           11, 'BOOLEAN', false, NULL,         'Produto ativo');
+      rollback:
+        - sql:
+            sql: DELETE FROM migracao.canonical_schema_field WHERE schema_version = '1.0' AND entity_type IN ('CUSTOMER', 'PRODUCT');

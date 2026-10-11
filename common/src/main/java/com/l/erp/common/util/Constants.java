@@ -743,4 +743,10 @@ public class Constants {
     // publicado desde já, sem consumidor (decisão do usuário, ver spec/p2p-compras.md).
     public static final String NFE_ENTRADA_APROVADA_TOPIC = "nfe.entrada.aprovada";
     public static final String AUDIT_ACAO_RECEBIMENTO_FATURADO = "RECEBIMENTO_FATURADO";
+
+    // Migração de dados (migracao-service, spec/onboarding-pagamento/{exportacao,migracao}-dados-syax.md)
+    // Vocabulário de entity_type com destino no MVP (mesmo do seed de canonical_schema_field).
+    public static final String MIGRACAO_ENTIDADE_CLIENTE = "CUSTOMER";
+    public static final String MIGRACAO_ENTIDADE_PRODUTO = "PRODUCT";
+    public static final String MIGRACAO_SCHEMA_VERSION_ATUAL = "1.0";
 }

@@ -2,8 +2,8 @@
 
 **Status:** Draft técnico
 **Autor:** Vitor
-**Última atualização:** 5 de agosto de 2026
-**Documento relacionado:** `exportacao-dados-syax.md`
+**Última atualização:** 11 de outubro de 2026
+**Documento relacionado:** `exportacao-dados-syax.md`; telas e UX do portal em `exportacao-importacao-front.md`
 **Serviço:** `migracao-service` (novo, fora do MVP inicial — sem prazo de entrega definido). Registra no Eureka e fica atrás do gateway — reusa validação de JWT e resolução de tenant (`SecurityUtils`) dos demais serviços, não reimplementa auth do zero.
 
 ---

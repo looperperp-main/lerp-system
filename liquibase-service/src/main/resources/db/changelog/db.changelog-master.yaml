@@ -288,3 +288,8 @@ databaseChangeLog:
   - include:
       file: compras/compras-schema-003.yaml
       relativeToChangelogFile: true
+
+  # 13. Schema de Migração — export/import de dados (migracao-service)
+  - include:
+      file: migracao/migracao-schema-001.yaml
+      relativeToChangelogFile: true

@@ -2,8 +2,8 @@
 
 **Status:** Draft técnico
 **Autor:** Vitor
-**Última atualização:** 5 de agosto de 2026
-**Documento relacionado:** `migracao-dados-syax.md`
+**Última atualização:** 11 de outubro de 2026
+**Documento relacionado:** `migracao-dados-syax.md`; telas e UX do portal em `exportacao-importacao-front.md`
 **Serviço:** `migracao-service` (mesmo serviço do doc de import — novo, fora do MVP inicial). Registra no Eureka e fica atrás do gateway — reusa validação de JWT e resolução de tenant (`SecurityUtils`) dos demais serviços, não reimplementa auth do zero.
 **Infra alvo:** VPS própria (Hostgator ou similar) — sem dependência de bucket/object storage; deploy provavelmente segue o mesmo pipeline Docker/Jenkins dos demais serviços (ver CLAUDE.md), não systemd standalone — a decisão de disco local (vs. S3) continua valendo, só muda para volume montado no container
 
