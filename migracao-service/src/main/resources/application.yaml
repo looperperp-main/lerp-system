@@ -1,0 +1,73 @@
+spring:
+  application:
+    name: migracao-service
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/loop-erp
+    username: ${DB_USER}
+    password: ${DB_PASS}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX:8}
+      minimum-idle: ${DB_POOL_MIN:2}
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1200000
+  # O schema `migracao` é do liquibase-service; aqui o Hibernate só valida.
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  servlet:
+    multipart:
+      # Limite do upload de import (spec migracao §10). O gateway/proxy também precisa aceitar 50 MB.
+      max-file-size: 50MB
+      max-request-size: 50MB
+
+server:
+  port: 8094
+  forward-headers-strategy: framework
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+  health:
+    diskspace:
+      # Disco cheio derruba a instância inteira, não só o export: o health do Actuator já
+      # aponta pro diretório de exports e o Prometheus já raspa (spec export §12.1).
+      path: ${syax.export.base-dir}
+      threshold: ${SYAX_DISK_THRESHOLD:2GB}
+
+logging:
+  level:
+    root: ${LOG_LEVEL:INFO}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+
+internal:
+  gateway:
+    secret: ${INTERNAL_GATEWAY_SECRET}
+
+# Único delta entre rodar local e rodar no OCI é o VALOR de SYAX_EXPORT_DIR (spec export §12.0):
+# sem a variável, cai no temp dir da máquina (Windows ou Linux); no OCI o compose define
+# /var/syax/exports, montado num volume Docker nomeado. Nenhum path é literal no código Java.
+syax:
+  export:
+    base-dir: ${SYAX_EXPORT_DIR:${java.io.tmpdir}/syax-exports}
+    retention-days: ${SYAX_EXPORT_RETENTION_DAYS:7}
