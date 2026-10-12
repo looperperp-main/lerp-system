@@ -150,6 +150,50 @@ class ExportBatchRepositoryTest {
     }
 
     @Test
+    void reenfileirarOuFalharSoAgeEmProcessingEDecidePelaTentativa() {
+        when(spec.update()).thenReturn(1, 0);
+
+        assertThat(repo.reenfileirarOuFalhar(ID, 3, "m")).isTrue();
+        assertThat(repo.reenfileirarOuFalhar(ID, 3, "m")).isFalse();
+
+        ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
+        verify(jdbc, Mockito.times(2)).sql(sql.capture());
+        assertThat(sql.getValue()).contains("attempt_count < :max").contains("AND status = :processing");
+        verify(spec, Mockito.times(2)).param("max", 3);
+        verify(spec, Mockito.times(2)).param("processing", "PROCESSING");
+    }
+
+    @Test
+    void listagensDeManutencaoFiltramPorStatusEJanela() {
+        MappedQuerySpec<ExportBatch> mapped = mappedMock();
+        when(spec.query(ArgumentMatchers.<RowMapper<ExportBatch>>any())).thenReturn(mapped);
+        when(mapped.list()).thenReturn(List.of());
+
+        repo.listarExpirados(100);
+        repo.listarTravados(30, 100);
+        repo.listarPendentesAntigos(5, 100);
+
+        ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
+        verify(jdbc, Mockito.times(3)).sql(sql.capture());
+        assertThat(sql.getAllValues().get(0)).contains("expires_at <= now()");
+        assertThat(sql.getAllValues().get(1)).contains("started_at < now() - make_interval(mins => :minutos)");
+        assertThat(sql.getAllValues().get(2)).contains("COALESCE(started_at, created_at)");
+        verify(spec).param("status", "PROCESSING");
+        verify(spec).param("status", "REQUESTED");
+        verify(spec).param("minutos", 30);
+        verify(spec).param("minutos", 5);
+    }
+
+    @Test
+    void marcarExpiradoSoAgeEmReadyOuDownloaded() {
+        repo.marcarExpirado(ID);
+
+        verify(spec).param("status", "EXPIRED");
+        verify(spec).param("downloaded", "DOWNLOADED");
+        verify(spec).update();
+    }
+
+    @Test
     void auditoriaGravaAcaoETenant() {
         repo.registrarAuditoria(ID, 7L, "GENERATED", null);
 

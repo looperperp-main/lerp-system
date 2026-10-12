@@ -13,6 +13,8 @@ import com.l.erp.migracaoservice.services.export.RowSink;
 import com.l.erp.migracaoservice.services.export.XlsxRowSink;
 import com.l.erp.migracaoservice.util.DownloadTokenGenerator;
 import com.l.erp.migracaoservice.util.ValorExport;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
@@ -51,6 +53,9 @@ import java.util.stream.Stream;
 public class ExportExtractionService {
 
     private static final int TENTATIVAS_TOKEN = 3;
+    private static final String RESULTADO_PRONTO = "pronto";
+    private static final String RESULTADO_FALHA = "falha";
+    private static final String RESULTADO_RETRY = "retry";
 
     private final ExportBatchRepository repo;
     private final ExportCatalogService catalogo;
@@ -58,6 +63,7 @@ public class ExportExtractionService {
     private final PlatformTransactionManager txManager;
     private final ExportProperties props;
     private final ObjectMapper mapper;
+    private final MeterRegistry metricas;
 
     @Async(AsyncConfig.EXPORT_EXECUTOR)
     public void executar(UUID batchId, Long tenantId) {
@@ -66,6 +72,8 @@ public class ExportExtractionService {
             return;
         }
         Path dir = props.baseDir().resolve(String.valueOf(tenantId)).resolve(batchId.toString());
+        Timer.Sample cronometro = Timer.start(metricas);
+        String resultado = RESULTADO_PRONTO;
         try {
             ExportBatch batch = repo.buscar(batchId, tenantId).orElseThrow();
             ExportScope escopo = mapper.readValue(batch.scopeJson(), ExportScope.class);
@@ -89,8 +97,19 @@ public class ExportExtractionService {
         } catch (Exception e) {
             log.error("Falha ao gerar exportação {} do tenant {}", batchId, tenantId, e);
             apagarDiretorio(dir);
-            // Mensagem de BusinessException é segura p/ o usuário; qualquer outra vira o texto genérico.
-            repo.marcarFalhou(batchId, e instanceof BusinessException ? e.getMessage() : Constants.EXPORT_FALHA_GERACAO);
+            if (e instanceof BusinessException) {
+                // Erro de regra (ex.: tabela saiu do catálogo): repetir não adianta; a mensagem é segura p/ o usuário.
+                resultado = RESULTADO_FALHA;
+                repo.marcarFalhou(batchId, e.getMessage());
+            } else {
+                // Erro técnico: volta p/ a fila (a manutenção reexecuta após a espera) até esgotar as tentativas.
+                resultado = repo.reenfileirarOuFalhar(batchId, Constants.EXPORT_MAX_TENTATIVAS, Constants.EXPORT_FALHA_GERACAO)
+                        ? RESULTADO_RETRY : RESULTADO_FALHA;
+            }
+        } finally {
+            cronometro.stop(Timer.builder("export_duracao_segundos").publishPercentiles(0.5, 0.95)
+                    .tag("resultado", resultado).register(metricas));
+            metricas.counter("export_execucoes_total", "resultado", resultado).increment();
         }
     }
 

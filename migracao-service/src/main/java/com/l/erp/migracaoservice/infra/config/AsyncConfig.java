@@ -1,9 +1,11 @@
 package com.l.erp.migracaoservice.infra.config;
 
+import org.slf4j.MDC;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
+import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadPoolExecutor;
 
@@ -20,6 +22,18 @@ public class AsyncConfig {
         ex.setMaxPoolSize(2);
         ex.setQueueCapacity(50);
         ex.setThreadNamePrefix("export-");
+        // Leva o correlationId do request para a thread da extração (mesmo padrão do billing-service).
+        ex.setTaskDecorator(task -> {
+            Map<String, String> contexto = MDC.getCopyOfContextMap();
+            return () -> {
+                if (contexto != null) MDC.setContextMap(contexto);
+                try {
+                    task.run();
+                } finally {
+                    MDC.clear();
+                }
+            };
+        });
         // Fila cheia: o pedido já está gravado como REQUESTED; roda quem chamou em vez de perder o job.
         ex.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
         ex.initialize();

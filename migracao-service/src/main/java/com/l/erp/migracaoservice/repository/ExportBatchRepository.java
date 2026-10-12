@@ -112,6 +112,59 @@ public class ExportBatchRepository {
                 .param("id", id).param("status", Constants.EXPORT_STATUS_FAILED).param("motivo", motivo).update();
     }
 
+    /**
+     * Falha inesperada: volta a REQUESTED se ainda há tentativa (started_at vira a marca de espera do retry),
+     * senão FAILED. Só age em PROCESSING, então não pisa num batch que a manutenção já resolveu.
+     */
+    public boolean reenfileirarOuFalhar(UUID id, int maxTentativas, String motivo) {
+        return jdbc.sql("""
+                        UPDATE migracao.export_batch
+                           SET status = CASE WHEN attempt_count < :max THEN :requested ELSE :failed END,
+                               started_at = now(), failure_reason = :motivo
+                         WHERE id = :id AND status = :processing""")
+                .param("id", id).param("max", maxTentativas).param("motivo", motivo)
+                .param("requested", Constants.EXPORT_STATUS_REQUESTED).param("failed", Constants.EXPORT_STATUS_FAILED)
+                .param("processing", Constants.EXPORT_STATUS_PROCESSING)
+                .update() == 1;
+    }
+
+    /** Prontos/baixados cuja validade passou (a faxina às 03:00 apaga os arquivos e marca EXPIRED). */
+    public List<ExportBatch> listarExpirados(int limite) {
+        return jdbc.sql("SELECT " + COLUNAS + """
+                         FROM migracao.export_batch
+                        WHERE status IN (:ready, :downloaded) AND expires_at <= now()
+                        ORDER BY expires_at LIMIT :limite""")
+                .param("ready", Constants.EXPORT_STATUS_READY).param("downloaded", Constants.EXPORT_STATUS_DOWNLOADED)
+                .param("limite", limite).query(ExportBatchRepository::mapear).list();
+    }
+
+    public void marcarExpirado(UUID id) {
+        jdbc.sql("UPDATE migracao.export_batch SET status = :status WHERE id = :id AND status IN (:ready, :downloaded)")
+                .param("id", id).param("status", Constants.EXPORT_STATUS_EXPIRED)
+                .param("ready", Constants.EXPORT_STATUS_READY).param("downloaded", Constants.EXPORT_STATUS_DOWNLOADED)
+                .update();
+    }
+
+    /** PROCESSING há mais de {@code minutos}: a thread morreu (reinício) ou travou. */
+    public List<ExportBatch> listarTravados(int minutos, int limite) {
+        return jdbc.sql("SELECT " + COLUNAS + """
+                         FROM migracao.export_batch
+                        WHERE status = :status AND started_at < now() - make_interval(mins => :minutos)
+                        ORDER BY started_at LIMIT :limite""")
+                .param("status", Constants.EXPORT_STATUS_PROCESSING).param("minutos", minutos).param("limite", limite)
+                .query(ExportBatchRepository::mapear).list();
+    }
+
+    /** REQUESTED parado há mais de {@code minutos} (job perdido ou retry em espera); started_at nulo cai no created_at. */
+    public List<ExportBatch> listarPendentesAntigos(int minutos, int limite) {
+        return jdbc.sql("SELECT " + COLUNAS + """
+                         FROM migracao.export_batch
+                        WHERE status = :status AND COALESCE(started_at, created_at) < now() - make_interval(mins => :minutos)
+                        ORDER BY created_at LIMIT :limite""")
+                .param("status", Constants.EXPORT_STATUS_REQUESTED).param("minutos", minutos).param("limite", limite)
+                .query(ExportBatchRepository::mapear).list();
+    }
+
     public void registrarAuditoria(UUID batchId, Long tenantId, String acao, UUID ator) {
         jdbc.sql("INSERT INTO migracao.export_audit_log (export_batch_id, tenant_id, action, actor_id) VALUES (:batch, :tenant, :acao, :ator)")
                 .param("batch", batchId).param("tenant", tenantId).param("acao", acao).param("ator", ator)

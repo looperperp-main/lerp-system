@@ -4,6 +4,7 @@ import com.l.erp.migracaoservice.domain.CatalogTable;
 import com.l.erp.migracaoservice.domain.ExportBatch;
 import com.l.erp.migracaoservice.infra.config.ExportProperties;
 import com.l.erp.migracaoservice.repository.ExportBatchRepository;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -50,6 +51,7 @@ class ExportExtractionExecucaoTest {
     ExportCatalogService catalogo;
     JdbcTemplate jdbc;
     ExportExtractionService service;
+    SimpleMeterRegistry metricas = new SimpleMeterRegistry();
 
     @BeforeEach
     void setUp() {
@@ -57,7 +59,7 @@ class ExportExtractionExecucaoTest {
         catalogo = mock(ExportCatalogService.class);
         jdbc = mock(JdbcTemplate.class);
         service = new ExportExtractionService(repo, catalogo, jdbc, mock(PlatformTransactionManager.class),
-                new ExportProperties(base, 7), JsonMapper.builder().build());
+                new ExportProperties(base, 7), JsonMapper.builder().build(), metricas);
 
         when(repo.buscar(ID, TENANT)).thenReturn(Optional.of(new ExportBatch(ID, TENANT, UUID.randomUUID(),
                 "{\"tabelas\":[\"cadastros.cliente\"],\"dataInicial\":null,\"dataFinal\":null}", "CSV", "PROCESSING",
@@ -120,16 +122,32 @@ class ExportExtractionExecucaoTest {
     }
 
     @Test
-    void erroInesperadoNaoVazaDetalheInternoELimpaOsArquivos() {
+    void erroInesperadoReenfileiraSemVazarDetalheInternoELimpaOsArquivos() {
         when(repo.marcarProcessando(ID)).thenReturn(true);
+        when(repo.reenfileirarOuFalhar(ID, 3, "Não foi possível gerar a exportação")).thenReturn(true);
         when(jdbc.query(any(PreparedStatementCreator.class), ArgumentMatchers.<ResultSetExtractor<Long>>any()))
                 .thenThrow(new IllegalStateException("conexão caiu em 10.0.0.5"));
 
         service.executar(ID, TENANT);
 
-        verify(repo).marcarFalhou(ID, "Não foi possível gerar a exportação");
+        // motivo gravado é o genérico (nunca a mensagem do erro); sobrando tentativa, não vira FAILED
+        verify(repo).reenfileirarOuFalhar(ID, 3, "Não foi possível gerar a exportação");
+        verify(repo, never()).marcarFalhou(any(), anyString());
         verify(repo, never()).marcarPronto(any(), any(), any(), any(), any());
         assertThat(base.resolve("7").resolve(ID.toString())).doesNotExist();
+        assertThat(metricas.counter("export_execucoes_total", "resultado", "retry").count()).isEqualTo(1.0);
+    }
+
+    @Test
+    void erroInesperadoSemTentativaSobrandoContaComoFalha() {
+        when(repo.marcarProcessando(ID)).thenReturn(true);
+        when(repo.reenfileirarOuFalhar(any(), org.mockito.ArgumentMatchers.anyInt(), anyString())).thenReturn(false);
+        when(jdbc.query(any(PreparedStatementCreator.class), ArgumentMatchers.<ResultSetExtractor<Long>>any()))
+                .thenThrow(new IllegalStateException("x"));
+
+        service.executar(ID, TENANT);
+
+        assertThat(metricas.counter("export_execucoes_total", "resultado", "falha").count()).isEqualTo(1.0);
     }
 
     @Test

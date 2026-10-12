@@ -809,4 +809,11 @@ public class Constants {
     public static final String EXPORT_ARQUIVO_INDISPONIVEL = "Os arquivos desta exportação não estão mais disponíveis. Solicite uma nova exportação";
     public static final String EXPORT_CONTENT_TYPE_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
     public static final String EXPORT_CONTENT_TYPE_ZIP = "application/zip";
+
+    // Manutenção (fatia 3)
+    public static final int EXPORT_TIMEOUT_PROCESSAMENTO_MIN = 30;
+    /** Espera antes de reenfileirar um batch REQUESTED esquecido (reinício do serviço) ou que falhou e aguarda retry. */
+    public static final int EXPORT_ESPERA_RETRY_MIN = 5;
+    public static final int EXPORT_LOTE_MANUTENCAO = 100;
+    public static final String EXPORT_FALHA_TIMEOUT = "A geração da exportação excedeu o tempo limite. Solicite uma nova exportação";
 }
