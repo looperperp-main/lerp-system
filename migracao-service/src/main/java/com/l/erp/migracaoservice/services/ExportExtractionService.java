@@ -64,6 +64,7 @@ public class ExportExtractionService {
     private final ExportProperties props;
     private final ObjectMapper mapper;
     private final MeterRegistry metricas;
+    private final ExportNotificationService notificacao;
 
     @Async(AsyncConfig.EXPORT_EXECUTOR)
     public void executar(UUID batchId, Long tenantId) {
@@ -127,8 +128,6 @@ public class ExportExtractionService {
         }
         repo.registrarAuditoria(batchId, tenantId, Constants.EXPORT_AUDIT_GENERATED, null);
         log.info("Exportação {} do tenant {} pronta: {} tabelas", batchId, tenantId, arquivos.size());
-        // Depois de tudo gravado: o aviso nunca lança (ExportNotificationService), então não vira retry do export.
-        repo.buscar(batchId, tenantId).ifPresent(notificacao::avisarPronto);
         // Depois de tudo gravado: o aviso nunca lança (ExportNotificationService), então não vira retry do export.
         repo.buscar(batchId, tenantId).ifPresent(notificacao::avisarPronto);
     }
