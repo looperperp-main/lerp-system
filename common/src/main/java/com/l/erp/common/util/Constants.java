@@ -810,6 +810,12 @@ public class Constants {
     public static final String EXPORT_CONTENT_TYPE_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
     public static final String EXPORT_CONTENT_TYPE_ZIP = "application/zip";
 
+    // Suporte (admin da plataforma): vê metadados dos exports de qualquer tenant, nunca o conteúdo
+    public static final String MIGRACAO_AUTH_ADMIN = "ROLE_APP_OWNER";
+    public static final Set<String> EXPORT_STATUS_TODOS = Set.of(EXPORT_STATUS_REQUESTED, EXPORT_STATUS_PROCESSING,
+            EXPORT_STATUS_READY, EXPORT_STATUS_DOWNLOADED, EXPORT_STATUS_EXPIRED, EXPORT_STATUS_FAILED);
+    public static final String EXPORT_STATUS_INVALIDO = "Status inválido";
+
     // Manutenção (fatia 3)
     public static final int EXPORT_TIMEOUT_PROCESSAMENTO_MIN = 30;
     /** Espera antes de reenfileirar um batch REQUESTED esquecido (reinício do serviço) ou que falhou e aguarda retry. */

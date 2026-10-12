@@ -61,6 +61,39 @@ public class ExportBatchRepository {
                 .update();
     }
 
+    /** Suporte (admin): sem filtro de tenant de propósito; só o AdminExportController, restrito a APP_OWNER, chama. */
+    public Optional<ExportBatch> buscarDeQualquerTenant(UUID id) {
+        return jdbc.sql("SELECT " + COLUNAS + " FROM migracao.export_batch WHERE id = :id")
+                .param("id", id).query(ExportBatchRepository::mapear).optional();
+    }
+
+    /** Suporte (admin): tenant e status opcionais (null = todos). O WHERE é montado só com o que veio. */
+    public List<ExportBatch> listarAdmin(Long tenantId, String status, int limite, int deslocamento) {
+        StringBuilder sql = new StringBuilder("SELECT " + COLUNAS + " FROM migracao.export_batch");
+        sql.append(filtroAdmin(tenantId, status))
+                .append(" ORDER BY created_at DESC LIMIT :limite OFFSET :deslocamento");
+        JdbcClient.StatementSpec spec = jdbc.sql(sql.toString()).param("limite", limite).param("deslocamento", deslocamento);
+        return parametrosAdmin(spec, tenantId, status).query(ExportBatchRepository::mapear).list();
+    }
+
+    public long contarAdmin(Long tenantId, String status) {
+        JdbcClient.StatementSpec spec = jdbc.sql("SELECT count(*) FROM migracao.export_batch" + filtroAdmin(tenantId, status));
+        return parametrosAdmin(spec, tenantId, status).query(Long.class).single();
+    }
+
+    private static String filtroAdmin(Long tenantId, String status) {
+        String tenant = tenantId != null ? "tenant_id = :tenant" : null;
+        String estado = status != null ? "status = :status" : null;
+        if (tenant == null && estado == null) return "";
+        return " WHERE " + (tenant != null && estado != null ? tenant + " AND " + estado : tenant != null ? tenant : estado);
+    }
+
+    private static JdbcClient.StatementSpec parametrosAdmin(JdbcClient.StatementSpec spec, Long tenantId, String status) {
+        if (tenantId != null) spec = spec.param("tenant", tenantId);
+        if (status != null) spec = spec.param("status", status);
+        return spec;
+    }
+
     /** Dedupe (spec §5.2): batch READY, mesmo escopo, ainda dentro da validade. */
     public Optional<ExportBatch> buscarProntoPorEscopo(Long tenantId, String scopeHash) {
         return jdbc.sql("SELECT " + COLUNAS + """

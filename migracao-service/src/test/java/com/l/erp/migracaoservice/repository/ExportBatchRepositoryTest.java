@@ -185,6 +185,54 @@ class ExportBatchRepositoryTest {
     }
 
     @Test
+    void adminMontaOWhereSoComOsFiltrosInformados() {
+        MappedQuerySpec<ExportBatch> mapped = mappedMock();
+        when(spec.query(ArgumentMatchers.<RowMapper<ExportBatch>>any())).thenReturn(mapped);
+        when(mapped.list()).thenReturn(List.of());
+
+        repo.listarAdmin(null, null, 20, 0);
+        repo.listarAdmin(7L, null, 20, 0);
+        repo.listarAdmin(null, "FAILED", 20, 0);
+        repo.listarAdmin(7L, "FAILED", 20, 0);
+
+        ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
+        verify(jdbc, Mockito.times(4)).sql(sql.capture());
+        assertThat(sql.getAllValues().get(0)).doesNotContain("WHERE");
+        assertThat(sql.getAllValues().get(1)).contains("WHERE tenant_id = :tenant").doesNotContain("status = :status");
+        assertThat(sql.getAllValues().get(2)).contains("WHERE status = :status").doesNotContain("tenant_id = :tenant");
+        assertThat(sql.getAllValues().get(3)).contains("WHERE tenant_id = :tenant AND status = :status");
+        // tenant só vira parâmetro nas duas chamadas que o informaram
+        verify(spec, Mockito.times(2)).param("tenant", 7L);
+        verify(spec, Mockito.times(2)).param("status", "FAILED");
+    }
+
+    @Test
+    void adminContaComOsMesmosFiltros() {
+        MappedQuerySpec<Long> contagem = mappedMock();
+        when(spec.query(eq(Long.class))).thenReturn(contagem);
+        when(contagem.single()).thenReturn(9L);
+
+        assertThat(repo.contarAdmin(7L, "READY")).isEqualTo(9L);
+
+        ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
+        verify(jdbc).sql(sql.capture());
+        assertThat(sql.getValue()).startsWith("SELECT count(*)").contains("WHERE tenant_id = :tenant AND status = :status");
+    }
+
+    @Test
+    void adminBuscaPorIdSemFiltroDeTenant() {
+        MappedQuerySpec<ExportBatch> mapped = mappedMock();
+        when(spec.query(ArgumentMatchers.<RowMapper<ExportBatch>>any())).thenReturn(mapped);
+        when(mapped.optional()).thenReturn(Optional.empty());
+
+        assertThat(repo.buscarDeQualquerTenant(ID)).isEmpty();
+
+        ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
+        verify(jdbc).sql(sql.capture());
+        assertThat(sql.getValue()).contains("WHERE id = :id").doesNotContain("tenant_id = :tenant");
+    }
+
+    @Test
     void marcarExpiradoSoAgeEmReadyOuDownloaded() {
         repo.marcarExpirado(ID);
 

@@ -1,0 +1,151 @@
+<div class="card">
+  <p-toast></p-toast>
+
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Exportações de dados</h1>
+      <p class="page-subtitle">Suporte: estado, falhas e auditoria das exportações dos clientes. O conteúdo dos arquivos nunca é exibido nem baixado aqui.</p>
+    </div>
+  </div>
+
+  <div class="content-card">
+    <div class="content-toolbar">
+      <h3 class="content-toolbar-title">Filtros</h3>
+      <div class="content-toolbar-actions">
+        <input
+          type="number"
+          min="1"
+          [(ngModel)]="filtroTenant"
+          (ngModelChange)="filtroTenant = $event || null"
+          (keyup.enter)="onFiltroChange()"
+          (blur)="onFiltroChange()"
+          placeholder="ID do tenant"
+          class="border border-gray-200 rounded-lg px-3 py-2 text-sm w-36 focus:outline-none focus:ring-2 focus:ring-blue-200" />
+        <p-select
+          [options]="statusOpcoes"
+          [(ngModel)]="filtroStatus"
+          optionLabel="label"
+          optionValue="value"
+          (onChange)="onFiltroChange()"
+          styleClass="text-sm">
+        </p-select>
+        <button pButton pRipple label="Atualizar" icon="pi pi-refresh" class="p-button-outlined p-button-sm rounded-lg" (click)="load()"></button>
+      </div>
+    </div>
+
+    <div class="table-container">
+      <p-table
+        [value]="itens()"
+        [loading]="loading()"
+        [lazy]="true"
+        (onLazyLoad)="onLazyLoad($event)"
+        [totalRecords]="totalRecords()"
+        [paginator]="true"
+        [rows]="10"
+        [showCurrentPageReport]="true"
+        currentPageReportTemplate="Mostrando {first} até {last} de {totalRecords} registros"
+        [rowsPerPageOptions]="[10, 25, 50]"
+        [tableStyle]="{ 'min-width': '60rem' }"
+        [paginatorDropdownAppendTo]="'body'"
+        styleClass="p-datatable-sm text-sm">
+
+        <ng-template pTemplate="header">
+          <tr>
+            <th class="text-xs uppercase text-gray-400 font-semibold border-b border-gray-100 pb-3">Status</th>
+            <th class="text-xs uppercase text-gray-400 font-semibold border-b border-gray-100 pb-3">Tenant</th>
+            <th class="text-xs uppercase text-gray-400 font-semibold border-b border-gray-100 pb-3">Formato</th>
+            <th class="text-xs uppercase text-gray-400 font-semibold border-b border-gray-100 pb-3">Tabelas</th>
+            <th class="text-xs uppercase text-gray-400 font-semibold border-b border-gray-100 pb-3">Tentativas</th>
+            <th class="text-xs uppercase text-gray-400 font-semibold border-b border-gray-100 pb-3">Solicitada em</th>
+            <th class="text-xs uppercase text-gray-400 font-semibold border-b border-gray-100 pb-3">Ações</th>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="body" let-i>
+          <tr class="hover:bg-gray-50 border-b border-gray-50 transition-colors">
+            <td class="py-3">
+              <span [class]="'px-2 py-1 rounded text-xs font-medium ' + statusClass(i.exportacao.status)">
+                {{ statusRotulo(i.exportacao.status) }}
+              </span>
+            </td>
+            <td class="py-3 font-mono text-gray-700">{{ i.tenantId }}</td>
+            <td class="py-3 text-gray-500">{{ i.exportacao.formato }}</td>
+            <td class="py-3 text-gray-500">{{ i.exportacao.tabelas.length }}</td>
+            <td class="py-3 text-gray-500">{{ i.exportacao.tentativas }}</td>
+            <td class="py-3 text-gray-400 text-xs">{{ i.exportacao.criadoEm | date:'dd/MM/yy HH:mm':'America/Sao_Paulo':'pt-BR' }}</td>
+            <td class="py-3">
+              <button
+                pButton pRipple
+                icon="pi pi-eye"
+                class="p-button-rounded p-button-text p-button-info p-button-sm w-8 h-8"
+                pTooltip="Ver detalhe e auditoria"
+                tooltipPosition="top"
+                (click)="abrirDetalhe(i)">
+              </button>
+            </td>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td colspan="7" class="text-center py-8 text-gray-400">
+              <i class="pi pi-inbox text-3xl block mb-2"></i>
+              Nenhuma exportação encontrada.
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </div>
+  </div>
+
+  <p-dialog [(visible)]="detalheVisible" header="Detalhe da exportação" [modal]="true" [style]="{ width: '640px' }" *ngIf="detalhe">
+    <div class="space-y-3 pt-2 text-sm text-gray-700">
+      <div class="grid grid-cols-2 gap-3">
+        <div><span class="text-gray-400 text-xs">Tenant</span><p class="font-mono">{{ detalhe.tenantId }}</p></div>
+        <div>
+          <span class="text-gray-400 text-xs">Status</span>
+          <p><span [class]="'px-2 py-1 rounded text-xs font-medium ' + statusClass(detalhe.exportacao.status)">{{ statusRotulo(detalhe.exportacao.status) }}</span></p>
+        </div>
+        <div><span class="text-gray-400 text-xs">Formato</span><p>{{ detalhe.exportacao.formato }}</p></div>
+        <div><span class="text-gray-400 text-xs">Tentativas</span><p>{{ detalhe.exportacao.tentativas }}</p></div>
+        <div><span class="text-gray-400 text-xs">Solicitada em</span><p>{{ detalhe.exportacao.criadoEm | date:'dd/MM/yy HH:mm':'America/Sao_Paulo':'pt-BR' }}</p></div>
+        <div *ngIf="detalhe.exportacao.expiraEm"><span class="text-gray-400 text-xs">Expira em</span><p>{{ detalhe.exportacao.expiraEm | date:'dd/MM/yy HH:mm':'America/Sao_Paulo':'pt-BR' }}</p></div>
+        <div *ngIf="detalhe.exportacao.motivo"><span class="text-gray-400 text-xs">Motivo</span><p>{{ detalhe.exportacao.motivo }}</p></div>
+        <div *ngIf="detalhe.exportacao.dataInicial || detalhe.exportacao.dataFinal">
+          <span class="text-gray-400 text-xs">Período</span>
+          <p>{{ detalhe.exportacao.dataInicial | date:'dd/MM/yyyy':'UTC':'pt-BR' }} a {{ detalhe.exportacao.dataFinal | date:'dd/MM/yyyy':'UTC':'pt-BR' }}</p>
+        </div>
+      </div>
+
+      <div *ngIf="detalhe.exportacao.mensagemFalha" class="bg-red-50 text-red-700 p-2 rounded text-xs">
+        <strong>Falha:</strong> {{ detalhe.exportacao.mensagemFalha }}
+      </div>
+
+      <hr class="border-gray-100" />
+      <div>
+        <p class="text-gray-400 text-xs mb-1">Tabelas ({{ detalhe.exportacao.tabelas.length }})</p>
+        <ul class="text-xs space-y-1 max-h-40 overflow-y-auto">
+          <li *ngFor="let t of detalhe.exportacao.tabelas" class="flex justify-between">
+            <span class="font-mono">{{ t }}</span>
+            <span class="text-gray-400" *ngIf="detalhe.exportacao.linhasPorTabela?.[t] !== undefined">{{ detalhe.exportacao.linhasPorTabela?.[t] }} linhas</span>
+          </li>
+        </ul>
+      </div>
+
+      <hr class="border-gray-100" />
+      <div>
+        <p class="text-gray-400 text-xs mb-1">Auditoria</p>
+        <p *ngIf="detalheLoading" class="text-xs text-gray-400">Carregando…</p>
+        <ul *ngIf="!detalheLoading" class="text-xs space-y-1">
+          <li *ngFor="let e of detalhe.exportacao.eventos" class="flex justify-between">
+            <span [class.text-red-600]="e.acao === 'DOWNLOAD_DENIED'" [class.font-semibold]="e.acao === 'DOWNLOAD_DENIED'">
+              {{ eventoRotulo(e.acao) }} <span class="text-gray-400">({{ atorRotulo(e.ator) }})</span>
+            </span>
+            <span class="text-gray-400">{{ e.em | date:'dd/MM/yy HH:mm:ss':'America/Sao_Paulo':'pt-BR' }}</span>
+          </li>
+          <li *ngIf="!detalhe.exportacao.eventos?.length" class="text-gray-400">Sem eventos registrados.</li>
+        </ul>
+      </div>
+    </div>
+  </p-dialog>
+</div>

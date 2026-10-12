@@ -16,6 +16,7 @@ import { Plans } from './pages/cadastros/plans/plans';
 import { Subscription } from './pages/cadastros/subscription/subscription';
 import { Invoices } from './pages/cadastros/invoices/invoices';
 import { FilaInterna } from './pages/admin/fila-interna/fila-interna';
+import { Exportacoes } from './pages/admin/exportacoes/exportacoes';
 import { Rastreador } from './pages/admin/diagnostico/rastreador';
 import { Saude } from './pages/admin/diagnostico/saude';
 import { Logs } from './pages/admin/diagnostico/logs';
@@ -49,6 +50,7 @@ export const routes: Routes = [
       { path: 'cadastros/invoices', component: Invoices },
       { path: 'audit', component: Audit },
       { path: 'fila-interna', component: FilaInterna },
+      { path: 'exportacoes', component: Exportacoes },
       { path: 'diagnostico/rastreador', component: Rastreador },
       { path: 'diagnostico/saude', component: Saude },
       { path: 'diagnostico/logs', component: Logs },

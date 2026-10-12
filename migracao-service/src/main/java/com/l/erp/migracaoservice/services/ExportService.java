@@ -2,6 +2,7 @@ package com.l.erp.migracaoservice.services;
 
 import com.l.erp.common.exception.custom.BusinessException;
 import com.l.erp.common.util.Constants;
+import com.l.erp.migracaoservice.api.dto.ExportDtos.AdminExportResponse;
 import com.l.erp.migracaoservice.api.dto.ExportDtos.CatalogoGrupoResponse;
 import com.l.erp.migracaoservice.api.dto.ExportDtos.CatalogoTabelaResponse;
 import com.l.erp.migracaoservice.api.dto.ExportDtos.EventoResponse;
@@ -86,6 +87,30 @@ public class ExportService {
         List<EventoResponse> eventos = repo.listarAuditoria(id, tenantId).stream()
                 .map(a -> new EventoResponse(a.acao(), a.ator(), a.em())).toList();
         return converter(b, false, eventos);
+    }
+
+    /** Suporte: lista exports de qualquer tenant (filtros opcionais), só metadados. */
+    public Pagina<AdminExportResponse> listarAdmin(Long tenantId, String status, int pagina, int tamanho) {
+        String statusNormalizado = null;
+        if (status != null && !status.isBlank()) {
+            statusNormalizado = status.trim().toUpperCase();
+            if (!Constants.EXPORT_STATUS_TODOS.contains(statusNormalizado)) {
+                throw new BusinessException(Constants.EXPORT_STATUS_INVALIDO, HttpStatus.BAD_REQUEST);
+            }
+        }
+        int p = Math.max(pagina, 0);
+        int t = Math.min(Math.max(tamanho, 1), TAMANHO_MAXIMO_PAGINA);
+        List<AdminExportResponse> itens = repo.listarAdmin(tenantId, statusNormalizado, t, p * t).stream()
+                .map(b -> new AdminExportResponse(b.tenantId(), converter(b, false, null))).toList();
+        return new Pagina<>(itens, repo.contarAdmin(tenantId, statusNormalizado), p, t);
+    }
+
+    public AdminExportResponse detalharAdmin(UUID id) {
+        ExportBatch b = repo.buscarDeQualquerTenant(id)
+                .orElseThrow(() -> new BusinessException(Constants.EXPORT_NAO_ENCONTRADO, HttpStatus.NOT_FOUND));
+        List<EventoResponse> eventos = repo.listarAuditoria(id, b.tenantId()).stream()
+                .map(a -> new EventoResponse(a.acao(), a.ator(), a.em())).toList();
+        return new AdminExportResponse(b.tenantId(), converter(b, false, eventos));
     }
 
     public StatusResponse status(Long tenantId, UUID id) {

@@ -144,6 +144,58 @@ class ExportServiceTest {
     }
 
     @Test
+    void admin_listaDeQualquerTenantComStatusNormalizado() {
+        when(repo.listarAdmin(TENANT, "FAILED", 20, 40)).thenReturn(List.of(batch(UUID.randomUUID(), "FAILED")));
+        when(repo.contarAdmin(TENANT, "FAILED")).thenReturn(41L);
+
+        var pagina = service.listarAdmin(TENANT, " failed ", 2, 20);
+
+        assertThat(pagina.total()).isEqualTo(41L);
+        assertThat(pagina.itens()).hasSize(1);
+        assertThat(pagina.itens().get(0).tenantId()).isEqualTo(TENANT);
+        assertThat(pagina.itens().get(0).exportacao().status()).isEqualTo("FAILED");
+    }
+
+    @Test
+    void admin_semFiltrosPassaNullEPaginaInvalidaViraLimiteSeguro() {
+        when(repo.listarAdmin(null, null, 100, 0)).thenReturn(List.of());
+        when(repo.contarAdmin(null, null)).thenReturn(0L);
+
+        var pagina = service.listarAdmin(null, "  ", -5, 9999);
+
+        assertThat(pagina.itens()).isEmpty();
+        assertThat(pagina.tamanho()).isEqualTo(100);
+    }
+
+    @Test
+    void admin_statusDesconhecidoEh400() {
+        assertThatThrownBy(() -> service.listarAdmin(null, "QUALQUER", 0, 20))
+                .isInstanceOfSatisfying(BusinessException.class, e -> assertThat(e.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST));
+    }
+
+    @Test
+    void admin_detalheTrazEventosDoTenantDono() {
+        UUID id = UUID.randomUUID();
+        when(repo.buscarDeQualquerTenant(id)).thenReturn(Optional.of(batch(id, "FAILED")));
+        when(repo.listarAuditoria(id, TENANT)).thenReturn(List.of(
+                new ExportBatchRepository.AuditoriaLinha("DOWNLOAD_DENIED", USER, OffsetDateTime.now())));
+
+        var r = service.detalharAdmin(id);
+
+        assertThat(r.tenantId()).isEqualTo(TENANT);
+        assertThat(r.exportacao().eventos()).extracting("acao").containsExactly("DOWNLOAD_DENIED");
+    }
+
+    @Test
+    void admin_detalheInexistenteEh404() {
+        UUID id = UUID.randomUUID();
+        when(repo.buscarDeQualquerTenant(id)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.detalharAdmin(id))
+                .isInstanceOfSatisfying(BusinessException.class, e -> assertThat(e.getStatus()).isEqualTo(HttpStatus.NOT_FOUND));
+    }
+
+    @Test
     void catalogoAgrupaPorSchemaEIndicaFiltroDePeriodo() {
         CatalogTable semData = new CatalogTable("vendas", "pedido_sequencia", "Vendas", "Pedido sequencia", "\"tenant_id\" = ?", null);
         when(catalogo.descobrir()).thenReturn(List.of(CLIENTE, semData));

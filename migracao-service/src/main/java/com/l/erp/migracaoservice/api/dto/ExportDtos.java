@@ -43,6 +43,9 @@ public final class ExportDtos {
             /** Linha do tempo do export_audit_log; só vem no detalhe, null na listagem. */
             List<EventoResponse> eventos) {}
 
+    /** Visão de suporte (admin): o export mais o tenant dono. Nunca carrega token nem caminho de arquivo. */
+    public record AdminExportResponse(Long tenantId, ExportBatchResponse exportacao) {}
+
     public record EventoResponse(String acao, UUID ator, OffsetDateTime em) {}
 
     /** Resposta leve do polling: sem token de download (ele só sai no clique em "Baixar"). */

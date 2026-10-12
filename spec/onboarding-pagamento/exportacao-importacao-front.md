@@ -2,9 +2,11 @@
 
 **Status:** Draft técnico
 **Autor:** Vitor
-**Última atualização:** 11 de outubro de 2026
+**Última atualização:** 12 de outubro de 2026
 **Documentos relacionados:** `exportacao-dados-syax.md`, `migracao-dados-syax.md`
-**Escopo:** só o portal do tenant (`erp-front-end-web`). O admin/parceiro não tem tela de export/import nesta versão.
+**Escopo:** o portal do tenant (`erp-front-end-web`) é a tela do cliente. O portal admin (`erp-front-end-admin`) tem uma tela de **suporte ao export** (abaixo); o parceiro não tem tela. A fila concierge do import (Trilha 3) ainda não tem tela no admin: entra junto com o import.
+
+**Admin — suporte ao export (`/admin/exportacoes`):** lista paginada de exports de **qualquer tenant**, com filtro por tenant e status, e um detalhe com estado, tentativas, mensagem de falha, linhas por tabela e a linha do tempo da auditoria (`DOWNLOAD_DENIED` em destaque). API: `GET /migracao/admin/exports{,/{id}}`, restrita a `ROLE_APP_OWNER`. **Só metadados:** a API não devolve `download_token` nem caminho de arquivo, e não existe download pelo admin (o dado é do cliente, LGPD; export §5.3). Saúde do serviço: o `migracao-service` aparece sozinho no painel de saúde (a lista vem do Eureka).
 
 Os dois docs de back-end definem estados, endpoints e regras, mas nenhum diz **o que o usuário vê**. Este doc fecha isso. A inspiração é o Oracle Fusion (File Import and Export / Scheduled Processes): o usuário **submete** um trabalho, recebe um **ID**, acompanha numa **tabela de processos** com status e baixa o **resultado** quando termina. Ninguém fica preso numa tela de espera.
 
