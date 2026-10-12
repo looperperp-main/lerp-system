@@ -92,7 +92,7 @@ public class ExportDownloadService {
     }
 
     private Arquivo zip(ExportBatch batch, Map<String, Path> entradas) {
-        String nome = "syax-exportacao-" + batch.createdAt().format(DateTimeFormatter.BASIC_ISO_DATE) + ".zip";
+        String nome = "syax-exportacao-" + batch.createdAt().toLocalDate().format(DateTimeFormatter.BASIC_ISO_DATE) + ".zip";
         return new Arquivo(nome, Constants.EXPORT_CONTENT_TYPE_ZIP, saida -> {
             try (ZipOutputStream zip = new ZipOutputStream(saida)) {
                 for (Map.Entry<String, Path> e : entradas.entrySet()) {
