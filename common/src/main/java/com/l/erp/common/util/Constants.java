@@ -822,4 +822,90 @@ public class Constants {
     public static final int EXPORT_ESPERA_RETRY_MIN = 5;
     public static final int EXPORT_LOTE_MANUTENCAO = 100;
     public static final String EXPORT_FALHA_TIMEOUT = "A geração da exportação excedeu o tempo limite. Solicite uma nova exportação";
+
+    // Import — estados do import_batch (spec migracao-dados-syax.md §5)
+    public static final String IMPORT_STATUS_UPLOADED = "UPLOADED";
+    public static final String IMPORT_STATUS_VALIDATING = "VALIDATING";
+    public static final String IMPORT_STATUS_AWAITING_FIX = "AWAITING_FIX";
+    public static final String IMPORT_STATUS_READY = "READY";
+    public static final String IMPORT_STATUS_PROMOTING = "PROMOTING";
+    public static final String IMPORT_STATUS_DONE = "DONE";
+    public static final String IMPORT_STATUS_FAILED = "FAILED";
+
+    // Import — estados da raw_import_row e trilhas de origem
+    public static final String IMPORT_LINHA_PENDING = "PENDING";
+    public static final String IMPORT_LINHA_VALID = "VALID";
+    public static final String IMPORT_LINHA_ERROR = "ERROR";
+    public static final String IMPORT_TRILHA_TEMPLATE = "TEMPLATE";
+    public static final String IMPORT_TRILHA_SELF_MAPPED = "SELF_MAPPED";
+    public static final String IMPORT_TRILHA_CONCIERGE = "CONCIERGE";
+
+    // Import — limites (spec §10) e lotes de trabalho
+    public static final int IMPORT_MAX_LINHAS = 50_000;
+    public static final int IMPORT_LOTE = 1000;
+    public static final int IMPORT_PAGINA_ERROS_MAX = 500;
+    public static final String IMPORT_EXTENSAO_XLSX = "xlsx";
+    public static final String IMPORT_EXTENSAO_CSV = "csv";
+    public static final String IMPORT_CONTENT_TYPE_CSV = "text/csv; charset=UTF-8";
+    public static final Set<String> IMPORT_ENTIDADES = Set.of(MIGRACAO_ENTIDADE_CLIENTE, MIGRACAO_ENTIDADE_PRODUTO);
+    // Campo que identifica o registro no destino (spec §9.1): duplicado no mesmo arquivo é erro.
+    public static final java.util.Map<String, String> IMPORT_CHAVE_NATURAL = java.util.Map.of(
+            MIGRACAO_ENTIDADE_CLIENTE, "documento", MIGRACAO_ENTIDADE_PRODUTO, "sku");
+
+    // Import — tipos de dado e regras de validação de canonical_schema_field
+    public static final String IMPORT_TIPO_DATE = "DATE";
+    public static final String IMPORT_TIPO_BOOLEAN = "BOOLEAN";
+    public static final String IMPORT_TIPO_DECIMAL = "DECIMAL";
+    public static final String IMPORT_REGRA_ENUM_PF_PJ = "ENUM_PF_PJ";
+    public static final String IMPORT_REGRA_CPF_CNPJ_DV = "CPF_CNPJ_DV";
+    public static final String IMPORT_REGRA_NCM_8 = "NCM_8";
+    public static final String IMPORT_REGRA_ENUM_TIPO_PRODUTO = "ENUM_TIPO_PRODUTO";
+    public static final String IMPORT_REGRA_ENUM_IND_IE_DEST = "ENUM_IND_IE_DEST";
+    public static final String IMPORT_REGRA_EAN = "EAN_DIGITOS";
+
+    // Import — mensagens (PT-BR, acionáveis: dizem o que fazer)
+    public static final String IMPORT_ENTIDADE_INVALIDA = "Tipo de importação inválido. Use Clientes ou Produtos";
+    public static final String IMPORT_FORMATO_INVALIDO = "Formato de arquivo não aceito. Envie um arquivo .xlsx ou .csv";
+    public static final String IMPORT_ARQUIVO_VAZIO = "Selecione um arquivo para importar";
+    public static final String IMPORT_ARQUIVO_GRANDE = "O arquivo excede o limite de 50 MB. Divida-o em arquivos menores e envie um de cada vez";
+    public static final String IMPORT_ARQUIVO_ILEGIVEL = "Não foi possível ler o arquivo. Confira se ele não está corrompido ou protegido por senha e baixe o modelo do SYAX para preencher";
+    public static final String IMPORT_ARQUIVO_SEM_DADOS = "O arquivo não tem nenhuma linha de dados abaixo do cabeçalho";
+    public static final String IMPORT_COLUNAS_AUSENTES = "O arquivo não segue o modelo do SYAX. Colunas obrigatórias ausentes: %s. Baixe o modelo e preencha-o";
+    public static final String IMPORT_LIMITE_LINHAS = "O arquivo tem mais de 50.000 linhas. Divida-o em arquivos menores e envie um de cada vez";
+    public static final String IMPORT_NAO_ENCONTRADO = "Importação não encontrada";
+    public static final String IMPORT_FALHA_CARGA = "Não foi possível processar o arquivo agora. Tente novamente em alguns minutos";
+    public static final String IMPORT_FALHA_VALIDACAO ="Não foi possível validar o arquivo. Envie-o novamente ou contate o suporte";
+    public static final String IMPORT_CAMPO_OBRIGATORIO = "Campo obrigatório";
+    public static final String IMPORT_CAMPO_TAMANHO = "Máximo de %d caracteres";
+    public static final String IMPORT_DATA_INVALIDA = "Data inválida. Use AAAA-MM-DD ou DD/MM/AAAA";
+    public static final String IMPORT_BOOLEAN_INVALIDO = "Valor inválido. Use SIM ou NAO";
+    public static final String IMPORT_DECIMAL_INVALIDO = "Número inválido";
+    public static final String IMPORT_PF_PJ_INVALIDO = "Tipo inválido. Use PF ou PJ";
+    public static final String IMPORT_DOCUMENTO_INVALIDO = "CPF ou CNPJ inválido (dígito verificador não confere)";
+    public static final String IMPORT_DOCUMENTO_TIPO = "O documento não condiz com o tipo: PF exige CPF e PJ exige CNPJ";
+    public static final String IMPORT_NCM_INVALIDO = "NCM inválido. Informe 8 dígitos";
+    public static final String IMPORT_TIPO_PRODUTO_INVALIDO = "Tipo inválido. Use MERCADORIA ou SERVICO";
+    public static final String IMPORT_IND_IE_INVALIDO = "Indicador inválido. Use CONTRIBUINTE_ICMS, ISENTO ou NAO_CONTRIBUINTE";
+    public static final String IMPORT_EAN_INVALIDO = "Código de barras inválido. Informe 8, 12, 13 ou 14 dígitos";
+    public static final String IMPORT_CHAVE_REPETIDA = "Valor repetido: já aparece na linha %d";
+    // Nome do arquivo de modelo para download: modelo-{rótulo}.{xlsx|csv}
+    public static final java.util.Map<String, String> IMPORT_ROTULO_ARQUIVO = java.util.Map.of(
+            MIGRACAO_ENTIDADE_CLIENTE, "clientes", MIGRACAO_ENTIDADE_PRODUTO, "produtos");
+    public static final String IMPORT_ABA_INSTRUCOES = "instrucoes";
+
+    // Import — promoção (spec §11) e manutenção (spec §12/§12.1)
+    public static final String IMPORT_LINHA_PROMOVIDA = "PROMOTED";
+    /** Linha válida cujo registro já existia no destino: o cadastro existente é mantido, nunca sobrescrito. */
+    public static final String IMPORT_LINHA_IGNORADA = "SKIPPED";
+    public static final String IMPORT_ESTAB_ORDEM_MATRIZ = "0001";
+    public static final int IMPORT_TIMEOUT_VALIDACAO_MIN = 15;
+    public static final int IMPORT_TIMEOUT_PROMOCAO_MIN = 5;
+    public static final int IMPORT_LOTE_MANUTENCAO = 100;
+    public static final String IMPORT_PROMOCAO_INDISPONIVEL = "Esta importação não pode ser confirmada agora. Só é possível confirmar uma importação pronta, com todas as linhas válidas";
+    public static final String IMPORT_FALHA_PROMOCAO = "Não foi possível concluir a importação. Nada foi gravado no cadastro; tente confirmar novamente ou contate o suporte";
+    public static final String IMPORT_FALHA_TIMEOUT_VALIDACAO = "A validação do arquivo excedeu o tempo limite. Envie o arquivo novamente";
+    public static final String IMPORT_FALHA_TIMEOUT_PROMOCAO = "A confirmação da importação excedeu o tempo limite e nada foi gravado no cadastro. Envie o arquivo novamente";
+    public static final String IMPORT_FALHA_RETENCAO = "O prazo de retenção do arquivo terminou e os dados foram descartados. Envie o arquivo novamente";
+    public static final String IMPORT_IGNORADA_CLIENTE = "Cliente já cadastrado (ou outro estabelecimento da mesma empresa); o cadastro existente foi mantido";
+    public static final String IMPORT_IGNORADA_PRODUTO = "Já existe um produto com este SKU; o cadastro existente foi mantido";
 }

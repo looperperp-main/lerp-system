@@ -1,0 +1,23 @@
+databaseChangeLog:
+  # ──────────────────────────────────────────
+  # raw_import_row ganha o estado SKIPPED: linha válida cujo registro já existe no destino
+  # (promoção da fatia 5). O cadastro existente é mantido, nunca sobrescrito; a linha fica
+  # marcada para o cliente saber quantas e quais não entraram. Desvio da spec §4, que só prevê
+  # PENDING/VALID/ERROR/PROMOTED/PURGED.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: migracao-010-raw-import-row-status-skipped
+      author: vitor-fernandes
+      changes:
+        - sql:
+            sql: |
+              ALTER TABLE migracao.raw_import_row DROP CONSTRAINT ck_raw_import_row_status;
+              ALTER TABLE migracao.raw_import_row ADD CONSTRAINT ck_raw_import_row_status
+                  CHECK (status IN ('PENDING','VALID','ERROR','PROMOTED','SKIPPED','PURGED'));
+      rollback:
+        - sql:
+            sql: |
+              UPDATE migracao.raw_import_row SET status = 'PROMOTED' WHERE status = 'SKIPPED';
+              ALTER TABLE migracao.raw_import_row DROP CONSTRAINT ck_raw_import_row_status;
+              ALTER TABLE migracao.raw_import_row ADD CONSTRAINT ck_raw_import_row_status
+                  CHECK (status IN ('PENDING','VALID','ERROR','PROMOTED','PURGED'));

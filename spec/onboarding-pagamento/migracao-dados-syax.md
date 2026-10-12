@@ -2,7 +2,7 @@
 
 **Status:** Draft técnico
 **Autor:** Vitor
-**Última atualização:** 11 de outubro de 2026
+**Última atualização:** 12 de outubro de 2026
 **Documento relacionado:** `exportacao-dados-syax.md`; telas e UX do portal em `exportacao-importacao-front.md`
 **Serviço:** `migracao-service` (novo, fora do MVP inicial — sem prazo de entrega definido). Registra no Eureka e fica atrás do gateway — reusa validação de JWT e resolução de tenant (`SecurityUtils`) dos demais serviços, não reimplementa auth do zero.
 
@@ -449,3 +449,46 @@ GROUP BY tenant_id;
 - OCR + extração estruturada para admitir PDFs na Trilha 3 sem intervenção manual completa.
 - Import incremental/sync contínuo, para clientes que querem manter SYAX espelhado a um ERP legado durante período de transição.
 - `entity_type=GL_ENTRY` (lançamentos/transações), hoje exportável mas não importável — ver doc de export, seção 8.
+
+## 16. Desvios da implementação (fatia 4 — Trilha 1: upload, staging e validação)
+
+Escrito em 12/10/2026; `verify` e Liquibase (007–009) rodados e verdes pelo usuário no mesmo dia. Cobre `CUSTOMER` e `PRODUCT` (as únicas com campos seedados); a promoção para as tabelas finais está no §17.
+
+| Ponto | Spec | Implementado | Por quê |
+|---|---|---|---|
+| `tenant_id` | UUID | `BIGINT` | o tenant do SYAX é `Long` (igual ao export) |
+| `import_batch` | sem autor | + `requested_by` (UUID) e `original_file_name` | rastreabilidade LGPD sem `import_audit_log` (§4.2) e rótulo na tela |
+| `raw_file_path` | caminho completo | relativo ao `syax.import.base-dir` (`{tenant}/{batch}/original.{ext}`) | mesmo critério do export: só o valor de `SYAX_IMPORT_DIR` muda entre local e OCI |
+| `canonical_schema_field` | sem tamanho | + `max_length`; regras `ENUM_TIPO_PRODUTO`, `ENUM_IND_IE_DEST`, `EAN_DIGITOS` | sem isso o erro só apareceria na promoção, como falha de INSERT |
+| `error_detail` | `{field, message}` | igual; o relatório da API usa camelCase PT (`linha`, `campo`, `mensagem`, `valorInformado`) | molde do export |
+| Colunas fora do modelo (§7) | cai na Trilha 2 | **FAILED + 422** com a lista das colunas obrigatórias ausentes; colunas a mais são ignoradas e devolvidas em `colunasIgnoradas` | a Trilha 2 ainda não existe; quando existir, este é o ponto de queda |
+| Número da linha | `row_num` | a linha **como a planilha mostra** (cabeçalho = 1) | o cliente acha o erro sem contar |
+| Chave natural repetida no arquivo | só no reupload (§9.1) | já é erro na validação (2ª ocorrência, citando a linha da 1ª) | senão a promoção gravaria duas vezes o mesmo registro |
+| Erro estrutural (ilegível, sem dados, colunas, >50.000 linhas) | `FAILED` imediato | batch gravado como `FAILED` com `failure_reason` acionável **e** resposta 422 | o cliente vê o motivo na hora e o SLA (§13) enxerga a tentativa |
+
+**API (`MIGRACAO_IMPORTAR`):** `GET /migracao/imports/modelo/{entidade}?formato=xlsx|csv`, `POST /migracao/imports` (multipart `entidade` + `arquivo`, 202), `GET /migracao/imports`, `GET /migracao/imports/{id}`, `GET /migracao/imports/{id}/erros?pagina&tamanho`. O modelo (XLSX com listas suspensas e aba de instruções, ou CSV com `;` e BOM) é gerado de `canonical_schema_field`, a mesma fonte do parser e do validador.
+
+**Ainda não feito (próximas fatias):** reenvio incremental/reupload com merge (§9.1), Trilha 2 e 3, download de posse para tenant em encerramento; fila concierge no admin. (Promoção, timeout e purga: ver §17.)
+
+## 17. Desvios da implementação (fatia 5 — promoção, timeout e purga)
+
+Escrito em 12/10/2026, **não testado** até o usuário rodar `verify` e o Liquibase (changeset 010). Cobre `CUSTOMER` e `PRODUCT`.
+
+| Ponto | Spec | Implementado | Por quê |
+|---|---|---|---|
+| Gravação no destino | promoção "para as tabelas finais" | **SQL direto** em `cadastros.*` pelo `migracao-service`, na transação do batch (`CadastroDestinoRepository`), replicando `PessoaService.create` + `EstabelecimentoService.criarMatriz` | a spec exige tudo-ou-nada por batch (§11); chamar o `cadastro-service` linha a linha (50.000 chamadas) não é transacional. **Risco:** se as regras do cadastro mudarem, o repositório muda junto; nenhum evento de auditoria Kafka é emitido (a rastreabilidade é o próprio `import_batch`, §4.2) |
+| Registro que já existe | não definido | **mantém o existente, nunca sobrescreve**; a linha vira `SKIPPED` com o motivo em `error_detail`; o batch vai a `DONE` | sobrescrever sem aviso um cliente que já tem pedido e nota emitida é o pior erro possível; atualizar é decisão do cliente na tela de cadastro |
+| `raw_import_row.status` | PENDING/VALID/ERROR/PROMOTED/PURGED | + `SKIPPED` (changeset `migracao-010`) | ver linha acima |
+| Chave de CUSTOMER | CNPJ ou CPF | PF por documento; PJ pela **raiz do CNPJ** (8 primeiros), como o `uq_pessoa_tenant_cnpj_raiz`: matriz e filial são a mesma pessoa. Filial de empresa já cadastrada, ou 2ª linha com a mesma raiz no arquivo, vira `SKIPPED` | sem isso a 2ª linha violaria a unique e derrubaria o batch inteiro |
+| Pessoa que já existe sem ser cliente (ex.: é fornecedor) | não definido | só ganha o vínculo `cliente`; os dados da pessoa não são tocados | `cliente` aponta para `pessoa` (uma pessoa, vários papéis) |
+| Documento gravado | — | **com máscara** (`999.999.999-99`, `99.999.999/9999-99`), igual ao front | a dedup do cadastro compara o texto; sem máscara, o cadastro duplicaria o que foi importado |
+| Estabelecimento matriz (PJ) | — | criado com `ordem 0001`, `proprio=false`, `crt` no default da coluna (`REGIME_NORMAL`) | igual ao `PessoaService`; o regime real é revisto no onboarding |
+| Pré-requisito de ordem (§11) | bloqueia `OPENING_BALANCE` sem plano de contas | **não implementado**: `CUSTOMER` e `PRODUCT` não têm pré-requisito | o ponto de extensão é `ImportService.promover`, antes de `iniciarPromocao` |
+| `DONE` | gravado ao fim da promoção | gravado **na mesma transação** do destino | se o commit passar e o UPDATE falhar, o batch ficaria preso em `PROMOTING` com os dados já gravados e o timeout o marcaria `FAILED` por engano |
+| Timeout `VALIDATING`/`PROMOTING` (§12.1) | no job diário das 3h30 | job **a cada 60 s** (`syax.import.intervalo-recuperacao-ms`); purga continua às 3h30 (`syax.import.cron-purga`) | esperar até 24 h por um batch preso não é aceitável para o cliente |
+| Purga de batch não confirmado | não definido | o batch vira `FAILED` (“prazo de retenção terminou”) em vez de ficar `READY` sem linhas | `READY` sem linhas promoveria zero registros e chegaria a `DONE` |
+| Contagem do relatório | `valid_rows` | `linhasValidas` = VALID + PROMOTED + SKIPPED; novos `linhasPromovidas` e `linhasIgnoradas` | o total de válidas não pode encolher depois da promoção |
+
+**API (`MIGRACAO_IMPORTAR`):** `POST /migracao/imports/{id}/promover` → 202 com o batch em `PROMOTING`; o cliente consulta `GET /migracao/imports/{id}` até `DONE` ou `FAILED`. Batch que não está `READY` (com erros, já em andamento, já concluído) → 409 com “Esta importação não pode ser confirmada agora…”; id de outro tenant ou inexistente → 404.
+
+**Gaps conhecidos:** a lista das linhas `SKIPPED` ainda não tem endpoint (só a contagem em `linhasIgnoradas`; o motivo fica gravado em `error_detail`); o `migracao-service` precisa de permissão de escrita nas tabelas de `cadastros` no usuário do banco (não verificado); tenants com centenas de milhares de pessoas carregam o cadastro em memória na promoção (comentário `ponytail` no código, trocar por consulta por lote se acontecer); não há lock distribuído nos jobs (os UPDATEs condicionais bastam para duas instâncias).

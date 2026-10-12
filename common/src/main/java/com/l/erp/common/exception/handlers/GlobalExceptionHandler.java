@@ -21,7 +21,11 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -134,6 +138,23 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
                 .body(body(HttpStatus.METHOD_NOT_ALLOWED.value(), "Método não permitido",
                         "Método HTTP não suportado para este recurso.", request));
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<StandardError> handleMaxUpload(MaxUploadSizeExceededException e, HttpServletRequest request) {
+        // O multipart estoura o limite antes de chegar no controller; sem este handler cairia no 500 genérico.
+        logClientError(413, request, "upload acima do limite");
+        return ResponseEntity.status(413)
+                .body(body(413, "Arquivo muito grande", "O arquivo enviado excede o tamanho máximo permitido.", request));
+    }
+
+    @ExceptionHandler({MissingServletRequestPartException.class, MissingServletRequestParameterException.class, MultipartException.class})
+    public ResponseEntity<StandardError> handleMultipartIncompleto(Exception e, HttpServletRequest request) {
+        // Parte/parâmetro ausente ou requisição que não é multipart: erro do cliente → 400, nunca 500.
+        logClientError(HttpStatus.BAD_REQUEST.value(), request, e.getClass().getSimpleName());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(body(HttpStatus.BAD_REQUEST.value(), Constants.VALIDATION_ERROR,
+                        "Requisição incompleta. Confira se todos os campos e o arquivo foram enviados.", request));
     }
 
     @ExceptionHandler(Exception.class)

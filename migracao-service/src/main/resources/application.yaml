@@ -71,3 +71,8 @@ syax:
   export:
     base-dir: ${SYAX_EXPORT_DIR:${java.io.tmpdir}/syax-exports}
     retention-days: ${SYAX_EXPORT_RETENTION_DAYS:7}
+  # Original do upload de import (staging com CPF/CNPJ de terceiros): mesma regra do export.
+  # No OCI, SYAX_IMPORT_DIR=/var/syax/imports num volume nomeado (spec migracao §12/§14).
+  import:
+    base-dir: ${SYAX_IMPORT_DIR:${java.io.tmpdir}/syax-imports}
+    retention-days: ${SYAX_IMPORT_RETENTION_DAYS:30}

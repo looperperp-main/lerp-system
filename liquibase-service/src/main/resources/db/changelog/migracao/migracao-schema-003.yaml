@@ -1,0 +1,102 @@
+databaseChangeLog:
+  # ──────────────────────────────────────────
+  # TABELA: migracao.import_batch — um upload de import (mono-entidade).
+  # spec/onboarding-pagamento/migracao-dados-syax.md §4. Desvios: tenant_id é BIGINT (não UUID);
+  # colunas extras `requested_by` (quem subiu: rastreabilidade LGPD, já que não há import_audit_log)
+  # e `original_file_name` (rótulo na tela; o arquivo em disco é sempre original.{ext}).
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: migracao-007-create-import-batch
+      author: vitor-fernandes
+      changes:
+        - sql:
+            sql: |
+              CREATE TABLE migracao.import_batch (
+                  id                    UUID PRIMARY KEY,
+                  tenant_id             BIGINT       NOT NULL,
+                  requested_by          UUID         NOT NULL,
+                  entity_type           VARCHAR(50)  NOT NULL,
+                  schema_version        VARCHAR(10)  NOT NULL DEFAULT '1.0',
+                  status                VARCHAR(20)  NOT NULL DEFAULT 'UPLOADED',
+                  source_track          VARCHAR(20)  NOT NULL,
+                  field_mapping         JSONB,
+                  original_file_name    VARCHAR(255),
+                  raw_file_path         TEXT,
+                  row_count             INTEGER,
+                  concierge_deadline_at TIMESTAMPTZ,
+                  concierge_rejections  SMALLINT     NOT NULL DEFAULT 0,
+                  failure_reason        VARCHAR(300),
+                  created_at            TIMESTAMPTZ  NOT NULL DEFAULT now(),
+                  updated_at            TIMESTAMPTZ  NOT NULL DEFAULT now(),
+                  promoted_at           TIMESTAMPTZ,
+                  done_at               TIMESTAMPTZ,
+                  purge_after           TIMESTAMPTZ,
+                  purged_at             TIMESTAMPTZ,
+                  CONSTRAINT ck_import_batch_status CHECK (status IN
+                      ('UPLOADED','VALIDATING','AWAITING_FIX','READY','PROMOTING','DONE','FAILED')),
+                  CONSTRAINT ck_import_batch_track CHECK (source_track IN ('TEMPLATE','SELF_MAPPED','CONCIERGE'))
+              );
+              CREATE INDEX idx_import_batch_tenant ON migracao.import_batch (tenant_id, entity_type, status);
+      rollback:
+        - sql:
+            sql: DROP TABLE IF EXISTS migracao.import_batch;
+
+  # ──────────────────────────────────────────
+  # TABELA: migracao.raw_import_row — staging. Toda trilha converge aqui (spec §4).
+  # raw_json = linha JÁ mapeada para o schema canônico (chaves = canonical_schema_field.field_name).
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: migracao-008-create-raw-import-row
+      author: vitor-fernandes
+      changes:
+        - sql:
+            sql: |
+              CREATE TABLE migracao.raw_import_row (
+                  id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                  tenant_id     BIGINT      NOT NULL,
+                  batch_id      UUID        NOT NULL REFERENCES migracao.import_batch (id) ON DELETE CASCADE,
+                  entity_type   VARCHAR(50) NOT NULL,
+                  row_num       INTEGER     NOT NULL,
+                  raw_json      JSONB       NOT NULL,
+                  status        VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+                  error_detail  JSONB,
+                  source_track  VARCHAR(20) NOT NULL,
+                  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+                  validated_at  TIMESTAMPTZ,
+                  promoted_at   TIMESTAMPTZ,
+                  CONSTRAINT uq_raw_import_row UNIQUE (batch_id, entity_type, row_num),
+                  CONSTRAINT ck_raw_import_row_status CHECK (status IN ('PENDING','VALID','ERROR','PROMOTED','PURGED'))
+              );
+              CREATE INDEX idx_raw_import_batch ON migracao.raw_import_row (tenant_id, batch_id, status);
+      rollback:
+        - sql:
+            sql: DROP TABLE IF EXISTS migracao.raw_import_row;
+
+  # ──────────────────────────────────────────
+  # canonical_schema_field: `max_length` (tamanho da coluna de destino — sem isso o erro só
+  # apareceria na promoção, como falha de INSERT) e regras de enum que o seed da fatia 0 deixou null.
+  # Desvio da spec §4.3, que não prevê max_length.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: migracao-009-canonical-max-length-e-regras
+      author: vitor-fernandes
+      changes:
+        - sql:
+            sql: |
+              ALTER TABLE migracao.canonical_schema_field ADD COLUMN max_length SMALLINT;
+              UPDATE migracao.canonical_schema_field SET max_length = 200 WHERE field_name IN ('nome_razao', 'apelido_fantasia', 'nome');
+              UPDATE migracao.canonical_schema_field SET max_length = 18  WHERE entity_type = 'CUSTOMER' AND field_name = 'documento';
+              UPDATE migracao.canonical_schema_field SET max_length = 20  WHERE entity_type = 'CUSTOMER' AND field_name = 'rg';
+              UPDATE migracao.canonical_schema_field SET max_length = 80  WHERE entity_type = 'PRODUCT' AND field_name IN ('sku', 'codigo_externo');
+              UPDATE migracao.canonical_schema_field SET max_length = 10  WHERE entity_type = 'PRODUCT' AND field_name IN ('unidade', 'ncm', 'cest');
+              UPDATE migracao.canonical_schema_field SET max_length = 14  WHERE entity_type = 'PRODUCT' AND field_name = 'ean';
+              UPDATE migracao.canonical_schema_field SET max_length = 2   WHERE entity_type = 'PRODUCT' AND field_name = 'origem';
+              UPDATE migracao.canonical_schema_field SET validation_rule = 'ENUM_TIPO_PRODUTO' WHERE entity_type = 'PRODUCT' AND field_name = 'tipo';
+              UPDATE migracao.canonical_schema_field SET validation_rule = 'ENUM_IND_IE_DEST' WHERE entity_type = 'CUSTOMER' AND field_name = 'ind_ie_dest';
+              UPDATE migracao.canonical_schema_field SET validation_rule = 'EAN_DIGITOS' WHERE entity_type = 'PRODUCT' AND field_name = 'ean';
+      rollback:
+        - sql:
+            sql: |
+              UPDATE migracao.canonical_schema_field SET validation_rule = NULL
+               WHERE validation_rule IN ('ENUM_TIPO_PRODUTO', 'ENUM_IND_IE_DEST', 'EAN_DIGITOS');
+              ALTER TABLE migracao.canonical_schema_field DROP COLUMN IF EXISTS max_length;
