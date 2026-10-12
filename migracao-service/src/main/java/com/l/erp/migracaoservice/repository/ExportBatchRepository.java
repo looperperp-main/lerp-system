@@ -45,6 +45,22 @@ public class ExportBatchRepository {
                 .query(ExportBatchRepository::mapear).optional();
     }
 
+    /** Única busca sem tenant: o token É a credencial; quem chama compara o tenant e audita a negativa. */
+    public Optional<ExportBatch> buscarPorToken(String token) {
+        return jdbc.sql("SELECT " + COLUNAS + " FROM migracao.export_batch WHERE download_token = :token")
+                .param("token", token).query(ExportBatchRepository::mapear).optional();
+    }
+
+    /** READY → DOWNLOADED; baixar de novo dentro da validade mantém DOWNLOADED e a data do primeiro download. */
+    public void marcarBaixado(UUID id) {
+        jdbc.sql("""
+                        UPDATE migracao.export_batch
+                           SET status = :para, downloaded_at = COALESCE(downloaded_at, now())
+                         WHERE id = :id AND status IN (:ready, :para)""")
+                .param("id", id).param("para", Constants.EXPORT_STATUS_DOWNLOADED).param("ready", Constants.EXPORT_STATUS_READY)
+                .update();
+    }
+
     /** Dedupe (spec §5.2): batch READY, mesmo escopo, ainda dentro da validade. */
     public Optional<ExportBatch> buscarProntoPorEscopo(Long tenantId, String scopeHash) {
         return jdbc.sql("SELECT " + COLUNAS + """

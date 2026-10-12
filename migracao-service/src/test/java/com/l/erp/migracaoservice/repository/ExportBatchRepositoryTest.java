@@ -124,6 +124,32 @@ class ExportBatchRepositoryTest {
     }
 
     @Test
+    void buscarPorTokenFiltraSoPeloToken() {
+        MappedQuerySpec<ExportBatch> mapped = mappedMock();
+        when(spec.query(ArgumentMatchers.<RowMapper<ExportBatch>>any())).thenReturn(mapped);
+        when(mapped.optional()).thenReturn(Optional.empty());
+
+        assertThat(repo.buscarPorToken("tok")).isEmpty();
+
+        ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
+        verify(jdbc).sql(sql.capture());
+        assertThat(sql.getValue()).contains("WHERE download_token = :token");
+        verify(spec).param("token", "tok");
+    }
+
+    @Test
+    void marcarBaixadoPreservaAPrimeiraDataDeDownload() {
+        repo.marcarBaixado(ID);
+
+        ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
+        verify(jdbc).sql(sql.capture());
+        assertThat(sql.getValue()).contains("COALESCE(downloaded_at, now())").contains("status IN (:ready, :para)");
+        verify(spec).param("para", "DOWNLOADED");
+        verify(spec).param("ready", "READY");
+        verify(spec).update();
+    }
+
+    @Test
     void auditoriaGravaAcaoETenant() {
         repo.registrarAuditoria(ID, 7L, "GENERATED", null);
 

@@ -803,4 +803,10 @@ public class Constants {
     public static final String EXPORT_NAO_ENCONTRADO = "Exportação não encontrada";
     public static final String EXPORT_FALHA_GERACAO = "Não foi possível gerar a exportação";
     public static final String EXPORT_XLSX_LIMITE_EXCEDIDO = "A tabela %s excede o limite do XLSX; solicite a exportação em CSV";
+
+    // Download (fatia 2)
+    public static final String EXPORT_EXPIRADA = "Esta exportação expirou. Solicite uma nova exportação";
+    public static final String EXPORT_ARQUIVO_INDISPONIVEL = "Os arquivos desta exportação não estão mais disponíveis. Solicite uma nova exportação";
+    public static final String EXPORT_CONTENT_TYPE_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    public static final String EXPORT_CONTENT_TYPE_ZIP = "application/zip";
 }

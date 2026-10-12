@@ -6,12 +6,17 @@ import com.l.erp.migracaoservice.api.dto.ExportDtos.ExportBatchResponse;
 import com.l.erp.migracaoservice.api.dto.ExportDtos.ExportRequest;
 import com.l.erp.migracaoservice.api.dto.ExportDtos.Pagina;
 import com.l.erp.migracaoservice.api.dto.ExportDtos.StatusResponse;
+import com.l.erp.migracaoservice.services.ExportDownloadService;
 import com.l.erp.migracaoservice.services.ExportService;
 import com.l.erp.migracaoservice.util.SecurityUtils;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -24,7 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.UUID;
 
-/** Export de dados do tenant (self-service, sem aprovação). O download autenticado entra na fatia 2. */
+/** Export de dados do tenant (self-service, sem aprovação). Inclui o download autenticado por token. */
 @RestController
 @RequestMapping("/migracao/exports")
 @RequiredArgsConstructor
@@ -32,6 +37,19 @@ import java.util.UUID;
 public class ExportController {
 
     private final ExportService service;
+    private final ExportDownloadService downloadService;
+
+    /** Token + sessão do tenant dono (spec §6). Arquivo único sai direto; vários, num zip. */
+    @GetMapping("/download/{token}")
+    public ResponseEntity<StreamingResponseBody> baixar(@PathVariable String token) {
+        ExportDownloadService.Arquivo arquivo = downloadService.preparar(
+                SecurityUtils.requireTenantId(), SecurityUtils.requireUserId(), token);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(arquivo.contentType()))
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment().filename(arquivo.nome()).build().toString())
+                .header(HttpHeaders.CACHE_CONTROL, "no-store")
+                .body(arquivo.corpo());
+    }
 
     /** 202 quando a extração foi iniciada; 200 quando o dedupe devolveu uma exportação pronta idêntica. */
     @PostMapping
