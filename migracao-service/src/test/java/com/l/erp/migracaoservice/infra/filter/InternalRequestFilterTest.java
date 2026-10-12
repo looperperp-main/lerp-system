@@ -90,6 +90,44 @@ class InternalRequestFilterTest {
     }
 
     @Test
+    void downloadDePosse_comSegredoInternoPassaSemUsuarioESemAutenticacao() throws Exception {
+        var req = new MockHttpServletRequest("GET", "/migracao/exports/posse/abc123");
+        req.addHeader("X-Internal-Secret", INTERNAL_SECRET);
+        var res = new MockHttpServletResponse();
+        var chain = new CountingChain();
+
+        filter.doFilter(req, res, chain);
+
+        assertThat(chain.calls).isEqualTo(1);
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();   // anônima: o token é a credencial
+    }
+
+    @Test
+    void downloadDePosse_semSegredoInternoContinua401_SoChegaPeloGateway() throws Exception {
+        var req = new MockHttpServletRequest("GET", "/migracao/exports/posse/abc123");
+        var res = new MockHttpServletResponse();
+        var chain = new CountingChain();
+
+        filter.doFilter(req, res, chain);
+
+        assertThat(res.getStatus()).isEqualTo(401);
+        assertThat(chain.calls).isZero();
+    }
+
+    @Test
+    void prefixoDePosse_naoLiberaOutrasRotasDeExport() throws Exception {
+        var req = new MockHttpServletRequest("GET", "/migracao/exports/download/abc123");
+        req.addHeader("X-Internal-Secret", INTERNAL_SECRET);
+        var res = new MockHttpServletResponse();
+        var chain = new CountingChain();
+
+        filter.doFilter(req, res, chain);
+
+        assertThat(res.getStatus()).isEqualTo(401);       // sem X-User-Id: o download autenticado segue exigindo sessão
+        assertThat(chain.calls).isZero();
+    }
+
+    @Test
     void actuatorHealth_passaSemHeader() throws Exception {
         var req = new MockHttpServletRequest("GET", "/actuator/health");
         var chain = new CountingChain();

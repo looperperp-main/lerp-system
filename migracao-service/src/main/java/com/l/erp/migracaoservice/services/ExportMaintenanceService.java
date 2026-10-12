@@ -28,6 +28,26 @@ public class ExportMaintenanceService {
     private final ExportExtractionService extracao;
     private final ExportProperties props;
     private final MeterRegistry metricas;
+    private final ExportNotificationService notificacao;
+
+    /**
+     * E-mail "24h antes de expirar" (spec §7). Só para quem ainda não baixou (READY): quem já baixou tem o arquivo.
+     * A reserva é um UPDATE condicional ANTES do envio: duas instâncias nunca avisam em dobro. O custo é aviso
+     * perdido se a publicação falhar logo em seguida (at-most-once, aceito: o aviso é cortesia, não obrigação).
+     */
+    @Scheduled(cron = "${syax.export.cron-aviso-expiracao:0 0 * * * *}")
+    public void avisarExpiracao() {
+        for (ExportBatch b : repo.listarParaAvisoDeExpiracao(Constants.EXPORT_AVISO_EXPIRACAO_HORAS, Constants.EXPORT_LOTE_MANUTENCAO)) {
+            try {
+                if (repo.marcarAvisoEnviado(b.id())) {
+                    notificacao.avisarExpiracao(b);
+                    metricas.counter("export_manutencao_total", "acao", "aviso_expiracao").increment();
+                }
+            } catch (RuntimeException e) {   // um batch ruim não trava o lote
+                log.error("Falha ao avisar a expiração da exportação {} do tenant {}", b.id(), b.tenantId(), e);
+            }
+        }
+    }
 
     @Scheduled(cron = "${syax.export.cron-expiracao:0 0 3 * * *}")
     public void expirar() {

@@ -250,6 +250,59 @@ class ExportBatchRepositoryTest {
         verify(spec).update();
     }
 
+    private String sqlExecutado() {
+        ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
+        verify(jdbc).sql(sql.capture());
+        return sql.getValue();
+    }
+
+    @Test
+    void auditoriaDeDownloadDePosseGravaOIpDeOrigem() {
+        repo.registrarAuditoria(ID, 7L, "DOWNLOADED", null, "203.0.113.9");
+
+        assertThat(sqlExecutado()).contains("ip_address").contains(":ip");
+        verify(spec).param("ip", "203.0.113.9");
+        verify(spec).param("ator", (Object) null);              // sem sessão não há ator
+        verify(spec).update();
+    }
+
+    @Test
+    void tokenDeLeSoOTokenDoBatchEIgnoraBatchSemToken() {
+        MappedQuerySpec<String> mapped = mappedMock();
+        when(spec.query(String.class)).thenReturn(mapped);
+        when(mapped.optional()).thenReturn(Optional.of("TOKEN43"));
+
+        assertThat(repo.tokenDe(ID)).contains("TOKEN43");
+
+        assertThat(sqlExecutado()).contains("SELECT download_token").contains("download_token IS NOT NULL");
+        verify(spec).param("id", ID);
+    }
+
+    @Test
+    void avisoDeExpiracaoSoPegaReadySemAvisoDentroDaJanela() {
+        MappedQuerySpec<ExportBatch> mapped = mappedMock();
+        when(spec.query(ArgumentMatchers.<RowMapper<ExportBatch>>any())).thenReturn(mapped);
+        when(mapped.list()).thenReturn(List.of());
+
+        assertThat(repo.listarParaAvisoDeExpiracao(24, 100)).isEmpty();
+
+        assertThat(sqlExecutado()).contains("expiry_notice_sent_at IS NULL").contains("expires_at > now()")
+                .contains("expires_at <= now() + make_interval(hours => :horas)");
+        verify(spec).param("status", "READY");                  // quem já baixou (DOWNLOADED) não recebe aviso
+        verify(spec).param("horas", 24);
+        verify(spec).param("limite", 100);
+    }
+
+    @Test
+    void marcarAvisoEnviadoReservaUmaVezSoEDevolveFalseSeOutroJaReservou() {
+        when(spec.update()).thenReturn(1, 0);
+
+        assertThat(repo.marcarAvisoEnviado(ID)).isTrue();
+        assertThat(repo.marcarAvisoEnviado(ID)).isFalse();
+
+        verify(jdbc, Mockito.times(2)).sql(ArgumentMatchers.contains("expiry_notice_sent_at IS NULL"));
+    }
+
     @Test
     void listarAuditoriaFiltraPorBatchETenantEMapeiaALinha() throws Exception {
         MappedQuerySpec<ExportBatchRepository.AuditoriaLinha> mapped = mappedMock();

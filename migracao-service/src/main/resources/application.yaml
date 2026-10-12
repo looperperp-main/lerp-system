@@ -19,6 +19,9 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+  # Só produz (String/String, como o auth-service): o payload é serializado aqui, sem depender do Jackson 2.
+  kafka:
+    bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
   servlet:
     multipart:
       # Limite do upload de import (spec migracao §10). O gateway/proxy também precisa aceitar 50 MB.
@@ -71,6 +74,8 @@ syax:
   export:
     base-dir: ${SYAX_EXPORT_DIR:${java.io.tmpdir}/syax-exports}
     retention-days: ${SYAX_EXPORT_RETENTION_DAYS:7}
+    # URL pública do gateway: vai no e-mail do download de posse (tenant sem sessão). Local = gateway da máquina.
+    public-base-url: ${SYAX_PUBLIC_BASE_URL:http://localhost:8090}
   # Original do upload de import (staging com CPF/CNPJ de terceiros): mesma regra do export.
   # No OCI, SYAX_IMPORT_DIR=/var/syax/imports num volume nomeado (spec migracao §12/§14).
   import:

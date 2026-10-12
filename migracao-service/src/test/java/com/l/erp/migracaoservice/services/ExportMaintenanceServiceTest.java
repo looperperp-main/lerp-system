@@ -35,6 +35,7 @@ class ExportMaintenanceServiceTest {
 
     ExportBatchRepository repo;
     ExportExtractionService extracao;
+    ExportNotificationService notificacao;
     SimpleMeterRegistry metricas = new SimpleMeterRegistry();
     ExportMaintenanceService service;
 
@@ -42,7 +43,47 @@ class ExportMaintenanceServiceTest {
     void setUp() {
         repo = mock(ExportBatchRepository.class);
         extracao = mock(ExportExtractionService.class);
-        service = new ExportMaintenanceService(repo, extracao, new ExportProperties(base, 7), metricas);
+        notificacao = mock(ExportNotificationService.class);
+        service = new ExportMaintenanceService(repo, extracao, new ExportProperties(base, 7), metricas, notificacao);
+    }
+
+    @Test
+    void avisarExpiracao_reservaOAvisoAntesDeEnviarEContaSoOsEnviados() {
+        UUID outro = UUID.randomUUID();
+        ExportBatch a = batch(ID, 1);
+        ExportBatch b = batch(outro, 1);
+        when(repo.listarParaAvisoDeExpiracao(24, 100)).thenReturn(List.of(a, b));
+        when(repo.marcarAvisoEnviado(ID)).thenReturn(true);
+        when(repo.marcarAvisoEnviado(outro)).thenReturn(false);       // outra instância já reservou este
+
+        service.avisarExpiracao();
+
+        verify(notificacao).avisarExpiracao(a);
+        verify(notificacao, never()).avisarExpiracao(b);
+        assertThat(metricas.counter("export_manutencao_total", "acao", "aviso_expiracao").count()).isEqualTo(1.0);
+    }
+
+    @Test
+    void avisarExpiracao_umBatchComErroNaoImpedeOsDemais() {
+        UUID outro = UUID.randomUUID();
+        ExportBatch b = batch(outro, 1);
+        when(repo.listarParaAvisoDeExpiracao(24, 100)).thenReturn(List.of(batch(ID, 1), b));
+        when(repo.marcarAvisoEnviado(ID)).thenThrow(new IllegalStateException("banco"));
+        when(repo.marcarAvisoEnviado(outro)).thenReturn(true);
+
+        service.avisarExpiracao();
+
+        verify(notificacao).avisarExpiracao(b);
+    }
+
+    @Test
+    void avisarExpiracao_semCandidatosNaoFazNada() {
+        when(repo.listarParaAvisoDeExpiracao(24, 100)).thenReturn(List.of());
+
+        service.avisarExpiracao();
+
+        verify(notificacao, never()).avisarExpiracao(any());
+        verify(repo, never()).marcarAvisoEnviado(any());
     }
 
     private ExportBatch batch(UUID id, int tentativas) {

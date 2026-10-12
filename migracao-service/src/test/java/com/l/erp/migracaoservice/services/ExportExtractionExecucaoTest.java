@@ -51,6 +51,7 @@ class ExportExtractionExecucaoTest {
     ExportCatalogService catalogo;
     JdbcTemplate jdbc;
     ExportExtractionService service;
+    ExportNotificationService notificacao;
     SimpleMeterRegistry metricas = new SimpleMeterRegistry();
 
     @BeforeEach
@@ -58,8 +59,9 @@ class ExportExtractionExecucaoTest {
         repo = mock(ExportBatchRepository.class);
         catalogo = mock(ExportCatalogService.class);
         jdbc = mock(JdbcTemplate.class);
+        notificacao = mock(ExportNotificationService.class);
         service = new ExportExtractionService(repo, catalogo, jdbc, mock(PlatformTransactionManager.class),
-                new ExportProperties(base, 7), JsonMapper.builder().build(), metricas);
+                new ExportProperties(base, 7), JsonMapper.builder().build(), metricas, notificacao);
 
         when(repo.buscar(ID, TENANT)).thenReturn(Optional.of(new ExportBatch(ID, TENANT, UUID.randomUUID(),
                 "{\"tabelas\":[\"cadastros.cliente\"],\"dataInicial\":null,\"dataFinal\":null}", "CSV", "PROCESSING",
@@ -98,6 +100,17 @@ class ExportExtractionExecucaoTest {
         verify(repo).marcarPronto(eq(ID), contains("7/" + ID + "/cadastros.cliente.csv"), contains("2"), anyString(), any());
         verify(repo).registrarAuditoria(ID, TENANT, "GENERATED", null);
         verify(repo, never()).marcarFalhou(any(), anyString());
+        verify(notificacao).avisarPronto(any());                  // e-mail de "pronto" só depois de tudo gravado
+    }
+
+    @Test
+    void falhaNaExtracaoNaoAvisaPorEmail() {
+        when(repo.marcarProcessando(ID)).thenReturn(true);
+        when(catalogo.descobrir()).thenReturn(List.of());          // tabela pedida sumiu do catálogo
+
+        service.executar(ID, TENANT);
+
+        verify(notificacao, never()).avisarPronto(any());
     }
 
     @Test

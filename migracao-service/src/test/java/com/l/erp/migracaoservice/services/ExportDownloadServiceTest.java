@@ -153,6 +153,70 @@ class ExportDownloadServiceTest {
         verify(repo, never()).marcarBaixado(any());
     }
 
+    private ExportBatch cancelamento(String status, OffsetDateTime expira) {
+        return new ExportBatch(ID, TENANT, USER, "{}", "XLSX", status,
+                "{\"cadastros.cliente\":\"7/" + ID + "/cadastros.cliente.xlsx\"}", "{}", 1, "CANCELLATION", null,
+                OffsetDateTime.parse("2026-10-11T10:00:00Z"), OffsetDateTime.now(), expira, null);
+    }
+
+    @Test
+    void posse_exportDeCancelamentoBaixaSemSessaoEAuditaComIp() throws Exception {
+        arquivo("7/" + ID + "/cadastros.cliente.xlsx", "conteudo");
+        when(repo.buscarPorToken("tok")).thenReturn(Optional.of(cancelamento("READY", OffsetDateTime.now().plusDays(1))));
+
+        var a = service.prepararPosse("tok", "203.0.113.9");
+
+        assertThat(ler(a)).isEqualTo("conteudo".getBytes());
+        verify(repo).marcarBaixado(ID);
+        // ator nulo (não há sessão) e o IP é a prova de quem baixou; o tenant gravado é o do batch, não o de um chamador
+        verify(repo).registrarAuditoria(ID, TENANT, "DOWNLOADED", null, "203.0.113.9");
+    }
+
+    @Test
+    void posse_exportQueNaoEDeCancelamentoE404ComDownloadDeniedEIp() {
+        when(repo.buscarPorToken("tok")).thenReturn(Optional.of(batch(TENANT, "READY", "XLSX", "{}", OffsetDateTime.now().plusDays(1))));
+
+        assertThatThrownBy(() -> service.prepararPosse("tok", "203.0.113.9"))
+                .isInstanceOfSatisfying(BusinessException.class, e -> assertThat(e.getStatus()).isEqualTo(HttpStatus.NOT_FOUND));
+
+        verify(repo).registrarAuditoria(ID, TENANT, "DOWNLOAD_DENIED", null, "203.0.113.9");
+        verify(repo, never()).marcarBaixado(any());
+    }
+
+    @Test
+    void posse_tokenInexistenteE404SemAuditoriaPoisNaoHaTenant() {
+        when(repo.buscarPorToken("x")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.prepararPosse("x", "203.0.113.9"))
+                .isInstanceOfSatisfying(BusinessException.class, e -> assertThat(e.getStatus()).isEqualTo(HttpStatus.NOT_FOUND));
+
+        verify(repo, never()).registrarAuditoria(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void posse_expiradoOuNaoBaixavelE410SemMarcarBaixado() {
+        when(repo.buscarPorToken("velho")).thenReturn(Optional.of(cancelamento("READY", OffsetDateTime.now().minusMinutes(1))));
+        when(repo.buscarPorToken("expirado")).thenReturn(Optional.of(cancelamento("EXPIRED", OffsetDateTime.now().plusDays(1))));
+
+        for (String token : List.of("velho", "expirado")) {
+            assertThatThrownBy(() -> service.prepararPosse(token, null))
+                    .isInstanceOfSatisfying(BusinessException.class, e -> assertThat(e.getStatus()).isEqualTo(HttpStatus.GONE));
+        }
+        verify(repo, never()).marcarBaixado(any());
+    }
+
+    @Test
+    void posse_ipEmBrancoViraNuloEIpGrandeDemaisECortadoNoTamanhoDaColuna() throws Exception {
+        arquivo("7/" + ID + "/cadastros.cliente.xlsx", "c");
+        when(repo.buscarPorToken("tok")).thenReturn(Optional.of(cancelamento("READY", OffsetDateTime.now().plusDays(1))));
+
+        service.prepararPosse("tok", "   ");
+        service.prepararPosse("tok", "9".repeat(60));
+
+        verify(repo).registrarAuditoria(ID, TENANT, "DOWNLOADED", null, null);
+        verify(repo).registrarAuditoria(ID, TENANT, "DOWNLOADED", null, "9".repeat(45));   // export_audit_log.ip_address é VARCHAR(45)
+    }
+
     @Test
     void caminhoQueFogeDoBaseDirEhRecusado() throws Exception {
         Path fora = Files.writeString(base.getParent().resolve("segredo-" + ID + ".txt"), "nao pode sair");

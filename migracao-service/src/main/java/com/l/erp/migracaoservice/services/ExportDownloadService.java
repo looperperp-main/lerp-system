@@ -33,6 +33,9 @@ import java.util.zip.ZipOutputStream;
 @Slf4j
 public class ExportDownloadService {
 
+    /** Tamanho da coluna export_audit_log.ip_address (IPv6 em texto). */
+    private static final int IP_MAX = 45;
+
     private final ExportBatchRepository repo;
     private final ExportProperties props;
     private final ObjectMapper mapper;
@@ -48,18 +51,45 @@ public class ExportDownloadService {
             log.warn("Download negado: token do batch {} usado por outro tenant", batch.id());
             throw new BusinessException(Constants.EXPORT_NAO_ENCONTRADO, HttpStatus.NOT_FOUND);
         }
+        Arquivo arquivo = montar(batch);
+        repo.marcarBaixado(batch.id());
+        repo.registrarAuditoria(batch.id(), tenantId, Constants.EXPORT_AUDIT_DOWNLOADED, userId);
+        return arquivo;
+    }
+
+    /**
+     * Download de posse (spec §10.1): o dono do dado com o tenant já desativado não consegue logar, então aqui o token
+     * é a credencial e não há sessão. Só vale para export de cancelamento: qualquer outro cai em 404 (não confirma que o
+     * token existe) e deixa DOWNLOAD_DENIED. Todo acesso grava o IP de origem, que é a única prova de quem baixou.
+     * Token que não existe não tem tenant, então não cabe na auditoria (tenant_id é NOT NULL): só log.
+     */
+    public Arquivo prepararPosse(String token, String ip) {
+        String origem = ip == null || ip.isBlank() ? null : ip.strip().substring(0, Math.min(ip.strip().length(), IP_MAX));
+        ExportBatch batch = repo.buscarPorToken(token).orElse(null);
+        if (batch == null) {
+            log.warn("Download de posse com token desconhecido (ip {})", origem);
+            throw new BusinessException(Constants.EXPORT_NAO_ENCONTRADO, HttpStatus.NOT_FOUND);
+        }
+        if (!Constants.EXPORT_MOTIVO_CANCELAMENTO.equals(batch.reason())) {
+            repo.registrarAuditoria(batch.id(), batch.tenantId(), Constants.EXPORT_AUDIT_DOWNLOAD_DENIED, null, origem);
+            log.warn("Download de posse negado: o batch {} não é de cancelamento (ip {})", batch.id(), origem);
+            throw new BusinessException(Constants.EXPORT_NAO_ENCONTRADO, HttpStatus.NOT_FOUND);
+        }
+        Arquivo arquivo = montar(batch);
+        repo.marcarBaixado(batch.id());
+        repo.registrarAuditoria(batch.id(), batch.tenantId(), Constants.EXPORT_AUDIT_DOWNLOADED, null, origem);
+        return arquivo;
+    }
+
+    /** Validade + arquivos no disco; não muda estado. */
+    private Arquivo montar(ExportBatch batch) {
         boolean baixavel = Constants.EXPORT_STATUS_READY.equals(batch.status())
                 || Constants.EXPORT_STATUS_DOWNLOADED.equals(batch.status());
         if (!baixavel || batch.expiresAt() == null || !batch.expiresAt().isAfter(OffsetDateTime.now())) {
             throw new BusinessException(Constants.EXPORT_EXPIRADA, HttpStatus.GONE);
         }
-
         Map<String, Path> entradas = resolverArquivos(batch);
-        Arquivo arquivo = entradas.size() == 1 ? arquivoUnico(batch, entradas) : zip(batch, entradas);
-
-        repo.marcarBaixado(batch.id());
-        repo.registrarAuditoria(batch.id(), tenantId, Constants.EXPORT_AUDIT_DOWNLOADED, userId);
-        return arquivo;
+        return entradas.size() == 1 ? arquivoUnico(batch, entradas) : zip(batch, entradas);
     }
 
     /** nome no download → arquivo no disco; no CSV leva junto o .meta.json (o import precisa dele). */

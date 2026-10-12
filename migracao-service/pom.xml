@@ -56,6 +56,12 @@
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
         </dependency>
+        <!-- Só produtor: os e-mails do export (pronto / 24h antes de expirar) saem pelo auth-service, que tem
+             o SMTP e os usuários. O migracao-service publica o evento em migracao.email.notification. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-kafka</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>com.l.erp</groupId>

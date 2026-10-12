@@ -130,6 +130,42 @@ class ExportControllerTest {
     }
 
     @Test
+    void posse_baixaSemHeadersDeSessaoEPassaOIpDoGatewayAoServico() throws Exception {
+        when(downloadService.prepararPosse(eq("tok"), eq("203.0.113.9"))).thenReturn(new ExportDownloadService.Arquivo(
+                "cadastros.cliente.csv", "text/csv; charset=UTF-8", out -> out.write("id\r\n1\r\n".getBytes())));
+
+        MvcResult inicio = mvc.perform(get("/migracao/exports/posse/tok").header("X-Client-Ip", "203.0.113.9"))
+                .andExpect(request().asyncStarted()).andReturn();     // sem X-Tenant-Id nem X-User-Id: não há sessão
+
+        mvc.perform(asyncDispatch(inicio))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition", containsString("cadastros.cliente.csv")))
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(content().string("id\r\n1\r\n"));
+    }
+
+    @Test
+    void posse_semHeaderDeIpChamaOServicoComIpNulo() throws Exception {
+        when(downloadService.prepararPosse(eq("tok"), eq(null))).thenReturn(new ExportDownloadService.Arquivo(
+                "a.csv", "text/csv; charset=UTF-8", out -> out.write("x".getBytes())));
+
+        mvc.perform(get("/migracao/exports/posse/tok")).andExpect(request().asyncStarted());
+
+        org.mockito.Mockito.verify(downloadService).prepararPosse("tok", null);
+    }
+
+    @Test
+    void posse_tokenNegadoOuExpirado_propagaStatusDoServico() throws Exception {
+        when(downloadService.prepararPosse(eq("alheio"), any()))
+                .thenThrow(new BusinessException("Exportação não encontrada", HttpStatus.NOT_FOUND));
+        when(downloadService.prepararPosse(eq("velho"), any()))
+                .thenThrow(new BusinessException("Esta exportação expirou", HttpStatus.GONE));
+
+        mvc.perform(get("/migracao/exports/posse/alheio")).andExpect(status().isNotFound());
+        mvc.perform(get("/migracao/exports/posse/velho")).andExpect(status().isGone());
+    }
+
+    @Test
     void listaStatusECatalogo() throws Exception {
         UUID id = UUID.randomUUID();
         when(service.listar(7L, 0, 20)).thenReturn(new Pagina<>(List.of(), 0, 0, 20));

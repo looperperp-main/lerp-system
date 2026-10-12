@@ -33,6 +33,9 @@ public class SecurityFilter extends OncePerRequestFilter {
     @Value("${internal.gateway.secret}")
     private String internalSecret;
 
+    @Value("${gateway.trusted-proxies:}")
+    private String trustedProxies = "";
+
     private final Logger log = LoggerFactory.getLogger(SecurityFilter.class);
 
     private static final Set<String> PUBLIC_PATHS = Set.of(
@@ -44,7 +47,11 @@ public class SecurityFilter extends OncePerRequestFilter {
     // Prefixos públicos onde o subpath é intencional (ex.: consulta de CNPJ por valor variável).
     // Usa "/" terminal explícito para não casar rotas futuras que apenas compartilhem o prefixo (ver 4.5).
     private static final Set<String> PUBLIC_PREFIXES = Set.of(
-            "/partner/api/v1/partners/cnpj/"
+            "/partner/api/v1/partners/cnpj/",
+            // Download de posse do export (spec export §10.1): o dono do dado, com o tenant já desativado,
+            // não consegue logar. O token (256 bits) é a credencial; o migracao-service só o aceita para
+            // exports com reason=CANCELLATION e grava o IP (X-Client-Ip) na auditoria.
+            "/migracao/exports/posse/"
     );
 
     // Method-specific exact-match public paths (avoids startsWith subpath leakage)
@@ -78,7 +85,9 @@ public class SecurityFilter extends OncePerRequestFilter {
         }
 
         if (PUBLIC_PATHS.contains(path) || PUBLIC_PREFIXES.stream().anyMatch(path::startsWith)) {
-            filterChain.doFilter(getWrappedRequest(request, Map.of(HEADER_INTERNAL_SECRET, internalSecret)), response);
+            filterChain.doFilter(getWrappedRequest(request, Map.of(
+                    HEADER_INTERNAL_SECRET, internalSecret,
+                    HEADER_CLIENT_IP, ClientIpResolver.resolve(request, ClientIpResolver.parseTrustedProxies(trustedProxies)))), response);
             return;
         }
 
@@ -192,11 +201,14 @@ public class SecurityFilter extends OncePerRequestFilter {
     // Prova pro serviço interno de que a request passou pelo gateway (issue #62); mesmo nome de
     // com.l.erp.common.util.Constants.HEADER_INTERNAL_SECRET (gateway não depende de common).
     private static final String HEADER_INTERNAL_SECRET = "X-Internal-Secret";
+    // IP real do cliente para a auditoria do download de posse do export; mesmo nome de
+    // com.l.erp.common.util.Constants.HEADER_CLIENT_IP. Protegido: o que o cliente mandar é descartado.
+    private static final String HEADER_CLIENT_IP = "X-Client-Ip";
 
     private static final Set<String> PROTECTED_HEADERS = Set.of(
             HEADER_USER_ID.toLowerCase(), HEADER_USER_EMAIL.toLowerCase(), HEADER_TENANT_ID.toLowerCase(),
             HEADER_IS_OWNER.toLowerCase(), HEADER_PARTNER_ID.toLowerCase(), HEADER_AUTHORITIES.toLowerCase(),
-            HEADER_INTERNAL_SECRET.toLowerCase()
+            HEADER_INTERNAL_SECRET.toLowerCase(), HEADER_CLIENT_IP.toLowerCase()
     );
 
     private static boolean isProtected(String name) {

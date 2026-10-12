@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -44,6 +45,23 @@ public class ExportController {
     public ResponseEntity<StreamingResponseBody> baixar(@PathVariable String token) {
         ExportDownloadService.Arquivo arquivo = downloadService.preparar(
                 SecurityUtils.requireTenantId(), SecurityUtils.requireUserId(), token);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(arquivo.contentType()))
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment().filename(arquivo.nome()).build().toString())
+                .header(HttpHeaders.CACHE_CONTROL, "no-store")
+                .body(arquivo.corpo());
+    }
+
+    /**
+     * Download de posse (spec §10.1): SEM sessão, para o dono do dado cujo tenant já foi desativado. O token é a
+     * credencial; o gateway deixa a rota pública e entrega o IP real em X-Client-Ip. Só exports de cancelamento.
+     * O @PreAuthorize do método sobrepõe o da classe (que exige a permissão MIGRACAO_EXPORTAR).
+     */
+    @PreAuthorize("permitAll()")
+    @GetMapping("/posse/{token}")
+    public ResponseEntity<StreamingResponseBody> baixarPorPosse(@PathVariable String token,
+                                                                @RequestHeader(value = Constants.HEADER_CLIENT_IP, required = false) String ip) {
+        ExportDownloadService.Arquivo arquivo = downloadService.prepararPosse(token, ip);
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(arquivo.contentType()))
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment().filename(arquivo.nome()).build().toString())

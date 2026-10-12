@@ -823,6 +823,17 @@ public class Constants {
     public static final int EXPORT_LOTE_MANUTENCAO = 100;
     public static final String EXPORT_FALHA_TIMEOUT = "A geração da exportação excedeu o tempo limite. Solicite uma nova exportação";
 
+    // Export — e-mails (fatia 3) e download de posse (fatia 4, spec export §7 e §10.1)
+    /** O migracao-service não envia e-mail: publica aqui e o auth-service, que tem o SMTP e os usuários, envia. */
+    public static final String EXPORT_TOPIC_EMAIL = "migracao.email.notification";
+    public static final String EXPORT_EMAIL_PRONTO = "EXPORT_PRONTO";
+    public static final String EXPORT_EMAIL_EXPIRA_EM_BREVE = "EXPORT_EXPIRA_EM_BREVE";
+    public static final int EXPORT_AVISO_EXPIRACAO_HORAS = 24;
+    /** Rota pública (sem sessão) do download de posse; o gateway e o InternalRequestFilter usam o mesmo prefixo. */
+    public static final String EXPORT_POSSE_PREFIXO = "/migracao/exports/posse/";
+    /** IP real do cliente, resolvido pelo gateway (que descarta o que o cliente mandar com este nome). */
+    public static final String HEADER_CLIENT_IP = "X-Client-Ip";
+
     // Import — estados do import_batch (spec migracao-dados-syax.md §5)
     public static final String IMPORT_STATUS_UPLOADED = "UPLOADED";
     public static final String IMPORT_STATUS_VALIDATING = "VALIDATING";

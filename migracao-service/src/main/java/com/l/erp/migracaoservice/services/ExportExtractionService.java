@@ -127,6 +127,10 @@ public class ExportExtractionService {
         }
         repo.registrarAuditoria(batchId, tenantId, Constants.EXPORT_AUDIT_GENERATED, null);
         log.info("Exportação {} do tenant {} pronta: {} tabelas", batchId, tenantId, arquivos.size());
+        // Depois de tudo gravado: o aviso nunca lança (ExportNotificationService), então não vira retry do export.
+        repo.buscar(batchId, tenantId).ifPresent(notificacao::avisarPronto);
+        // Depois de tudo gravado: o aviso nunca lança (ExportNotificationService), então não vira retry do export.
+        repo.buscar(batchId, tenantId).ifPresent(notificacao::avisarPronto);
     }
 
     private long exportarTabela(CatalogTable tabela, Long tenantId, ExportScope escopo, String formato, Path arquivo)

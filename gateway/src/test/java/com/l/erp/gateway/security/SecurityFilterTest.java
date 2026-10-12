@@ -93,6 +93,65 @@ class SecurityFilterTest {
     }
 
     @Test
+    void downloadDePosse_passaSemToken_comSegredoInternoEIpDoCliente() throws Exception {
+        var req = new MockHttpServletRequest("GET", "/migracao/exports/posse/abc123");
+        req.setRemoteAddr("203.0.113.9");
+        var res = new MockHttpServletResponse();
+        var chain = new CapturingChain();
+
+        filter.doFilter(req, res, chain);
+
+        assertThat(chain.called).isTrue();
+        assertThat(chain.forwarded.getHeader("X-Internal-Secret")).isEqualTo(INTERNAL_SECRET);
+        assertThat(chain.forwarded.getHeader("X-Client-Ip")).isEqualTo("203.0.113.9");
+        assertThat(chain.forwarded.getHeader("X-User-Id")).isNull();     // sem sessão: nenhuma identidade é inventada
+    }
+
+    @Test
+    void ipDoClienteForjadoNaRotaPublica_eSubstituidoPeloIpReal() throws Exception {
+        var req = new MockHttpServletRequest("GET", "/migracao/exports/posse/abc123");
+        req.setRemoteAddr("203.0.113.9");
+        req.addHeader("X-Client-Ip", "1.1.1.1");                       // tentativa de forjar a auditoria
+        var res = new MockHttpServletResponse();
+        var chain = new CapturingChain();
+
+        filter.doFilter(req, res, chain);
+
+        assertThat(chain.forwarded.getHeader("X-Client-Ip")).isEqualTo("203.0.113.9");
+    }
+
+    @Test
+    void xForwardedForSoValeQuandoAConexaoVemDeProxyConfiavel() throws Exception {
+        ReflectionTestUtils.setField(filter, "trustedProxies", "10.0.0.5");
+        var confiavel = new MockHttpServletRequest("GET", "/migracao/exports/posse/abc123");
+        confiavel.setRemoteAddr("10.0.0.5");
+        confiavel.addHeader("X-Forwarded-For", "198.51.100.7, 10.0.0.5");
+        var estranho = new MockHttpServletRequest("GET", "/migracao/exports/posse/abc123");
+        estranho.setRemoteAddr("203.0.113.9");
+        estranho.addHeader("X-Forwarded-For", "198.51.100.7");
+        var c1 = new CapturingChain();
+        var c2 = new CapturingChain();
+
+        filter.doFilter(confiavel, new MockHttpServletResponse(), c1);
+        filter.doFilter(estranho, new MockHttpServletResponse(), c2);
+
+        assertThat(c1.forwarded.getHeader("X-Client-Ip")).isEqualTo("198.51.100.7");
+        assertThat(c2.forwarded.getHeader("X-Client-Ip")).isEqualTo("203.0.113.9");     // XFF de quem não é proxy é ignorado
+    }
+
+    @Test
+    void ipDoClienteForjadoEmRotaAutenticada_eDescartado() throws Exception {
+        var req = new MockHttpServletRequest("GET", "/migracao/exports");
+        req.addHeader("Authorization", "Bearer " + tokenTenant());
+        req.addHeader("X-Client-Ip", "1.1.1.1");
+        var chain = new CapturingChain();
+
+        filter.doFilter(req, new MockHttpServletResponse(), chain);
+
+        assertThat(chain.forwarded.getHeader("X-Client-Ip")).isNull();
+    }
+
+    @Test
     void semAuthorizationHeader_emPathProtegido_retorna401() throws Exception {
         var req = new MockHttpServletRequest("GET", "/cadastro/api/v1/produtos");
         var res = new MockHttpServletResponse();

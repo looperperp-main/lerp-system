@@ -134,18 +134,9 @@ public class RateLimitFilter implements Filter {
                 .build();
     }
 
-    // Só confia em X-Forwarded-For quando a conexão vem de um IP explicitamente listado em
-    // gateway.trusted-proxies (o LB/nginx real, não a faixa RFC1918 inteira) — senão qualquer
-    // chamador nessa faixa forja o header e anula o rate-limit (spec/auditoria/auditoria.md §7.2).
-    // Default vazio = nunca confia em XFF = seguro em dev local sem precisar configurar nada.
+    // A regra de confiança em X-Forwarded-For (auditoria §7.2) vive no ClientIpResolver, que o
+    // SecurityFilter também usa para entregar o IP real ao download de posse do export.
     private String resolveKey(HttpServletRequest request) {
-        String remoteAddr = request.getRemoteAddr();
-        if (trustedProxies.contains(remoteAddr)) {
-            String forwarded = request.getHeader("X-Forwarded-For");
-            if (forwarded != null && !forwarded.isBlank()) {
-                return forwarded.split(",")[0].trim();
-            }
-        }
-        return remoteAddr;
+        return com.l.erp.gateway.security.ClientIpResolver.resolve(request, trustedProxies);
     }
 }

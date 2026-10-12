@@ -2,6 +2,8 @@ package com.l.erp.authservice.services;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.l.erp.authservice.dominio.UserAccount;
+import com.l.erp.authservice.repositorios.UserAccountRepository;
 import com.l.erp.common.util.Constants;
 import jakarta.mail.internet.MimeMessage;
 import org.slf4j.Logger;
@@ -11,8 +13,10 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
+import org.springframework.web.util.HtmlUtils;
 
 import java.util.Map;
+import java.util.UUID;
 
 @Service
 public class EmailConsumerService {
@@ -20,6 +24,7 @@ public class EmailConsumerService {
 
     private final JavaMailSender mailSender;
     private final ObjectMapper objectMapper;
+    private final UserAccountRepository userAccountRepository;
 
     // Coloque aqui o e-mail configurado no seu application.yml (spring.mail.username)
     @Value("${spring.mail.username}")
@@ -28,9 +33,78 @@ public class EmailConsumerService {
     @Value("${app.client-portal-url}")
     private String clientPortalUrl;
 
-    public EmailConsumerService(JavaMailSender mailSender, ObjectMapper objectMapper) {
+    public EmailConsumerService(JavaMailSender mailSender, ObjectMapper objectMapper, UserAccountRepository userAccountRepository) {
         this.mailSender = mailSender;
         this.objectMapper = objectMapper;
+        this.userAccountRepository = userAccountRepository;
+    }
+
+    /**
+     * E-mails do export de dados (migracao-service, spec export §7 e §10.1). O evento traz só o id do usuário: o
+     * endereço é sempre o cadastrado na conta, nunca um informado no pedido. Tenant desativado não impede o envio
+     * (é justamente o caso do export de cancelamento).
+     */
+    @KafkaListener(topics = Constants.EXPORT_TOPIC_EMAIL, groupId = "auth-service-group")
+    public void consumeMigracaoEmailEvent(String payload) {
+        logger.debug("Recebido {}: {}", Constants.EXPORT_TOPIC_EMAIL, payload);
+        try {
+            Map<String, Object> data = objectMapper.readValue(payload, new TypeReference<>() {});
+            String type = (String) data.get("type");
+            UUID userId = UUID.fromString((String) data.get("userId"));
+            Long tenantId = ((Number) data.get("tenantId")).longValue();
+            UserAccount user = userAccountRepository.findByIdAndTenantId(userId, tenantId).orElse(null);
+            if (user == null || user.getEmail() == null) {
+                logger.warn("E-mail do export {} descartado: usuário {} não encontrado no tenant {}", type, userId, tenantId);
+                return;
+            }
+            String downloadUrl = (String) data.get("downloadUrl");
+            String expiresAt = (String) data.get("expiresAt");
+            if (Constants.EXPORT_EMAIL_PRONTO.equals(type)) {
+                sendExportEmail(user, "Sua exportação de dados está pronta",
+                        "Sua exportação de dados está pronta para download.", downloadUrl, expiresAt);
+            } else if (Constants.EXPORT_EMAIL_EXPIRA_EM_BREVE.equals(type)) {
+                sendExportEmail(user, "Sua exportação de dados expira em breve",
+                        "Sua exportação de dados expira em menos de 24 horas e ainda não foi baixada.", downloadUrl, expiresAt);
+            } else {
+                logger.warn("Tipo de e-mail do export desconhecido: {}", type);
+            }
+        } catch (Exception e) {
+            logger.error("Falha ao processar {}. Payload: {}", Constants.EXPORT_TOPIC_EMAIL, payload, e);
+        }
+    }
+
+    private void sendExportEmail(UserAccount user, String subject, String headline, String downloadUrl, String expiresAt) {
+        try {
+            String validade = expiresAt == null ? "" : java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy 'às' HH:mm")
+                    .format(java.time.Instant.parse(expiresAt).atZone(java.time.ZoneId.of("America/Sao_Paulo")));
+            // Com downloadUrl (export de cancelamento) o link baixa direto, sem login; sem ele o cliente abre a tela já logado.
+            String link = downloadUrl != null ? downloadUrl : clientPortalUrl + "/dados/exportar";
+            String botao = downloadUrl != null ? "Baixar meus dados" : "Abrir Exportar Dados";
+            String nome = HtmlUtils.htmlEscape(user.getDisplayName() != null ? user.getDisplayName() : user.getEmail().split("@")[0]);
+
+            MimeMessage msg = mailSender.createMimeMessage();
+            MimeMessageHelper h = new MimeMessageHelper(msg, true, Constants.UTF8);
+            h.setFrom(fromEmail, "Equipe Syax");
+            h.setTo(user.getEmail());
+            h.setSubject(subject);
+            h.setText(String.format("""
+                    <html><body style='font-family:Arial,sans-serif;color:#333;line-height:1.6'>
+                    <div style='max-width:600px;margin:0 auto;padding:20px;border:1px solid #ddd;border-radius:8px'>
+                    <h2 style='color:#0056b3'>Olá, %s!</h2>
+                    <p>%s</p>
+                    <p>O arquivo fica disponível até <strong>%s</strong>. Depois dessa data ele é apagado e será preciso solicitar uma nova exportação.</p>
+                    <div style='text-align:center;margin:30px 0'>
+                      <a href='%s' style='background:#0056b3;color:#fff;padding:14px 28px;border-radius:6px;text-decoration:none;font-size:16px;font-weight:bold'>%s</a>
+                    </div>
+                    <p style='color:#c00;font-size:13px'>&#128274; O arquivo contém dados de clientes e fornecedores. Guarde-o em local seguro e não encaminhe este e-mail.</p>
+                    <p>Atenciosamente,<br><strong>Equipe Syax</strong></p>
+                    </div></body></html>
+                    """, nome, headline, validade, link, botao), true);
+            mailSender.send(msg);
+            logger.info("E-mail do export enviado ao usuário {}", user.getId());
+        } catch (Exception e) {
+            logger.error("Erro ao enviar e-mail do export ao usuário {}", user.getId(), e);
+        }
     }
 
     @KafkaListener(topics = EmailNotificationService.EMAIL_TOPIC, groupId = "auth-service-group")

@@ -1,0 +1,21 @@
+databaseChangeLog:
+  # ──────────────────────────────────────────
+  # Fatias 3 e 4 do export (spec exportacao-dados-syax.md §7 e §10.1):
+  #  - export_batch.expiry_notice_sent_at: marca o e-mail "24h antes de expirar" como enviado,
+  #    para o job horário não avisar duas vezes (nem duas instâncias avisarem juntas);
+  #  - export_audit_log.ip_address: IP de origem do download de posse (sem sessão), que é a
+  #    salvaguarda nº 3 da §10.1. VARCHAR(45) cobre IPv6 em texto.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: migracao-011-export-aviso-expiracao-e-ip-auditoria
+      author: vitor-fernandes
+      changes:
+        - sql:
+            sql: |
+              ALTER TABLE migracao.export_batch ADD COLUMN expiry_notice_sent_at TIMESTAMPTZ;
+              ALTER TABLE migracao.export_audit_log ADD COLUMN ip_address VARCHAR(45);
+      rollback:
+        - sql:
+            sql: |
+              ALTER TABLE migracao.export_audit_log DROP COLUMN IF EXISTS ip_address;
+              ALTER TABLE migracao.export_batch DROP COLUMN IF EXISTS expiry_notice_sent_at;

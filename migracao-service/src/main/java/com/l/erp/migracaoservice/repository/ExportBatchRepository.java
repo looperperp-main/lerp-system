@@ -51,6 +51,29 @@ public class ExportBatchRepository {
                 .param("token", token).query(ExportBatchRepository::mapear).optional();
     }
 
+    /** O token fica fora do ExportBatch de propósito (não circula em logs nem em respostas); só o e-mail de posse o lê. */
+    public Optional<String> tokenDe(UUID id) {
+        return jdbc.sql("SELECT download_token FROM migracao.export_batch WHERE id = :id AND download_token IS NOT NULL")
+                .param("id", id).query(String.class).optional();
+    }
+
+    /** READY ainda não baixado, vencendo em até {@code horas}, sem aviso enviado: candidatos ao e-mail de 24h antes. */
+    public List<ExportBatch> listarParaAvisoDeExpiracao(int horas, int limite) {
+        return jdbc.sql("SELECT " + COLUNAS + """
+                         FROM migracao.export_batch
+                        WHERE status = :status AND expiry_notice_sent_at IS NULL
+                          AND expires_at > now() AND expires_at <= now() + make_interval(hours => :horas)
+                        ORDER BY expires_at LIMIT :limite""")
+                .param("status", Constants.EXPORT_STATUS_READY).param("horas", horas).param("limite", limite)
+                .query(ExportBatchRepository::mapear).list();
+    }
+
+    /** Reserva o aviso: só uma execução recebe true (a outra instância, ou o próximo ciclo, vê já enviado). */
+    public boolean marcarAvisoEnviado(UUID id) {
+        return jdbc.sql("UPDATE migracao.export_batch SET expiry_notice_sent_at = now() WHERE id = :id AND expiry_notice_sent_at IS NULL")
+                .param("id", id).update() == 1;
+    }
+
     /** READY → DOWNLOADED; baixar de novo dentro da validade mantém DOWNLOADED e a data do primeiro download. */
     public void marcarBaixado(UUID id) {
         jdbc.sql("""
@@ -199,8 +222,13 @@ public class ExportBatchRepository {
     }
 
     public void registrarAuditoria(UUID batchId, Long tenantId, String acao, UUID ator) {
-        jdbc.sql("INSERT INTO migracao.export_audit_log (export_batch_id, tenant_id, action, actor_id) VALUES (:batch, :tenant, :acao, :ator)")
-                .param("batch", batchId).param("tenant", tenantId).param("acao", acao).param("ator", ator)
+        registrarAuditoria(batchId, tenantId, acao, ator, null);
+    }
+
+    /** {@code ip} só vem no download de posse (sem sessão, spec §10.1): é a única prova de quem baixou. */
+    public void registrarAuditoria(UUID batchId, Long tenantId, String acao, UUID ator, String ip) {
+        jdbc.sql("INSERT INTO migracao.export_audit_log (export_batch_id, tenant_id, action, actor_id, ip_address) VALUES (:batch, :tenant, :acao, :ator, :ip)")
+                .param("batch", batchId).param("tenant", tenantId).param("acao", acao).param("ator", ator).param("ip", ip)
                 .update();
     }
 

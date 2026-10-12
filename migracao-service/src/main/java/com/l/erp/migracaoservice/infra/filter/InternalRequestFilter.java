@@ -56,6 +56,14 @@ public class InternalRequestFilter extends OncePerRequestFilter {
             return;
         }
 
+        // Download de posse (spec export §10.1): rota pública no gateway, então não há X-User-Id nem
+        // authorities. Exige o segredo interno (só chega pelo gateway) e roda anônima; o controller libera
+        // só esta rota com permitAll e o token é a credencial.
+        if (path.startsWith(Constants.EXPORT_POSSE_PREFIXO)) {
+            chain.doFilter(request, response);
+            return;
+        }
+
         String userId = request.getHeader(Constants.HEADER_USER_ID);
         if (userId == null) {
             unauthorized(response);
