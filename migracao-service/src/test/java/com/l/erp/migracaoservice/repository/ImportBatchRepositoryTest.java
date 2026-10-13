@@ -120,6 +120,42 @@ class ImportBatchRepositoryTest {
     }
 
     @Test
+    void aguardarMapeamentoSoAgeEmUploadedEMarcaATrilhaSelfMapped() {
+        repo.aguardarMapeamento(ID, 7L);
+
+        assertThat(sqlExecutado()).contains("tenant_id = :tenant").contains("status = :de");
+        verify(spec).param("para", "AWAITING_MAPPING");
+        verify(spec).param("trilha", "SELF_MAPPED");
+        verify(spec).param("de", "UPLOADED");
+        verify(spec).update();
+    }
+
+    @Test
+    void iniciarMapeamentoGravaOJsonUmaVezSoEDevolveFalseNoSegundoClique() {
+        when(spec.update()).thenReturn(1, 0);
+
+        assertThat(repo.iniciarMapeamento(ID, 7L, "{\"documento\":\"CPF\"}")).isTrue();
+        assertThat(repo.iniciarMapeamento(ID, 7L, "{}")).isFalse();
+
+        verify(spec, times(2)).param("para", "UPLOADED");
+        verify(spec, times(2)).param("de", "AWAITING_MAPPING");
+        verify(spec).param("mapeamento", "{\"documento\":\"CPF\"}");
+    }
+
+    @Test
+    void ultimoMapeamentoSoOlhaOsBatchesDoProprioTenant() {
+        MappedQuerySpec<String> mapped = mappedMock();
+        when(spec.query(String.class)).thenReturn(mapped);
+        when(mapped.optional()).thenReturn(Optional.of("{\"documento\":\"CPF\"}"));
+
+        assertThat(repo.ultimoMapeamento(7L, "CUSTOMER")).contains("{\"documento\":\"CPF\"}");
+
+        assertThat(sqlExecutado()).contains("tenant_id = :tenant").contains("field_mapping IS NOT NULL");
+        verify(spec).param("tenant", 7L);
+        verify(spec).param("entidade", "CUSTOMER");
+    }
+
+    @Test
     void iniciarValidacaoDevolveFalseSeOutraThreadJaPegouOBatch() {
         when(spec.update()).thenReturn(1, 0);
 

@@ -461,14 +461,14 @@ Escrito em 12/10/2026; `verify` e Liquibase (007–009) rodados e verdes pelo us
 | `raw_file_path` | caminho completo | relativo ao `syax.import.base-dir` (`{tenant}/{batch}/original.{ext}`) | mesmo critério do export: só o valor de `SYAX_IMPORT_DIR` muda entre local e OCI |
 | `canonical_schema_field` | sem tamanho | + `max_length`; regras `ENUM_TIPO_PRODUTO`, `ENUM_IND_IE_DEST`, `EAN_DIGITOS` | sem isso o erro só apareceria na promoção, como falha de INSERT |
 | `error_detail` | `{field, message}` | igual; o relatório da API usa camelCase PT (`linha`, `campo`, `mensagem`, `valorInformado`) | molde do export |
-| Colunas fora do modelo (§7) | cai na Trilha 2 | **FAILED + 422** com a lista das colunas obrigatórias ausentes; colunas a mais são ignoradas e devolvidas em `colunasIgnoradas` | a Trilha 2 ainda não existe; quando existir, este é o ponto de queda |
+| Colunas fora do modelo (§7) | cai na Trilha 2 | **cai na Trilha 2** (batch `AWAITING_MAPPING`, ver §18); colunas a mais, quando as obrigatórias batem, são ignoradas e devolvidas em `colunasIgnoradas` | *(substitui o FAILED + 422 da fatia 4, que valia enquanto a Trilha 2 não existia)* |
 | Número da linha | `row_num` | a linha **como a planilha mostra** (cabeçalho = 1) | o cliente acha o erro sem contar |
 | Chave natural repetida no arquivo | só no reupload (§9.1) | já é erro na validação (2ª ocorrência, citando a linha da 1ª) | senão a promoção gravaria duas vezes o mesmo registro |
-| Erro estrutural (ilegível, sem dados, colunas, >50.000 linhas) | `FAILED` imediato | batch gravado como `FAILED` com `failure_reason` acionável **e** resposta 422 | o cliente vê o motivo na hora e o SLA (§13) enxerga a tentativa |
+| Erro estrutural (ilegível, sem dados, >50.000 linhas) | `FAILED` imediato | batch gravado como `FAILED` com `failure_reason` acionável **e** resposta 422 | o cliente vê o motivo na hora e o SLA (§13) enxerga a tentativa |
 
 **API (`MIGRACAO_IMPORTAR`):** `GET /migracao/imports/modelo/{entidade}?formato=xlsx|csv`, `POST /migracao/imports` (multipart `entidade` + `arquivo`, 202), `GET /migracao/imports`, `GET /migracao/imports/{id}`, `GET /migracao/imports/{id}/erros?pagina&tamanho`. O modelo (XLSX com listas suspensas e aba de instruções, ou CSV com `;` e BOM) é gerado de `canonical_schema_field`, a mesma fonte do parser e do validador.
 
-**Ainda não feito (próximas fatias):** reenvio incremental/reupload com merge (§9.1), Trilha 2 e 3, download de posse para tenant em encerramento; fila concierge no admin. (Promoção, timeout e purga: ver §17.)
+**Ainda não feito (próximas fatias):** reenvio incremental/reupload com merge (§9.1), Trilha 3; fila concierge no admin. (Promoção, timeout e purga: ver §17. Trilha 2: ver §18. Download de posse: ver `exportacao-dados-syax.md`.)
 
 ## 17. Desvios da implementação (fatia 5 — promoção, timeout e purga)
 
@@ -492,3 +492,26 @@ Escrito em 12/10/2026, **não testado** até o usuário rodar `verify` e o Liqui
 **API (`MIGRACAO_IMPORTAR`):** `POST /migracao/imports/{id}/promover` → 202 com o batch em `PROMOTING`; o cliente consulta `GET /migracao/imports/{id}` até `DONE` ou `FAILED`. Batch que não está `READY` (com erros, já em andamento, já concluído) → 409 com “Esta importação não pode ser confirmada agora…”; id de outro tenant ou inexistente → 404.
 
 **Gaps conhecidos:** a lista das linhas `SKIPPED` ainda não tem endpoint (só a contagem em `linhasIgnoradas`; o motivo fica gravado em `error_detail`); o `migracao-service` precisa de permissão de escrita nas tabelas de `cadastros` no usuário do banco (não verificado); tenants com centenas de milhares de pessoas carregam o cadastro em memória na promoção (comentário `ponytail` no código, trocar por consulta por lote se acontecer); não há lock distribuído nos jobs (os UPDATEs condicionais bastam para duas instâncias).
+
+## 18. Desvios da implementação (fatia 7 — Trilha 2, mapeamento self-service)
+
+Escrito em 12/10/2026, **não testado** até o usuário rodar `verify` e o Liquibase (changeset 012). Cobre `CUSTOMER` e `PRODUCT`.
+
+| Ponto | Spec | Implementado | Por quê |
+|---|---|---|---|
+| Estados (§5) | sem espera por mapeamento | + `AWAITING_MAPPING` (`UPLOADED → AWAITING_MAPPING → UPLOADED → VALIDATING…`); `source_track` vira `SELF_MAPPED` na queda | o arquivo precisa ficar guardado enquanto o cliente decide; sem estado próprio o batch ficaria `UPLOADED` e o job de timeout/painel não distinguiria |
+| Entrada na Trilha 2 | colunas não batem com o template | falta **qualquer coluna obrigatória** do modelo no cabeçalho; o upload responde 202 com `status=AWAITING_MAPPING` (não mais 422) | critério estrutural e objetivo (§3.1); colunas a mais com as obrigatórias presentes seguem na Trilha 1 |
+| Staging | gravado no upload | **não** é gravado na queda: nada vai a `raw_import_row` até o mapeamento ser confirmado; o `original.{ext}` fica em disco | o cabeçalho é a 1ª linha, então nada foi gravado quando a divergência aparece |
+| Colunas na tela | parser lê o arquivo | relê **só o cabeçalho** do arquivo em disco a cada consulta (para na 1ª linha não vazia); cabeçalhos repetidos valem uma vez (vale a 1ª coluna) | 50 MB não se percorre para listar colunas; a tela não persiste lista nenhuma |
+| `field_mapping` | JSONB no batch | JSONB `campo → nome exato da coluna do arquivo`, gravado ao confirmar; vazio/em branco = campo sem coluna (fica fora) | reuso no próximo import do mesmo tenant |
+| Sugestão (§7, §14) | pré-preenche com o mapeamento salvo | 1º o **último** `field_mapping` do mesmo tenant+entidade (só colunas que existem neste arquivo), 2º coluna com o mesmo nome do campo (normalizado); uma coluna sugerida a no máximo um campo | nunca sugere mapeamento de outro tenant; **não** é heurística por similaridade (continua v2, §15) |
+| Casamento de nomes | — | o cliente pode digitar a coluna sem acento/caixa; a API normaliza e grava o nome exato do arquivo | tolerância igual à da Trilha 1 |
+| Validação do pedido | — | 400 acionável: campo desconhecido; coluna que não existe no arquivo; coluna usada em dois campos; campos obrigatórios sem coluna. O batch **continua** `AWAITING_MAPPING` | erro do pedido não condena o arquivo |
+| Confirmação duplicada | — | `UPDATE … WHERE status='AWAITING_MAPPING'` é a guarda: 2º clique/2ª aba → 409 sem recarregar o arquivo | mesmo padrão de `iniciarPromocao` |
+| Falha ao carregar o arquivo mapeado | — | mesma regra da Trilha 1: arquivo sem dados / >50.000 linhas / ilegível → batch `FAILED` + 422; o cliente reenvia o arquivo (§9.1: mapeamento errado exige arquivo completo de novo) | — |
+| Linhas | `source_track=SELF_MAPPED` | igual | — |
+| Retenção | §12 | o batch em `AWAITING_MAPPING` não tem timeout próprio: vale a purga de 30 dias, que apaga o arquivo e o marca `FAILED` com a mensagem de retenção | evita mais um job; custo é um arquivo ocioso em disco por até 30 dias |
+
+**API (`MIGRACAO_IMPORTAR`):** `GET /migracao/imports/{id}/mapeamento` → `{id, entidade, colunasArquivo[], campos[{campo, rotulo, tipo, obrigatorio}], sugestao{campo:coluna}}` (409 se o batch não está `AWAITING_MAPPING`; 404 se de outro tenant); `POST /migracao/imports/{id}/mapeamento` com `{"mapeamento": {"documento": "CPF", ...}}` → 202 com o batch (já com o staging gravado; a validação segue em segundo plano, como na Trilha 1).
+
+**Gaps conhecidos:** sem tela (front da Trilha 2 entra na fatia 8); botão "preciso de ajuda" (Trilha 3) segue fora; `LeitorCabecalho` interrompe o leitor de XLSX por exceção sem stack — **premissa não verificada** (o SAX do JDK/POI precisa deixar a `RuntimeException` passar; o teste `leitorDeCabecalhoParaNaPrimeiraLinhaNaoVaziaNoCsvENoXlsx` é quem confirma); arquivo cuja 1ª linha não vazia é um título (e não o cabeçalho) cai na Trilha 2 com colunas sem sentido — o cliente corrige apagando a linha e reenviando, ou pede ajuda (Trilha 3).

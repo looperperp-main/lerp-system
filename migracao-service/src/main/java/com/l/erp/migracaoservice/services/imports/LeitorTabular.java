@@ -1,5 +1,7 @@
 package com.l.erp.migracaoservice.services.imports;
 
+import com.l.erp.common.util.Constants;
+
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
@@ -17,4 +19,9 @@ public interface LeitorTabular {
     }
 
     void ler(Path arquivo, ConsumidorLinha consumidor) throws IOException;
+
+    /** O leitor do formato, pela extensão já validada (xlsx ou csv). */
+    static LeitorTabular para(String extensao) {
+        return Constants.IMPORT_EXTENSAO_XLSX.equals(extensao) ? new XlsxLeitor() : new CsvLeitor();
+    }
 }

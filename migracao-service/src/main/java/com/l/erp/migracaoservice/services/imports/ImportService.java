@@ -58,9 +58,6 @@ public class ImportService {
     private final ObjectMapper mapper;
     private final TransactionTemplate tx;
 
-    private final LeitorTabular leitorXlsx = new XlsxLeitor();
-    private final LeitorTabular leitorCsv = new CsvLeitor();
-
     public ImportBatchResponse enviar(Long tenantId, UUID userId, String entidadeInformada, MultipartFile arquivo) {
         String entidade = ImportEntidade.normalizar(entidadeInformada);
         if (arquivo == null || arquivo.isEmpty()) {
@@ -82,12 +79,30 @@ public class ImportService {
 
         CarregadorStaging carregador = new CarregadorStaging(
                 campos, rows, mapper, tenantId, id, entidade, Constants.IMPORT_TRILHA_TEMPLATE);
-        int total;
         try {
-            total = Objects.requireNonNull(tx.execute(status -> {
-                lerArquivo(extensao, destino, carregador);
+            batches.definirTotal(id, tenantId, carregar(id, tenantId, extensao, destino, carregador));
+        } catch (ColunasForaDoModeloException e) {
+            // Trilha 2 (spec §7): as colunas não batem com o modelo. Nada foi para o staging (o cabeçalho é a 1ª linha);
+            // o arquivo fica em disco e o batch espera o cliente mapear as colunas.
+            batches.aguardarMapeamento(id, tenantId);
+            return converter(batches.buscar(id, tenantId).orElseThrow(), Map.of(), null);
+        }
+        validacao.validar(id, tenantId);
+        return converter(batches.buscar(id, tenantId).orElseThrow(), Map.of(), carregador.colunasIgnoradas());
+    }
+
+    /**
+     * Lê o arquivo para o staging numa transação só (tudo ou nada) e devolve o total de linhas. Erro do arquivo vira
+     * FAILED + 422; falha de banco, FAILED + 5xx. Só a queda na Trilha 2 sai sem marcar o batch como falho.
+     */
+    int carregar(UUID id, Long tenantId, String extensao, Path arquivo, CarregadorStaging carregador) {
+        try {
+            return Objects.requireNonNull(tx.execute(status -> {
+                lerArquivo(extensao, arquivo, carregador);
                 return carregador.concluir();
             }));
+        } catch (ColunasForaDoModeloException e) {
+            throw e;
         } catch (BusinessException e) {
             batches.falhar(id, tenantId, e.getMessage());
             throw e;
@@ -100,10 +115,6 @@ public class ImportService {
             batches.falhar(id, tenantId, Constants.IMPORT_FALHA_CARGA);
             throw e;
         }
-
-        batches.definirTotal(id, tenantId, total);
-        validacao.validar(id, tenantId);
-        return converter(batches.buscar(id, tenantId).orElseThrow(), Map.of(), carregador.colunasIgnoradas());
     }
 
     /**
@@ -187,7 +198,7 @@ public class ImportService {
 
     private void lerArquivo(String extensao, Path arquivo, CarregadorStaging carregador) {
         try {
-            (Constants.IMPORT_EXTENSAO_XLSX.equals(extensao) ? leitorXlsx : leitorCsv).ler(arquivo, carregador);
+            LeitorTabular.para(extensao).ler(arquivo, carregador);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

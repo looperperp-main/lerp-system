@@ -3,7 +3,10 @@ package com.l.erp.migracaoservice.api.controllers;
 import com.l.erp.common.util.Constants;
 import com.l.erp.migracaoservice.api.dto.ExportDtos.Pagina;
 import com.l.erp.migracaoservice.api.dto.ImportDtos.ImportBatchResponse;
+import com.l.erp.migracaoservice.api.dto.ImportDtos.MapeamentoRequest;
+import com.l.erp.migracaoservice.api.dto.ImportDtos.MapeamentoResponse;
 import com.l.erp.migracaoservice.api.dto.ImportDtos.RelatorioErros;
+import com.l.erp.migracaoservice.services.imports.ImportMappingService;
 import com.l.erp.migracaoservice.services.imports.ImportService;
 import com.l.erp.migracaoservice.services.imports.ImportTemplateService;
 import com.l.erp.migracaoservice.util.SecurityUtils;
@@ -17,6 +20,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -33,6 +37,7 @@ public class ImportController {
 
     private final ImportService service;
     private final ImportTemplateService modelos;
+    private final ImportMappingService mapeamentos;
 
     /** Modelo em branco com as colunas exatas do schema canônico (xlsx por padrão, ou csv). */
     @GetMapping("/modelo/{entidade}")
@@ -59,6 +64,19 @@ public class ImportController {
     public ResponseEntity<ImportBatchResponse> promover(@PathVariable UUID id) {
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(
                 service.promover(SecurityUtils.requireTenantId(), SecurityUtils.requireUserId(), id));
+    }
+
+    /** Trilha 2: colunas do arquivo, campos do modelo e a sugestão de mapeamento (só com o batch em AWAITING_MAPPING). */
+    @GetMapping("/{id}/mapeamento")
+    public MapeamentoResponse mapeamento(@PathVariable UUID id) {
+        return mapeamentos.consultar(SecurityUtils.requireTenantId(), id);
+    }
+
+    /** 202: o mapeamento foi aplicado e o staging gravado; a validação segue em segundo plano (consultar o estado). */
+    @PostMapping("/{id}/mapeamento")
+    public ResponseEntity<ImportBatchResponse> mapear(@PathVariable UUID id, @RequestBody MapeamentoRequest pedido) {
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(
+                mapeamentos.aplicar(SecurityUtils.requireTenantId(), id, pedido.mapeamento()));
     }
 
     @GetMapping

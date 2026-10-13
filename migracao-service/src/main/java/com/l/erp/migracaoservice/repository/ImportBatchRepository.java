@@ -61,6 +61,34 @@ public class ImportBatchRepository {
                 .param("id", id).param("tenant", tenantId).param("linhas", linhas).update();
     }
 
+    /** Trilha 2 (spec §7): as colunas do arquivo não batem com o modelo; o batch espera o cliente mapeá-las. */
+    public void aguardarMapeamento(UUID id, Long tenantId) {
+        jdbc.sql("""
+                        UPDATE migracao.import_batch SET status = :para, source_track = :trilha, updated_at = now()
+                         WHERE id = :id AND tenant_id = :tenant AND status = :de""")
+                .param("id", id).param("tenant", tenantId).param("para", Constants.IMPORT_STATUS_AWAITING_MAPPING)
+                .param("trilha", Constants.IMPORT_TRILHA_SELF_MAPPED).param("de", Constants.IMPORT_STATUS_UPLOADED).update();
+    }
+
+    /** AWAITING_MAPPING → UPLOADED gravando o mapeamento, uma vez só: false se já foi aplicado (duplo clique, duas abas). */
+    public boolean iniciarMapeamento(UUID id, Long tenantId, String mapeamentoJson) {
+        return jdbc.sql("""
+                        UPDATE migracao.import_batch
+                           SET status = :para, field_mapping = CAST(:mapeamento AS jsonb), updated_at = now()
+                         WHERE id = :id AND tenant_id = :tenant AND status = :de""")
+                .param("id", id).param("tenant", tenantId).param("para", Constants.IMPORT_STATUS_UPLOADED)
+                .param("mapeamento", mapeamentoJson).param("de", Constants.IMPORT_STATUS_AWAITING_MAPPING).update() == 1;
+    }
+
+    /** Último mapeamento gravado por ESTE tenant para a entidade (spec §14: nunca sugerido a outro tenant). */
+    public Optional<String> ultimoMapeamento(Long tenantId, String entidade) {
+        return jdbc.sql("""
+                        SELECT field_mapping::text FROM migracao.import_batch
+                         WHERE tenant_id = :tenant AND entity_type = :entidade AND field_mapping IS NOT NULL
+                         ORDER BY created_at DESC LIMIT 1""")
+                .param("tenant", tenantId).param("entidade", entidade).query(String.class).optional();
+    }
+
     /** UPLOADED/AWAITING_FIX → VALIDATING, uma vez só: false se outra thread já pegou o batch. */
     public boolean iniciarValidacao(UUID id, Long tenantId) {
         return jdbc.sql("""

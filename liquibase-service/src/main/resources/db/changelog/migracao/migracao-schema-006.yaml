@@ -1,0 +1,25 @@
+databaseChangeLog:
+  # ──────────────────────────────────────────
+  # Fatia 7 (Trilha 2 — mapeamento self-service, spec migracao §7): import_batch ganha o estado
+  # AWAITING_MAPPING. O arquivo cujas colunas não batem com o modelo fica guardado em disco e o
+  # batch espera o cliente associar cada coluna a um campo canônico; só então o staging é gravado.
+  # Desvio da spec §5, cujo diagrama de estados não prevê essa espera.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: migracao-012-import-batch-status-awaiting-mapping
+      author: vitor-fernandes
+      changes:
+        - sql:
+            sql: |
+              ALTER TABLE migracao.import_batch DROP CONSTRAINT ck_import_batch_status;
+              ALTER TABLE migracao.import_batch ADD CONSTRAINT ck_import_batch_status CHECK (status IN
+                  ('UPLOADED','AWAITING_MAPPING','VALIDATING','AWAITING_FIX','READY','PROMOTING','DONE','FAILED'));
+      rollback:
+        - sql:
+            sql: |
+              UPDATE migracao.import_batch SET status = 'FAILED',
+                     failure_reason = 'Mapeamento de colunas não concluído'
+               WHERE status = 'AWAITING_MAPPING';
+              ALTER TABLE migracao.import_batch DROP CONSTRAINT ck_import_batch_status;
+              ALTER TABLE migracao.import_batch ADD CONSTRAINT ck_import_batch_status CHECK (status IN
+                  ('UPLOADED','VALIDATING','AWAITING_FIX','READY','PROMOTING','DONE','FAILED'));

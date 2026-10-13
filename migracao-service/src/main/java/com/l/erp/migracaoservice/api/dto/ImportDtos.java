@@ -2,6 +2,7 @@ package com.l.erp.migracaoservice.api.dto;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /** DTOs do import agrupados num arquivo só (mesmo molde do ExportDtos). */
@@ -31,6 +32,21 @@ public final class ImportDtos {
             List<String> colunasIgnoradas,
             OffsetDateTime criadoEm,
             OffsetDateTime atualizadoEm) {}
+
+    /** Campo do modelo que o cliente pode associar a uma coluna do arquivo (vem de canonical_schema_field). */
+    public record CampoAlvo(String campo, String rotulo, String tipo, boolean obrigatorio) {}
+
+    /**
+     * Tela de mapeamento da Trilha 2 (spec §7).
+     *
+     * @param colunasArquivo cabeçalhos do arquivo enviado, na ordem em que aparecem
+     * @param sugestao       campo → coluna: o último mapeamento deste tenant e as colunas com o mesmo nome do campo
+     */
+    public record MapeamentoResponse(UUID id, String entidade, List<String> colunasArquivo, List<CampoAlvo> campos,
+                                     Map<String, String> sugestao) {}
+
+    /** @param mapeamento campo do modelo → nome da coluna do arquivo; campo sem coluna fica de fora */
+    public record MapeamentoRequest(Map<String, String> mapeamento) {}
 
     /** Um erro acionável: linha da planilha, campo, o que fazer e o valor que o cliente enviou (spec §9). */
     public record ErroLinha(int linha, String campo, String mensagem, String valorInformado) {}

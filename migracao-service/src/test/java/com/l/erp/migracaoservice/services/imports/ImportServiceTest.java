@@ -40,7 +40,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
@@ -108,17 +107,35 @@ class ImportServiceTest {
     }
 
     @Test
-    void colunaObrigatoriaAusenteMarcaFailedEDevolve422SemValidar() {
+    void colunasForaDoModeloCaemNaTrilha2SemFalharNemGravarStagingNemValidar() throws IOException {
+        when(schema.ativos("CUSTOMER", "1.0")).thenReturn(CamposFixture.cliente());
+        when(batches.buscar(any(), eq(TENANT))).thenReturn(Optional.of(batch(UUID.randomUUID(), "AWAITING_MAPPING", null, null)));
+
+        ImportBatchResponse r = service.enviar(TENANT, USER, "CUSTOMER", arquivo("a.csv", "Cliente;CPF\nMaria;52998224725\n"));
+
+        assertThat(r.status()).isEqualTo("AWAITING_MAPPING");      // resposta 202 normal, não 422: o cliente segue para a tela de mapeamento
+        assertThat(r.colunasIgnoradas()).isNull();
+        ArgumentCaptor<UUID> id = ArgumentCaptor.forClass(UUID.class);
+        verify(batches).aguardarMapeamento(id.capture(), eq(TENANT));
+        assertThat(Files.exists(dir.resolve(TENANT + "/" + id.getValue() + "/original.csv"))).isTrue();   // o arquivo fica para a Trilha 2
+        verify(batches, never()).falhar(any(), any(), any());
+        verify(batches, never()).definirTotal(any(), any(), Mockito.anyInt());
+        verify(rows, never()).inserirLote(any(), any(), any(), any(), any());
+        verifyNoInteractions(validacao);
+    }
+
+    @Test
+    void arquivoSoComCabecalhoMarcaFailedEDevolve422() {
         when(schema.ativos("CUSTOMER", "1.0")).thenReturn(CamposFixture.cliente());
 
-        assertThatThrownBy(() -> service.enviar(TENANT, USER, "CUSTOMER", arquivo("a.csv", "tipo;nome_razao\nPF;Maria\n")))
+        assertThatThrownBy(() -> service.enviar(TENANT, USER, "CUSTOMER", arquivo("a.csv", "tipo;nome_razao;documento\n")))
                 .isInstanceOfSatisfying(BusinessException.class, e -> {
                     assertThat(e.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
-                    assertThat(e.getMessage()).contains("documento");
+                    assertThat(e.getMessage()).isEqualTo(Constants.IMPORT_ARQUIVO_SEM_DADOS);
                 });
 
-        verify(batches).falhar(any(), eq(TENANT), contains("documento"));
-        verify(batches, never()).definirTotal(any(), any(), Mockito.anyInt());
+        verify(batches).falhar(any(), eq(TENANT), eq(Constants.IMPORT_ARQUIVO_SEM_DADOS));
+        verify(batches, never()).aguardarMapeamento(any(), any());
         verifyNoInteractions(validacao);
     }
 

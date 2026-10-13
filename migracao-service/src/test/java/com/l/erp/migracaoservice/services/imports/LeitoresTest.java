@@ -39,6 +39,31 @@ class LeitoresTest {
         return arquivo;
     }
 
+    // ───────────────────── Cabeçalho (Trilha 2) ─────────────────────
+
+    @Test
+    void leitorDeCabecalhoParaNaPrimeiraLinhaNaoVaziaNoCsvENoXlsx() throws IOException {
+        assertThat(LeitorCabecalho.ler(new CsvLeitor(), csv("Cliente;CPF\nMaria;1\nJoao;2\n"))).containsExactly("Cliente", "CPF");
+        assertThat(LeitorCabecalho.ler(new CsvLeitor(), csv(""))).isEmpty();
+
+        Path xlsx = dir.resolve("a.xlsx");
+        try (XSSFWorkbook pasta = new XSSFWorkbook(); OutputStream out = Files.newOutputStream(xlsx)) {
+            XSSFSheet aba = pasta.createSheet("dados");
+            Row cabecalho = aba.createRow(0);
+            cabecalho.createCell(0).setCellValue("Cliente");
+            cabecalho.createCell(1).setCellValue("CPF");
+            aba.createRow(1).createCell(0).setCellValue("Maria");
+            pasta.write(out);
+        }
+        assertThat(LeitorCabecalho.ler(new XlsxLeitor(), xlsx)).containsExactly("Cliente", "CPF");
+    }
+
+    @Test
+    void leitorPorExtensaoEscolheOFormato() {
+        assertThat(LeitorTabular.para("xlsx")).isInstanceOf(XlsxLeitor.class);
+        assertThat(LeitorTabular.para("csv")).isInstanceOf(CsvLeitor.class);
+    }
+
     // ───────────────────────── CSV ─────────────────────────
 
     @Test

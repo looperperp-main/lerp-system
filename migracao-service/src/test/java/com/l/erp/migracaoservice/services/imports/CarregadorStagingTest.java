@@ -14,6 +14,7 @@ import org.springframework.http.HttpStatus;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -137,6 +138,48 @@ class CarregadorStagingTest {
                     assertThat(e.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
                     assertThat(e.getMessage()).isEqualTo(Constants.IMPORT_LIMITE_LINHAS);
                 });
+    }
+
+    @Test
+    void colunaObrigatoriaAusenteSemMapeamentoEAQuedaNaTrilha2() {
+        assertThatThrownBy(() -> carregador.aceitar(1, l("tipo", "nome_razao")))
+                .isInstanceOfSatisfying(ColunasForaDoModeloException.class, e -> {
+                    assertThat(e.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+                    assertThat(e.getMessage()).contains("documento");
+                });
+        verify(linhas, never()).inserirLote(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void comMapeamentoACelulaDaColunaEscolhidaAlimentaOCampoEAsDemaisSaoIgnoradas() {
+        CarregadorStaging mapeado = new CarregadorStaging(CamposFixture.cliente(), linhas, JsonMapper.builder().build(),
+                7L, BATCH, "CUSTOMER", Constants.IMPORT_TRILHA_SELF_MAPPED,
+                Map.of("tipo", "Tipo Pessoa", "nome_razao", "Cliente", "documento", "CPF"));
+        mapeado.aceitar(1, l("CPF", "cliente", "TIPO PESSOA", "Documento", "Obs"));
+        mapeado.aceitar(3, l("529.982.247-25", "Maria", "PF", "outra coisa", "x"));
+
+        assertThat(mapeado.concluir()).isEqualTo(1);
+
+        ArgumentCaptor<List<LinhaNova>> captor = ArgumentCaptor.forClass(List.class);
+        verify(linhas).inserirLote(eq(7L), eq(BATCH), eq("CUSTOMER"), eq("SELF_MAPPED"), captor.capture());
+        assertThat(captor.getValue()).extracting(LinhaNova::numero).containsExactly(3);
+        assertThat(captor.getValue().get(0).rawJson())
+                .contains("\"documento\":\"529.982.247-25\"")             // vem da coluna CPF, não da coluna "Documento"
+                .contains("\"nome_razao\":\"Maria\"")
+                .contains("\"tipo\":\"PF\"")
+                .contains("\"data_nascimento\":null");
+        assertThat(mapeado.colunasIgnoradas()).containsExactly("Documento", "Obs");
+    }
+
+    @Test
+    void comMapeamentoSemColunaObrigatoriaNoArquivoEFalhaDeVerdade() {
+        CarregadorStaging mapeado = new CarregadorStaging(CamposFixture.cliente(), linhas, JsonMapper.builder().build(),
+                7L, BATCH, "CUSTOMER", Constants.IMPORT_TRILHA_SELF_MAPPED,
+                Map.of("tipo", "Tipo", "nome_razao", "Cliente", "documento", "CPF"));
+
+        assertThatThrownBy(() -> mapeado.aceitar(1, l("Tipo", "Cliente")))      // o arquivo não tem a coluna CPF
+                .isInstanceOfSatisfying(BusinessException.class, e -> assertThat(e).isNotInstanceOf(ColunasForaDoModeloException.class));
     }
 
     @Test

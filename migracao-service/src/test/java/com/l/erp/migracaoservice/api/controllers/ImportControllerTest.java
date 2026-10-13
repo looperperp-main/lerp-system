@@ -5,7 +5,10 @@ import com.l.erp.common.exception.dto.StandardError;
 import com.l.erp.common.exception.handlers.GlobalExceptionHandler;
 import com.l.erp.common.util.Constants;
 import com.l.erp.migracaoservice.api.dto.ExportDtos.Pagina;
+import com.l.erp.migracaoservice.api.dto.ImportDtos.CampoAlvo;
 import com.l.erp.migracaoservice.api.dto.ImportDtos.ErroLinha;
+import com.l.erp.migracaoservice.api.dto.ImportDtos.MapeamentoResponse;
+import com.l.erp.migracaoservice.services.imports.ImportMappingService;
 import com.l.erp.migracaoservice.api.dto.ImportDtos.ImportBatchResponse;
 import com.l.erp.migracaoservice.api.dto.ImportDtos.RelatorioErros;
 import com.l.erp.migracaoservice.services.imports.ImportService;
@@ -26,6 +29,7 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -51,11 +55,12 @@ class ImportControllerTest {
 
     @Mock ImportService service;
     @Mock ImportTemplateService modelos;
+    @Mock ImportMappingService mapeamentos;
     private MockMvc mvc;
 
     @BeforeEach
     void setUp() {
-        mvc = MockMvcBuilders.standaloneSetup(new ImportController(service, modelos))
+        mvc = MockMvcBuilders.standaloneSetup(new ImportController(service, modelos, mapeamentos))
                 .setControllerAdvice(new GlobalExceptionHandler()).build();
     }
 
@@ -188,6 +193,40 @@ class ImportControllerTest {
         mvc.perform(post("/migracao/imports/" + ID + "/promover")).andExpect(status().isUnauthorized());
 
         verifyNoInteractions(service);
+    }
+
+    @Test
+    void mapeamentoDevolveColunasCamposESugestao() throws Exception {
+        when(mapeamentos.consultar(7L, ID)).thenReturn(new MapeamentoResponse(ID, "CUSTOMER", List.of("Cliente", "CPF"),
+                List.of(new CampoAlvo("documento", "CPF ou CNPJ", "CNPJ", true)), Map.of("documento", "CPF")));
+
+        mvc.perform(get("/migracao/imports/" + ID + "/mapeamento").header("X-Tenant-Id", "7").header("X-User-Id", USER.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.colunasArquivo[1]").value("CPF"))
+                .andExpect(jsonPath("$.campos[0].obrigatorio").value(true))
+                .andExpect(jsonPath("$.sugestao.documento").value("CPF"));
+    }
+
+    @Test
+    void aplicarMapeamentoDevolve202ERepassaOMapaDoCorpo() throws Exception {
+        when(mapeamentos.aplicar(eq(7L), eq(ID), eq(Map.of("documento", "CPF")))).thenReturn(resposta("UPLOADED"));
+
+        mvc.perform(post("/migracao/imports/" + ID + "/mapeamento").contentType("application/json")
+                        .content("{\"mapeamento\":{\"documento\":\"CPF\"}}")
+                        .header("X-Tenant-Id", "7").header("X-User-Id", USER.toString()))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.status").value("UPLOADED"));
+    }
+
+    @Test
+    void mapeamentoInvalidoE400ComMensagemEmPortugues() throws Exception {
+        when(mapeamentos.aplicar(any(), any(), any()))
+                .thenThrow(new BusinessException(String.format(Constants.IMPORT_MAPEAMENTO_OBRIGATORIOS, "documento")));
+
+        mvc.perform(post("/migracao/imports/" + ID + "/mapeamento").contentType("application/json")
+                        .content("{\"mapeamento\":{}}").header("X-Tenant-Id", "7").header("X-User-Id", USER.toString()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(containsString("documento")));
     }
 
     @Test

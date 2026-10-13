@@ -919,4 +919,13 @@ public class Constants {
     public static final String IMPORT_FALHA_RETENCAO = "O prazo de retenção do arquivo terminou e os dados foram descartados. Envie o arquivo novamente";
     public static final String IMPORT_IGNORADA_CLIENTE = "Cliente já cadastrado (ou outro estabelecimento da mesma empresa); o cadastro existente foi mantido";
     public static final String IMPORT_IGNORADA_PRODUTO = "Já existe um produto com este SKU; o cadastro existente foi mantido";
+
+    // Import — Trilha 2, mapeamento self-service (spec §7)
+    public static final String IMPORT_STATUS_AWAITING_MAPPING = "AWAITING_MAPPING";
+    public static final String IMPORT_MAPEAMENTO_INDISPONIVEL = "Esta importação não está aguardando o mapeamento de colunas";
+    public static final String IMPORT_MAPEAMENTO_VAZIO = "Informe a coluna do arquivo correspondente a cada campo";
+    public static final String IMPORT_MAPEAMENTO_CAMPO_DESCONHECIDO = "Campo desconhecido no mapeamento: %s";
+    public static final String IMPORT_MAPEAMENTO_OBRIGATORIOS = "Associe uma coluna do arquivo a todos os campos obrigatórios. Faltam: %s";
+    public static final String IMPORT_MAPEAMENTO_COLUNA_INEXISTENTE = "A coluna \"%s\" não existe no arquivo enviado";
+    public static final String IMPORT_MAPEAMENTO_COLUNA_REPETIDA = "A coluna \"%s\" foi associada a mais de um campo";
 }
