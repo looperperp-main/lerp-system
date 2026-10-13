@@ -31,7 +31,31 @@ public final class ImportDtos {
             String mensagemFalha,
             List<String> colunasIgnoradas,
             OffsetDateTime criadoEm,
-            OffsetDateTime atualizadoEm) {}
+            OffsetDateTime atualizadoEm,
+            OffsetDateTime prazoConciergeEm,
+            int recusasConcierge,
+            boolean escalado) {
+
+        /** Batch fora da Trilha 3: sem prazo de concierge, sem recusas e sem escalonamento. */
+        public ImportBatchResponse(UUID id, String entidade, String status, String trilha, String arquivo,
+                                   int totalLinhas, long linhasValidas, long linhasComErro, long linhasPromovidas,
+                                   long linhasIgnoradas, String mensagemFalha, List<String> colunasIgnoradas,
+                                   OffsetDateTime criadoEm, OffsetDateTime atualizadoEm) {
+            this(id, entidade, status, trilha, arquivo, totalLinhas, linhasValidas, linhasComErro, linhasPromovidas,
+                    linhasIgnoradas, mensagemFalha, colunasIgnoradas, criadoEm, atualizadoEm, null, 0, false);
+        }
+    }
+
+    /** Visão do suporte da plataforma sobre um lote de qualquer tenant (fila do concierge). */
+    public record AdminImportResponse(Long tenantId, ImportBatchResponse lote, boolean prazoVencido) {}
+
+    /** Onboarding de um tenant derivado por agregação sobre import_batch (spec §13); concluidoEm nulo = ainda aberto. */
+    public record OnboardingSla(Long tenantId, OffsetDateTime iniciadoEm, OffsetDateTime concluidoEm, long horasDecorridas,
+                                List<String> entidadesConcluidas, boolean atrasado) {}
+
+    /** Painel de SLA do suporte: fila do concierge e onboardings abertos além de 7 dias. */
+    public record PainelSla(long filaConcierge, long prazosVencidos, long escalados, List<AdminImportResponse> fila,
+                            List<OnboardingSla> onboardings) {}
 
     /** Campo do modelo que o cliente pode associar a uma coluna do arquivo (vem de canonical_schema_field). */
     public record CampoAlvo(String campo, String rotulo, String tipo, boolean obrigatorio) {}

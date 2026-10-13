@@ -4,7 +4,7 @@
 **Autor:** Vitor
 **Última atualização:** 12 de outubro de 2026
 **Documentos relacionados:** `exportacao-dados-syax.md`, `migracao-dados-syax.md`
-**Escopo:** o portal do tenant (`erp-front-end-web`) é a tela do cliente. O portal admin (`erp-front-end-admin`) tem uma tela de **suporte ao export** (abaixo); o parceiro não tem tela. A fila concierge do import (Trilha 3) ainda não tem tela no admin: entra junto com o import.
+**Escopo:** o portal do tenant (`erp-front-end-web`) é a tela do cliente. O portal admin (`erp-front-end-admin`) tem uma tela de **suporte ao export** (abaixo); o parceiro não tem tela. A fila do concierge (Trilha 3) e o painel de SLA têm tela no admin (`/admin/importacoes`).
 
 **Admin — suporte ao export (`/admin/exportacoes`):** lista paginada de exports de **qualquer tenant**, com filtro por tenant e status, e um detalhe com estado, tentativas, mensagem de falha, linhas por tabela e a linha do tempo da auditoria (`DOWNLOAD_DENIED` em destaque). API: `GET /migracao/admin/exports{,/{id}}`, restrita a `ROLE_APP_OWNER`. **Só metadados:** a API não devolve `download_token` nem caminho de arquivo, e não existe download pelo admin (o dado é do cliente, LGPD; export §5.3). Saúde do serviço: o `migracao-service` aparece sozinho no painel de saúde (a lista vem do Eureka).
 
@@ -151,4 +151,4 @@ Seguem as fatias dos docs de back-end; o front de cada uma entra **depois** que 
 2. Download de posse (§3.4) junto com a fatia de encerramento.
 3. Import: histórico + assistente (§4) a partir da Trilha 1, com a etapa 3 só quando a Trilha 2 existir e o botão de concierge só com a Trilha 3.
 
-Tudo aqui é **desenho**, nada foi implementado nem testado.
+Telas do portal web (`pages/dados/exportar` e `importar`) e do admin (`/admin/importacoes`) escritas em 12 de outubro de 2026 (fatia 8), **não testadas**. Fora do que está aqui: tela pública de posse (§3.4), reenvio incremental (§4.2 etapa 4) e visibilidade do menu por authority.

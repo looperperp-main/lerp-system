@@ -1,0 +1,168 @@
+<div>
+
+  <div class="jb-page-head">
+    <div>
+      <app-breadcrumb></app-breadcrumb>
+      <h1>Exportar Dados</h1>
+      <p class="sub">Leve uma cópia dos seus dados quando quiser. Avisamos por e-mail quando o arquivo estiver pronto.</p>
+    </div>
+  </div>
+
+  <!-- Solicitar -->
+  <div class="jb-panel">
+    <div class="jb-panel-head"><h3><i class="pi pi-download"></i> Nova exportação</h3></div>
+
+    @if (catalogoErro()) {
+      <div class="aviso erro">
+        Não foi possível carregar a lista de dados.
+        <button type="button" class="link-botao" (click)="carregarCatalogo()">Tentar novamente</button>
+      </div>
+    } @else if (catalogo().length === 0) {
+      <div class="vazio">Carregando…</div>
+    } @else {
+      @for (g of catalogo(); track g.grupo) {
+        <div class="grupo">
+          <label class="grupo-titulo">
+            <input type="checkbox" [checked]="grupoMarcado(g)" [indeterminate]="grupoParcial(g)" (change)="alternarGrupo(g)" />
+            {{ g.rotulo }} <span style="font-weight: 400; color: var(--muted)">({{ g.tabelas.length }})</span>
+          </label>
+          <div class="tabelas">
+            @for (t of g.tabelas; track t.id) {
+              <label>
+                <input type="checkbox" [checked]="selecionadas().has(t.id)" (change)="alternarTabela(t.id)" />
+                {{ t.rotulo }}
+              </label>
+            }
+          </div>
+        </div>
+      }
+
+      <div class="form-linha">
+        @if (temTabelaDePeriodo()) {
+          <div>
+            <label class="jb-label-sm">Período — de</label>
+            <p-datepicker [(ngModel)]="periodoInicial" dateFormat="dd/mm/yy" [showIcon]="true" [showClear]="true" appendTo="body"></p-datepicker>
+          </div>
+          <div>
+            <label class="jb-label-sm">Período — até</label>
+            <p-datepicker [(ngModel)]="periodoFinal" dateFormat="dd/mm/yy" [showIcon]="true" [showClear]="true" appendTo="body"></p-datepicker>
+          </div>
+        }
+        <div>
+          <label class="jb-label-sm">Formato</label>
+          <p-select [options]="formatos" [(ngModel)]="formato" optionLabel="label" optionValue="value" appendTo="body"></p-select>
+        </div>
+        <div>
+          <label class="jb-label-sm">Motivo (opcional)</label>
+          <p-select [options]="motivos" [(ngModel)]="motivo" optionLabel="label" optionValue="value" placeholder="Não informar" [showClear]="true" appendTo="body"></p-select>
+        </div>
+        <button pButton type="button" icon="pi pi-download" label="Solicitar exportação"
+                [loading]="enviando()" (click)="solicitar()" *ngIf="totalSelecionadas() > 0"></button>
+      </div>
+      @if (temTabelaDePeriodo()) {
+        <p class="aviso">O período vale só para dados com data (pedidos, movimentos…). Os cadastros sempre saem completos.</p>
+      }
+      @if (totalSelecionadas() === 0) {
+        <p class="aviso">Marque ao menos uma tabela para solicitar a exportação.</p>
+      }
+    }
+
+    <p class="aviso">
+      O arquivo fica disponível por 7 dias. Não fazem parte da exportação: painéis prontos, regras de automação e
+      integrações ativas — esses itens são configurações do SYAX, não dados seus.
+    </p>
+  </div>
+
+  <!-- Histórico -->
+  <div class="jb-panel" style="margin-top: 16px">
+    <div class="jb-panel-head">
+      <h3><i class="pi pi-history"></i> Minhas exportações</h3>
+      <button pButton type="button" icon="pi pi-refresh" label="Atualizar" class="p-button-sm p-button-text" (click)="carregarLista()"></button>
+    </div>
+
+    @if (carregando()) {
+      <div class="vazio">Carregando…</div>
+    } @else if (erroLista()) {
+      <div class="aviso erro">
+        Não foi possível carregar suas exportações.
+        <button type="button" class="link-botao" (click)="carregarLista()">Tentar novamente</button>
+      </div>
+    } @else if (lotes().length === 0) {
+      <div class="vazio">
+        <i class="pi pi-inbox" style="font-size: 28px; display: block; margin-bottom: 8px"></i>
+        Você ainda não fez nenhuma exportação. Seus dados são seus: exporte quando quiser.
+      </div>
+    } @else {
+      <div class="table-container" aria-live="polite">
+        <table class="mapa">
+          <thead>
+            <tr><th>ID</th><th>Escopo</th><th>Solicitado em</th><th>Status</th><th>Pronto / expira em</th><th>Ações</th></tr>
+          </thead>
+          <tbody>
+            @for (l of lotes(); track l.id) {
+              <tr [style.background]="destaque() === l.id ? 'rgba(37,99,235,0.08)' : null">
+                <td><button type="button" class="link-botao" (click)="copiar(l.id)" title="Copiar ID">{{ idCurto(l.id) }}</button></td>
+                <td>{{ resumoEscopo(l) }} · {{ l.formato }}</td>
+                <td>{{ l.criadoEm | date: 'dd/MM/yyyy HH:mm' }}</td>
+                <td>
+                  <span [class]="'chip ' + chip(l).cor">{{ chip(l).rotulo }}</span>
+                  @if (falhaDefinitiva(l)) {
+                    <div style="font-size: 12px; margin-top: 4px">Não foi possível gerar. Já avisamos nosso time.</div>
+                  }
+                </td>
+                <td>
+                  @if (l.prontoEm) { {{ l.prontoEm | date: 'dd/MM/yyyy HH:mm' }} }
+                  @if (l.expiraEm) {
+                    <div style="font-size: 12px" [style.color]="expiraEmBreve(l) ? '#b45309' : null">
+                      expira em {{ l.expiraEm | date: 'dd/MM/yyyy HH:mm' }}
+                    </div>
+                  }
+                </td>
+                <td>
+                  <button pButton type="button" icon="pi pi-download" class="p-button-sm"
+                          [label]="l.status === 'DOWNLOADED' ? 'Baixar novamente' : 'Baixar'"
+                          [loading]="baixando() === l.id" (click)="baixar(l)" *ngIf="podeBaixar(l)"></button>
+                  <button pButton type="button" icon="pi pi-replay" label="Solicitar novamente" class="p-button-sm p-button-outlined"
+                          (click)="solicitarNovamente(l)" *ngIf="podeSolicitarNovamente(l)"></button>
+                  <button pButton type="button" icon="pi pi-eye" label="Detalhes" class="p-button-sm p-button-text"
+                          (click)="abrirDetalhe(l)"></button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+
+  <p-dialog [(visible)]="detalheAberto" header="Detalhes da exportação" [modal]="true" [style]="{ width: '620px' }" [breakpoints]="{ '768px': '95vw' }">
+    @if (detalhe(); as d) {
+      <p><strong>ID:</strong> {{ d.id }}</p>
+      <p><strong>Formato:</strong> {{ d.formato }}
+        @if (d.dataInicial || d.dataFinal) { · <strong>Período:</strong> {{ d.dataInicial | date: 'dd/MM/yyyy':'UTC' }} a {{ d.dataFinal | date: 'dd/MM/yyyy':'UTC' }} }
+      </p>
+      @if (d.mensagemFalha) { <p class="aviso erro">{{ d.mensagemFalha }}</p> }
+      <p style="margin-top: 12px"><strong>Dados incluídos ({{ d.tabelas.length }})</strong></p>
+      <ul class="linha-tempo" style="max-height: 200px; overflow-y: auto">
+        @for (t of d.tabelas; track t) {
+          <li><span>{{ rotuloTabela(t) }}</span>
+            @if (d.linhasPorTabela && d.linhasPorTabela[t] !== undefined) { <span>{{ d.linhasPorTabela[t] }} linhas</span> }
+          </li>
+        }
+      </ul>
+      <p style="margin-top: 12px"><strong>Histórico</strong></p>
+      @if (detalheCarregando()) {
+        <p class="vazio">Carregando…</p>
+      } @else {
+        <ul class="linha-tempo">
+          @for (e of d.eventos ?? []; track $index) {
+            <li><span>{{ eventoRotulo(e.acao) }}</span><span>{{ e.em | date: 'dd/MM/yyyy HH:mm' }}</span></li>
+          } @empty {
+            <li>Sem eventos registrados.</li>
+          }
+        </ul>
+      }
+    }
+  </p-dialog>
+
+</div>

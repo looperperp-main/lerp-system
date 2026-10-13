@@ -468,7 +468,7 @@ Escrito em 12/10/2026; `verify` e Liquibase (007–009) rodados e verdes pelo us
 
 **API (`MIGRACAO_IMPORTAR`):** `GET /migracao/imports/modelo/{entidade}?formato=xlsx|csv`, `POST /migracao/imports` (multipart `entidade` + `arquivo`, 202), `GET /migracao/imports`, `GET /migracao/imports/{id}`, `GET /migracao/imports/{id}/erros?pagina&tamanho`. O modelo (XLSX com listas suspensas e aba de instruções, ou CSV com `;` e BOM) é gerado de `canonical_schema_field`, a mesma fonte do parser e do validador.
 
-**Ainda não feito (próximas fatias):** reenvio incremental/reupload com merge (§9.1), Trilha 3; fila concierge no admin. (Promoção, timeout e purga: ver §17. Trilha 2: ver §18. Download de posse: ver `exportacao-dados-syax.md`.)
+**Ainda não feito (próximas fatias):** reenvio incremental/reupload com merge (§9.1). (Promoção, timeout e purga: ver §17. Trilha 2: ver §18. Trilha 3, SLA e telas: ver §19. Download de posse: ver `exportacao-dados-syax.md`.)
 
 ## 17. Desvios da implementação (fatia 5 — promoção, timeout e purga)
 
@@ -515,3 +515,23 @@ Escrito em 12/10/2026, **não testado** até o usuário rodar `verify` e o Liqui
 **API (`MIGRACAO_IMPORTAR`):** `GET /migracao/imports/{id}/mapeamento` → `{id, entidade, colunasArquivo[], campos[{campo, rotulo, tipo, obrigatorio}], sugestao{campo:coluna}}` (409 se o batch não está `AWAITING_MAPPING`; 404 se de outro tenant); `POST /migracao/imports/{id}/mapeamento` com `{"mapeamento": {"documento": "CPF", ...}}` → 202 com o batch (já com o staging gravado; a validação segue em segundo plano, como na Trilha 1).
 
 **Gaps conhecidos:** sem tela (front da Trilha 2 entra na fatia 8); botão "preciso de ajuda" (Trilha 3) segue fora; `LeitorCabecalho` interrompe o leitor de XLSX por exceção sem stack — **premissa não verificada** (o SAX do JDK/POI precisa deixar a `RuntimeException` passar; o teste `leitorDeCabecalhoParaNaPrimeiraLinhaNaoVaziaNoCsvENoXlsx` é quem confirma); arquivo cuja 1ª linha não vazia é um título (e não o cabeçalho) cai na Trilha 2 com colunas sem sentido — o cliente corrige apagando a linha e reenviando, ou pede ajuda (Trilha 3).
+
+## 19. Desvios da implementação (fatia 8 — Trilha 3, painel de SLA e telas)
+
+Escrita em 12 de outubro de 2026, **não testada** até o usuário rodar `verify`, o Liquibase `migracao-013` e as telas.
+
+| Ponto | Spec | Implementação | Motivo |
+|---|---|---|---|
+| Estado da fila | §5 não prevê | `AWAITING_CONCIERGE` (CHECK ampliado em `migracao-013`) + índice parcial `idx_import_batch_concierge` | o pedido precisa de um estado próprio; reaproveitar `UPLOADED` confundiria a validação e o timeout |
+| Entrada | botão "preciso de ajuda" | `POST /migracao/imports/concierge` (multipart, `arquivo` **opcional**): cria batch `CONCIERGE`, `concierge_deadline_at = now() + 48h` | o cliente pode não ter planilha (PDF/papel); formatos aceitos: xlsx, xls, csv, ods, pdf, txt, zip (o concierge normaliza à mão) |
+| Prévia | script pandas descartável gera `raw_import_row` | o suporte sobe um xlsx/csv **no modelo do SYAX** em `POST /migracao/admin/imports/{id}/previa`; a carga é a mesma da Trilha 1 (`ImportService.carregar`), com `source_track=CONCIERGE`, e segue para a validação normal (READY / AWAITING_FIX) | evita um caminho de código separado (§4); o script de normalização continua fora do produto |
+| Aprovar | cliente aprova o preview | aprovar = **confirmar a importação** (`POST /{id}/promover`), igual às outras trilhas | uma única porta de entrada para gravar no cadastro |
+| Recusar | `concierge_rejections++`, volta ao concierge | `POST /{id}/concierge/recusar` (só em READY/AWAITING_FIX da Trilha 3): apaga o staging, conta a recusa, renova o prazo (+48h) e volta a `AWAITING_CONCIERGE` | prazo renovado: cada rodada tem o seu SLA |
+| Teto de 3 recusas | escala para revisão sênior | `recusasConcierge >= 3` ⇒ `escalado=true` (selo na fila do admin e contador no painel). **Não bloqueia** nem automatiza nada: a "sessão direta" é humana | a spec não define mais que o sinal |
+| Prévia com arquivo ruim | — | colunas fora do modelo / arquivo ilegível ao subir a prévia **devolvem o pedido à fila** (`reabrirFila`) e respondem 422 ao suporte; nunca viram `FAILED` do cliente | erro do concierge não pode derrubar o pedido do cliente |
+| Alerta de SLA | job diário varre `concierge_deadline_at < now()` | `@Scheduled` diário `0 0 8 * * *` (`syax.import.cron-sla`): `log.error` por pedido vencido e por onboarding aberto há mais de 7 dias | o canal de alerta de disco (§12 do export) não existe como componente; o `ERROR` no Loki é o gancho — **ligar um alerta do Grafana a esse log é pendência** |
+| Painel de SLA | §13 | `GET /migracao/admin/imports/sla` agrega por tenant sobre `import_batch` (sem tabela de tracking, como decidido); entidades obrigatórias do MVP = CUSTOMER e PRODUCT (as outras duas dependem do financeiro-service, fatia 9) | onboarding "concluído" só quando as obrigatórias têm batch `DONE` |
+| Arquivo do cliente | — | `GET /migracao/admin/imports/{id}/arquivo`, restrito a `ROLE_APP_OWNER` e **só para lote da Trilha 3** (outros tenants/trilhas: 409) | o dado é do cliente (LGPD); a exceção existe porque ele pediu a ajuda e enviou o arquivo para isso |
+| Download do export pela tela | token no GET | `GET /migracao/exports/{id}/arquivo` (sessão do tenant, por id) | a API não devolve o token ao cliente logado (§5.3); sem este endpoint a tela não conseguia baixar |
+
+**Gaps conhecidos:** reenvio incremental (§9.1) continua fora (a tela só oferece "arquivo completo corrigido"); a tela pública `/dados/posse/:token` segue pendente; nenhum controle de visibilidade do menu por authority (o portal web não tem esse mecanismo hoje); o portal admin usa mensagem inline na tela de importações (não há toast global lá).

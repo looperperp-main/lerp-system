@@ -6,6 +6,7 @@ import com.l.erp.migracaoservice.api.dto.ImportDtos.ImportBatchResponse;
 import com.l.erp.migracaoservice.api.dto.ImportDtos.MapeamentoRequest;
 import com.l.erp.migracaoservice.api.dto.ImportDtos.MapeamentoResponse;
 import com.l.erp.migracaoservice.api.dto.ImportDtos.RelatorioErros;
+import com.l.erp.migracaoservice.services.imports.ImportConciergeService;
 import com.l.erp.migracaoservice.services.imports.ImportMappingService;
 import com.l.erp.migracaoservice.services.imports.ImportService;
 import com.l.erp.migracaoservice.services.imports.ImportTemplateService;
@@ -38,6 +39,7 @@ public class ImportController {
     private final ImportService service;
     private final ImportTemplateService modelos;
     private final ImportMappingService mapeamentos;
+    private final ImportConciergeService concierge;
 
     /** Modelo em branco com as colunas exatas do schema canônico (xlsx por padrão, ou csv). */
     @GetMapping("/modelo/{entidade}")
@@ -77,6 +79,23 @@ public class ImportController {
     public ResponseEntity<ImportBatchResponse> mapear(@PathVariable UUID id, @RequestBody MapeamentoRequest pedido) {
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(
                 mapeamentos.aplicar(SecurityUtils.requireTenantId(), id, pedido.mapeamento()));
+    }
+
+    /**
+     * Trilha 3: o cliente pede ajuda (ação explícita, nunca automática). 202: o pedido entra na fila do concierge com
+     * prazo de 48h. O arquivo é opcional.
+     */
+    @PostMapping(path = "/concierge", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ImportBatchResponse> pedirAjuda(@RequestParam("entidade") String entidade,
+                                                          @RequestParam(value = "arquivo", required = false) MultipartFile arquivo) {
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(
+                concierge.solicitar(SecurityUtils.requireTenantId(), SecurityUtils.requireUserId(), entidade, arquivo));
+    }
+
+    /** O cliente recusa a prévia do concierge: o pedido volta à fila (a 3ª recusa escala para revisão sênior). */
+    @PostMapping("/{id}/concierge/recusar")
+    public ImportBatchResponse recusarPrevia(@PathVariable UUID id) {
+        return concierge.recusar(SecurityUtils.requireTenantId(), id);
     }
 
     @GetMapping

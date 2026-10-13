@@ -69,6 +69,7 @@ export class AdminLayout {
     { label: 'Auditoria', icon: 'pi pi-eye', routerLink: '/admin/audit' },
     { label: 'Fila Interna', icon: 'pi pi-inbox', routerLink: '/admin/fila-interna' },
     { label: 'Exportações', icon: 'pi pi-download', routerLink: '/admin/exportacoes' },
+    { label: 'Importações', icon: 'pi pi-upload', routerLink: '/admin/importacoes' },
     {
       label: 'Subscrições',
       icon: 'pi pi-barcode',

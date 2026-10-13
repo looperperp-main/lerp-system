@@ -96,6 +96,28 @@ export const routes: Routes = [
         },
       },
       {
+        path: 'dados/exportar',
+        loadComponent: () => import('./pages/dados/exportar/exportar').then((m) => m.Exportar),
+        data: {
+          breadcrumb: [
+            { label: 'Home', link: '/web/home' },
+            { label: 'Dados & Migração' },
+            { label: 'Exportar Dados' },
+          ],
+        },
+      },
+      {
+        path: 'dados/importar',
+        loadComponent: () => import('./pages/dados/importar/importar').then((m) => m.Importar),
+        data: {
+          breadcrumb: [
+            { label: 'Home', link: '/web/home' },
+            { label: 'Dados & Migração' },
+            { label: 'Importar Dados' },
+          ],
+        },
+      },
+      {
         path: 'cadastros/cond-pagamento',
         loadComponent: () =>
           import('./pages/cadastros/cond-pagamento/cond-pagamentos').then((m) => m.CondPagamentos),

@@ -270,6 +270,114 @@ class ImportBatchRepositoryTest {
         verify(spec).update();
     }
 
+    // ───────────────────────── Trilha 3 e SLA ─────────────────────────
+
+    @Test
+    void inserirConciergeEntraNaFilaNaTrilha3ComPrazoEmHoras() {
+        repo.inserirConcierge(ID, 7L, ID, "CUSTOMER", "1.0", null, null, OffsetDateTime.now().plusDays(30), 48);
+
+        assertThat(sqlExecutado()).contains("concierge_deadline_at").contains("interval '1 hour'");
+        verify(spec).param("status", "AWAITING_CONCIERGE");
+        verify(spec).param("trilha", "CONCIERGE");
+        verify(spec).param("horas", 48);
+        verify(spec).param("tenant", 7L);
+        verify(spec).update();
+    }
+
+    @Test
+    void iniciarPreviaSoPegaPedidoDaFilaDaTrilha3UmaVezSo() {
+        when(spec.update()).thenReturn(1, 0);
+
+        assertThat(repo.iniciarPrevia(ID, 7L)).isTrue();
+        assertThat(repo.iniciarPrevia(ID, 7L)).isFalse();
+
+        verify(spec, times(2)).param("para", "UPLOADED");
+        verify(spec, times(2)).param("de", "AWAITING_CONCIERGE");
+        verify(spec, times(2)).param("trilha", "CONCIERGE");
+    }
+
+    @Test
+    void reabrirFilaSoDesfazOQueEstaEmUploadedOuFailedDaTrilha3() {
+        repo.reabrirFila(ID, 7L);
+
+        assertThat(sqlExecutado()).contains("source_track = :trilha").contains("status IN (:uploaded, :falhou)");
+        verify(spec).param("para", "AWAITING_CONCIERGE");
+        verify(spec).param("uploaded", "UPLOADED");
+        verify(spec).param("falhou", "FAILED");
+    }
+
+    @Test
+    void recusarPreviaContaARecusaERenovaOPrazoSoEmPreviaDaTrilha3() {
+        when(spec.update()).thenReturn(1, 0);
+
+        assertThat(repo.recusarPrevia(ID, 7L, 48)).isTrue();
+        assertThat(repo.recusarPrevia(ID, 7L, 48)).isFalse();      // já voltou à fila: segundo clique não conta outra recusa
+
+        verify(spec, times(2)).param("ready", "READY");
+        verify(spec, times(2)).param("fix", "AWAITING_FIX");
+        verify(spec, times(2)).param("horas", 48);
+        verify(jdbc, times(2)).sql(ArgumentMatchers.contains("concierge_rejections = concierge_rejections + 1"));
+    }
+
+    @Test
+    void filaDoConciergeIgnoraFinalizadosEFalhosEOrdenaPeloPrazo() {
+        MappedQuerySpec<ImportBatch> mapped = mappedMock();
+        when(spec.query(ArgumentMatchers.<RowMapper<ImportBatch>>any())).thenReturn(mapped);
+        when(mapped.list()).thenReturn(List.of());
+        MappedQuerySpec<Long> contagem = mappedMock();
+        when(spec.query(ArgumentMatchers.eq(Long.class))).thenReturn(contagem);
+        when(contagem.single()).thenReturn(4L);
+
+        assertThat(repo.listarFila(20, 0)).isEmpty();
+        assertThat(repo.contarFila()).isEqualTo(4L);
+        assertThat(repo.listarVencidos()).isEmpty();
+
+        ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
+        verify(jdbc, times(3)).sql(sql.capture());
+        assertThat(sql.getAllValues().get(0)).contains("done_at IS NULL").contains("ORDER BY concierge_deadline_at");
+        assertThat(sql.getAllValues().get(2)).contains("concierge_deadline_at < now()");
+        verify(spec, times(3)).param("trilha", "CONCIERGE");
+        verify(spec, times(3)).param("falhou", "FAILED");
+    }
+
+    @Test
+    void escaladosSaoOsQueAtingiramOTetoDeRecusas() {
+        MappedQuerySpec<Long> contagem = mappedMock();
+        when(spec.query(ArgumentMatchers.eq(Long.class))).thenReturn(contagem);
+        when(contagem.single()).thenReturn(2L);
+
+        assertThat(repo.contarEscalados(3)).isEqualTo(2L);
+
+        assertThat(sqlExecutado()).contains("concierge_rejections >= :max");
+        verify(spec).param("max", 3);
+    }
+
+    @Test
+    void onboardingsAgregaPorTenantSoAsEntidadesObrigatoriasEMapeiaAsConcluidas() throws SQLException {
+        MappedQuerySpec<ImportBatchRepository.OnboardingLinha> mapped = mappedMock();
+        when(spec.query(ArgumentMatchers.<RowMapper<ImportBatchRepository.OnboardingLinha>>any())).thenReturn(mapped);
+        when(mapped.list()).thenReturn(List.of());
+
+        assertThat(repo.onboardings(List.of("CUSTOMER", "PRODUCT"), 200)).isEmpty();
+
+        assertThat(sqlExecutado()).contains("GROUP BY tenant_id").contains("entity_type IN (:entidades)");
+        verify(spec).param("entidades", List.of("CUSTOMER", "PRODUCT"));
+        verify(spec).param("limite", 200);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<RowMapper<ImportBatchRepository.OnboardingLinha>> mapper = ArgumentCaptor.forClass(RowMapper.class);
+        verify(spec).query(mapper.capture());
+        ResultSet rs = Mockito.mock(ResultSet.class);
+        OffsetDateTime inicio = OffsetDateTime.now().minusDays(3);
+        when(rs.getLong("tenant_id")).thenReturn(7L);
+        when(rs.getObject("iniciado_em", OffsetDateTime.class)).thenReturn(inicio);
+        when(rs.getObject("ultimo_done", OffsetDateTime.class)).thenReturn(null);
+        when(rs.getString("concluidas")).thenReturn("CUSTOMER,PRODUCT", "CUSTOMER,PRODUCT", "");
+
+        assertThat(mapper.getValue().mapRow(rs, 0)).isEqualTo(new ImportBatchRepository.OnboardingLinha(7L, inicio, null, List.of("CUSTOMER", "PRODUCT")));
+        assertThat(mapper.getValue().mapRow(rs, 1).concluidas()).isEmpty();
+    }
+
     @Test
     void definirTotalFiltraPorTenant() {
         repo.definirTotal(ID, 7L, 2);

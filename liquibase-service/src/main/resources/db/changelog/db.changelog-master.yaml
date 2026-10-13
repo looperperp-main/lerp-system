@@ -313,3 +313,7 @@ databaseChangeLog:
   - include:
       file: migracao/migracao-schema-006.yaml
       relativeToChangelogFile: true
+
+  - include:
+      file: migracao/migracao-schema-007.yaml
+      relativeToChangelogFile: true

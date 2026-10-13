@@ -52,6 +52,18 @@ public class ExportController {
                 .body(arquivo.corpo());
     }
 
+    /** Download pela tela do cliente: por id do export, sem expor o token (que só circula no e-mail de posse). */
+    @GetMapping("/{id}/arquivo")
+    public ResponseEntity<StreamingResponseBody> baixarPorId(@PathVariable UUID id) {
+        ExportDownloadService.Arquivo arquivo = downloadService.prepararPorId(
+                SecurityUtils.requireTenantId(), SecurityUtils.requireUserId(), id);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(arquivo.contentType()))
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment().filename(arquivo.nome()).build().toString())
+                .header(HttpHeaders.CACHE_CONTROL, "no-store")
+                .body(arquivo.corpo());
+    }
+
     /**
      * Download de posse (spec §10.1): SEM sessão, para o dono do dado cujo tenant já foi desativado. O token é a
      * credencial; o gateway deixa a rota pública e entrega o IP real em X-Client-Ip. Só exports de cancelamento.

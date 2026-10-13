@@ -87,6 +87,37 @@ class ExportDownloadServiceTest {
     }
 
     @Test
+    void porId_baixaOExportDoProprioTenantSemPrecisarDoToken() throws Exception {
+        arquivo("7/" + ID + "/cadastros.cliente.xlsx", "conteudo");
+        when(repo.buscar(ID, TENANT)).thenReturn(Optional.of(batch(TENANT, "READY", "XLSX",
+                "{\"cadastros.cliente\":\"7/" + ID + "/cadastros.cliente.xlsx\"}", OffsetDateTime.now().plusDays(1))));
+
+        var a = service.prepararPorId(TENANT, USER, ID);
+
+        assertThat(ler(a)).isEqualTo("conteudo".getBytes());
+        verify(repo).marcarBaixado(ID);
+        verify(repo).registrarAuditoria(ID, TENANT, "DOWNLOADED", USER);
+    }
+
+    @Test
+    void porId_deOutroTenantEh404SemMarcarBaixado() {
+        when(repo.buscar(ID, TENANT)).thenReturn(Optional.empty());      // o filtro por tenant está no próprio buscar
+
+        assertThatThrownBy(() -> service.prepararPorId(TENANT, USER, ID))
+                .isInstanceOfSatisfying(BusinessException.class, e -> assertThat(e.getStatus()).isEqualTo(HttpStatus.NOT_FOUND));
+        verify(repo, never()).marcarBaixado(any());
+    }
+
+    @Test
+    void porId_expiradoEh410() {
+        when(repo.buscar(ID, TENANT)).thenReturn(Optional.of(batch(TENANT, "EXPIRED", "XLSX", "{}", OffsetDateTime.now().minusDays(1))));
+
+        assertThatThrownBy(() -> service.prepararPorId(TENANT, USER, ID))
+                .isInstanceOfSatisfying(BusinessException.class, e -> assertThat(e.getStatus()).isEqualTo(HttpStatus.GONE));
+        verify(repo, never()).marcarBaixado(any());
+    }
+
+    @Test
     void csvLevaOMetaJsonEViraZip() throws Exception {
         arquivo("7/" + ID + "/cadastros.cliente.csv", "id\r\n");
         arquivo("7/" + ID + "/cadastros.cliente.meta.json", "{}");

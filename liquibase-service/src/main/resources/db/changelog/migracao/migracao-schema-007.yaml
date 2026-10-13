@@ -1,0 +1,29 @@
+databaseChangeLog:
+  # ──────────────────────────────────────────
+  # Fatia 8 (Trilha 3 — concierge, spec migracao §8): import_batch ganha o estado AWAITING_CONCIERGE
+  # (pedido do cliente na fila do concierge, com concierge_deadline_at = entrada + 48h) e um índice
+  # parcial para o job de SLA e o painel varrerem só a fila aberta.
+  # Desvio da spec §5, cujo diagrama de estados não prevê a fila. A prévia do concierge reaproveita
+  # READY/AWAITING_FIX: aprovar = confirmar a importação; recusar = voltar para AWAITING_CONCIERGE.
+  # ──────────────────────────────────────────
+  - changeSet:
+      id: migracao-013-import-batch-status-awaiting-concierge
+      author: vitor-fernandes
+      changes:
+        - sql:
+            sql: |
+              ALTER TABLE migracao.import_batch DROP CONSTRAINT ck_import_batch_status;
+              ALTER TABLE migracao.import_batch ADD CONSTRAINT ck_import_batch_status CHECK (status IN
+                  ('UPLOADED','AWAITING_MAPPING','AWAITING_CONCIERGE','VALIDATING','AWAITING_FIX','READY','PROMOTING','DONE','FAILED'));
+              CREATE INDEX idx_import_batch_concierge ON migracao.import_batch (concierge_deadline_at)
+                  WHERE source_track = 'CONCIERGE' AND done_at IS NULL;
+      rollback:
+        - sql:
+            sql: |
+              DROP INDEX IF EXISTS migracao.idx_import_batch_concierge;
+              UPDATE migracao.import_batch SET status = 'FAILED',
+                     failure_reason = 'Pedido de concierge não atendido'
+               WHERE status = 'AWAITING_CONCIERGE';
+              ALTER TABLE migracao.import_batch DROP CONSTRAINT ck_import_batch_status;
+              ALTER TABLE migracao.import_batch ADD CONSTRAINT ck_import_batch_status CHECK (status IN
+                  ('UPLOADED','AWAITING_MAPPING','VALIDATING','AWAITING_FIX','READY','PROMOTING','DONE','FAILED'));

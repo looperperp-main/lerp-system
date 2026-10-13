@@ -182,7 +182,13 @@ public class ImportService {
                 total(b), validas(contagem), contagem.getOrDefault(Constants.IMPORT_LINHA_ERROR, 0L),
                 contagem.getOrDefault(Constants.IMPORT_LINHA_PROMOVIDA, 0L),
                 contagem.getOrDefault(Constants.IMPORT_LINHA_IGNORADA, 0L), falha, colunasIgnoradas,
-                b.createdAt(), b.updatedAt());
+                b.createdAt(), b.updatedAt(), b.conciergeDeadlineAt(), b.conciergeRejections(),
+                b.conciergeRejections() >= Constants.IMPORT_CONCIERGE_MAX_REJEICOES);
+    }
+
+    /** Resumo de um lote já carregado (usado pela visão do suporte, que enxerga lotes de qualquer tenant). */
+    public ImportBatchResponse resumir(ImportBatch batch) {
+        return converter(batch, contagens(batch.tenantId(), batch.id()), null);
     }
 
     /** Linha que passou na validação continua "válida" depois de promovida ou ignorada (o total do relatório não encolhe). */

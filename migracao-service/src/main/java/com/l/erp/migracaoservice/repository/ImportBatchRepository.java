@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.OffsetDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -21,7 +22,7 @@ public class ImportBatchRepository {
     private static final int FALHA_MAX = 300;
     private static final String COLUNAS = """
             id, tenant_id, requested_by, entity_type, schema_version, status, source_track, original_file_name,
-            raw_file_path, row_count, failure_reason, created_at, updated_at""";
+            raw_file_path, row_count, failure_reason, created_at, updated_at, concierge_deadline_at, concierge_rejections""";
 
     private final JdbcClient jdbc;
 
@@ -183,6 +184,113 @@ public class ImportBatchRepository {
                 rs.getString("entity_type"), rs.getString("schema_version"), rs.getString("status"),
                 rs.getString("source_track"), rs.getString("original_file_name"), rs.getString("raw_file_path"),
                 (Integer) rs.getObject("row_count"), rs.getString("failure_reason"),
-                rs.getObject("created_at", OffsetDateTime.class), rs.getObject("updated_at", OffsetDateTime.class));
+                rs.getObject("created_at", OffsetDateTime.class), rs.getObject("updated_at", OffsetDateTime.class),
+                rs.getObject("concierge_deadline_at", OffsetDateTime.class), rs.getInt("concierge_rejections"));
+    }
+
+    // ───────────────────────── Trilha 3 — concierge (spec §8) ─────────────────────────
+
+    /** Pedido de ajuda: entra na fila já com o prazo (agora + 48h). O arquivo é opcional (o cliente pode combinar o envio depois). */
+    public void inserirConcierge(UUID id, Long tenantId, UUID requestedBy, String entidade, String versao,
+                                 String nomeArquivo, String caminhoRelativo, OffsetDateTime purgarApos, int prazoHoras) {
+        jdbc.sql("""
+                        INSERT INTO migracao.import_batch (id, tenant_id, requested_by, entity_type, schema_version, status,
+                                                           source_track, original_file_name, raw_file_path, purge_after,
+                                                           concierge_deadline_at)
+                        VALUES (:id, :tenant, :user, :entidade, :versao, :status, :trilha, :nome, :caminho, :purgar,
+                                now() + (:horas * interval '1 hour'))""")
+                .param("id", id).param("tenant", tenantId).param("user", requestedBy)
+                .param("entidade", entidade).param("versao", versao).param("status", Constants.IMPORT_STATUS_AWAITING_CONCIERGE)
+                .param("trilha", Constants.IMPORT_TRILHA_CONCIERGE).param("nome", nomeArquivo)
+                .param("caminho", caminhoRelativo).param("purgar", purgarApos).param("horas", prazoHoras).update();
+    }
+
+    /** Fila → UPLOADED para o concierge carregar a prévia, uma vez só (duas cargas simultâneas: a segunda leva false). */
+    public boolean iniciarPrevia(UUID id, Long tenantId) {
+        return jdbc.sql("""
+                        UPDATE migracao.import_batch SET status = :para, updated_at = now(), failure_reason = NULL
+                         WHERE id = :id AND tenant_id = :tenant AND source_track = :trilha AND status = :de""")
+                .param("id", id).param("tenant", tenantId).param("para", Constants.IMPORT_STATUS_UPLOADED)
+                .param("trilha", Constants.IMPORT_TRILHA_CONCIERGE).param("de", Constants.IMPORT_STATUS_AWAITING_CONCIERGE)
+                .update() == 1;
+    }
+
+    /** A carga da prévia falhou (arquivo do concierge fora do modelo): o pedido volta à fila, nunca vira FAILED do cliente. */
+    public void reabrirFila(UUID id, Long tenantId) {
+        jdbc.sql("""
+                        UPDATE migracao.import_batch SET status = :para, updated_at = now(), failure_reason = NULL, row_count = NULL
+                         WHERE id = :id AND tenant_id = :tenant AND source_track = :trilha AND status IN (:uploaded, :falhou)""")
+                .param("id", id).param("tenant", tenantId).param("para", Constants.IMPORT_STATUS_AWAITING_CONCIERGE)
+                .param("trilha", Constants.IMPORT_TRILHA_CONCIERGE).param("uploaded", Constants.IMPORT_STATUS_UPLOADED)
+                .param("falhou", Constants.IMPORT_STATUS_FAILED).update();
+    }
+
+    /** Cliente recusa a prévia (READY/AWAITING_FIX): conta a recusa, renova o prazo e devolve o pedido à fila. */
+    public boolean recusarPrevia(UUID id, Long tenantId, int prazoHoras) {
+        return jdbc.sql("""
+                        UPDATE migracao.import_batch
+                           SET status = :para, concierge_rejections = concierge_rejections + 1, row_count = NULL,
+                               concierge_deadline_at = now() + (:horas * interval '1 hour'), updated_at = now()
+                         WHERE id = :id AND tenant_id = :tenant AND source_track = :trilha AND status IN (:ready, :fix)""")
+                .param("id", id).param("tenant", tenantId).param("para", Constants.IMPORT_STATUS_AWAITING_CONCIERGE)
+                .param("horas", prazoHoras).param("trilha", Constants.IMPORT_TRILHA_CONCIERGE)
+                .param("ready", Constants.IMPORT_STATUS_READY).param("fix", Constants.IMPORT_STATUS_AWAITING_FIX)
+                .update() == 1;
+    }
+
+    // ───────────────────────── Suporte (todos os tenants) e SLA (spec §13) ─────────────────────────
+
+    public Optional<ImportBatch> buscarAdmin(UUID id) {
+        return jdbc.sql("SELECT " + COLUNAS + " FROM migracao.import_batch WHERE id = :id")
+                .param("id", id).query(ImportBatchRepository::mapear).optional();
+    }
+
+    private static final String FILA_ABERTA = """
+             WHERE source_track = :trilha AND done_at IS NULL AND status <> :falhou""";
+
+    /** Fila do concierge: pedidos abertos, o prazo mais próximo (ou já vencido) primeiro. */
+    public List<ImportBatch> listarFila(int limite, int deslocamento) {
+        return jdbc.sql("SELECT " + COLUNAS + " FROM migracao.import_batch" + FILA_ABERTA + """
+                         ORDER BY concierge_deadline_at NULLS LAST LIMIT :limite OFFSET :deslocamento""")
+                .param("trilha", Constants.IMPORT_TRILHA_CONCIERGE).param("falhou", Constants.IMPORT_STATUS_FAILED)
+                .param("limite", limite).param("deslocamento", deslocamento)
+                .query(ImportBatchRepository::mapear).list();
+    }
+
+    public long contarFila() {
+        return jdbc.sql("SELECT count(*) FROM migracao.import_batch" + FILA_ABERTA)
+                .param("trilha", Constants.IMPORT_TRILHA_CONCIERGE).param("falhou", Constants.IMPORT_STATUS_FAILED)
+                .query(Long.class).single();
+    }
+
+    /** Pedidos abertos cujo prazo de 48h já passou (alimenta o alerta diário e o painel). */
+    public List<ImportBatch> listarVencidos() {
+        return jdbc.sql("SELECT " + COLUNAS + " FROM migracao.import_batch" + FILA_ABERTA
+                        + " AND concierge_deadline_at < now() ORDER BY concierge_deadline_at")
+                .param("trilha", Constants.IMPORT_TRILHA_CONCIERGE).param("falhou", Constants.IMPORT_STATUS_FAILED)
+                .query(ImportBatchRepository::mapear).list();
+    }
+
+    public long contarEscalados(int recusasMax) {
+        return jdbc.sql("SELECT count(*) FROM migracao.import_batch" + FILA_ABERTA + " AND concierge_rejections >= :max")
+                .param("trilha", Constants.IMPORT_TRILHA_CONCIERGE).param("falhou", Constants.IMPORT_STATUS_FAILED)
+                .param("max", recusasMax).query(Long.class).single();
+    }
+
+    /** Um onboarding derivado de import_batch: entidades obrigatórias já em DONE e quando começou (spec §13, sem tabela própria). */
+    public record OnboardingLinha(Long tenantId, OffsetDateTime iniciadoEm, OffsetDateTime ultimoDone, List<String> concluidas) {}
+
+    public List<OnboardingLinha> onboardings(Collection<String> entidadesObrigatorias, int limite) {
+        return jdbc.sql("""
+                        SELECT tenant_id, min(created_at) AS iniciado_em,
+                               max(done_at) FILTER (WHERE status = :done) AS ultimo_done,
+                               coalesce(string_agg(DISTINCT entity_type, ',') FILTER (WHERE status = :done), '') AS concluidas
+                          FROM migracao.import_batch WHERE entity_type IN (:entidades)
+                         GROUP BY tenant_id ORDER BY min(created_at) LIMIT :limite""")
+                .param("done", Constants.IMPORT_STATUS_DONE).param("entidades", entidadesObrigatorias).param("limite", limite)
+                .query((rs, n) -> new OnboardingLinha(rs.getLong("tenant_id"),
+                        rs.getObject("iniciado_em", OffsetDateTime.class), rs.getObject("ultimo_done", OffsetDateTime.class),
+                        rs.getString("concluidas").isEmpty() ? List.of() : List.of(rs.getString("concluidas").split(","))))
+                .list();
     }
 }

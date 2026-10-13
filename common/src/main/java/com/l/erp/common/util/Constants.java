@@ -928,4 +928,21 @@ public class Constants {
     public static final String IMPORT_MAPEAMENTO_OBRIGATORIOS = "Associe uma coluna do arquivo a todos os campos obrigatórios. Faltam: %s";
     public static final String IMPORT_MAPEAMENTO_COLUNA_INEXISTENTE = "A coluna \"%s\" não existe no arquivo enviado";
     public static final String IMPORT_MAPEAMENTO_COLUNA_REPETIDA = "A coluna \"%s\" foi associada a mais de um campo";
+
+    // Import — Trilha 3, concierge (spec §8) e medição do SLA (spec §13)
+    public static final String IMPORT_STATUS_AWAITING_CONCIERGE = "AWAITING_CONCIERGE";
+    public static final int IMPORT_CONCIERGE_PRAZO_HORAS = 48;
+    public static final int IMPORT_CONCIERGE_MAX_REJEICOES = 3;
+    public static final int IMPORT_ONBOARDING_ALERTA_DIAS = 7;
+    /** Entidades que fecham o onboarding no MVP; CHART_OF_ACCOUNTS e OPENING_BALANCE entram com o financeiro-service (fatia 9). */
+    public static final Set<String> IMPORT_ONBOARDING_OBRIGATORIAS = IMPORT_ENTIDADES;
+    /** Arquivos que o cliente pode mandar ao concierge: ele normaliza à mão, então aceita mais que o upload comum. */
+    public static final Set<String> IMPORT_CONCIERGE_EXTENSOES = Set.of("xlsx", "xls", "csv", "ods", "pdf", "txt", "zip");
+    public static final String IMPORT_CONCIERGE_FORMATO_INVALIDO = "Formato de arquivo não aceito. Envie .xlsx, .xls, .csv, .ods, .pdf, .txt ou .zip";
+    public static final String IMPORT_CONCIERGE_PREVIA_INDISPONIVEL = "Esta importação não está na fila do concierge";
+    public static final String IMPORT_CONCIERGE_REJEICAO_INDISPONIVEL = "Só é possível recusar a prévia de uma importação do concierge que esteja pronta ou com erros";
+    public static final String IMPORT_CONCIERGE_SEM_ARQUIVO = "O cliente não enviou arquivo neste pedido; combine o envio direto com ele";
+    public static final String IMPORT_CONCIERGE_MOTIVO_RECUSA = "Prévia recusada pelo cliente; o concierge vai preparar uma nova";
+    public static final String IMPORT_ALERTA_CONCIERGE_VENCIDO = "SLA do concierge vencido: batch {} do tenant {} (prazo {})";
+    public static final String IMPORT_ALERTA_ONBOARDING_ABERTO = "Onboarding aberto há mais de {} dias: tenant {} (desde {})";
 }

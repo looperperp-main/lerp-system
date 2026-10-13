@@ -58,6 +58,19 @@ public class ExportDownloadService {
     }
 
     /**
+     * Download pela tela do cliente: o token nunca sai do servidor (a API não o devolve), então a tela baixa pelo id do
+     * export. Mesma regra do download por token: lote de outro tenant é 404, e a validade é checada em {@link #montar}.
+     */
+    public Arquivo prepararPorId(Long tenantId, UUID userId, UUID id) {
+        ExportBatch batch = repo.buscar(id, tenantId)
+                .orElseThrow(() -> new BusinessException(Constants.EXPORT_NAO_ENCONTRADO, HttpStatus.NOT_FOUND));
+        Arquivo arquivo = montar(batch);
+        repo.marcarBaixado(batch.id());
+        repo.registrarAuditoria(batch.id(), tenantId, Constants.EXPORT_AUDIT_DOWNLOADED, userId);
+        return arquivo;
+    }
+
+    /**
      * Download de posse (spec §10.1): o dono do dado com o tenant já desativado não consegue logar, então aqui o token
      * é a credencial e não há sessão. Só vale para export de cancelamento: qualquer outro cai em 404 (não confirma que o
      * token existe) e deixa DOWNLOAD_DENIED. Todo acesso grava o IP de origem, que é a única prova de quem baixou.

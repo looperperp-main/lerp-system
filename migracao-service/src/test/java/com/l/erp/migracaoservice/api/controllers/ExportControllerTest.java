@@ -130,6 +130,36 @@ class ExportControllerTest {
     }
 
     @Test
+    void downloadPorId_usaOTenantEOUsuarioDaSessaoENuncaPedeToken() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(downloadService.prepararPorId(eq(7L), eq(USER), eq(id))).thenReturn(new ExportDownloadService.Arquivo(
+                "cadastros.cliente.csv", "text/csv; charset=UTF-8", out -> out.write("id\r\n1\r\n".getBytes())));
+
+        MvcResult inicio = mvc.perform(get("/migracao/exports/" + id + "/arquivo")
+                        .header("X-Tenant-Id", "7").header("X-User-Id", USER.toString()))
+                .andExpect(request().asyncStarted()).andReturn();
+
+        mvc.perform(asyncDispatch(inicio))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition", containsString("cadastros.cliente.csv")))
+                .andExpect(header().string("Cache-Control", "no-store"));
+    }
+
+    @Test
+    void downloadPorId_deOutroTenantOuExpirado_propagaOStatusDoServico() throws Exception {
+        UUID alheio = UUID.randomUUID(), velho = UUID.randomUUID();
+        when(downloadService.prepararPorId(eq(7L), eq(USER), eq(alheio)))
+                .thenThrow(new BusinessException("Exportação não encontrada", HttpStatus.NOT_FOUND));
+        when(downloadService.prepararPorId(eq(7L), eq(USER), eq(velho)))
+                .thenThrow(new BusinessException("Esta exportação expirou", HttpStatus.GONE));
+
+        mvc.perform(get("/migracao/exports/" + alheio + "/arquivo").header("X-Tenant-Id", "7").header("X-User-Id", USER.toString()))
+                .andExpect(status().isNotFound());
+        mvc.perform(get("/migracao/exports/" + velho + "/arquivo").header("X-Tenant-Id", "7").header("X-User-Id", USER.toString()))
+                .andExpect(status().isGone());
+    }
+
+    @Test
     void posse_baixaSemHeadersDeSessaoEPassaOIpDoGatewayAoServico() throws Exception {
         when(downloadService.prepararPosse(eq("tok"), eq("203.0.113.9"))).thenReturn(new ExportDownloadService.Arquivo(
                 "cadastros.cliente.csv", "text/csv; charset=UTF-8", out -> out.write("id\r\n1\r\n".getBytes())));

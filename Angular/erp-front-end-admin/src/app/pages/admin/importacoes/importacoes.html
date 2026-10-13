@@ -1,0 +1,102 @@
+<div class="card">
+
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Importações — concierge e SLA</h1>
+      <p class="page-subtitle">Pedidos de ajuda dos clientes (prazo de 48 h) e onboardings abertos há mais de 7 dias.</p>
+    </div>
+    <button pButton pRipple label="Atualizar" icon="pi pi-refresh" class="p-button-outlined p-button-sm rounded-lg" (click)="carregar()"></button>
+  </div>
+
+  @if (aviso(); as a) {
+    <div class="p-3 rounded-lg text-sm mb-3" [class]="a.tipo === 'ok' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'" role="status">{{ a.texto }}</div>
+  }
+
+  @if (carregando()) {
+    <div class="text-center py-8 text-gray-400">Carregando…</div>
+  } @else if (erro(); as e) {
+    <div class="p-3 rounded-lg text-sm bg-red-100 text-red-700">
+      {{ e }} <button type="button" class="underline" (click)="carregar()">Tentar novamente</button>
+    </div>
+  } @else if (painel(); as p) {
+
+    <div class="grid grid-cols-3 gap-3 mb-4">
+      <div class="content-card text-center p-3"><div class="text-2xl font-semibold">{{ p.filaConcierge }}</div><div class="text-xs text-gray-400">Pedidos na fila</div></div>
+      <div class="content-card text-center p-3"><div class="text-2xl font-semibold" [class.text-red-600]="p.prazosVencidos > 0">{{ p.prazosVencidos }}</div><div class="text-xs text-gray-400">Prazos de 48 h vencidos</div></div>
+      <div class="content-card text-center p-3"><div class="text-2xl font-semibold" [class.text-red-600]="p.escalados > 0">{{ p.escalados }}</div><div class="text-xs text-gray-400">Escalados (3+ recusas)</div></div>
+    </div>
+
+    <div class="content-card mb-4">
+      <div class="content-toolbar"><h3 class="content-toolbar-title">Fila do concierge</h3></div>
+      <div class="table-container">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-xs uppercase text-gray-400 text-left">
+              <th class="pb-3">Tenant</th><th class="pb-3">Tipo</th><th class="pb-3">Arquivo</th><th class="pb-3">Status</th>
+              <th class="pb-3">Prazo</th><th class="pb-3">Recusas</th><th class="pb-3">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (i of p.fila; track i.lote.id) {
+              <tr class="border-b border-gray-50">
+                <td class="py-3 font-mono">{{ i.tenantId }}</td>
+                <td class="py-3">{{ entidadeRotulo(i.lote.entidade) }}</td>
+                <td class="py-3 text-gray-500">{{ i.lote.arquivo || 'sem arquivo' }}</td>
+                <td class="py-3">
+                  <span class="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-600">{{ statusRotulo(i.lote.status) }}</span>
+                  @if (i.lote.escalado) { <span class="ml-1 px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-700">Escalado — revisão sênior</span> }
+                </td>
+                <td class="py-3 text-xs" [class.text-red-600]="i.prazoVencido" [class.font-semibold]="i.prazoVencido">
+                  {{ i.lote.prazoConciergeEm | date:'dd/MM/yy HH:mm':'America/Sao_Paulo':'pt-BR' }}
+                  @if (i.prazoVencido) { (vencido) }
+                </td>
+                <td class="py-3">{{ i.lote.recusasConcierge }}</td>
+                <td class="py-3">
+                  <button pButton pRipple icon="pi pi-download" label="Arquivo do cliente" class="p-button-text p-button-sm" (click)="baixar(i)" *ngIf="podeBaixar(i)"></button>
+                  <label class="p-button p-button-sm cursor-pointer" *ngIf="podeEnviarPrevia(i)">
+                    <i class="pi pi-upload mr-1"></i>
+                    {{ enviando() === i.lote.id ? 'Enviando…' : 'Enviar prévia' }}
+                    <input type="file" accept=".xlsx,.csv" class="hidden" (change)="enviarPrevia(i, $event)" />
+                  </label>
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="7" class="text-center py-8 text-gray-400"><i class="pi pi-inbox text-3xl block mb-2"></i>Nenhum pedido na fila.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="content-card">
+      <div class="content-toolbar"><h3 class="content-toolbar-title">Onboardings (SLA de 1 semana)</h3></div>
+      <div class="table-container">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-xs uppercase text-gray-400 text-left">
+              <th class="pb-3">Tenant</th><th class="pb-3">Início</th><th class="pb-3">Concluídos</th><th class="pb-3">Decorrido</th><th class="pb-3">Situação</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (o of p.onboardings; track o.tenantId) {
+              <tr class="border-b border-gray-50">
+                <td class="py-3 font-mono">{{ o.tenantId }}</td>
+                <td class="py-3 text-xs">{{ o.iniciadoEm | date:'dd/MM/yy HH:mm':'America/Sao_Paulo':'pt-BR' }}</td>
+                <td class="py-3 text-gray-500">{{ entidadesRotulo(o) }}</td>
+                <td class="py-3">{{ dias(o.horasDecorridas) }}</td>
+                <td class="py-3">
+                  <span class="px-2 py-1 rounded text-xs font-medium"
+                        [class]="o.atrasado ? 'bg-red-100 text-red-700' : (o.concluidoEm ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700')">
+                    {{ o.concluidoEm ? (o.atrasado ? 'Concluído fora do prazo' : 'Concluído') : (o.atrasado ? 'Aberto há mais de 7 dias' : 'Em andamento') }}
+                  </span>
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="5" class="text-center py-8 text-gray-400">Nenhum onboarding iniciado.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+</div>

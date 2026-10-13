@@ -1,0 +1,247 @@
+<div>
+
+  <div class="jb-page-head">
+    <div>
+      <app-breadcrumb></app-breadcrumb>
+      <h1>Importar Dados</h1>
+      <p class="sub">Traga seus clientes e produtos de outro sistema. Você confere tudo antes de gravar.</p>
+    </div>
+    <button pButton type="button" icon="pi pi-plus" label="Nova importação" (click)="novaImportacao()"></button>
+  </div>
+
+  <!-- Histórico -->
+  <div class="jb-panel">
+    <div class="jb-panel-head">
+      <h3><i class="pi pi-history"></i> Minhas importações</h3>
+      <button pButton type="button" icon="pi pi-refresh" label="Atualizar" class="p-button-sm p-button-text" (click)="carregarLista()"></button>
+    </div>
+
+    @if (carregando()) {
+      <div class="vazio">Carregando…</div>
+    } @else if (erroLista()) {
+      <div class="aviso erro">
+        Não foi possível carregar suas importações.
+        <button type="button" class="link-botao" (click)="carregarLista()">Tentar novamente</button>
+      </div>
+    } @else if (lotes().length === 0) {
+      <div class="vazio">
+        <i class="pi pi-inbox" style="font-size: 28px; display: block; margin-bottom: 8px"></i>
+        Você ainda não importou nada. Clique em “Nova importação” para começar.
+      </div>
+    } @else {
+      <div class="table-container" aria-live="polite">
+        <table class="mapa">
+          <thead>
+            <tr><th>Tipo</th><th>Arquivo</th><th>Origem</th><th>Linhas</th><th>Status</th><th>Data</th><th>Ações</th></tr>
+          </thead>
+          <tbody>
+            @for (l of lotes(); track l.id) {
+              <tr>
+                <td>{{ rotuloDe(l.entidade) }}</td>
+                <td>{{ l.arquivo || '—' }}</td>
+                <td>{{ trilha(l) }}</td>
+                <td>
+                  @if (l.totalLinhas > 0) {
+                    {{ l.totalLinhas }} · {{ l.linhasValidas }} válidas · {{ l.linhasComErro }} com erro
+                  } @else { — }
+                </td>
+                <td>
+                  <span [class]="'chip ' + chip(l).cor">{{ chip(l).rotulo }}</span>
+                  @if (l.status === 'AWAITING_CONCIERGE' && l.prazoConciergeEm) {
+                    <div style="font-size: 12px" [style.color]="prazoVencido(l) ? '#b91c1c' : null">
+                      retorno até {{ l.prazoConciergeEm | date: 'dd/MM/yyyy HH:mm' }}
+                    </div>
+                  }
+                  @if (l.status === 'FAILED' && l.mensagemFalha) {
+                    <div style="font-size: 12px; max-width: 280px">{{ l.mensagemFalha }}</div>
+                  }
+                </td>
+                <td>{{ l.criadoEm | date: 'dd/MM/yyyy HH:mm' }}</td>
+                <td>
+                  @if (acaoPrincipal(l); as acao) {
+                    <button pButton type="button" class="p-button-sm" [label]="acao" (click)="retomar(l)"></button>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+
+  <!-- Assistente -->
+  <p-dialog [(visible)]="aberto" header="Nova importação" [modal]="true" [style]="{ width: '860px' }"
+            [breakpoints]="{ '960px': '95vw' }" [closable]="true" (onHide)="fechar()">
+
+    <div class="passos" aria-label="Etapas">
+      @for (p of passos; track p; let i = $index) {
+        <span class="passo" [class.atual]="etapa() === i + 1" [class.feito]="etapa() > i + 1">{{ i + 1 }}. {{ p }}</span>
+      }
+    </div>
+
+    <!-- Etapa 1 -->
+    @if (etapa() === 1) {
+      <p>O que você quer importar?</p>
+      <div class="entidades">
+        @for (e of entidades; track e.value) {
+          <button type="button" class="entidade" [class.ativa]="entidade() === e.value" (click)="escolherEntidade(e.value)">
+            <strong>{{ e.label }}</strong>
+          </button>
+        }
+        <div class="entidade breve"><strong>Plano de contas</strong><div style="font-size: 12px">Em breve</div></div>
+        <div class="entidade breve"><strong>Saldo de abertura</strong><div style="font-size: 12px">Em breve</div></div>
+        <div class="entidade breve"><strong>Lançamentos</strong><div style="font-size: 12px">Em breve</div></div>
+      </div>
+      @if (entidade()) {
+        <p class="aviso">
+          Já tem um arquivo no formato do SYAX? Siga em frente. Se não, baixe o modelo:
+          <button type="button" class="link-botao" (click)="baixarModelo('xlsx')">Excel (.xlsx)</button> ·
+          <button type="button" class="link-botao" (click)="baixarModelo('csv')">CSV (.csv)</button>
+        </p>
+      }
+      <div class="acoes">
+        <button pButton type="button" label="Continuar" icon="pi pi-arrow-right" iconPos="right" (click)="etapa.set(2)" *ngIf="entidade()"></button>
+      </div>
+    }
+
+    <!-- Etapa 2 -->
+    @if (etapa() === 2) {
+      <p>Envie o arquivo de <strong>{{ rotuloEntidade() }}</strong> (.xlsx ou .csv, até 50 MB).</p>
+      <div class="drop" [class.sobre]="arrastando()"
+           (dragover)="$event.preventDefault(); arrastando.set(true)" (dragleave)="arrastando.set(false)" (drop)="aoSoltar($event)">
+        <i class="pi pi-upload" style="font-size: 28px"></i>
+        <p>Arraste o arquivo aqui ou</p>
+        <input type="file" accept=".xlsx,.csv" (change)="aoSelecionar($event)" />
+        @if (arquivo(); as f) { <p><strong>{{ f.name }}</strong> ({{ (f.size / 1024) | number: '1.0-0' }} KB)</p> }
+      </div>
+      @if (erroArquivo(); as e) { <p class="aviso erro">{{ e }}</p> }
+
+      @if (pedindoAjuda()) {
+        <p class="aviso">
+          Nosso time vai preparar o seu arquivo e devolver uma prévia para você conferir em até 48 horas.
+          @if (arquivo()) { O arquivo escolhido será enviado junto. } @else { Você poderá combinar o envio do arquivo depois. }
+        </p>
+        <div class="acoes">
+          <button pButton type="button" label="Voltar" class="p-button-text" (click)="cancelarAjuda()"></button>
+          <button pButton type="button" label="Confirmar pedido de ajuda" icon="pi pi-send" [loading]="ocupado()" (click)="pedirAjuda()"></button>
+        </div>
+      } @else {
+        <div class="acoes">
+          <button pButton type="button" label="Voltar" class="p-button-text" (click)="etapa.set(1)"></button>
+          <button pButton type="button" label="Não consigo montar meu arquivo, preciso de ajuda" class="p-button-outlined" (click)="confirmarAjuda()"></button>
+          <button pButton type="button" label="Enviar arquivo" icon="pi pi-upload" [loading]="ocupado()" (click)="enviar()" *ngIf="arquivo()"></button>
+        </div>
+      }
+    }
+
+    <!-- Etapa 3 -->
+    @if (etapa() === 3) {
+      @if (ocupado() && !mapeamento()) {
+        <div class="vazio">Lendo as colunas do arquivo…</div>
+      } @else if (mapeamento(); as m) {
+        <p>As colunas do seu arquivo não seguem o modelo do SYAX. Diga qual coluna corresponde a cada campo.</p>
+        @if (temSugestao()) { <p class="aviso ok">Preenchemos o que reconhecemos (nome igual ou sua última importação). Confira antes de continuar.</p> }
+        <table class="mapa">
+          <thead><tr><th>Campo do SYAX</th><th>Coluna do seu arquivo</th></tr></thead>
+          <tbody>
+            @for (c of m.campos; track c.campo) {
+              <tr [class.falta]="c.obrigatorio && !escolhas()[c.campo]">
+                <td>{{ c.rotulo }} @if (c.obrigatorio) { <span title="Obrigatório">*</span> }</td>
+                <td>
+                  <p-select [options]="opcoesColuna()" optionLabel="label" optionValue="value" placeholder="Não importar"
+                            [ngModel]="escolhas()[c.campo] ?? null" (ngModelChange)="escolher(c.campo, $event)"
+                            [showClear]="true" appendTo="body" styleClass="w-full"></p-select>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+        @if (faltando().length > 0) { <p class="aviso erro">Associe uma coluna a todos os campos obrigatórios (*).</p> }
+        <div class="acoes">
+          <button pButton type="button" label="Voltar" class="p-button-text" (click)="etapa.set(2)"></button>
+          <button pButton type="button" label="Continuar" icon="pi pi-arrow-right" iconPos="right" [loading]="ocupado()"
+                  (click)="aplicarMapeamento()" *ngIf="faltando().length === 0"></button>
+        </div>
+      }
+    }
+
+    <!-- Etapa 4 -->
+    @if (etapa() === 4) {
+      @if (lote(); as l) {
+        @if (l.status === 'UPLOADED' || l.status === 'VALIDATING') {
+          <div class="vazio" aria-live="polite"><i class="pi pi-spin pi-spinner"></i> Validando o arquivo…</div>
+        } @else if (l.status === 'FAILED') {
+          <p class="aviso erro">{{ l.mensagemFalha || 'Não foi possível processar o arquivo.' }}</p>
+          <div class="acoes"><button pButton type="button" label="Enviar novo arquivo" icon="pi pi-upload" (click)="reenviarCorrigido()" *ngIf="!doConcierge(l)"></button></div>
+        } @else if (l.status === 'AWAITING_CONCIERGE') {
+          <p class="aviso">Seu pedido está na fila do nosso time. Avisaremos quando a prévia estiver pronta.</p>
+        } @else {
+          <div class="cartoes">
+            <div class="cartao"><strong>{{ l.totalLinhas }}</strong>Total</div>
+            <div class="cartao"><strong>{{ l.linhasValidas }}</strong>Válidas</div>
+            <div class="cartao"><strong [style.color]="l.linhasComErro > 0 ? '#b91c1c' : null">{{ l.linhasComErro }}</strong>Com erro</div>
+          </div>
+          @if (l.colunasIgnoradas?.length) {
+            <p class="aviso">Colunas ignoradas (não fazem parte do modelo): {{ l.colunasIgnoradas!.join(', ') }}.</p>
+          }
+          @if (l.status === 'AWAITING_FIX') {
+            @if (erros(); as r) {
+              <div class="table-container" style="max-height: 280px; overflow-y: auto">
+                <table class="mapa">
+                  <thead><tr><th>Linha</th><th>Campo</th><th>Mensagem</th><th>Valor enviado</th></tr></thead>
+                  <tbody>
+                    @for (e of r.erros; track $index) {
+                      <tr><td>{{ e.linha }}</td><td>{{ e.campo }}</td><td>{{ e.mensagem }}</td><td>{{ e.valorInformado ?? '—' }}</td></tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+              @if (r.linhasComErro > 0 && r.erros.length > 0) { <p class="aviso">Corrija as linhas no seu arquivo e envie-o de novo.</p> }
+            } @else { <div class="vazio">Carregando erros…</div> }
+            <div class="acoes">
+              <button pButton type="button" label="Baixar relatório de erros" icon="pi pi-download" class="p-button-outlined" (click)="baixarRelatorio()" *ngIf="erros()"></button>
+              @if (doConcierge(l)) {
+                <button pButton type="button" label="Recusar prévia" icon="pi pi-undo" class="p-button-outlined" [loading]="ocupado()" (click)="recusarPrevia()"></button>
+              } @else {
+                <button pButton type="button" label="Enviar arquivo completo corrigido" icon="pi pi-upload" (click)="reenviarCorrigido()"></button>
+              }
+            </div>
+          } @else {
+            <p class="aviso ok">Tudo certo: nenhuma linha com erro.</p>
+            <div class="acoes">
+              @if (doConcierge(l)) {
+                <button pButton type="button" label="Recusar prévia" icon="pi pi-undo" class="p-button-outlined" [loading]="ocupado()" (click)="recusarPrevia()"></button>
+              }
+              <button pButton type="button" label="Continuar" icon="pi pi-arrow-right" iconPos="right" (click)="seguirParaConfirmar()" *ngIf="podeConfirmar(l)"></button>
+            </div>
+          }
+        }
+      }
+    }
+
+    <!-- Etapa 5 -->
+    @if (etapa() === 5) {
+      @if (lote(); as l) {
+        @if (l.status === 'READY') {
+          <p>Serão importados <strong>{{ l.totalLinhas }}</strong> registros de {{ rotuloEntidade() || rotuloDe(l.entidade) }}. Quem já existir no cadastro é mantido, sem alteração.</p>
+          <p class="aviso">A importação é “tudo ou nada”: se algo falhar, nada é gravado.</p>
+          <div class="acoes">
+            <button pButton type="button" label="Voltar" class="p-button-text" (click)="etapa.set(4)"></button>
+            <button pButton type="button" label="Importar" icon="pi pi-check" [loading]="ocupado()" (click)="importar()"></button>
+          </div>
+        } @else if (l.status === 'PROMOTING') {
+          <div class="vazio" aria-live="polite"><i class="pi pi-spin pi-spinner"></i> Importando…</div>
+        } @else if (l.status === 'DONE') {
+          <p class="aviso ok">Importação concluída: {{ l.linhasPromovidas }} registros gravados.</p>
+          @if (l.linhasIgnoradas > 0) { <p class="aviso">{{ l.linhasIgnoradas }} já existiam no cadastro e foram mantidos como estavam.</p> }
+          <div class="acoes"><button pButton type="button" label="Fechar" (click)="aberto = false; fechar()"></button></div>
+        } @else if (l.status === 'FAILED') {
+          <p class="aviso erro">{{ l.mensagemFalha || 'A importação falhou e nada foi gravado.' }}</p>
+          <div class="acoes"><button pButton type="button" label="Enviar novo arquivo" icon="pi pi-upload" (click)="reenviarCorrigido()" *ngIf="!doConcierge(l)"></button></div>
+        }
+      }
+    }
+  </p-dialog>
+
+</div>

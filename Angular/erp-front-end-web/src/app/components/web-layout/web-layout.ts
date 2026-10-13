@@ -191,6 +191,15 @@ export class WebLayout {
       ],
     },
     {
+      label: 'Dados & Migração',
+      icon: 'pi pi-database',
+      path: '/web/dados',
+      items: [
+        { label: 'Exportar Dados', icon: 'pi pi-download', routerLink: '/web/dados/exportar' },
+        { label: 'Importar Dados', icon: 'pi pi-upload', routerLink: '/web/dados/importar' },
+      ],
+    },
+    {
       label: 'Subscrições',
       icon: 'pi pi-barcode',
       path: '/web/subscriptions',

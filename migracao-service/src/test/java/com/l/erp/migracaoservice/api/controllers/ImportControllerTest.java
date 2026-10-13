@@ -8,6 +8,7 @@ import com.l.erp.migracaoservice.api.dto.ExportDtos.Pagina;
 import com.l.erp.migracaoservice.api.dto.ImportDtos.CampoAlvo;
 import com.l.erp.migracaoservice.api.dto.ImportDtos.ErroLinha;
 import com.l.erp.migracaoservice.api.dto.ImportDtos.MapeamentoResponse;
+import com.l.erp.migracaoservice.services.imports.ImportConciergeService;
 import com.l.erp.migracaoservice.services.imports.ImportMappingService;
 import com.l.erp.migracaoservice.api.dto.ImportDtos.ImportBatchResponse;
 import com.l.erp.migracaoservice.api.dto.ImportDtos.RelatorioErros;
@@ -36,6 +37,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -56,11 +58,12 @@ class ImportControllerTest {
     @Mock ImportService service;
     @Mock ImportTemplateService modelos;
     @Mock ImportMappingService mapeamentos;
+    @Mock ImportConciergeService concierge;
     private MockMvc mvc;
 
     @BeforeEach
     void setUp() {
-        mvc = MockMvcBuilders.standaloneSetup(new ImportController(service, modelos, mapeamentos))
+        mvc = MockMvcBuilders.standaloneSetup(new ImportController(service, modelos, mapeamentos, concierge))
                 .setControllerAdvice(new GlobalExceptionHandler()).build();
     }
 
@@ -227,6 +230,38 @@ class ImportControllerTest {
                         .content("{\"mapeamento\":{}}").header("X-Tenant-Id", "7").header("X-User-Id", USER.toString()))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value(containsString("documento")));
+    }
+
+    @Test
+    void pedirAjudaSemArquivoDevolve202ERepassaONuloAoServico() throws Exception {
+        when(concierge.solicitar(eq(7L), eq(USER), eq("CUSTOMER"), isNull())).thenReturn(resposta("AWAITING_CONCIERGE"));
+
+        mvc.perform(multipart("/migracao/imports/concierge").param("entidade", "CUSTOMER")
+                        .header("X-Tenant-Id", "7").header("X-User-Id", USER.toString()))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.status").value("AWAITING_CONCIERGE"));
+    }
+
+    @Test
+    void pedirAjudaComArquivoRepassaOArquivo() throws Exception {
+        when(concierge.solicitar(eq(7L), eq(USER), eq("PRODUCT"), any())).thenReturn(resposta("AWAITING_CONCIERGE"));
+
+        mvc.perform(multipart("/migracao/imports/concierge").file(arquivo()).param("entidade", "PRODUCT")
+                        .header("X-Tenant-Id", "7").header("X-User-Id", USER.toString()))
+                .andExpect(status().isAccepted());
+    }
+
+    @Test
+    void recusarPreviaDevolveOLoteDeVoltaNaFilaEPrevia409QuandoNaoCabe() throws Exception {
+        when(concierge.recusar(7L, ID)).thenReturn(resposta("AWAITING_CONCIERGE"))
+                .thenThrow(new BusinessException(Constants.IMPORT_CONCIERGE_REJEICAO_INDISPONIVEL, HttpStatus.CONFLICT));
+
+        mvc.perform(post("/migracao/imports/" + ID + "/concierge/recusar").header("X-Tenant-Id", "7").header("X-User-Id", USER.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("AWAITING_CONCIERGE"));
+        mvc.perform(post("/migracao/imports/" + ID + "/concierge/recusar").header("X-Tenant-Id", "7").header("X-User-Id", USER.toString()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value(Constants.IMPORT_CONCIERGE_REJEICAO_INDISPONIVEL));
     }
 
     @Test
