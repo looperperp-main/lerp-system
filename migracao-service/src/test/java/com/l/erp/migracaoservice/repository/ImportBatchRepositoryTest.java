@@ -334,7 +334,8 @@ class ImportBatchRepositoryTest {
 
         ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
         verify(jdbc, times(3)).sql(sql.capture());
-        assertThat(sql.getAllValues().get(0)).contains("done_at IS NULL").contains("ORDER BY concierge_deadline_at");
+        assertThat(sql.getAllValues().get(0)).contains("done_at IS NULL").contains("ORDER BY concierge_deadline_at")
+                .doesNotContain(":falhouORDER");
         assertThat(sql.getAllValues().get(2)).contains("concierge_deadline_at < now()");
         verify(spec, times(3)).param("trilha", "CONCIERGE");
         verify(spec, times(3)).param("falhou", "FAILED");

@@ -245,13 +245,13 @@ public class ImportBatchRepository {
                 .param("id", id).query(ImportBatchRepository::mapear).optional();
     }
 
-    private static final String FILA_ABERTA = """
-             WHERE source_track = :trilha AND done_at IS NULL AND status <> :falhou""";
+    // String simples (não text block): o text block descarta o espaço inicial e o SQL colava em "import_batchWHERE"
+    private static final String FILA_ABERTA = " WHERE source_track = :trilha AND done_at IS NULL AND status <> :falhou";
 
     /** Fila do concierge: pedidos abertos, o prazo mais próximo (ou já vencido) primeiro. */
     public List<ImportBatch> listarFila(int limite, int deslocamento) {
-        return jdbc.sql("SELECT " + COLUNAS + " FROM migracao.import_batch" + FILA_ABERTA + """
-                         ORDER BY concierge_deadline_at NULLS LAST LIMIT :limite OFFSET :deslocamento""")
+        return jdbc.sql("SELECT " + COLUNAS + " FROM migracao.import_batch" + FILA_ABERTA
+                        + " ORDER BY concierge_deadline_at NULLS LAST LIMIT :limite OFFSET :deslocamento")
                 .param("trilha", Constants.IMPORT_TRILHA_CONCIERGE).param("falhou", Constants.IMPORT_STATUS_FAILED)
                 .param("limite", limite).param("deslocamento", deslocamento)
                 .query(ImportBatchRepository::mapear).list();
