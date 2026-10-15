@@ -1,5 +1,6 @@
 package com.l.erp.authservice.infra.config;
 
+import com.l.erp.common.util.Constants;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
@@ -25,9 +26,10 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/login", "/auth/tenant/login", "/auth/partner/login", "/auth/refresh", "/auth/logout", "/auth/ativar", "/auth/criar-conta", "/auth/tenant/esqueci-senha", "/auth/redefinir-senha").permitAll()
-                        // loggers: usado pelo painel de diagnóstico (proxy interno); actuator não passa pelo gateway
+                        // loggers: só o proxy do painel de diagnóstico, com X-Internal-Secret (ver JwtFilter)
+                        .requestMatchers("/actuator/loggers", "/actuator/loggers/**").hasAuthority(Constants.AUTHORITY_INTERNAL)
                         // prometheus: alvo de scrape do Prometheus, que chega sem token nenhum
-                        .requestMatchers("/actuator/health", "/actuator/info", "/actuator/prometheus", "/actuator/loggers", "/actuator/loggers/**").permitAll()
+                        .requestMatchers("/actuator/health", "/actuator/info", "/actuator/prometheus").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         //.requestMatchers("/auth/**").permitAll()
                         .anyRequest().authenticated()

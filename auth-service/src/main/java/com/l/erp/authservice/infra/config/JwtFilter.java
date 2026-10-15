@@ -19,7 +19,11 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import com.l.erp.common.util.Constants;
+
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +36,9 @@ public class JwtFilter extends OncePerRequestFilter {
     @Value("${api.security.jwt.secret}")
     private String secret;
 
+    @Value("${internal.gateway.secret}")
+    private String internalSecret;
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain)
             throws ServletException, IOException {
@@ -43,6 +50,19 @@ public class JwtFilter extends OncePerRequestFilter {
 
         String path = request.getRequestURI();
         if (path.startsWith("/auth/login") || path.startsWith("/auth/partner/login") || path.startsWith("/auth/refresh") || path.startsWith("/auth/logout")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        // /actuator/loggers escreve nível de log em runtime: só aceita chamada interna (segredo do gateway),
+        // nunca JWT de usuário. Sem segredo válido não autentica e o SecurityConfig nega.
+        if (path.startsWith("/actuator/loggers")) {
+            String received = request.getHeader(Constants.HEADER_INTERNAL_SECRET);
+            if (received != null && MessageDigest.isEqual(
+                    received.getBytes(StandardCharsets.UTF_8), internalSecret.getBytes(StandardCharsets.UTF_8))) {
+                SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
+                        Constants.AUTHORITY_INTERNAL, null, List.of(new SimpleGrantedAuthority(Constants.AUTHORITY_INTERNAL))));
+            }
             filterChain.doFilter(request, response);
             return;
         }

@@ -367,6 +367,8 @@ public class Constants {
     // Segredo compartilhado gateway -> serviços internos (cadastro/partner/billing), prova de que
     // a request passou pelo gateway e não bateu direto no serviço (issue #62)
     public static final String HEADER_INTERNAL_SECRET = "X-Internal-Secret";
+    // Authority concedida a quem apresenta o segredo interno válido (ex.: proxy do painel de diagnóstico -> /actuator/loggers)
+    public static final String AUTHORITY_INTERNAL = "INTERNAL";
     public static final String HEADER_ASAAS_ACCESS_TOKEN = "asaas-access-token";
     public static final String HEADER_CORRELATION_ID = "X-Correlation-ID";
 

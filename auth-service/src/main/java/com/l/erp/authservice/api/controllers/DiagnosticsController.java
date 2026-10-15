@@ -6,6 +6,7 @@ import com.l.erp.authservice.services.TrialScheduler;
 import com.l.erp.common.util.Constants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.client.ServiceInstance;
 import org.springframework.cloud.client.discovery.DiscoveryClient;
 import org.springframework.http.HttpStatus;
@@ -39,6 +40,10 @@ public class DiagnosticsController {
 
     private final DiscoveryClient discoveryClient;
     private final RestClient restClient = RestClient.create();
+
+    // Segredo interno exigido pelo /actuator/loggers de cada serviço (F2)
+    @Value("${internal.gateway.secret}")
+    private String internalSecret;
 
     // #5 Runner de jobs: os schedulers de trial do auth, disparáveis manualmente.
     private final Map<String, Job> jobs = new LinkedHashMap<>();
@@ -121,6 +126,7 @@ public class DiagnosticsController {
     public ResponseEntity<Map<?, ?>> getLoggers(@RequestParam String service) {
         Map<?, ?> body = restClient.get()
                 .uri(baseUri(service) + "/actuator/loggers")
+                .header(Constants.HEADER_INTERNAL_SECRET, internalSecret)
                 .retrieve()
                 .body(Map.class);
         return ResponseEntity.ok(body);
@@ -136,6 +142,7 @@ public class DiagnosticsController {
         restClient.post()
                 .uri(baseUri(service) + "/actuator/loggers/" + logger)
                 .header("Content-Type", "application/json")
+                .header(Constants.HEADER_INTERNAL_SECRET, internalSecret)
                 .body(Map.of("configuredLevel", level == null ? "" : level))
                 .retrieve()
                 .toBodilessEntity();

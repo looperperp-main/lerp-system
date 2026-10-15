@@ -1,5 +1,6 @@
 package com.l.erp.authservice.integration;
 
+import com.l.erp.common.util.Constants;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.web.servlet.MockMvc;
@@ -34,6 +35,24 @@ class SecurityConfigIT extends AbstractIntegrationTest {
     @Test
     void actuatorPrometheus_passaSemAutenticacao() throws Exception {
         mockMvc.perform(get("/actuator/prometheus"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void actuatorLoggers_semSegredoInterno_negado() throws Exception {
+        mockMvc.perform(get("/actuator/loggers"))
+                .andExpect(status().is4xxClientError());
+    }
+
+    @Test
+    void actuatorLoggers_comSegredoErrado_negado() throws Exception {
+        mockMvc.perform(get("/actuator/loggers").header(Constants.HEADER_INTERNAL_SECRET, "errado"))
+                .andExpect(status().is4xxClientError());
+    }
+
+    @Test
+    void actuatorLoggers_comSegredoInterno_passa() throws Exception {
+        mockMvc.perform(get("/actuator/loggers").header(Constants.HEADER_INTERNAL_SECRET, "test-internal-gateway-secret"))
                 .andExpect(status().isOk());
     }
 }
